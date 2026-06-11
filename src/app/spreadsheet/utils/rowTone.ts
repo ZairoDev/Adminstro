@@ -6,11 +6,11 @@ export const STICKY_RIGHT_FIELDS = ["upload"] as const;
 export type StickyRightField = (typeof STICKY_RIGHT_FIELDS)[number];
 
 const STICKY_WIDTHS_SMALL: Record<StickyRightField, number> = {
-  upload: 50,
+  upload: 36,
 };
 
 const STICKY_WIDTHS_LARGE: Record<StickyRightField, number> = {
-  upload: 80,
+  upload: 40,
 };
 
 export function getStickyRightOffsetPx(
@@ -53,7 +53,7 @@ export function getOwnerRowToneClasses(
   selectedRowId: string | null,
 ): string {
   if (selectedRowId === item._id) {
-    return "!bg-amber-200 dark:!bg-amber-900/90 ring-2 ring-inset ring-amber-500 shadow-sm";
+    return "!bg-amber-200 dark:!bg-amber-900/90 ring-2 ring-inset ring-amber-500";
   }
 
   const missingEverything =
@@ -76,5 +76,5 @@ export function getOwnerRowToneClasses(
   return "bg-background";
 }
 
-export const STICKY_RIGHT_SHADOW =
-  "shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.45)] dark:shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.65)]";
+/** Subtle separator for the pinned actions column — no box shadow (avoids muddy overlap). */
+export const STICKY_RIGHT_SHADOW = "border-l border-border/70";

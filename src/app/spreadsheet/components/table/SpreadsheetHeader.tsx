@@ -41,6 +41,12 @@ export function SpreadsheetHeader({
             visibleStickyFields,
           );
           const isSticky = isStickyRightField(col.field);
+          const cellPadding =
+            col.field === "serial"
+              ? "px-1"
+              : col.field === "upload"
+                ? "px-0.5"
+                : "px-3";
 
           return (
             <div
@@ -55,9 +61,9 @@ export function SpreadsheetHeader({
                 col.sortable
                   ? "cursor-pointer select-none hover:bg-accent/50"
                   : ""
-              } ${col.width} px-3 py-2 h-10 text-xs font-semibold whitespace-nowrap border-r border-border last:border-r-0 flex items-center justify-center flex-shrink-0 bg-muted/30 ${
+              } ${col.width} ${cellPadding} py-2 h-10 text-xs font-semibold whitespace-nowrap border-r border-border last:border-r-0 flex items-center justify-center flex-shrink-0 bg-muted/30 ${
                 isSticky
-                  ? `sticky top-0 z-20 bg-muted ${STICKY_RIGHT_SHADOW}`
+                  ? `sticky top-0 z-20 bg-muted/95 backdrop-blur-[2px] ${STICKY_RIGHT_SHADOW}`
                   : ""
               }`}
             >

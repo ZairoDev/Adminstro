@@ -79,6 +79,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           },
         },
         ...ownerJourneyUserLookupStages(),
+        { $project: { password: 0 } },
       ]),
       Users.countDocuments(query),
     ]);
@@ -87,6 +88,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const row = doc as unknown as AggregatedUserForJourney;
       const ownerJourney = buildOwnerJourneyPayload(row);
       const cleaned = stripJourneyAggregationFields(doc as Record<string, unknown>);
+      delete cleaned.password;
       return { ...cleaned, ownerJourney };
     });
 

@@ -248,6 +248,8 @@ export interface PropertiesDataType {
   lastUpdatedBy?: string[];
   lastUpdates?: string[];
   isLive: boolean;
+  listingSource?: "standard" | "short_term_owner_sheet";
+  sourceOwnerSheetId?: string;
   approvalStatus?: "pending" | "approved" | "rejected";
   approvalNote?: string;
   approvedBy?: string;
@@ -406,7 +408,9 @@ export interface Property {
   lastUpdates?: string[][];
 
   isLive?: boolean;
-  origin?: "vacationsaga" | "holidaysera" | "housingsaga";
+  listingSource?: "standard" | "short_term_owner_sheet";
+  sourceOwnerSheetId?: string;
+  origin?: "vacationsaga" | "housingsaga" | "holidaysera";
   approvalStatus?: "pending" | "approved" | "rejected";
   approvalNote?: string;
   approvedBy?: string;
@@ -827,11 +831,18 @@ export interface FilterInterface {
   leadQualityByReviewer?: "Very Good" | "Good" | "Average" | "Below Average";
 }
 
+export type AdvertListingStatus = "pending" | "listed_draft" | "live";
+
 export interface  unregisteredOwners {
   _id: string;
   VSID: string;
   name: string;
-  // email: string;
+  email?: string;
+  ownerUserId?: string;
+  propertyMongoId?: string;
+  advertListingStatus?: AdvertListingStatus;
+  listedAt?: string | Date | null;
+  listedBy?: string;
   date: Date;
   location: string;
   interiorStatus: string;

@@ -19,12 +19,18 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { userSchema } from "@/schemas/user.schema";
-import { UserSchema } from "@/schemas/user.schema";
+import {
+  shortTermOwnerUserSchema,
+  userSchema,
+  type UserSchema,
+} from "@/schemas/user.schema";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSearchParams } from "next/navigation";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 
 const NewUser = () => {
+  const searchParams = useSearchParams();
+  const shortTermOwner = searchParams.get("shortTermOwner") === "1";
   const { toast } = useToast();
   const [profilePic, setProfilepic] = useState("");
 
@@ -89,20 +95,27 @@ const NewUser = () => {
     setValue,
     control,
   } = useForm<UserSchema>({
-    resolver: zodResolver(userSchema),
+    resolver: zodResolver(
+      shortTermOwner ? shortTermOwnerUserSchema : userSchema,
+    ),
     defaultValues: {
-      name: "",
-      email: "",
+      name: searchParams.get("name") ?? "",
+      email: searchParams.get("email") ?? "",
       sendDetails: false,
       nationality: "",
-      gender: undefined,
-      spokenLanguage: "",
+      gender: shortTermOwner ? "Male" : undefined,
+      spokenLanguage: shortTermOwner ? "English" : "",
       bankDetails: "",
-      phone: "",
+      phone: searchParams.get("phone") ?? "",
       address: "",
-      role: undefined,
+      role: shortTermOwner ? "Owner" : undefined,
     },
   });
+
+  useEffect(() => {
+    const prefillPhone = searchParams.get("phone");
+    if (prefillPhone) setPhone(prefillPhone);
+  }, [searchParams]);
 
   const selectedRole = watch("role");
   const selectedGender = watch("gender");
@@ -116,6 +129,7 @@ const NewUser = () => {
       ...data,
       phone: phone ?? data.phone,
       profilePic,
+      ...(shortTermOwner ? { shortTermOwner: true, role: "Owner" as const } : {}),
     };
 
     try {
@@ -141,8 +155,12 @@ const NewUser = () => {
   return (
     <>
       <Heading
-        heading="Create new user"
-        subheading="You can register new user from here."
+        heading={shortTermOwner ? "Create short-term owner" : "Create new user"}
+        subheading={
+          shortTermOwner
+            ? "Name, email, and phone only — the owner completes profile and payout details on Vacation Saga."
+            : "You can register new user from here."
+        }
       />
       <div className="h-full">
         <div className=" ">
@@ -210,43 +228,40 @@ const NewUser = () => {
                 </div>
               </div>
 
-              <div className="flex w-full sm:flex-row flex-col gap-x-2">
-                <div className="w-full">
-                  <Label htmlFor="bankDetails">Bank Details</Label>
-                  <Input
-                    {...register("bankDetails")}
-                    className="w-full"
-                    placeholder="Enter bank details"
-                  />
-                  {errors.bankDetails && (
-                    <p className="text-red-500 text-xs">
-                      {errors.bankDetails.message}
-                    </p>
-                  )}
+              {!shortTermOwner && (
+                <div className="flex w-full sm:flex-row flex-col gap-x-2">
+                  <div className="w-full">
+                    <Label htmlFor="bankDetails">Bank Details</Label>
+                    <Input
+                      {...register("bankDetails")}
+                      className="w-full"
+                      placeholder="Enter bank details"
+                    />
+                    {errors.bankDetails && (
+                      <p className="text-red-500 text-xs">
+                        {errors.bankDetails.message}
+                      </p>
+                    )}
+                  </div>
+                  <div className="w-full">
+                    <Label htmlFor="role">Role</Label>
+                    <Select
+                      onValueChange={(value) =>
+                        setValue("role", value as "Traveller" | "Owner")
+                      }
+                      value={selectedRole}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select Role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Traveller">Traveller</SelectItem>
+                        <SelectItem value="Owner">Owner</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="w-full">
-                  <Label htmlFor="role">Role</Label>
-                  <Select
-                    onValueChange={(value) =>
-                      setValue("role", value as "Traveller" | "Owner")
-                    } // Update the form value manually
-                    value={selectedRole} // Bind the selected value to the form state
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Traveller">Traveller</SelectItem>
-                      <SelectItem value="Owner">Owner</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {/* {errors.role && (
-                    <p className="text-red-500 text-xs">
-                      {errors.role.message}
-                    </p>
-                  )} */}
-                </div>
-              </div>
+              )}
               <div>
                 <div className="w-full ">
                   <Label htmlFor="phone">Phone Number</Label>
@@ -269,95 +284,79 @@ const NewUser = () => {
                   )}
                 </div>
               </div>
-              <div className="flex w-full sm:flex-row flex-col gap-x-2">
-                <div className="w-full">
-                  <Label htmlFor="nationality">Nationality</Label>
-                  <Input
-                    {...register("nationality")}
-                    className="w-full"
-                    placeholder="Enter nationality"
-                  />
-                  {errors.nationality && (
-                    <p className="text-red-500 text-xs">
-                      {errors.nationality.message}
-                    </p>
-                  )}
-                </div>
+              {!shortTermOwner && (
+                <>
+                  <div className="flex w-full sm:flex-row flex-col gap-x-2">
+                    <div className="w-full">
+                      <Label htmlFor="nationality">Nationality</Label>
+                      <Input
+                        {...register("nationality")}
+                        className="w-full"
+                        placeholder="Enter nationality"
+                      />
+                      {errors.nationality && (
+                        <p className="text-red-500 text-xs">
+                          {errors.nationality.message}
+                        </p>
+                      )}
+                    </div>
 
-                <div className="w-full">
-                  <Label htmlFor="spokenLanguage">Language</Label>
-                  <Input
-                    {...register("spokenLanguage")}
-                    className="w-full"
-                    placeholder="Enter language"
-                  />
-                  {errors.spokenLanguage && (
-                    <p className="text-red-500 text-xs">
-                      {errors.spokenLanguage.message}
-                    </p>
-                  )}
-                </div>
-              </div>
+                    <div className="w-full">
+                      <Label htmlFor="spokenLanguage">Language</Label>
+                      <Input
+                        {...register("spokenLanguage")}
+                        className="w-full"
+                        placeholder="Enter language"
+                      />
+                      {errors.spokenLanguage && (
+                        <p className="text-red-500 text-xs">
+                          {errors.spokenLanguage.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
 
-              <div className="flex sm:flex-row flex-col items-center gap-x-2 justify-between">
-                <div className="w-full">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    {...register("address")}
-                    className="w-full"
-                    placeholder="Enter address"
-                  />
-                  {errors.address && (
-                    <p className="text-red-500 text-xs">
-                      {errors.address.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="flex sm:flex-row flex-col items-center gap-x-2 justify-between">
+                    <div className="w-full">
+                      <Label htmlFor="address">Address</Label>
+                      <Input
+                        {...register("address")}
+                        className="w-full"
+                        placeholder="Enter address"
+                      />
+                      {errors.address && (
+                        <p className="text-red-500 text-xs">
+                          {errors.address.message}
+                        </p>
+                      )}
+                    </div>
 
-                <div className="w-full">
-                  <Label htmlFor="gender">Gender</Label>
-                  <Select
-                    // {...register("gender")}
-                    onValueChange={(value) =>
-                      setValue("gender", value as "Male" | "Female" | "Other")
-                    } // Update the form value manually
-                    value={selectedGender}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {errors.gender && (
-                    <p className="text-red-500 text-xs">
-                      {errors.gender.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* <div className="w-full">
-                  <Label htmlFor="gender">Gender</Label>
-                  <Select {...register("gender")} value="Male">
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select Gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {errors.gender && (
-                    <p className="text-red-500 text-xs">
-                      {errors.gender.message}
-                    </p>
-                  )}
-                </div> */}
-              </div>
+                    <div className="w-full">
+                      <Label htmlFor="gender">Gender</Label>
+                      <Select
+                        onValueChange={(value) =>
+                          setValue("gender", value as "Male" | "Female" | "Other")
+                        }
+                        value={selectedGender}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select Gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Female">Female</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {errors.gender && (
+                        <p className="text-red-500 text-xs">
+                          {errors.gender.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="flex items-center gap-x-2">
                 <Label

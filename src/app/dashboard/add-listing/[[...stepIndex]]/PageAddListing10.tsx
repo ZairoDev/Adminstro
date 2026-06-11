@@ -9,6 +9,11 @@ import { type FC, useEffect, useState } from "react";
 import Heading from "@/components/Heading";
 import type { UserInterface } from "@/util/type";
 import { useToast } from "@/hooks/use-toast";
+import { useShortTermDraftContext } from "@/hooks/useShortTermDraftContext";
+import {
+  clearAddListingDraftContext,
+  addListingWizardQuery,
+} from "@/lib/add-listing-draft-context";
 import { Button } from "@/components/ui/button";
 import ScreenLoader from "@/components/ScreenLoader";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -124,6 +129,13 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
   const { toast } = useToast();
   const params = useSearchParams();
   const userId = params?.get("userId") ?? null;
+  const ownerSheetIdParam = params?.get("ownerSheetId") ?? null;
+  const urlShortTermDraft = params?.get("shortTermDraft") === "1";
+  const { shortTermDraft, ownerSheetId } = useShortTermDraftContext(
+    userId,
+    ownerSheetIdParam,
+    urlShortTermDraft,
+  );
 
   const [isLiveDisabled, setIsLiveDisabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -278,10 +290,22 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
 
   // ! combining data from all the pages in data object and clearing the local storage after making the post request
   const handleGoLive = async () => {
+    const ownerEmail = user?.email?.trim();
+    if (shortTermDraft && (!ownerEmail || ownerEmail === "-")) {
+      toast({
+        variant: "destructive",
+        title: "Add owner email before registering property",
+      });
+      return;
+    }
+
     setIsLoading(true);
+
     const data = {
       userId: userId,
-      email: user?.email?.trim() || "-",
+      email: ownerEmail || "-",
+      ownerSheetId: shortTermDraft ? ownerSheetId : undefined,
+      shortTermDraft,
       propertyType: combinedData?.propertyType,
       placeName: combinedData?.placeName,
       rentalForm: combinedData?.rentalForm,
@@ -361,7 +385,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
       origin: combinedData?.origin ?? "vacationsaga",
       monthlyDiscount: combinedData?.monthlyDiscount,
       longTermMonths: combinedData?.longTermMonths,
-      isLive: true,
+      isLive: shortTermDraft ? false : true,
     };
 
     try {
@@ -374,9 +398,23 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         setIsLiveDisabled(true);
         setPropertyIdList(response2.data.mongoIds);
         setVsidList(response2.data.propertyIds);
+        if (shortTermDraft && ownerSheetId) {
+          clearAddListingDraftContext();
+        }
+        const emailSent = response2.data?.emailSent;
+        const emailError = response2.data?.emailError;
         toast({
-          title: "Your Property is Now Live!",
-          description: `Your property for ${user?.name} is now live!`,
+          title: shortTermDraft
+            ? "Property registered (not live)"
+            : "Your Property is Now Live!",
+          description: shortTermDraft
+            ? emailSent
+              ? `Draft listing created for ${user?.name}. Owner has been emailed with login details.`
+              : emailError
+                ? `Draft created but email failed: ${emailError}`
+                : `Draft listing created for ${user?.name}.`
+            : `Your property for ${user?.name} is now live!`,
+          variant: shortTermDraft && emailError ? "destructive" : undefined,
         });
         clearLocalStorage();
       }
@@ -452,7 +490,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
                         isLiveDisabled || !combinedData?.placeName || loading
                       }
                     >
-                      Go live 🚀
+                      {shortTermDraft ? "Register property (not live)" : "Go live 🚀"}
                     </Button>
                   )}
                 </>
@@ -487,29 +525,46 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
           )}
 
           {propertyIdList.map((propertyId, index) => (
-            <div className="flex items-center gap-2" key={index}>
-              <div className="text-xs">
-                Your Property Link:{" "}
-                <a
-                  href={`https://www.vacationsaga.com/listing-stay-detail/${propertyId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-500 underline"
-                >
-                  https://www.vacationsaga.com/listing-stay-detail/
-                  {propertyId}
-                </a>
-              </div>
-              <Button
-                onClick={() =>
-                  navigator.clipboard.writeText(
-                    `https://www.vacationsaga.com/listing-stay-detail/${propertyId}`
-                  )
-                }
-                className=""
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
+            <div className="flex flex-col gap-1" key={index}>
+              {shortTermDraft ? (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    Public Vacation Saga link will be available after owner
+                    completes onboarding and you make the property live from
+                    Manage User.
+                  </p>
+                  <Link href="/dashboard/user?tab=listing-queue">
+                    <Button variant="outline" size="sm" className="w-fit">
+                      View in listing queue
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="text-xs">
+                    Your Property Link:{" "}
+                    <a
+                      href={`https://www.vacationsaga.com/listing-stay-detail/${propertyId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 underline"
+                    >
+                      https://www.vacationsaga.com/listing-stay-detail/
+                      {propertyId}
+                    </a>
+                  </div>
+                  <Button
+                    onClick={() =>
+                      navigator.clipboard.writeText(
+                        `https://www.vacationsaga.com/listing-stay-detail/${propertyId}`
+                      )
+                    }
+                    className=""
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -519,7 +574,7 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         <Link
           href={{
             pathname: `/dashboard/add-listing/9`,
-            query: { userId: userId },
+            query: addListingWizardQuery(userId),
           }}
         >
           <Button>Go back</Button>

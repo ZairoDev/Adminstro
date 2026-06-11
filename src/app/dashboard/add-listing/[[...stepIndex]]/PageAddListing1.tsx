@@ -1,5 +1,6 @@
 "use client";
-import React, { FC, useEffect, useState } from "react";
+import React, { FC, useEffect, useRef, useState } from "react";
+import axios from "@/util/axios";
 import FormItem from "../FormItem";
 import { Input } from "@/components/ui/input";
 import {
@@ -14,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { useSearchParams } from "next/navigation";
 import Heading from "@/components/Heading";
 import { useToast } from "@/hooks/use-toast";
+import { useShortTermDraftContext } from "@/hooks/useShortTermDraftContext";
+import { addListingWizardQuery } from "@/lib/add-listing-draft-context";
 
 export interface PageAddListing1Props {}
 
@@ -32,7 +35,15 @@ interface Page1State {
 const PageAddListing1: FC<PageAddListing1Props> = () => {
   const params = useSearchParams() ?? null;
   const userId = params?.get("userId") ?? null;
+  const ownerSheetIdParam = params?.get("ownerSheetId") ?? null;
+  const urlShortTermDraft = params?.get("shortTermDraft") === "1";
+  const prefillAppliedRef = useRef(false);
   const { toast } = useToast();
+  const { shortTermDraft, ownerSheetId } = useShortTermDraftContext(
+    userId,
+    ownerSheetIdParam,
+    urlShortTermDraft,
+  );
 
   // ✅ Set safe defaults that work on SSR
   const [propertyType, setPropertyType] = useState<string>("Hotel");
@@ -72,7 +83,72 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!ownerSheetId || !shortTermDraft || prefillAppliedRef.current) return;
 
+    const applyPrefill = async () => {
+      try {
+        const res = await axios.get(
+          `/api/unregisteredOwnersShortTerm/${ownerSheetId}/listing-prefill`,
+        );
+        const p = res.data;
+        prefillAppliedRef.current = true;
+
+        const page1: Page1State = {
+          propertyType: p.propertyType || "Hotel",
+          placeName: p.placeName || "",
+          rentalForm: p.rentalForm || "Entire place",
+          numberOfPortions: p.numberOfPortions || 1,
+          showPortionsInput: false,
+          rentalType: "Short Term",
+          origin: "vacationsaga",
+        };
+        const page2 = {
+          city: p.city || "",
+          area: p.area || "",
+          address: p.address || "",
+          country: "",
+          state: "",
+          street: p.address || "",
+          postalCode: "",
+          floor: p.propertyFloor || "",
+          roomNumber: "",
+        };
+
+        localStorage.setItem("page1", JSON.stringify(page1));
+        localStorage.setItem("page2", JSON.stringify(page2));
+        if (p.propertyCoverFileUrl) {
+          localStorage.setItem("propertyCoverFileUrl", p.propertyCoverFileUrl);
+        }
+        if (p.propertyPictureUrls?.length) {
+          localStorage.setItem(
+            "propertyPictureUrls",
+            JSON.stringify(p.propertyPictureUrls),
+          );
+        }
+
+        setPropertyType(page1.propertyType);
+        setPlaceName(page1.placeName);
+        setRentalForm(page1.rentalForm);
+        setNumberOfPortions(page1.numberOfPortions);
+        setShowPortionsInput(false);
+        setRentalType("Short Term");
+        setOrigin("vacationsaga");
+
+        toast({
+          title: "Prefilled from short-term owner sheet",
+          description: "Review the details and continue through the wizard.",
+        });
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "Could not prefill from owner sheet",
+        });
+      }
+    };
+
+    void applyPrefill();
+  }, [ownerSheetId, shortTermDraft, toast]);
 
   const [isFormComplete, setIsFormComplete] = useState<boolean>(false);
   const handlePropertyTypeChange = (value: string) => setPropertyType(value);
@@ -315,7 +391,7 @@ const PageAddListing1: FC<PageAddListing1Props> = () => {
         <Link
           href={{
             pathname: `/dashboard/add-listing/2`,
-            query: { userId: userId },
+            query: addListingWizardQuery(userId),
           }}
           onClick={handleNextClick}
         >

@@ -1,7 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { Properties } from "@/models/property";
+import { unregisteredOwnerShortTerm } from "@/models/unregisteredOwnerShortTerm";
+import Users from "@/models/user";
 import { Property as PropertyType } from "@/util/type";
+import { getDataFromToken } from "@/util/getDataFromToken";
+import { sendOwnerPropertyRegisteredEmail } from "@/util/ownerListingEmail";
+import { resolveShortTermDraft } from "@/lib/resolve-short-term-draft";
 import { customAlphabet } from "nanoid";
 
 connectDb();
@@ -41,9 +46,12 @@ function sanitizeAmenities(obj: unknown): Record<string, boolean> {
   return Object.fromEntries(entries);
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const data: PropertyType = await request.json();
+    const data: PropertyType & {
+      shortTermDraft?: boolean;
+      ownerSheetId?: string;
+    } = await request.json();
       const host = request.headers.get("host");
 
       const {
@@ -127,6 +135,46 @@ export async function POST(request: Request) {
         typeof email === "string" && email.trim().length > 0
           ? email.trim()
           : "-";
+
+      const explicitOwnerSheetId =
+        typeof data.ownerSheetId === "string" ? data.ownerSheetId.trim() : "";
+
+      const ownerUser = await Users.findById(userId).select("email phone").lean();
+      const draftResolution = await resolveShortTermDraft({
+        userId,
+        ownerEmail:
+          normalizedEmail !== "-"
+            ? normalizedEmail
+            : String((ownerUser as { email?: string } | null)?.email ?? "") ||
+              undefined,
+        ownerPhone: String((ownerUser as { phone?: string } | null)?.phone ?? ""),
+        explicitDraft: data.shortTermDraft === true,
+        explicitOwnerSheetId,
+      });
+
+      const shortTermDraft = draftResolution.shortTermDraft;
+      const ownerSheetId = draftResolution.ownerSheetId;
+
+      if (shortTermDraft && (normalizedEmail === "-" || !normalizedEmail)) {
+        return NextResponse.json(
+          { error: "Owner email is required before registering property" },
+          { status: 400 },
+        );
+      }
+
+      const resolvedIsLive = shortTermDraft ? false : Boolean(isLive);
+
+      let listedByEmail = "";
+      if (shortTermDraft) {
+        try {
+          const auth = await getDataFromToken(request);
+          listedByEmail = String(
+            (auth as { email?: string }).email ?? "",
+          ).trim();
+        } catch {
+          listedByEmail = "";
+        }
+      }
 
       console.log("data:", data);
       const mongoIds: string[] = [];  
@@ -257,7 +305,18 @@ export async function POST(request: Request) {
           lastUpdates: [],
           longTermMonths,
           approvalStatus: resolveApprovalStatus(normalizedOrigin),
-          isLive,
+          isLive: resolvedIsLive,
+          ...(shortTermDraft && ownerSheetId
+            ? {
+                listingSource: "short_term_owner_sheet",
+                sourceOwnerSheetId: ownerSheetId,
+                ownerOnboarding: {
+                  serviceAgreementAcceptedAt: null,
+                  partnerAgreementAcceptedAt: null,
+                },
+                ownerOnboardingComplete: false,
+              }
+            : {}),
         };
 
         const newProperty = await Properties.create(propertyData);
@@ -265,7 +324,68 @@ export async function POST(request: Request) {
         mongoIds.push(newProperty._id.toString());
       }
 
-      return NextResponse.json({ propertyIds, mongoIds }, { status: 200 });
+      if (shortTermDraft && ownerSheetId && propertyIds.length > 0) {
+        const primaryVsid = propertyIds[0];
+        const primaryMongoId = mongoIds[0];
+
+        await unregisteredOwnerShortTerm.findByIdAndUpdate(ownerSheetId, {
+          VSID: primaryVsid,
+          propertyMongoId: primaryMongoId,
+          advertListingStatus: "listed_draft",
+          listedAt: new Date(),
+          listedBy: listedByEmail,
+        });
+
+        const ownerRow = await unregisteredOwnerShortTerm
+          .findById(ownerSheetId)
+          .lean();
+        const ownerUser = await Users.findById(userId).select("name email").lean();
+        const ownerName =
+          String((ownerRow as { name?: string } | null)?.name ?? "") ||
+          String((ownerUser as { name?: string } | null)?.name ?? "Owner");
+        const emailTo =
+          normalizedEmail !== "-"
+            ? normalizedEmail
+            : String((ownerUser as { email?: string } | null)?.email ?? "");
+
+        let emailSent = false;
+        let emailError: string | undefined;
+        if (emailTo) {
+          try {
+            const mailResult = await sendOwnerPropertyRegisteredEmail({
+              to: emailTo,
+              ownerName,
+              propertyName: placeName ?? "Your property",
+              vsid: primaryVsid,
+              loginEmail: emailTo,
+            });
+            emailSent = mailResult.success;
+            if (!mailResult.success) emailError = mailResult.message;
+          } catch (mailErr) {
+            console.error("sendOwnerPropertyRegisteredEmail failed:", mailErr);
+            emailError =
+              mailErr instanceof Error ? mailErr.message : "Email send failed";
+          }
+        }
+
+        return NextResponse.json(
+          {
+            propertyIds,
+            mongoIds,
+            isLive: resolvedIsLive,
+            shortTermDraft: true,
+            ownerSheetId,
+            emailSent,
+            emailError,
+          },
+          { status: 200 },
+        );
+      }
+
+      return NextResponse.json(
+        { propertyIds, mongoIds, isLive: resolvedIsLive, shortTermDraft: false },
+        { status: 200 },
+      );
   } catch (error) {
     console.error("Error:", error);
     const msg = error instanceof Error ? error.message : "Unknown error";

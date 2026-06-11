@@ -45,6 +45,7 @@ import {
   PaginationLink,
   PaginationEllipsis,
 } from "@/components/ui/pagination";
+import { PropertyListingReadiness } from "@/components/owner-management/PropertyListingReadiness";
 
 interface ApiResponse {
   data: Property[];
@@ -131,7 +132,13 @@ const PropertyPage: React.FC = () => {
           property._id === propertyId ? { ...property, isLive: true } : property
         )
       );
-    } catch (err) {
+    } catch (err: unknown) {
+      const data = (err as { response?: { data?: { message?: string; missingSteps?: string[] } } })
+        ?.response?.data;
+      const missing = data?.missingSteps?.length
+        ? ` ${data.missingSteps.join(", ")}`
+        : "";
+      window.alert(`${data?.message ?? "Could not make property live."}${missing}`);
       console.error(err);
     } finally {
       setIsSubmitting(false);
@@ -351,8 +358,19 @@ const PropertyPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                  {property?.listingSource === "short_term_owner_sheet" &&
+                    !property?.isLive &&
+                    property?.sourceOwnerSheetId && (
+                      <PropertyListingReadiness
+                        propertyMongoId={property._id}
+                        sourceOwnerSheetId={property.sourceOwnerSheetId}
+                        onLive={() => handleLiveAction(property._id)}
+                      />
+                    )}
                   <div className="flex gap-y-2 mt-1 px-2 gap-x-2  justify-between">
-                    {!property?.isLive && showVisibilityActions && (
+                    {!property?.isLive &&
+                      showVisibilityActions &&
+                      property?.listingSource !== "short_term_owner_sheet" && (
                       <>
                         {canTogglePropertyLive ? (
                       <Drawer>

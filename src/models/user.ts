@@ -37,8 +37,10 @@ const userSchema = new Schema<IUser>(
       default: "English",
     },
     bankDetails: {
-      type: String,
-      default: "",
+      accountHolderName: { type: String, default: "" },
+      iban: { type: String, default: "" },
+      bankName: { type: String, default: "" },
+      swiftBic: { type: String, default: "" },
     },
     phone: {
       type: String,
@@ -81,6 +83,14 @@ const userSchema = new Schema<IUser>(
     otpTokenExpiry: Date,
     origin: {
       type: String,
+    },
+    isProfileComplete: {
+      type: Boolean,
+      default: false,
+    },
+    ownerProfileCompletedAt: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }

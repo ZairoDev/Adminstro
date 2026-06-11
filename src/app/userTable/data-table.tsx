@@ -90,7 +90,7 @@ export function DataTable({
 
   return (
     <div className="space-y-5">
-      <Heading heading="All Users" subheading="Manage and view all registered users" />
+      <Heading heading="All users" subheading="Manage and view all registered users" />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-md">

@@ -1,6 +1,7 @@
 "use client";
+import { useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal, Trash } from "lucide-react";
+import { ArrowUpDown, Copy, KeyRound, Loader2, MoreHorizontal, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,6 +14,8 @@ import {
 import Link from "next/link";
 import { UserInterface } from "@/util/type";
 import axios from "@/util/axios";
+import { AddPropertyLink } from "./AddPropertyLink";
+import { useToast } from "@/hooks/use-toast";
 
 const renderCell = (value: any) => (value ? value : "NA");
 
@@ -25,6 +28,103 @@ const handleDelete = (id: string) => async () => {
     console.log(error);
   }
 };
+
+function OwnerPasswordCell({
+  user,
+  setData,
+}: {
+  user: UserInterface;
+  setData: React.Dispatch<React.SetStateAction<UserInterface[]>>;
+}) {
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+  const displayedPassword = user.password?.trim() || "";
+
+  const resetPassword = async () => {
+    const confirmed = window.confirm(
+      `Reset password for ${user.name || "this owner"}? The previous password cannot be recovered.`,
+    );
+    if (!confirmed) return;
+
+    setLoading(true);
+    try {
+      const response = await axios.post("/api/user/resetPassword", {
+        userId: user._id,
+      });
+      const newPassword = response.data.newPassword as string;
+
+      setData((prev) =>
+        prev.map((row) =>
+          row._id === user._id ? { ...row, password: newPassword } : row,
+        ),
+      );
+
+      toast({
+        title: "Password reset",
+        description: `New password for ${user.name || user.email}: ${newPassword}`,
+      });
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast({
+        variant: "destructive",
+        title: "Failed to reset password",
+        description: err.response?.data?.error ?? "Please try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyPassword = async () => {
+    if (!displayedPassword) return;
+    try {
+      await navigator.clipboard.writeText(displayedPassword);
+      toast({ description: "Password copied to clipboard" });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "Could not copy password",
+      });
+    }
+  };
+
+  return (
+    <div className="flex min-w-[10rem] flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <code className="rounded bg-muted px-2 py-1 text-xs font-medium">
+          {displayedPassword || "Reset to view"}
+        </code>
+        {displayedPassword ? (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 shrink-0"
+            onClick={copyPassword}
+            title="Copy password"
+          >
+            <Copy className="h-3.5 w-3.5" />
+          </Button>
+        ) : null}
+      </div>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="h-8 w-fit gap-1.5"
+        onClick={resetPassword}
+        disabled={loading}
+      >
+        {loading ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <KeyRound className="h-3.5 w-3.5" />
+        )}
+        Reset password
+      </Button>
+    </div>
+  );
+}
 
 export const columns = (
   setData: React.Dispatch<React.SetStateAction<UserInterface[]>>
@@ -61,6 +161,15 @@ export const columns = (
     accessorKey: "role",
     header: "Role",
     cell: ({ getValue }) => renderCell(getValue()),
+  },
+  {
+    id: "ownerPassword",
+    header: "Password",
+    cell: ({ row }) => {
+      const user = row.original;
+      if (user.role !== "Owner") return "—";
+      return <OwnerPasswordCell user={user} setData={setData} />;
+    },
   },
   {
     accessorKey: "vsids",
@@ -215,15 +324,8 @@ export const columns = (
               Copy userId
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <Link
-                href={{
-                  pathname: `/dashboard/add-listing/1/`,
-                  query: { userId: user._id },
-                }}
-              >
-                Add Property
-              </Link>
+            <DropdownMenuItem asChild>
+              <AddPropertyLink userId={user._id} />
             </DropdownMenuItem>
             <DropdownMenuItem>
               <Link href={`/dashboard/edituserdetails/${user._id}`}>

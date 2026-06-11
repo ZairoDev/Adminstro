@@ -4,9 +4,14 @@ import { connectDb } from "@/util/db";
 import Users from "@/models/user";
 import bcryptjs from "bcryptjs";
 import { sendEmail } from "@/util/mailer";
-import { userSchema } from "@/schemas/user.schema";
+import {
+  emptyBankDetails,
+  shortTermOwnerUserSchema,
+  userSchema,
+} from "@/schemas/user.schema";
 import crypto from "crypto";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { unregisteredOwnerShortTerm } from "@/models/unregisteredOwnerShortTerm";
 
 const generateRandomPassword = (length: number): string => {
   return crypto.randomBytes(length).toString("hex").slice(0, length);
@@ -16,7 +21,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await connectDb();
 
     const reqBody = await request.json();
-    const parsedBody = userSchema.parse(reqBody);
+    const shortTermOwner = Boolean(reqBody.shortTermOwner);
+    const parsedBody = shortTermOwner
+      ? shortTermOwnerUserSchema.parse(reqBody)
+      : userSchema.parse(reqBody);
 
     // Detect if creator is HAdmin
     let creatorRole: string | null = null;
@@ -69,15 +77,75 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       role,
       phone: phoneNumber.replace(/\D/g, ""),
       gender,
-      nationality,
+      nationality: nationality || "",
       spokenLanguage,
-      bankDetails,
-      address,
+      address: address || "",
       profilePic,
-      // Auto-set origin when created by HAdmin
+      bankDetails:
+        role === "Owner"
+          ? { ...emptyBankDetails }
+          : typeof bankDetails === "string" && bankDetails.trim()
+            ? {
+                accountHolderName: bankDetails.trim(),
+                iban: "",
+                bankName: "",
+                swiftBic: "",
+              }
+            : { ...emptyBankDetails },
+      isProfileComplete: false,
+      ownerProfileCompletedAt: null,
       ...(creatorRole === "HAdmin" ? { origin: "holidaysera" } : {}),
     });
     const savedUser = await newUser.save();
+
+    if (role === "Owner") {
+      const emailNorm = String(email ?? "").trim();
+      const phoneNorm = phoneNumber.replace(/\D/g, "");
+      const pendingFilter = {
+        advertListingStatus: "pending" as const,
+        $or: [{ ownerUserId: "" }, { ownerUserId: { $exists: false } }],
+      };
+
+      if (emailNorm) {
+        await unregisteredOwnerShortTerm.updateMany(
+          {
+            ...pendingFilter,
+            email: {
+              $regex: new RegExp(
+                `^${emailNorm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+                "i",
+              ),
+            },
+          },
+          {
+            $set: {
+              ownerUserId: savedUser._id.toString(),
+              email: emailNorm,
+            },
+          },
+        );
+      }
+
+      if (phoneNorm.length >= 8) {
+        const pendingRows = await unregisteredOwnerShortTerm
+          .find(pendingFilter)
+          .select("_id phoneNumber ownerUserId")
+          .lean();
+        const match = pendingRows.find(
+          (row) =>
+            String((row as { phoneNumber?: string }).phoneNumber ?? "").replace(
+              /\D/g,
+              "",
+            ) === phoneNorm,
+        );
+        if (match) {
+          await unregisteredOwnerShortTerm.findByIdAndUpdate(match._id, {
+            ownerUserId: savedUser._id.toString(),
+            ...(emailNorm ? { email: emailNorm } : {}),
+          });
+        }
+      }
+    }
 
     if (sendDetails && email) {
       await sendEmail({
@@ -91,6 +159,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       message: "User created successfully.",
       success: true,
       password: plainPassword,
+      userId: savedUser._id.toString(),
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

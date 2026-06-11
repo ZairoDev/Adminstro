@@ -15,6 +15,7 @@ import {
   PawPrint,
   Phone,
   Plus,
+  Settings,
 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -70,7 +71,26 @@ import {
   STICKY_RIGHT_SHADOW,
   type StickyRightField,
 } from "./utils/rowTone";
-import { OWNER_SHEET_LONG_TERM_CONFIG } from "./ownerSheetConfig";
+import {
+  OWNER_SHEET_LONG_TERM_CONFIG,
+  type OwnerSheetVariant,
+} from "./ownerSheetConfig";
+import type { AdvertListingStatus } from "@/util/type";
+
+const advertListingStatusShort: Record<AdvertListingStatus, string> = {
+  pending: "Pending",
+  listed_draft: "Draft",
+  live: "Live",
+};
+
+const advertListingStatusClass: Record<AdvertListingStatus, string> = {
+  pending:
+    "bg-muted/80 text-muted-foreground border-border/60",
+  listed_draft:
+    "bg-amber-100/90 text-amber-900 border-amber-200/80 dark:bg-amber-950/80 dark:text-amber-100 dark:border-amber-800/60",
+  live:
+    "bg-emerald-100/90 text-emerald-900 border-emerald-200/80 dark:bg-emerald-950/80 dark:text-emerald-100 dark:border-emerald-800/60",
+};
 
 export const apartmentTypes = [
   { label: "Studio", value: "Studio" },
@@ -88,9 +108,10 @@ export const apartmentTypes = [
 
 // Small screens
 const smallColumnWidths = {
-  serial: "w-[70px] min-w-[70px] max-w-[70px]",
+  serial: "w-[48px] min-w-[48px] max-w-[48px]",
   name: "w-[140px] min-w-[140px] max-w-[140px]",
   phone: "w-[90px] min-w-[90px] max-w-[90px]",
+  email: "w-[150px] min-w-[150px] max-w-[150px]",
   location: "w-[100px] min-w-[100px] max-w-[100px]",
   price: "w-[95px] min-w-[95px] max-w-[95px]",
   area: "w-[110px] min-w-[110px] max-w-[110px]",
@@ -106,14 +127,15 @@ const smallColumnWidths = {
   geoVerified: "w-[88px] min-w-[88px] max-w-[88px]",
   propertyFloor: "w-[72px] min-w-[72px] max-w-[72px]",
   distance: "w-[140px] min-w-[140px] max-w-[140px]",
-  actions: "w-[50px] min-w-[50px] max-w-[50px]",
+  actions: "w-[36px] min-w-[36px] max-w-[36px]",
 };
 
 // Large screens  
 const largeColumnWidths = {
-  serial: "w-[80px] min-w-[80px] max-w-[80px]",
+  serial: "w-[52px] min-w-[52px] max-w-[52px]",
   name: "w-[150px] min-w-[150px] max-w-[150px]",
   phone: "w-[120px] min-w-[120px] max-w-[120px]",
+  email: "w-[160px] min-w-[160px] max-w-[160px]",
   location: "w-[120px] min-w-[120px] max-w-[120px]",
   price: "w-[100px] min-w-[100px] max-w-[100px]",
   area: "w-[120px] min-w-[120px] max-w-[120px]",
@@ -129,7 +151,7 @@ const largeColumnWidths = {
   geoVerified: "w-[100px] min-w-[100px] max-w-[100px]",
   propertyFloor: "w-[88px] min-w-[88px] max-w-[88px]",
   distance: "w-[150px] min-w-[150px] max-w-[150px]",
-  actions: "w-[80px] min-w-[80px] max-w-[80px]",
+  actions: "w-[40px] min-w-[40px] max-w-[40px]",
 };
 
 
@@ -168,7 +190,7 @@ function getStickyCellProps(
     return { className: rowTone };
   }
   return {
-    className: `${rowTone} sticky z-10 ${STICKY_RIGHT_SHADOW}`,
+    className: `${rowTone} sticky z-10 ${STICKY_RIGHT_SHADOW} backdrop-blur-[1px]`,
     style: { right: offset },
   };
 }
@@ -184,6 +206,7 @@ export function SpreadsheetTable({
   extraColumnRender,
   filterPlace = [],
   apiBasePath = OWNER_SHEET_LONG_TERM_CONFIG.apiBasePath,
+  sheetVariant = OWNER_SHEET_LONG_TERM_CONFIG.variant,
 }: {
   tableData: unregisteredOwners[];
   setTableData: React.Dispatch<React.SetStateAction<unregisteredOwners[]>>;
@@ -196,7 +219,9 @@ export function SpreadsheetTable({
   /** Active city filter from FilterBar — used as default location for new rows. */
   filterPlace?: string[];
   apiBasePath?: string;
+  sheetVariant?: OwnerSheetVariant;
 }): ReactElement {
+  const isShortTermSheet = sheetVariant === "short-term";
 
   const [isLargeScreen, setIsLargeScreen] = useState(true);
 
@@ -227,7 +252,7 @@ useEffect(() => {
 
   const columns = [
     {
-      label: "S.No",
+      label: "#",
       field: "serial",
       sortable: false,
       width: columnWidths.serial,
@@ -239,6 +264,16 @@ useEffect(() => {
       sortable: false,
       width: columnWidths.phone,
     },
+    ...(isShortTermSheet
+      ? [
+          {
+            label: "Email",
+            field: "email",
+            sortable: false,
+            width: columnWidths.email,
+          },
+        ]
+      : []),
     {
       label: "Location",
       field: "location",
@@ -334,7 +369,7 @@ useEffect(() => {
         ]
       : []),
     {
-      label: "Actions",
+      label: <Settings className="h-3.5 w-3.5" aria-hidden />,
       field: "upload",
       sortable: false,
       width: columnWidths.actions,
@@ -1154,6 +1189,10 @@ useEffect(() => {
             {applyFilter(sortedData).map(
               (item: unregisteredOwners, index: number) => {
                 const rowTone = getOwnerRowToneClasses(item, selectedRow);
+                const ci = (longTermIndex: number) =>
+                  isShortTermSheet && longTermIndex >= 2
+                    ? longTermIndex + 1
+                    : longTermIndex;
                 const actionsSticky = getStickyCellProps(
                   "upload",
                   rowTone,
@@ -1174,7 +1213,7 @@ useEffect(() => {
                     }}
                     className={`${
                       columnWidths.serial
-                    } font-medium flex items-center gap-1 px-3 py-2 h-10 whitespace-nowrap border-r border-border flex-shrink-0 ${
+                    } font-medium flex items-center justify-center gap-0.5 px-1 py-2 h-10 whitespace-nowrap border-r border-border flex-shrink-0 text-xs ${
                       selectedCell?.rowId === item._id &&
                       selectedCell?.colIndex === -1
                         ? "ring-2 ring-primary ring-inset"
@@ -1299,6 +1338,57 @@ useEffect(() => {
                     ) : null}
                   </div>
 
+                  {isShortTermSheet ? (
+                    <div
+                      className={`${
+                        columnWidths.email
+                      } px-3 py-2 h-10 border-r border-border flex items-center gap-1.5 flex-shrink-0 min-w-0 ${
+                        selectedCell?.rowId === item._id &&
+                        selectedCell?.colIndex === 2
+                          ? "ring-2 ring-primary ring-inset"
+                          : ""
+                      }`}
+                      onClick={() => {
+                        setSelectedCell({
+                          rowId: item._id,
+                          field: "Email",
+                          value: item.email?.toString() || "",
+                          rowIndex: index,
+                          colIndex: 2,
+                        });
+                        setSelectedRow(item._id);
+                      }}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <EditableCell
+                          value={item.email?.toString() ?? ""}
+                          onSave={(newValue) =>
+                            handleSave(item._id, "email", newValue)
+                          }
+                          maxWidth="100%"
+                        />
+                      </div>
+                      {item.advertListingStatus ? (
+                        <span
+                          className={`shrink-0 rounded border px-1 py-px text-[9px] font-medium leading-tight ${
+                            advertListingStatusClass[
+                              item.advertListingStatus as AdvertListingStatus
+                            ] ?? advertListingStatusClass.pending
+                          }`}
+                          title={
+                            advertListingStatusShort[
+                              item.advertListingStatus as AdvertListingStatus
+                            ] ?? item.advertListingStatus
+                          }
+                        >
+                          {advertListingStatusShort[
+                            item.advertListingStatus as AdvertListingStatus
+                          ] ?? item.advertListingStatus}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   <div
                     ref={(el) => {
                       if (el) cellRefs.current.set(`${item._id}-2`, el);
@@ -1307,7 +1397,7 @@ useEffect(() => {
                       columnWidths.location
                     } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 2
+                      selectedCell?.colIndex === ci(2)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1318,7 +1408,7 @@ useEffect(() => {
                         field: "Location",
                         value: item.location,
                         rowIndex: index,
-                        colIndex: 2,
+                        colIndex: ci(2),
                       });
                       setSelectedRow(item._id);
                     }}
@@ -1345,7 +1435,7 @@ useEffect(() => {
                       columnWidths.price
                     } px-3 py-2 h-10 whitespace-nowrap border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 3
+                      selectedCell?.colIndex === ci(3)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1355,7 +1445,7 @@ useEffect(() => {
                         field: "Price",
                         value: item.price,
                         rowIndex: index,
-                        colIndex: 3,
+                        colIndex: ci(3),
                       });
                       setSelectedRow(item._id);
                     }}
@@ -1377,7 +1467,7 @@ useEffect(() => {
                       columnWidths.area
                     } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 4
+                      selectedCell?.colIndex === ci(4)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1387,7 +1477,7 @@ useEffect(() => {
                         field: "Area",
                         value: item.area || "",
                         rowIndex: index,
-                        colIndex: 4,
+                        colIndex: ci(4),
                       });
                       setSelectedRow(item._id);
                     }}
@@ -1419,7 +1509,7 @@ useEffect(() => {
                       columnWidths.availability
                     } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 5
+                      selectedCell?.colIndex === ci(5)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1429,7 +1519,7 @@ useEffect(() => {
                         field: "Availability",
                         value: item.availability,
                         rowIndex: index,
-                        colIndex: 5,
+                        colIndex: ci(5),
                       });
                       setSelectedRow(item._id);
                     }}
@@ -1452,7 +1542,7 @@ useEffect(() => {
                       columnWidths.interiorStatus
                     } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 6
+                      selectedCell?.colIndex === ci(6)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1462,7 +1552,7 @@ useEffect(() => {
                         field: "Interior Status",
                         value: item.interiorStatus,
                         rowIndex: index,
-                        colIndex: 6,
+                        colIndex: ci(6),
                       });
                       setSelectedRow(item._id);
                     }}
@@ -1485,7 +1575,7 @@ useEffect(() => {
                       columnWidths.propertyFloor
                     } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 7
+                      selectedCell?.colIndex === ci(7)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1496,7 +1586,7 @@ useEffect(() => {
                         field: "Floor",
                         value: item.propertyFloor ?? "",
                         rowIndex: index,
-                        colIndex: 7,
+                        colIndex: ci(7),
                       });
                       setSelectedRow(item._id);
                     }}
@@ -1523,7 +1613,7 @@ useEffect(() => {
                       columnWidths.propertyType
                     } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 8
+                      selectedCell?.colIndex === ci(8)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1533,7 +1623,7 @@ useEffect(() => {
                         field: "Property Type",
                         value: item.propertyType,
                         rowIndex: index,
-                        colIndex: 8,
+                        colIndex: ci(8),
                       });
                       setSelectedRow(item._id);
                     }}
@@ -1562,7 +1652,7 @@ useEffect(() => {
                       columnWidths.remarks
                     } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 9
+                      selectedCell?.colIndex === ci(9)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1573,7 +1663,7 @@ useEffect(() => {
                         field: "Remarks",
                         value: item.remarks,
                         rowIndex: index,
-                        colIndex: 9,
+                        colIndex: ci(9),
                       });
                       setSelectedRow(item._id);
                     }}
@@ -1596,7 +1686,7 @@ useEffect(() => {
                       columnWidths.refLink
                     } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 10
+                      selectedCell?.colIndex === ci(10)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1607,7 +1697,7 @@ useEffect(() => {
                         field: "Ref Link",
                         value: item.referenceLink,
                         rowIndex: index,
-                        colIndex: 10,
+                        colIndex: ci(10),
                       });
                       setSelectedRow(item._id);
                     }}
@@ -1646,7 +1736,7 @@ useEffect(() => {
                       columnWidths.vsLink
                     } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 11
+                      selectedCell?.colIndex === ci(11)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1657,7 +1747,7 @@ useEffect(() => {
                         field: "VS Link",
                         value: item.link,
                         rowIndex: index,
-                        colIndex: 11,
+                        colIndex: ci(11),
                       });
                       setSelectedRow(item._id);
                     }}
@@ -1711,7 +1801,7 @@ useEffect(() => {
                       columnWidths.vsid
                     } font-medium px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 12
+                      selectedCell?.colIndex === ci(12)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1721,7 +1811,7 @@ useEffect(() => {
                         field: "VSID",
                         value: item.VSID,
                         rowIndex: index,
-                        colIndex: 12,
+                        colIndex: ci(12),
                       });
                       setSelectedRow(item._id);
                     }}
@@ -1749,7 +1839,7 @@ useEffect(() => {
                       columnWidths.address
                     } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 13
+                      selectedCell?.colIndex === ci(13)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1760,7 +1850,7 @@ useEffect(() => {
                         field: "Address",
                         value: item.address,
                         rowIndex: index,
-                        colIndex: 13,
+                        colIndex: ci(13),
                       });
                       setSelectedRow(item._id);
                     }}
@@ -1782,7 +1872,7 @@ useEffect(() => {
                       columnWidths.geoVerified
                     } px-2 py-2 h-10 border-r border-border flex items-center justify-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 14
+                      selectedCell?.colIndex === ci(14)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1795,7 +1885,7 @@ useEffect(() => {
                             ? "Verified"
                             : "None",
                         rowIndex: index,
-                        colIndex: 14,
+                        colIndex: ci(14),
                       });
                       setSelectedRow(item._id);
                     }}
@@ -1831,7 +1921,7 @@ useEffect(() => {
                       columnWidths.petStatus
                     } cursor-pointer px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
-                      selectedCell?.colIndex === 15
+                      selectedCell?.colIndex === ci(15)
                         ? "ring-2 ring-primary ring-inset"
                         : ""
                     }`}
@@ -1841,7 +1931,7 @@ useEffect(() => {
                         field: "Pet Status",
                         value: item.petStatus || "None",
                         rowIndex: index,
-                        colIndex: 15,
+                        colIndex: ci(15),
                       });
                       setSelectedRow(item._id);
                       handlePetStatus(item?._id, index);
@@ -1875,7 +1965,7 @@ useEffect(() => {
 
                   <div
                     style={actionsSticky.style}
-                    className={`${columnWidths.actions} px-3 py-2 h-10 whitespace-nowrap flex items-center flex-shrink-0 ${actionsSticky.className}`}
+                    className={`${columnWidths.actions} px-0.5 py-2 h-10 whitespace-nowrap flex items-center justify-center flex-shrink-0 ${actionsSticky.className}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <ActionMenu

@@ -728,6 +728,23 @@ const PageAddListing2: FC = () => {
               onChange={(e) => setPostalCode(e.target.value.trim())}
             />
           </FormItem>
+          <FormItem label="Floor">
+            <Select
+              value={floor || undefined}
+              onValueChange={setFloor}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select floor" />
+              </SelectTrigger>
+              <SelectContent>
+                {listingPropertyFloorSelectOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormItem>
           <div className="ml-3">
             <h1>Coordinates</h1>
               <div className="flex gap-6 w-full mt-2 items-center">
@@ -1006,23 +1023,6 @@ const PageAddListing2: FC = () => {
               />
             </FormItem>
           </div>
-          <div className="w-full">
-            <FormItem label="Floor">
-              <Select value={floor} onValueChange={setFloor}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select floor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {listingPropertyFloorSelectOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormItem>
-          </div>
-
           <div className="my-4">
             <FormItem label="Is Topfloor">
               <Select

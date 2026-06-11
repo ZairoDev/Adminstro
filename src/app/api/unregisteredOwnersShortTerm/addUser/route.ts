@@ -13,6 +13,7 @@ import {
   normalizeOwnerSheetCityName,
   resolveDefaultOwnerRowLocation,
 } from "@/util/ownerSheetLocationFilter";
+import { notifyAdvertPendingOwner } from "@/services/advert-owner-listing-notify";
 import { NextRequest, NextResponse } from "next/server";
 
 function normalizePropertyFloorInput(raw: unknown): string {
@@ -84,6 +85,8 @@ export async function POST(req: NextRequest) {
     const data = await unregisteredOwnerShortTerm.create({
       name: body.name,
       phoneNumber: normalizeOwnerPhoneInput(String(body.phoneNumber ?? "")),
+      email: String(body.email ?? "").trim(),
+      advertListingStatus: "pending",
       location,
       price: body.price,
       interiorStatus: body.interiorStatus,
@@ -101,6 +104,17 @@ export async function POST(req: NextRequest) {
     if (hasGeocodableFields(ownerFields)) {
       scheduleShortTermLocationGeoSync(data._id, ownerFields);
     }
+
+    void notifyAdvertPendingOwner(
+      {
+        ownerSheetId: String(data._id),
+        name: data.name,
+        location: data.location,
+        phoneNumber: data.phoneNumber,
+        createdAt: data.createdAt,
+      },
+      String((token as { id?: string }).id ?? ""),
+    ).catch((err) => console.error("notifyAdvertPendingOwner failed:", err));
 
     return NextResponse.json({ data }, { status: 200 });
   } catch (err) {

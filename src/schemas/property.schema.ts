@@ -111,6 +111,17 @@ const propertyValidationSchema = z.object({
   approvedAt: z.date().nullable().default(null),
   availability: z.string().default("Available"),
   origin: z.string().optional(),
+  sourceOwnerSheetId: z.string().default(""),
+  listingSource: z
+    .enum(["standard", "short_term_owner_sheet"])
+    .default("standard"),
+  ownerOnboarding: z
+    .object({
+      serviceAgreementAcceptedAt: z.date().nullable().default(null),
+      partnerAgreementAcceptedAt: z.date().nullable().default(null),
+    })
+    .optional(),
+  ownerOnboardingComplete: z.boolean().default(false),
 });
 
 export type PropertySchema = z.infer<typeof propertyValidationSchema>;

@@ -130,6 +130,31 @@ const unregisteredOwnerShortTermSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    email: {
+      type: String,
+      default: "",
+    },
+    ownerUserId: {
+      type: String,
+      default: "",
+    },
+    propertyMongoId: {
+      type: String,
+      default: "",
+    },
+    advertListingStatus: {
+      type: String,
+      enum: ["pending", "listed_draft", "live"],
+      default: "pending",
+    },
+    listedAt: {
+      type: Date,
+      default: null,
+    },
+    listedBy: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,
@@ -137,6 +162,7 @@ const unregisteredOwnerShortTermSchema = new mongoose.Schema(
 );
 
 unregisteredOwnerShortTermSchema.index({ locationGeo: "2dsphere" }, { sparse: true });
+unregisteredOwnerShortTermSchema.index({ advertListingStatus: 1, createdAt: -1 });
 
 export const unregisteredOwnerShortTerm =
   mongoose.models?.unregisteredOwnerShortTerm ||

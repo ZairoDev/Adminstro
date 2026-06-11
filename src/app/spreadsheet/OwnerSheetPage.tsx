@@ -274,6 +274,7 @@ export function OwnerSheetPage({ config }: { config: OwnerSheetConfig }) {
     filterPlace: filters.place,
     onAvailabilityChange: handleAvailabilityChange,
     apiBasePath: config.apiBasePath,
+    sheetVariant: config.variant,
   };
 
   return (

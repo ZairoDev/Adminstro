@@ -76,6 +76,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/newproperty\/.*$/,
     /^\/dashboard\/newproperty\/editPortionAvailability\/.*$/,
     "/dashboard/unregistered-owner", // New Owners page access
+    "/dashboard/advert/pending-owners",
   ],
   LeadGen: [
     "/",

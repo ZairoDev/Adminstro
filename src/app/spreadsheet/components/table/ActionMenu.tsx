@@ -36,18 +36,19 @@ export function ActionMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-       <Button
-  variant="ghost"
-  size="icon"
-  className={`p-0 h-6 w-6 transition-all rounded-md ${
-    hasDownloadable
-      ? "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300 dark:hover:bg-green-800"
-      : "text-muted-foreground hover:text-foreground"
-  }`}
-  onClick={(e) => e.stopPropagation()}
->
-  <MoreVertical className="h-4 w-4" />
-</Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`h-6 w-6 rounded-md shadow-none ${
+            hasDownloadable
+              ? "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          }`}
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Row actions"
+        >
+          <MoreVertical className="h-3.5 w-3.5" />
+        </Button>
 
       </DropdownMenuTrigger>
 

@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, ReactNode } from "react";
+import React, { useState, useMemo, useEffect, ReactNode } from "react";
+import axios from "@/util/axios";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -77,6 +79,15 @@ export function AdvertDashboard({ className }: AdvertDashboardProps) {
   const { unregisteredOwnerCounts } = useUnregisteredOwnerCounts();
   const { totalBoosts, fetchBoostCounts } = BoostCounts();
   const { totalListings, fetchListingCounts } = ListingCounts();
+  const [pendingOwnerCount, setPendingOwnerCount] = useState(0);
+
+  useEffect(() => {
+    if (role !== "Advert") return;
+    axios
+      .get("/api/advert/pending-owners/count")
+      .then((res) => setPendingOwnerCount(res.data?.count ?? 0))
+      .catch(() => setPendingOwnerCount(0));
+  }, [role]);
 
   // Transform data for charts
   const chartData = useMemo(
@@ -127,6 +138,25 @@ export function AdvertDashboard({ className }: AdvertDashboardProps) {
       <div className="space-y-8">
         <div className="p-6 bg-gradient-to-br from-orange-50/50 to-amber-50/50 dark:from-orange-950/20 dark:to-amber-950/20 rounded-xl border">
           <h1 className="text-2xl font-bold mb-6">📢 Advert Dashboard</h1>
+
+          <Card
+            className="mb-6 cursor-pointer hover:border-primary/50 transition-colors"
+            onClick={() => router.push("/dashboard/user?tab=listing-queue")}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">
+                Short-term listings ({pendingOwnerCount})
+              </CardTitle>
+              <CardDescription>
+                Commission-based short-term properties: draft listing → owner completes VS checklist → make live.
+              </CardDescription>
+            </CardHeader>
+            <CardFooter>
+              <Button variant="outline" size="sm" type="button">
+                Open short-term listings
+              </Button>
+            </CardFooter>
+          </Card>
 
           {/* Molecule Visualization & New Owners */}
           {canAccess("moleculeVisualization") && (

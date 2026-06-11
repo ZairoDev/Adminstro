@@ -26,9 +26,9 @@ import { cn } from "@/lib/utils";
 import axios from "@/util/axios";
 import { getMessageDisplayText, getTemplateBodySnippet } from "../utils";
 import {
-  filterApprovedTemplates,
   filterTemplatesBySearchQuery,
-  filterTemplatesForConversationType,
+  filterTemplatesForConversation,
+  filterTemplatesForRentalType,
 } from "@/lib/whatsapp/templateClassification";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -51,6 +51,8 @@ interface MessageComposerProps {
   onTemplateDialogChange: (open: boolean) => void;
   templates: Template[];
   templatesLoading: boolean;
+  /** When true, templates were loaded from the conversation's WABA — skip name-based rental filter. */
+  templatesChannelScoped?: boolean;
   selectedTemplate: Template | null;
   onSelectTemplate: (template: Template | null) => void;
   templateParams: Record<string, string>;
@@ -74,8 +76,13 @@ interface MessageComposerProps {
   // "You" conversation flag - templates not needed, always active
   isYouConversation?: boolean;
   conversationType?: "owner" | "guest";
+  conversationRentalType?: "Short Term" | "Long Term" | "General" | null;
   // For media sending with individual captions
-  selectedConversation?: { _id: string; participantPhone: string } | null;
+  selectedConversation?: {
+    _id: string;
+    participantPhone: string;
+    rentalType?: "Short Term" | "Long Term" | "General";
+  } | null;
   onSendMediaWithCaptions?: (files: Array<{ file: File; caption: string }>) => Promise<void>;
 }
 
@@ -89,6 +96,7 @@ export const MessageComposer = memo(function MessageComposer({
   onTemplateDialogChange,
   templates,
   templatesLoading,
+  templatesChannelScoped = false,
   selectedTemplate,
   onSelectTemplate,
   templateParams,
@@ -106,6 +114,7 @@ export const MessageComposer = memo(function MessageComposer({
   onCancelReply,
   isYouConversation = false,
   conversationType,
+  conversationRentalType,
   selectedConversation,
   onSendMediaWithCaptions,
 }: MessageComposerProps) {
@@ -123,10 +132,35 @@ export const MessageComposer = memo(function MessageComposer({
 
   const isTemplateOnlyMode = !canSendFreeForm && !isYouConversation;
 
+  const effectiveRentalType =
+    conversationRentalType ?? selectedConversation?.rentalType ?? null;
+
   const roleScopedTemplates = useMemo(() => {
-    const approved = filterApprovedTemplates(templates);
-    return filterTemplatesForConversationType(approved, conversationType);
-  }, [templates, conversationType]);
+    return filterTemplatesForConversation(templates, {
+      conversationType,
+      rentalType: effectiveRentalType,
+      channelScoped: templatesChannelScoped,
+    });
+  }, [templates, conversationType, effectiveRentalType, templatesChannelScoped]);
+
+  useEffect(() => {
+    if (!selectedTemplate) return;
+    const stillAllowed = filterTemplatesForRentalType(
+      [selectedTemplate],
+      effectiveRentalType,
+      { channelScoped: templatesChannelScoped },
+    );
+    if (stillAllowed.length === 0) {
+      onSelectTemplate(null);
+      onTemplateParamsChange({});
+    }
+  }, [
+    effectiveRentalType,
+    templatesChannelScoped,
+    selectedTemplate,
+    onSelectTemplate,
+    onTemplateParamsChange,
+  ]);
 
   const templateSearchResults = useMemo(() => {
     if (!isTemplateOnlyMode) return [];
@@ -591,6 +625,8 @@ export const MessageComposer = memo(function MessageComposer({
           sendingMessage={sendingMessage}
           context={templateContext}
           conversationType={conversationType}
+          conversationRentalType={effectiveRentalType}
+          templatesChannelScoped={templatesChannelScoped}
         />
 
         {/* Hidden file inputs - shows preview before sending */}
@@ -793,10 +829,16 @@ export const MessageComposer = memo(function MessageComposer({
                   {newMessage.trim()
                     ? "No templates match your search"
                     : conversationType === "owner"
-                      ? "No owner templates available"
+                      ? effectiveRentalType === "Short Term"
+                        ? "No Short Term owner templates available"
+                        : "No owner templates available"
                       : conversationType === "guest"
-                        ? "No guest templates available"
-                        : "No templates available"}
+                        ? effectiveRentalType === "Short Term"
+                          ? "No Short Term guest templates available"
+                          : "No guest templates available"
+                        : effectiveRentalType === "Short Term"
+                          ? "No Short Term templates available"
+                          : "No templates available"}
                 </p>
               ) : (
                 templateSearchResults.map((template) => (

@@ -1,6 +1,6 @@
 import Employee from "@/models/employee";
 import { WHATSAPP_ACCESS_ROLES } from "./config";
-import { shouldEmitToUser } from "./access";
+import { canAccessConversationAsync } from "./access";
 
 export type NotificationRecipient = {
   userId: string;
@@ -22,7 +22,7 @@ export async function getEligibleUsersForNotification(
     role: { $in: whatsAppRoles },
     $or: [{ isActive: { $exists: false } }, { isActive: true }],
   })
-    .select("_id role allotedArea")
+    .select("_id role allotedArea rentalType")
     .lean();
 
   for (const employee of employees) {
@@ -43,9 +43,10 @@ export async function getEligibleUsersForNotification(
       _id: employeeId,
       role: employeeRole,
       allotedArea: employeeAreas,
+      rentalType: (employee as { rentalType?: unknown }).rentalType,
     };
 
-    if (!shouldEmitToUser(userToken, conversation)) continue;
+    if (!(await canAccessConversationAsync(userToken, conversation))) continue;
 
     eligibleUsers.push({
       userId: employeeId,

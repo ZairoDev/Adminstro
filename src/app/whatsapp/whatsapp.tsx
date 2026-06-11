@@ -20,7 +20,7 @@ import {
   getConversationTemplateContext,
   getConversationBusinessPhoneId,
 } from "./utils";
-import { getRetargetPhoneId } from "@/lib/whatsapp/config";
+import { FULL_ACCESS_ROLES, getRetargetPhoneId } from "@/lib/whatsapp/config";
 import { ConversationSidebar } from "./components/ConversationSidebar";
 import { ChatHeader } from "./components/ChatHeader";
 import { MessageList } from "./components/MessageList";
@@ -430,6 +430,7 @@ export default function WhatsAppChat() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesChannelScoped, setTemplatesChannelScoped] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
@@ -548,6 +549,8 @@ export default function WhatsAppChat() {
   const selectedPhoneIdRef = useRef<string | null>(null);
   selectedPhoneIdRef.current = getConversationBusinessPhoneId(selectedConversation) ?? null;
   const allowedPhoneIdsRef = useRef<string[]>([]);
+  /** Stable channel IDs the user can access — used for dual-room socket subscriptions. */
+  const allowedChannelIdsRef = useRef<string[]>([]);
 
   const handleUpdateConversation = useCallback((conversationId: string, patch: Partial<Conversation>) => {
     setConversations((prev) => prev.map((c) => (c._id === conversationId ? { ...c, ...patch } : c)));
@@ -1456,6 +1459,10 @@ export default function WhatsAppChat() {
           .filter((c: WhatsAppPhoneConfig) => c.phoneNumberId && !c.isInternal)
           .map((c: WhatsAppPhoneConfig) => c.phoneNumberId);
 
+        // Collect channel IDs for dual-room socket subscriptions.
+        allowedChannelIdsRef.current = phoneConfigs
+          .filter((c: WhatsAppPhoneConfig) => (c as any).channelId && !c.isInternal)
+          .map((c: WhatsAppPhoneConfig) => (c as any).channelId as string);
       }
     } catch (error: any) {
       console.error("Error fetching phone configs:", error);
@@ -1468,9 +1475,13 @@ export default function WhatsAppChat() {
   };
 
   useEffect(() => {
-    fetchTemplates();
     fetchPhoneConfigs();
   }, [searchParams]);
+
+  // Load templates from the selected conversation's WABA (short-term vs long-term portfolios).
+  useEffect(() => {
+    fetchTemplates(selectedConversation?._id ?? null);
+  }, [selectedConversation?._id]);
 
   useEffect(() => {
     const fromUrl = searchParams?.get("locationFilter");
@@ -1685,7 +1696,28 @@ export default function WhatsAppChat() {
       previousUnifiedPhones = currentSet;
     }, 500);
 
+    // Dual-room: also join stable channel rooms so events survive number migrations.
+    const joinAllChannelRooms = () => {
+      for (const id of allowedChannelIdsRef.current) {
+        if (id) socket.emit("join-whatsapp-channel", id);
+      }
+    };
+    joinAllChannelRooms();
+
+    let previousChannelIds = new Set(allowedChannelIdsRef.current);
+    const channelWatcher = setInterval(() => {
+      const currentSet = new Set(allowedChannelIdsRef.current);
+      for (const id of previousChannelIds) {
+        if (!currentSet.has(id)) socket.emit("leave-whatsapp-channel", id);
+      }
+      for (const id of currentSet) {
+        if (!previousChannelIds.has(id)) socket.emit("join-whatsapp-channel", id);
+      }
+      previousChannelIds = currentSet;
+    }, 500);
+
     const role = token?.role || "";
+    const isFullAccessRole = (FULL_ACCESS_ROLES as readonly string[]).includes(role);
     const retargetPhoneId = getRetargetPhoneId();
     if ((role === "Advert" || role === "SuperAdmin") && retargetPhoneId) {
       socket.emit("join-whatsapp-retarget", retargetPhoneId);
@@ -1712,6 +1744,7 @@ export default function WhatsAppChat() {
       const currentConversation = selectedConversationRef.current;
       const isForCurrentConversation = currentConversation?._id === data.conversationId;
       if (
+        !isFullAccessRole &&
         data.businessPhoneId &&
         allowedPhoneIdsRef.current.length > 0 &&
         !allowedPhoneIdsRef.current.includes(data.businessPhoneId) &&
@@ -1924,6 +1957,7 @@ export default function WhatsAppChat() {
     return () => {
       socket.off("whatsapp-new-message", handleWhatsAppMessage);
       clearInterval(phoneWatcher);
+      clearInterval(channelWatcher);
       if (retargetPhoneId) {
         socket.emit("leave-whatsapp-retarget", retargetPhoneId);
       }
@@ -1935,6 +1969,9 @@ export default function WhatsAppChat() {
     if (!socket) return;
 
     const currentUserId = token?.id || (token as { _id?: string })?._id;
+    const isFullAccessRole = (FULL_ACCESS_ROLES as readonly string[]).includes(
+      token?.role || "",
+    );
 
     // Handle new conversations
     const handleNewConversation = (data: any) => {
@@ -2067,6 +2104,7 @@ export default function WhatsAppChat() {
       const phoneId = data.businessPhoneId != null ? String(data.businessPhoneId) : "";
       const selectedPid = selectedPhoneIdRef.current;
       if (
+        !isFullAccessRole &&
         phoneId &&
         allowedPhoneIdsRef.current.length > 0 &&
         !allowedPhoneIdsRef.current.includes(phoneId)
@@ -2723,12 +2761,17 @@ export default function WhatsAppChat() {
     setMessages([]);
   };
 
-  const fetchTemplates = async () => {
+  const fetchTemplates = async (conversationId?: string | null) => {
     try {
       setTemplatesLoading(true);
-      const response = await axios.get("/api/whatsapp/templates");
+      const params: Record<string, string> = {};
+      if (conversationId) {
+        params.conversationId = conversationId;
+      }
+      const response = await axios.get("/api/whatsapp/templates", { params });
       if (response.data.success) {
         setTemplates(response.data.templates);
+        setTemplatesChannelScoped(Boolean(response.data.channelScoped));
       }
     } catch (error: any) {
       console.error("Error fetching templates:", error);
@@ -3127,11 +3170,28 @@ export default function WhatsAppChat() {
           msg._id === tempId ? { ...msg, status: "failed" } : msg
         )
       );
-      toast({
-        title: "Error",
-        description: error.response?.data?.error || "Failed to send message",
-        variant: "destructive",
-      });
+
+      // Server-side 24-hour window enforcement: redirect to templates.
+      if (error.response?.data?.code === "WINDOW_CLOSED") {
+        // Update local conversation state so the UI banner reflects the closed window.
+        if (error.response.data.lastCustomerMessageAt) {
+          handleUpdateConversation(selectedConversation._id, {
+            lastCustomerMessageAt: new Date(error.response.data.lastCustomerMessageAt),
+          });
+        }
+        setShowTemplateDialog(true);
+        toast({
+          title: "24-hour window closed",
+          description: "Please use a template message to re-open the conversation.",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.response?.data?.error || "Failed to send message",
+          variant: "destructive",
+        });
+      }
     } finally {
       setSendingMessage(false);
     }
@@ -4653,7 +4713,9 @@ export default function WhatsAppChat() {
                     callPermissions={callPermissions}
                     callingAudio={callingAudio}
                     onAudioCall={handleAudioCall}
-                    onRefreshTemplates={fetchTemplates}
+                    onRefreshTemplates={() =>
+                      fetchTemplates(selectedConversation?._id ?? null)
+                    }
                     templatesLoading={templatesLoading}
                     showMessageSearch={showMessageSearch}
                     onToggleMessageSearch={() => setShowMessageSearch((prev) => !prev)}
@@ -4713,6 +4775,7 @@ export default function WhatsAppChat() {
                     onTemplateDialogChange={setShowTemplateDialog}
                     templates={templates}
                     templatesLoading={templatesLoading}
+                    templatesChannelScoped={templatesChannelScoped}
                     selectedTemplate={selectedTemplate}
                     onSelectTemplate={setSelectedTemplate}
                     templateParams={templateParams}
@@ -4733,6 +4796,7 @@ export default function WhatsAppChat() {
                     onCancelReply={handleCancelReply}
                     isYouConversation={isYouConversation}
                     conversationType={selectedConversation?.conversationType}
+                    conversationRentalType={selectedConversation?.rentalType}
                     selectedConversation={selectedConversation}
                     onSendMediaWithCaptions={handleSendMediaWithCaptions}
                   />
@@ -4792,6 +4856,7 @@ export default function WhatsAppChat() {
         userRole={token?.role}
         userEmail={token?.email}
         userAreas={token?.allotedArea}
+        userRentalType={token?.rentalType}
         hidePhoneLineLabel
       />
       

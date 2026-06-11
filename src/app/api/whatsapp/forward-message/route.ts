@@ -4,16 +4,15 @@ import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
-import {
-  canAccessPhoneId,
-  getAllowedPhoneIds,
-  getDefaultPhoneId,
-  getRetargetPhoneId,
-  getWhatsAppToken,
-  WHATSAPP_API_BASE_URL,
-} from "@/lib/whatsapp/config";
+import { WHATSAPP_API_BASE_URL } from "@/lib/whatsapp/config";
 import mongoose from "mongoose";
-import { canAccessConversation } from "@/lib/whatsapp/access";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
+import {
+  getOutboundTokenForPhoneId,
+  resolveOutboundChannelForConversation,
+} from "@/lib/whatsapp/channelService";
+import { buildWhatsAppRoomPayload } from "@/lib/whatsapp/socketPayload";
 
 connectDb();
 
@@ -57,47 +56,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get user's allowed phone IDs
-    const userRole = token.role || "";
-    const userAreas = token.allotedArea || [];
-    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
-
-    // Advert role: allow forwarding in retarget conversations
-    if (allowedPhoneIds.length === 0 && userRole === "Advert") {
-      const retargetPhoneId = getRetargetPhoneId();
-      if (retargetPhoneId) {
-        allowedPhoneIds = [retargetPhoneId];
-      }
-    }
-
-    if (allowedPhoneIds.length === 0) {
-      return NextResponse.json(
-        { error: "No WhatsApp access for your role/area" },
-        { status: 403 }
-      );
-    }
-
-    // Determine which phone ID to use
-    let phoneNumberId = requestedPhoneId;
-    if (!phoneNumberId) {
-      phoneNumberId = getDefaultPhoneId(userRole, userAreas);
-    }
-
-    // Verify permission
-    if (!phoneNumberId || !canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
-      return NextResponse.json(
-        { error: "You don't have permission to send from this WhatsApp number" },
-        { status: 403 }
-      );
-    }
-
-    const whatsappToken = getWhatsAppToken();
-    if (!whatsappToken) {
-      return NextResponse.json(
-        { error: "WhatsApp configuration missing" },
-        { status: 500 }
-      );
-    }
+    const normalizedToken = normalizeWhatsAppToken(token);
 
     // Fetch original messages
     const originalMessages = await WhatsAppMessage.find({
@@ -111,15 +70,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Fetch target conversations
+    // Fetch target conversations — send from each target's frozen business line
     const targetConversations = await WhatsAppConversation.find({
       _id: { $in: conversationIds },
-      businessPhoneId: phoneNumberId,
-    }).lean() as any[];
+    }).lean() as Array<
+      Record<string, unknown> & {
+        _id: mongoose.Types.ObjectId;
+        businessPhoneId?: string;
+        participantPhone?: string;
+        participantLocation?: string;
+        participantLocationKey?: string;
+        rentalType?: string;
+        channelType?: string;
+        conversationType?: "owner" | "guest";
+        whatsappChannelId?: mongoose.Types.ObjectId | string;
+        isRetarget?: boolean;
+      }
+    >;
 
     if (targetConversations.length !== conversationIds.length) {
       return NextResponse.json(
-        { error: "Some target conversations not found or not accessible" },
+        { error: "Some target conversations not found" },
         { status: 404 }
       );
     }
@@ -133,8 +104,51 @@ export async function POST(req: NextRequest) {
       
       for (const targetConversation of targetConversations) {
         try {
+          const { channel: outboundChannel } = await resolveOutboundChannelForConversation({
+            whatsappChannelId: targetConversation.whatsappChannelId,
+            businessPhoneId: targetConversation.businessPhoneId,
+            participantLocation: targetConversation.participantLocation,
+            participantLocationKey: targetConversation.participantLocationKey,
+            rentalType: targetConversation.rentalType,
+            channelType: targetConversation.channelType as
+              | "guest"
+              | "owner"
+              | "support"
+              | "backup"
+              | undefined,
+            conversationType: targetConversation.conversationType,
+            isRetarget: targetConversation.isRetarget,
+          });
+          const phoneNumberId =
+            outboundChannel?.phoneNumberId ||
+            requestedPhoneId?.trim() ||
+            String(targetConversation.businessPhoneId || "");
+          if (!phoneNumberId) {
+            errors.push({
+              messageId: originalMessageId,
+              conversationId: targetConversation._id.toString(),
+              error: "No WhatsApp channel found for target location, rental type, and contact type",
+            });
+            continue;
+          }
+
+          const whatsappToken = await getOutboundTokenForPhoneId(phoneNumberId, {
+            whatsappChannelId:
+              outboundChannel?.channelId ||
+              (targetConversation.whatsappChannelId as string | undefined),
+            businessPhoneId: phoneNumberId,
+          });
+          if (!whatsappToken) {
+            errors.push({
+              messageId: originalMessageId,
+              conversationId: targetConversation._id.toString(),
+              error: "No WhatsApp token for target business line",
+            });
+            continue;
+          }
+
           // Enforce conversation-level access for each target
-          const allowed = await canAccessConversation(token, targetConversation);
+          const allowed = await canAccessConversationAsync(normalizedToken, targetConversation);
           if (!allowed) {
             errors.push({
               messageId: originalMessageId,
@@ -161,7 +175,17 @@ export async function POST(req: NextRequest) {
             });
             continue;
           }
-          const formattedPhone = targetConversation.participantPhone.replace(/[\s\-\+]/g, "");
+
+          const participantPhone = targetConversation.participantPhone?.trim();
+          if (!participantPhone) {
+            errors.push({
+              messageId: originalMessageId,
+              conversationId: targetConversation._id.toString(),
+              error: "Target conversation has no participant phone",
+            });
+            continue;
+          }
+          const formattedPhone = participantPhone.replace(/[\s\-\+]/g, "");
           
           // Build message payload based on type
           let whatsappPayload: any = {
@@ -296,27 +320,31 @@ export async function POST(req: NextRequest) {
           });
 
           // Emit socket event (but NO notification for own messages)
-          emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
-            conversationId: targetConversation._id.toString(),
-            businessPhoneId: phoneNumberId,
-            message: {
-              id: savedMessage._id.toString(),
-              messageId: whatsappMessageId,
-              from: phoneNumberId,
-              to: formattedPhone,
-              type: originalMessage.type,
-              content: contentObj,
-              mediaUrl: originalMessage.mediaUrl || "",
-              mediaId: "",
-              filename: originalMessage.filename || "",
-              status: "sent",
-              direction: "outgoing",
-              timestamp,
-              senderName: token.name || "You",
-              isForwarded: true,
-              forwardedFrom: originalMessageId,
-            },
-          });
+          emitWhatsAppEvent(
+            WHATSAPP_EVENTS.NEW_MESSAGE,
+            buildWhatsAppRoomPayload(targetConversation as Record<string, unknown>, {
+              conversationId: targetConversation._id.toString(),
+              businessPhoneId: phoneNumberId,
+              whatsappChannelId: outboundChannel?.channelId,
+              message: {
+                id: savedMessage._id.toString(),
+                messageId: whatsappMessageId,
+                from: phoneNumberId,
+                to: formattedPhone,
+                type: originalMessage.type,
+                content: contentObj,
+                mediaUrl: originalMessage.mediaUrl || "",
+                mediaId: "",
+                filename: originalMessage.filename || "",
+                status: "sent",
+                direction: "outgoing",
+                timestamp,
+                senderName: token.name || "You",
+                isForwarded: true,
+                forwardedFrom: originalMessageId,
+              },
+            }),
+          );
 
           results.push({
             messageId: originalMessageId,

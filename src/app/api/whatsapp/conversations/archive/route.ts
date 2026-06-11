@@ -6,7 +6,9 @@ import ConversationReadState from "@/models/conversationReadState";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import { WHATSAPP_EVENTS } from "@/lib/pusher";
-import { canAccessConversation } from "@/lib/whatsapp/access";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { buildConversationVisibilityFilterAsync } from "@/lib/whatsapp/locationAccess";
+import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
 import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
 import {
   applyPhoneMaskToConversation,
@@ -53,7 +55,7 @@ export async function POST(req: NextRequest) {
       businessPhoneId?: string;
     };
 
-    if (!canAccessConversation(token, conversation)) {
+    if (!(await canAccessConversationAsync(token, conversation))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -143,7 +145,7 @@ export async function DELETE(req: NextRequest) {
       businessPhoneId?: string;
     };
 
-    if (!canAccessConversation(token, conversation)) {
+    if (!(await canAccessConversationAsync(token, conversation))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -231,9 +233,15 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Get the actual conversations
+    const normalizedToken = normalizeWhatsAppToken(token);
+    const visibilityFilter = await buildConversationVisibilityFilterAsync(normalizedToken);
+
+    // Get archived conversations the user is allowed to see
     const conversations = await WhatsAppConversation.find({
-      _id: { $in: archivedConversationIds },
+      $and: [
+        { _id: { $in: archivedConversationIds } },
+        visibilityFilter,
+      ],
     })
       .sort({ lastMessageTime: -1 })
       .lean();

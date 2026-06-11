@@ -4,7 +4,11 @@ import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import { sendExpoPushToEmployee } from "@/services/push/expoPush.service";
-import { getWhatsAppToken, WHATSAPP_API_BASE_URL, getAllowedPhoneIds, WHATSAPP_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { getWhatsAppToken, WHATSAPP_API_BASE_URL, WHATSAPP_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import {
+  getActiveChannelByPhoneNumberId,
+  getOutboundTokenForPhoneId,
+} from "@/lib/whatsapp/channelService";
 import ConversationReadState from "@/models/conversationReadState";
 import ConversationArchiveState from "@/models/conversationArchiveState";
 import Employee from "@/models/employee";
@@ -95,16 +99,20 @@ export async function GET(req: NextRequest) {
 
 // Handle incoming webhook events
 export async function POST(req: NextRequest) {
+  console.log("🚨 WEBHOOK ENTERED");
   try {
-    await connectDb();
-    
-    const signature = req.headers.get('x-hub-signature-256');
     const rawBody = await req.text();
-    console.log("📩 [webhook] received", {
-      hasSignature: Boolean(signature),
-      contentLength: rawBody?.length || 0,
-    });
-    
+    const body = JSON.parse(rawBody);
+
+    console.log(
+      "🚨 FULL WEBHOOK",
+      JSON.stringify(body, null, 2),
+    );
+
+    await connectDb();
+
+    const signature = req.headers.get('x-hub-signature-256');
+
     if (signature && process.env.WHATSAPP_APP_SECRET) {
       const expectedSignature = crypto
         .createHmac('sha256', process.env.WHATSAPP_APP_SECRET)
@@ -116,12 +124,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
       }
     }
-    
-    const body = JSON.parse(rawBody);
-    console.log("📩 [webhook] parsed", {
-      object: body?.object || null,
-      entryCount: Array.isArray(body?.entry) ? body.entry.length : 0,
-    });
 
     // Process the webhook event
     if (body.object === "whatsapp_business_account") {
@@ -195,10 +197,13 @@ export async function POST(req: NextRequest) {
  */
 async function getMediaPermanentUrl(
   mediaId: string,
-  mimeTypeHint?: string
+  mimeTypeHint?: string,
+  phoneNumberId?: string,
 ): Promise<{ url: string; mimeType: string } | null> {
   try {
-    const whatsappToken = getWhatsAppToken();
+    const whatsappToken = phoneNumberId
+      ? await getOutboundTokenForPhoneId(phoneNumberId)
+      : getWhatsAppToken();
     if (!mediaId || !whatsappToken) {
       console.error("Missing mediaId or WhatsApp token");
       return null;
@@ -346,7 +351,7 @@ async function sendGuestQuestionsTemplate(
   conversationId: string
 ) {
   try {
-    const whatsappToken = getWhatsAppToken();
+    const whatsappToken = await getOutboundTokenForPhoneId(phoneNumberId);
     if (!whatsappToken) {
       console.error("❌ WhatsApp token not available");
       return;
@@ -482,6 +487,12 @@ async function processIncomingMessage(
 ) {
   try {
     const phoneNumberId = metadata?.phone_number_id;
+    console.log("📩 [webhook] processIncomingMessage", {
+      phoneNumberId: phoneNumberId || null,
+      messageId: message?.id || null,
+      from: message?.from ? String(message.from).replace(/\d(?=\d{4})/g, "x") : null,
+      type: message?.type || null,
+    });
     let senderPhone = message.from;
     senderPhone = senderPhone.replace(/\D/g, "");
     if (senderPhone.length < 7 || senderPhone.length > 15) {
@@ -499,6 +510,15 @@ async function processIncomingMessage(
       return;
     }
 
+    const inboundChannel = await getActiveChannelByPhoneNumberId(String(phoneNumberId));
+    if (!inboundChannel) {
+      console.warn("⚠️ [webhook] phone_number_id not registered as active WhatsappChannel", {
+        phoneNumberId,
+      });
+    }
+
+    // Inbound webhooks never filter on legacy WHATSAPP_PHONE_CONFIGS — any Meta line is accepted.
+
     // Try to resolve participant location from CRM lead data (trusted backfill only)
     const rawLeadLocation = await resolveLocationFromLeadPhone(senderPhone);
     const leadLocation =
@@ -507,17 +527,21 @@ async function processIncomingMessage(
         ? rawLeadLocation
         : null;
 
-    // Get or create conversation using snapshot-safe helper
+    // Get or create conversation using snapshot-safe helper.
     // CRITICAL: Webhooks are "untrusted" - they must NEVER overwrite snapshot fields
     // on existing conversations. Only allowed to set snapshots on NEW conversations.
     // Exception: participantLocation backfill from CRM lead lookup uses "trusted"
     // semantics so new inbound conversations get location set automatically.
+    //
+    // isInboundWebhook: true → channel is resolved via getActiveChannelByPhoneNumberId
+    // (phoneNumberId only — race-condition safe against admin remaps).
     const conversation = await findOrCreateConversationWithSnapshot({
       participantPhone: senderPhone,
       businessPhoneId: phoneNumberId,
       participantName: senderName,
       ...(leadLocation ? { participantLocation: leadLocation } : {}),
       snapshotSource: leadLocation ? "trusted" : "untrusted",
+      isInboundWebhook: true,
     }) as any; // Cast to any to access Mongoose document properties like _id
 
     // ============================================================
@@ -548,7 +572,8 @@ async function processIncomingMessage(
         // Get permanent CDN URL for the image
         const imageMedia = await getMediaPermanentUrl(
           message.image?.id,
-          message.image?.mime_type
+          message.image?.mime_type,
+          phoneNumberId,
         );
         if (imageMedia) {
           mediaUrl = imageMedia.url;
@@ -563,7 +588,8 @@ async function processIncomingMessage(
         // Get permanent CDN URL for the document
         const docMedia = await getMediaPermanentUrl(
           message.document?.id,
-          message.document?.mime_type
+          message.document?.mime_type,
+          phoneNumberId,
         );
         if (docMedia) {
           mediaUrl = docMedia.url;
@@ -577,7 +603,8 @@ async function processIncomingMessage(
         // Get permanent CDN URL for the audio
         const audioMedia = await getMediaPermanentUrl(
           message.audio?.id,
-          message.audio?.mime_type
+          message.audio?.mime_type,
+          phoneNumberId,
         );
         if (audioMedia) {
           mediaUrl = audioMedia.url;
@@ -591,7 +618,8 @@ async function processIncomingMessage(
         // Get permanent CDN URL for the video
         const videoMedia = await getMediaPermanentUrl(
           message.video?.id,
-          message.video?.mime_type
+          message.video?.mime_type,
+          phoneNumberId,
         );
         if (videoMedia) {
           mediaUrl = videoMedia.url;
@@ -605,7 +633,8 @@ async function processIncomingMessage(
         // Get permanent CDN URL for the sticker
         const stickerMedia = await getMediaPermanentUrl(
           message.sticker?.id,
-          message.sticker?.mime_type
+          message.sticker?.mime_type,
+          phoneNumberId,
         );
         if (stickerMedia) {
           mediaUrl = stickerMedia.url;
@@ -1437,6 +1466,7 @@ async function processCallEvent(value: any) {
               ...(contactName ? { participantName: contactName } : {}),
               ...(callerLeadLocation ? { participantLocation: callerLeadLocation } : {}),
               snapshotSource: callerLeadLocation ? "trusted" : "untrusted",
+              isInboundWebhook: true,
             });
             existing = {
               _id: created._id,
@@ -1655,14 +1685,16 @@ async function processMessageEchoEvent(value: any) {
       const timestamp = message.timestamp ? new Date(parseInt(message.timestamp) * 1000) : new Date();
 
 
-      // Find or create conversation using snapshot-safe helper
-      // CRITICAL: Message echoes are "untrusted" - they must NEVER overwrite snapshot fields
+      // Find or create conversation using snapshot-safe helper.
+      // CRITICAL: Message echoes are "untrusted" - they must NEVER overwrite snapshot fields.
+      // isInboundWebhook: true — channel resolved by phoneNumberId only.
       const conversation = await findOrCreateConversationWithSnapshot({
         participantPhone: recipientPhone,
         businessPhoneId: phoneNumberId,
-        participantName: recipientPhone, // Fallback name for new conversations only
-        snapshotSource: "untrusted", // CRITICAL: Never overwrite existing snapshot fields
-      }) as any; // Cast to any to access Mongoose document properties like _id
+        participantName: recipientPhone,
+        snapshotSource: "untrusted",
+        isInboundWebhook: true,
+      }) as any;
 
       // Extract message content based on type
       let contentObj: { text?: string; caption?: string; location?: any; interactivePayload?: any } = {};
@@ -1678,7 +1710,7 @@ async function processMessageEchoEvent(value: any) {
         case "image":
           contentObj.caption = message.image?.caption || "";
           mediaId = message.image?.id;
-          const imageMedia = await getMediaPermanentUrl(message.image?.id, message.image?.mime_type);
+          const imageMedia = await getMediaPermanentUrl(message.image?.id, message.image?.mime_type, phoneNumberId);
           if (imageMedia) {
             mediaUrl = imageMedia.url;
             mimeType = imageMedia.mimeType;
@@ -1688,7 +1720,7 @@ async function processMessageEchoEvent(value: any) {
           contentObj.caption = message.document?.caption || "";
           mediaId = message.document?.id;
           filename = message.document?.filename || "document";
-          const docMedia = await getMediaPermanentUrl(message.document?.id, message.document?.mime_type);
+          const docMedia = await getMediaPermanentUrl(message.document?.id, message.document?.mime_type, phoneNumberId);
           if (docMedia) {
             mediaUrl = docMedia.url;
             mimeType = docMedia.mimeType;
@@ -1697,7 +1729,7 @@ async function processMessageEchoEvent(value: any) {
         case "audio":
           contentObj.text = "🎵 Audio message";
           mediaId = message.audio?.id;
-          const audioMedia = await getMediaPermanentUrl(message.audio?.id, message.audio?.mime_type);
+          const audioMedia = await getMediaPermanentUrl(message.audio?.id, message.audio?.mime_type, phoneNumberId);
           if (audioMedia) {
             mediaUrl = audioMedia.url;
             mimeType = audioMedia.mimeType;
@@ -1706,7 +1738,7 @@ async function processMessageEchoEvent(value: any) {
         case "video":
           contentObj.caption = message.video?.caption || "";
           mediaId = message.video?.id;
-          const videoMedia = await getMediaPermanentUrl(message.video?.id, message.video?.mime_type);
+          const videoMedia = await getMediaPermanentUrl(message.video?.id, message.video?.mime_type, phoneNumberId);
           if (videoMedia) {
             mediaUrl = videoMedia.url;
             mimeType = videoMedia.mimeType;

@@ -5,8 +5,9 @@ import WhatsAppConversation from "@/models/whatsappConversation";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import ConversationArchiveState from "@/models/conversationArchiveState";
 import ConversationReadState from "@/models/conversationReadState";
-import { getAllowedPhoneIds, getAllowedPhoneConfigs, FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
-import { buildConversationVisibilityFilter } from "@/lib/whatsapp/locationAccess";
+import { getAllowedPhoneConfigs, FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { buildConversationVisibilityFilterAsync } from "@/lib/whatsapp/locationAccess";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
 import mongoose from "mongoose";
 
 connectDb();
@@ -29,12 +30,12 @@ export async function GET(req: NextRequest) {
     }
 
     const userId = (token as any).id || (token as any)._id;
-    const userAreas = (token as any).allotedArea || [];
+    const normalizedToken = normalizeWhatsAppToken(token as { role?: string; allotedArea?: string | string[] });
     
-    // Get location-scoped phone IDs based on role
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    // DB + channel-aware phone lines (not legacy .env only)
+    const allowedPhoneIds = await resolveAllowedPhoneIdsAsync(normalizedToken);
 
-    if (allowedPhoneIds.length === 0) {
+    if (allowedPhoneIds.length === 0 && !(FULL_ACCESS_ROLES as readonly string[]).includes(userRole)) {
       return NextResponse.json({ 
         success: true,
         summary: {
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
     );
 
     // Build conversation query — canonical dual visibility: phone AND location key
-    const visibilityFilter = buildConversationVisibilityFilter(token as any);
+    const visibilityFilter = await buildConversationVisibilityFilterAsync(token as any);
     let conversationQuery: any = {
       ...visibilityFilter,
       status: "active",

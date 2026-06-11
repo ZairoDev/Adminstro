@@ -56,3 +56,21 @@ export {
   FULL_ACCESS_ROLES,
   INTERNAL_YOU_PHONE_ID,
 } from "./config";
+
+export {
+  resolveWhatsappChannel,
+  getChannelByPhoneNumberId,
+  getOutboundTokenForPhoneId,
+  assertLocationRentalTypeUnique,
+  normalizeChannelLocationKeys,
+} from "./channelService";
+
+export {
+  rentalTypeVisibleToUser,
+  buildRentalTypeVisibilityClause,
+  isRentalTypeFullAccessRole,
+  normalizeChannelRentalType,
+  WHATSAPP_CHANNEL_RENTAL_TYPES,
+  DEFAULT_CONVERSATION_RENTAL_TYPE,
+  resolveCreateConversationRentalType,
+} from "./rentalTypeAccess";

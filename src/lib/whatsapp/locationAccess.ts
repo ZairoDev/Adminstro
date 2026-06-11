@@ -17,7 +17,45 @@ import {
   canAccessWhatsAppAdminQueue,
   getUserScopedLocationKeys,
 } from "@/lib/whatsapp/participantLocationPrivileges";
+import {
+  buildRentalTypeVisibilityClause,
+  rentalTypeVisibleToUser,
+} from "@/lib/whatsapp/rentalTypeAccess";
+import {
+  buildChannelTypeVisibilityClause,
+  channelTypeVisibleToRole,
+} from "@/lib/whatsapp/channelTypeAccess";
 import Query from "@/models/query";
+
+type VisibilityUser = {
+  role?: string;
+  email?: string;
+  allotedArea?: string | string[];
+  rentalType?: unknown;
+};
+
+/**
+ * Append rental-type and channelType restrictions (if any) to a Mongo visibility filter.
+ * Uses `$and` so it never collides with a search `$or` (name/phone) that
+ * callers assign later — preventing visibility leaks during search.
+ */
+function applyVisibilityFilters(
+  filter: Record<string, unknown>,
+  user: VisibilityUser,
+): Record<string, unknown> {
+  const and = Array.isArray(filter.$and)
+    ? (filter.$and as Record<string, unknown>[])
+    : [];
+
+  const rentalClause = buildRentalTypeVisibilityClause(user.role, user.rentalType);
+  if (rentalClause) and.push(rentalClause);
+
+  const channelClause = buildChannelTypeVisibilityClause(user.role);
+  if (channelClause) and.push(channelClause);
+
+  if (and.length > 0) filter.$and = and;
+  return filter;
+}
 
 export {
   normalizeAreas,
@@ -47,11 +85,7 @@ import {
  *              instead require an empty/missing key (Admin Queue mode).
  */
 export function buildConversationVisibilityFilter(
-  user: {
-    role?: string;
-    email?: string;
-    allotedArea?: string | string[];
-  },
+  user: VisibilityUser,
   opts: { adminQueue?: boolean } = {}
 ): Record<string, unknown> {
   const role = user.role || "";
@@ -84,14 +118,64 @@ export function buildConversationVisibilityFilter(
       "Sales", "sales-intern", "Sales-TeamLead", "LeadGen", "LeadGen-TeamLead",
     ];
     if (unallocatedBypassRoles.includes(role)) {
-      return { businessPhoneId: { $in: allowedPhoneIds } };
+      return applyVisibilityFilters(
+        { businessPhoneId: { $in: allowedPhoneIds } },
+        user,
+      );
     }
     return { _id: null };
   }
 
+  return applyVisibilityFilters(
+    {
+      businessPhoneId: { $in: allowedPhoneIds },
+      participantLocationKey: { $in: normalizedAreas },
+    },
+    user,
+  );
+}
+
+/**
+ * Async version of buildConversationVisibilityFilter with an additional OR branch:
+ * conversations whose whatsappChannelId belongs to a channel accessible to the user
+ * are always visible, regardless of the (possibly stale) businessPhoneId.
+ *
+ * This ensures that conversations created before a number migration remain visible
+ * after the phone is replaced — their frozen whatsappChannelId bridges the gap.
+ */
+export async function buildConversationVisibilityFilterAsync(
+  user: VisibilityUser,
+  opts: { adminQueue?: boolean } = {},
+): Promise<Record<string, unknown>> {
+  const { getAccessibleChannelIds } = await import("@/lib/whatsapp/phoneAreaConfigService");
+
+  const role = user.role || "";
+  const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(role);
+
+  if (opts.adminQueue) {
+    if (!canAccessWhatsAppAdminQueue(user)) return { _id: null };
+    return buildAdminQueueFilter();
+  }
+
+  // Full-access: no filter needed (callers may add phone scoping separately)
+  if (isFullAccess) return {};
+
+  const syncFilter = buildConversationVisibilityFilter(user, opts);
+  // If sync already returns no-match, nothing to extend.
+  if ("_id" in syncFilter && syncFilter._id === null) return syncFilter;
+
+  const userAreas = getUserAreasFromToken(user);
+  const accessibleChannelIds = await getAccessibleChannelIds(role, userAreas, user.rentalType);
+
+  if (accessibleChannelIds.length === 0) return syncFilter;
+
+  // Merge: conversation matches if it passes the sync phone+location filter OR
+  // if its frozen whatsappChannelId is one we can access.
   return {
-    businessPhoneId: { $in: allowedPhoneIds },
-    participantLocationKey: { $in: normalizedAreas },
+    $or: [
+      syncFilter,
+      { whatsappChannelId: { $in: accessibleChannelIds } },
+    ],
   };
 }
 
@@ -107,11 +191,7 @@ export const SUPERADMIN_INBOX_LOCATION_ALL = "all";
  */
 export function applyInboxLocationFilter(
   query: Record<string, unknown>,
-  user: {
-    role?: string;
-    email?: string;
-    allotedArea?: string | string[];
-  },
+  user: VisibilityUser,
   locationFilter: string | null | undefined
 ): void {
   const raw = locationFilter?.trim();
@@ -164,16 +244,14 @@ export function buildAdminQueueFilter(): Record<string, unknown> {
  * 3. Others need: phone ∈ allowed AND locationKey ∈ normalizedUserAreas.
  */
 export function canUserSeeConversation(
-  user: {
-    role?: string;
-    email?: string;
-    allotedArea?: string | string[];
-  },
+  user: VisibilityUser,
   conversation: {
     businessPhoneId?: string;
     source?: string;
     participantLocationKey?: string;
     participantLocation?: string;
+    rentalType?: unknown;
+    channelType?: unknown;
   },
   opts: { skipPhoneCheck?: boolean } = {},
 ): boolean {
@@ -189,6 +267,16 @@ export function canUserSeeConversation(
   const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(role);
 
   if (isFullAccess) return true;
+
+  // Rental-type gate (backward compatible).
+  if (!rentalTypeVisibleToUser(role, user.rentalType, conversation.rentalType)) {
+    return false;
+  }
+
+  // Channel-type gate (backward compatible: legacy conversations without channelType pass).
+  if (!channelTypeVisibleToRole(role, conversation.channelType)) {
+    return false;
+  }
 
   const userAreas = getUserAreasFromToken(user as any);
   const allowedPhoneIds = getPhoneIdsForUserAreasSync(role, userAreas);

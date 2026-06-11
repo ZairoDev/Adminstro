@@ -15,6 +15,7 @@ import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
 import { isSalesWhatsAppRole } from "@/lib/whatsapp/config";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
+import { getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
 import fs from "fs/promises";
 import os from "os";
 import path from "path";
@@ -323,7 +324,7 @@ export async function POST(req: NextRequest) {
 
     const phoneNumberId = phoneResolution.phoneNumberId;
 
-    const whatsappToken = getWhatsAppToken();
+    const whatsappToken = await getOutboundTokenForPhoneId(phoneNumberId);
     if (!whatsappToken) {
       return NextResponse.json(
         { error: "WhatsApp configuration missing" },

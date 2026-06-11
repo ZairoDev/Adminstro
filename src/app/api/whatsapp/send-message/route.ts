@@ -5,7 +5,6 @@ import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import {
-  getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
   INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
@@ -14,6 +13,8 @@ import crypto from "crypto";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
+import { getChannelByPhoneNumberId, getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
+import { buildWhatsAppRoomPayload } from "@/lib/whatsapp/socketPayload";
 
 connectDb();
 
@@ -281,6 +282,39 @@ export async function POST(req: NextRequest) {
     // Regular WhatsApp conversation - Continue with Meta API
     // =========================================================
 
+    // 24-hour messaging window enforcement.
+    // Free-form messages (text, image, document, audio, video, sticker, interactive)
+    // are only permitted within 24 hours of the customer's last incoming message.
+    // Template messages bypass this restriction — they initiate/re-open the window.
+    // Internal conversations, new conversations (no lastCustomerMessageAt), and
+    // conversations that have never had an incoming message are excluded.
+    const FREE_FORM_TYPES = ["text", "image", "document", "audio", "video", "sticker", "interactive"];
+    if (
+      conversation &&
+      FREE_FORM_TYPES.includes(type) &&
+      !templateName // not a template send
+    ) {
+      const lastCustomerMsg = conversation.lastCustomerMessageAt
+        ? new Date(conversation.lastCustomerMessageAt)
+        : null;
+
+      if (lastCustomerMsg) {
+        const hoursSinceLastMsg =
+          (Date.now() - lastCustomerMsg.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceLastMsg >= 24) {
+          return NextResponse.json(
+            {
+              error:
+                "The 24-hour messaging window has closed. You can only send template messages to re-open the conversation.",
+              code: "WINDOW_CLOSED",
+              lastCustomerMessageAt: lastCustomerMsg.toISOString(),
+            },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
     const phoneResolution = await resolveOutboundBusinessPhoneId({
       token: normalizedToken,
       conversation: conversation
@@ -306,7 +340,15 @@ export async function POST(req: NextRequest) {
       userRole,
     });
 
-    const whatsappToken = getWhatsAppToken();
+    const convForToken = conversation
+      ? (conversation.toObject ? conversation.toObject() : conversation)
+      : null;
+    const whatsappToken = await getOutboundTokenForPhoneId(phoneNumberId, convForToken
+      ? {
+          whatsappChannelId: convForToken.whatsappChannelId,
+          businessPhoneId: phoneNumberId,
+        }
+      : null);
     if (!whatsappToken) {
       return NextResponse.json(
         { error: "WhatsApp configuration missing" },
@@ -507,10 +549,13 @@ export async function POST(req: NextRequest) {
       if (!conversation) {
         // Use helper to find or create with proper snapshot semantics
         // User-initiated message sending is "trusted" - can backfill empty snapshot fields
+        const phoneChannel = await getChannelByPhoneNumberId(phoneNumberId);
         conversation = await findOrCreateConversationWithSnapshot({
           participantPhone: formattedPhone,
           businessPhoneId: phoneNumberId,
-          participantName: formattedPhone, // Default name for new conversations
+          participantName: formattedPhone,
+          rentalType: phoneChannel?.rentalType,
+          channelType: phoneChannel?.channelType,
           snapshotSource: "trusted",
         });
       }
@@ -627,30 +672,33 @@ export async function POST(req: NextRequest) {
     });
 
     // CRITICAL FIX: Emit socket event for real-time updates
-    emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
-      conversationId: conversation._id.toString(),
-      businessPhoneId: phoneNumberId,
-      message: {
-        id: savedMessage._id.toString(),
-        messageId: whatsappMessageId,
-        from: phoneNumberId,
-        to: formattedPhone,
-        type: type,
-        content: contentObj,
-        mediaUrl: mediaUrl || "",
-        mediaId: mediaId || "",
-        filename: filename || "",
-        status: "sent",
-        direction: "outgoing",
-        timestamp: timestamp,
-        senderName: token.name || "You",
-        // Include reply context if this is a reply
-        ...(replyToMessageId && {
-          replyToMessageId,
-          replyContext,
-        }),
-      },
-    });
+    const convEmit = conversation.toObject ? conversation.toObject() : conversation;
+    emitWhatsAppEvent(
+      WHATSAPP_EVENTS.NEW_MESSAGE,
+      buildWhatsAppRoomPayload(convEmit as Record<string, unknown>, {
+        conversationId: conversation._id.toString(),
+        businessPhoneId: phoneNumberId,
+        message: {
+          id: savedMessage._id.toString(),
+          messageId: whatsappMessageId,
+          from: phoneNumberId,
+          to: formattedPhone,
+          type: type,
+          content: contentObj,
+          mediaUrl: mediaUrl || "",
+          mediaId: mediaId || "",
+          filename: filename || "",
+          status: "sent",
+          direction: "outgoing",
+          timestamp: timestamp,
+          senderName: token.name || "You",
+          ...(replyToMessageId && {
+            replyToMessageId,
+            replyContext,
+          }),
+        },
+      }),
+    );
 
     return NextResponse.json({
       success: true,

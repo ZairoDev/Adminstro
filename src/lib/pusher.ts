@@ -48,6 +48,8 @@ export const getIO = () => {
 export type WhatsAppEmitPayload = Record<string, unknown> & {
   userId?: string;
   businessPhoneId?: string;
+  /** Stable channel identifier for dual-room routing after number migrations. */
+  whatsappChannelId?: string;
   isRetarget?: boolean;
   retargetStage?: string | null;
 };
@@ -109,6 +111,20 @@ export const emitWhatsAppEvent = (event: string, data: WhatsAppEmitPayload) => {
           const room = `whatsapp-phone-${businessPhoneId}`;
           io.to(room).emit(event, data);
           console.log(`Socket event emitted to room ${room}: ${event}`);
+
+          // Dual-room: also emit to the stable channel room so clients joined after
+          // a number migration still receive events. Clients that have joined both rooms
+          // are deduped by the eventId field on the payload.
+          const channelId =
+            data?.whatsappChannelId ||
+            (data?.message != null && typeof data.message === "object"
+              ? (data.message as { whatsappChannelId?: string }).whatsappChannelId
+              : undefined);
+          if (channelId && String(channelId) !== businessPhoneId) {
+            const channelRoom = `whatsapp-channel-${channelId}`;
+            io.to(channelRoom).emit(event, data);
+            console.log(`Socket event emitted to channel room ${channelRoom}: ${event}`);
+          }
         } else {
           const retargetRoom = `whatsapp-retarget-${businessPhoneId}`;
           io.to(retargetRoom).emit(event, data);

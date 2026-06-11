@@ -69,6 +69,15 @@ export interface IWhatsAppConversation extends Document {
   retargetTemplateName?: string;
   retargetAgentId?: mongoose.Types.ObjectId | null;
 
+  // Multi-portfolio / multi-WABA routing (additive — populated from the
+  // WhatsappChannel that owns this conversation's businessPhoneId).
+  // These fields are FROZEN at creation; never updated when admin remaps channels.
+  whatsappChannelId?: mongoose.Types.ObjectId;
+  channelType?: "guest" | "owner" | "support" | "backup";
+  rentalType?: "Short Term" | "Long Term" | "General";
+  businessPortfolioId?: string;
+  wabaId?: string;
+
   metadata?: Map<string, any>;
 }
 
@@ -253,6 +262,34 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
       default: undefined,
     },
 
+    // Multi-portfolio / multi-WABA routing (additive, frozen at creation).
+    whatsappChannelId: {
+      type: Schema.Types.ObjectId,
+      ref: "WhatsappChannel",
+      default: undefined,
+      index: true,
+    },
+    channelType: {
+      type: String,
+      enum: ["guest", "owner", "support", "backup"],
+      default: undefined,
+      index: true,
+    },
+    rentalType: {
+      type: String,
+      enum: ["Short Term", "Long Term", "General"],
+      default: undefined,
+      index: true,
+    },
+    businessPortfolioId: {
+      type: String,
+      default: undefined,
+    },
+    wabaId: {
+      type: String,
+      default: undefined,
+    },
+
     metadata: {
       type: Map,
       of: Schema.Types.Mixed,
@@ -286,6 +323,22 @@ whatsAppConversationSchema.index({
   participantLocationKey: 1,
   status: 1,
 });
+
+// Compound index for triple-filter visibility (location + rental type + channel type)
+whatsAppConversationSchema.index({
+  participantLocationKey: 1,
+  rentalType: 1,
+  channelType: 1,
+  status: 1,
+  lastMessageTime: -1,
+}, { name: "visibility_channel_idx" });
+
+// Channel-scoped reporting and inbox queries
+whatsAppConversationSchema.index({
+  whatsappChannelId: 1,
+  status: 1,
+  lastMessageTime: -1,
+}, { name: "channel_lookup_idx" });
 
 const WhatsAppConversation =
   mongoose.models?.WhatsAppConversation ||

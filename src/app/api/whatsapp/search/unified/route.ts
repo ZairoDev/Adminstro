@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     const userRole = user.role;
     
     // Verify WhatsApp access
-    const { buildConversationVisibilityFilter } = await import("@/lib/whatsapp/locationAccess");
+    const { buildConversationVisibilityFilterAsync } = await import("@/lib/whatsapp/locationAccess");
     const { WHATSAPP_ACCESS_ROLES } = await import("@/lib/whatsapp/config");
     const hasAccess =
       (WHATSAPP_ACCESS_ROLES as readonly string[]).includes(userRole as string) ||
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
     
     // Permission filter — canonical visibility: phone AND location key
     const permissionMatch: any = {
-      ...buildConversationVisibilityFilter(user as any),
+      ...(await buildConversationVisibilityFilterAsync(user as any)),
       status: { $in: ["active", "pending"] },
       source: { $ne: "internal" },
     };

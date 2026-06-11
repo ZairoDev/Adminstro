@@ -4,7 +4,10 @@ import { connectDb } from "@/util/db";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import ConversationArchiveState from "@/models/conversationArchiveState";
-import { getAllowedPhoneIds, canAccessPhoneId } from "@/lib/whatsapp/config";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { stampConversationChannelFromPhone } from "@/lib/whatsapp/channelService";
+import { canUserAccessPhoneId } from "@/lib/whatsapp/phoneAreaConfigService";
+import { getUserAreasFromToken } from "@/lib/whatsapp/locationAccess";
 import mongoose from "mongoose";
 
 connectDb();
@@ -31,13 +34,11 @@ export async function POST(req: NextRequest) {
 
     // Verify user has access to target phone
     const userRole = token.role || "";
-    const userAreas = Array.isArray(token.allotedArea)
-      ? token.allotedArea
-      : token.allotedArea
-      ? [token.allotedArea]
-      : [];
+    const userAreas = getUserAreasFromToken(token);
 
-    if (!canAccessPhoneId(targetPhoneId, userRole, userAreas)) {
+    if (!(await canUserAccessPhoneId(targetPhoneId, userRole, userAreas, {
+      userRentalType: token.rentalType,
+    }))) {
       return NextResponse.json(
         { error: "You don't have access to transfer to this phone number" },
         { status: 403 }
@@ -54,7 +55,24 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify user has access to source phone
-    if (!canAccessPhoneId(sourceConversation.businessPhoneId, userRole, userAreas)) {
+    if (
+      sourceConversation.businessPhoneId &&
+      !(await canUserAccessPhoneId(
+        String(sourceConversation.businessPhoneId),
+        userRole,
+        userAreas,
+        { userRentalType: token.rentalType },
+      ))
+    ) {
+      return NextResponse.json(
+        { error: "You don't have access to this conversation" },
+        { status: 403 }
+      );
+    }
+
+    // Location + rental-type visibility: restricted staff cannot transfer a
+    // conversation they are not allowed to see (mirrors inbox visibility).
+    if (!(await canAccessConversationAsync(token, sourceConversation.toObject()))) {
       return NextResponse.json(
         { error: "You don't have access to this conversation" },
         { status: 403 }
@@ -155,6 +173,7 @@ export async function POST(req: NextRequest) {
         existingTargetConversation.participantLocation = sourceConversation.participantLocation;
       }
 
+      await stampConversationChannelFromPhone(existingTargetConversation, targetPhoneId);
       await existingTargetConversation.save();
 
       // Handle archive state: if source is archived, ensure target is also archived
@@ -188,8 +207,8 @@ export async function POST(req: NextRequest) {
       await ConversationArchiveState.deleteOne({ conversationId: sourceConversation._id });
       await WhatsAppConversation.findByIdAndDelete(sourceConversation._id);
     } else {
-      // Transfer: Update conversation's businessPhoneId
-      sourceConversation.businessPhoneId = targetPhoneId;
+      // Transfer: re-stamp business line + frozen channel snapshot for target phone.
+      await stampConversationChannelFromPhone(sourceConversation, targetPhoneId);
       await sourceConversation.save();
 
       finalConversationId = sourceConversation._id;

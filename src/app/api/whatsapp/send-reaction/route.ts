@@ -4,15 +4,11 @@ import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
-import {
-  canAccessPhoneId,
-  getAllowedPhoneIds,
-  getDefaultPhoneId,
-  getRetargetPhoneId,
-  getWhatsAppToken,
-  WHATSAPP_API_BASE_URL,
-} from "@/lib/whatsapp/config";
+import { WHATSAPP_API_BASE_URL } from "@/lib/whatsapp/config";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
+import { getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
 
 connectDb();
 
@@ -55,43 +51,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get user's allowed phone IDs
-    const userRole = token.role || "";
-    const userAreas = token.allotedArea || [];
-    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    const normalizedToken = normalizeWhatsAppToken(token);
+    let convDoc: Record<string, unknown> | null = null;
 
-    // Advert role: allow reacting in retarget conversations
-    if (allowedPhoneIds.length === 0 && userRole === "Advert") {
-      const retargetPhoneId = getRetargetPhoneId();
-      if (retargetPhoneId) {
-        allowedPhoneIds = [retargetPhoneId];
-      }
-    }
-
-    if (allowedPhoneIds.length === 0) {
-      return NextResponse.json(
-        { error: "No WhatsApp access for your role/area" },
-        { status: 403 }
-      );
-    }
-
-    // Determine which phone ID to use
-    let phoneNumberId = requestedPhoneId;
-    
-    // If conversationId provided, get phone ID from conversation
-    if (conversationId && !phoneNumberId) {
-      const conv = await WhatsAppConversation.findById(conversationId).lean() as any;
-      if (conv) {
-        phoneNumberId = conv.businessPhoneId;
-      }
-    }
-
-    // If conversationId provided, enforce conversation access rules
     if (conversationId) {
-      const convDoc = await WhatsAppConversation.findById(conversationId).lean() as any;
-      if (!convDoc) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
-      const allowed = await canAccessConversationAsync(token, convDoc);
-      if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      convDoc = (await WhatsAppConversation.findById(conversationId).lean()) as Record<string, unknown> | null;
+      if (!convDoc) {
+        return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+      }
+      const allowed = await canAccessConversationAsync(normalizedToken, convDoc);
+      if (!allowed) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
 
       if ((token.role || "") === "Advert" && convDoc.isRetarget && convDoc.retargetStage === "handed_to_sales") {
         return NextResponse.json({ error: "Advert cannot react after handover" }, { status: 403 });
@@ -101,20 +72,29 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fall back to default if not set
-    if (!phoneNumberId) {
-      phoneNumberId = getDefaultPhoneId(userRole, userAreas);
-    }
-
-    // Verify permission
-    if (!phoneNumberId || !canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
+    const phoneResolution = await resolveOutboundBusinessPhoneId({
+      token: normalizedToken,
+      conversation: convDoc,
+      requestedPhoneId,
+      requireConversation: Boolean(conversationId),
+    });
+    if ("error" in phoneResolution) {
       return NextResponse.json(
-        { error: "You don't have permission to send from this WhatsApp number" },
-        { status: 403 }
+        { error: phoneResolution.error },
+        { status: phoneResolution.status },
       );
     }
+    const phoneNumberId = phoneResolution.phoneNumberId;
 
-    const whatsappToken = getWhatsAppToken();
+    const whatsappToken = await getOutboundTokenForPhoneId(
+      phoneNumberId,
+      convDoc
+        ? {
+            whatsappChannelId: convDoc.whatsappChannelId as string | undefined,
+            businessPhoneId: convDoc.businessPhoneId as string | undefined,
+          }
+        : undefined,
+    );
     if (!whatsappToken) {
       return NextResponse.json(
         { error: "WhatsApp configuration missing" },

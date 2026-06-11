@@ -4,36 +4,30 @@ import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
-import {
-  canAccessPhoneId,
-  getAllowedPhoneIds,
-  getDefaultPhoneId,
-  getRetargetPhoneId,
-  getWhatsAppToken,
-  WHATSAPP_API_BASE_URL,
-} from "@/lib/whatsapp/config";
+import { WHATSAPP_API_BASE_URL } from "@/lib/whatsapp/config";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { isSalesWhatsAppRole } from "@/lib/whatsapp/config";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
+import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
+import { buildWhatsAppRoomPayload } from "@/lib/whatsapp/socketPayload";
 
 connectDb();
 
 export async function POST(req: NextRequest) {
   try {
-    const token = await getDataFromToken(req) as any;
+    const token = await getDataFromToken(req) as Record<string, unknown>;
     if (!token) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { 
-      to, 
-      type, 
-      header, 
-      body, 
-      footer, 
+    const {
+      to,
+      type,
+      header,
+      body,
+      footer,
       action,
       conversationId,
       phoneNumberId: requestedPhoneId,
@@ -54,66 +48,68 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get user's allowed phone IDs
-    const userRole = token.role || "";
-    const userAreas = token.allotedArea || [];
-    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    const normalizedToken = normalizeWhatsAppToken(token);
+    const userRole = normalizedToken.role || "";
+    const allowedPhoneIds = await resolveAllowedPhoneIdsAsync(normalizedToken);
 
-    // Advert role: allow interactive messages in retarget conversations
-    if (allowedPhoneIds.length === 0 && userRole === "Advert") {
-      const retargetPhoneId = getRetargetPhoneId();
-      if (retargetPhoneId) {
-        allowedPhoneIds = [retargetPhoneId];
-      }
-    }
-
-    if (allowedPhoneIds.length === 0) {
+    if (allowedPhoneIds.length === 0 && userRole !== "Advert") {
       return NextResponse.json(
         { error: "No WhatsApp access for your role/area" },
         { status: 403 }
       );
     }
 
-    // Determine which phone ID to use
-    let phoneNumberId = requestedPhoneId;
+    let conversation = conversationId
+      ? await WhatsAppConversation.findById(conversationId)
+      : null;
 
-    // If conversationId provided, get phone ID from conversation
-    if (conversationId && !phoneNumberId) {
-      const conv = await WhatsAppConversation.findById(conversationId).lean() as any;
-      if (conv) {
-        phoneNumberId = conv.businessPhoneId;
-      }
-    }
-
-    // If conversationId provided, enforce conversation access rules
     if (conversationId) {
-      const convDoc = await WhatsAppConversation.findById(conversationId).lean() as any;
-      if (!convDoc) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
-      const allowed = await canAccessConversationAsync(token, convDoc);
+      if (!conversation) {
+        return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+      }
+      const convLean = conversation.toObject ? conversation.toObject() : conversation;
+      const allowed = await canAccessConversationAsync(normalizedToken, convLean);
       if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-      if ((token.role || "") === "Advert" && convDoc.isRetarget && convDoc.retargetStage === "handed_to_sales") {
+      if ((token.role || "") === "Advert" && convLean.isRetarget && convLean.retargetStage === "handed_to_sales") {
         return NextResponse.json({ error: "Advert cannot send interactive after handover" }, { status: 403 });
       }
-      if (isSalesWhatsAppRole(token.role || "") && convDoc.isRetarget && convDoc.retargetStage !== "handed_to_sales") {
+      if (isSalesWhatsAppRole(String(token.role || "")) && convLean.isRetarget && convLean.retargetStage !== "handed_to_sales") {
         return NextResponse.json({ error: "Sales cannot send interactive to retarget conversation before handover" }, { status: 403 });
       }
     }
 
-    // Fall back to default if not set
-    if (!phoneNumberId) {
-      phoneNumberId = getDefaultPhoneId(userRole, userAreas);
-    }
+    const phoneResolution = await resolveOutboundBusinessPhoneId({
+      token: normalizedToken,
+      conversation: conversation
+        ? (conversation.toObject ? conversation.toObject() : conversation)
+        : null,
+      requestedPhoneId,
+      requireConversation: Boolean(conversationId),
+    });
 
-    // Verify permission
-    if (!phoneNumberId || !canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
+    if ("error" in phoneResolution) {
       return NextResponse.json(
-        { error: "You don't have permission to send from this WhatsApp number" },
-        { status: 403 }
+        { error: phoneResolution.error },
+        { status: phoneResolution.status }
       );
     }
 
-    const whatsappToken = getWhatsAppToken();
+    const phoneNumberId = phoneResolution.phoneNumberId;
+    const convForToken = conversation
+      ? (conversation.toObject ? conversation.toObject() : conversation)
+      : null;
+
+    const whatsappToken = await getOutboundTokenForPhoneId(
+      phoneNumberId,
+      convForToken
+        ? {
+            whatsappChannelId: convForToken.whatsappChannelId,
+            businessPhoneId: phoneNumberId,
+          }
+        : null,
+    );
+
     if (!whatsappToken) {
       return NextResponse.json(
         { error: "WhatsApp configuration missing" },
@@ -121,30 +117,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Format phone number
-    const formattedPhone = to.replace(/[\s\-\+]/g, "");
+    const formattedPhone = String(to).replace(/[\s\-\+]/g, "");
 
-    // Build interactive payload
-    const interactive: any = {
+    const interactive: Record<string, unknown> = {
       type,
       body: { text: body },
       action,
     };
-
-    if (header) {
-      interactive.header = header;
-    }
-
-    if (footer) {
-      interactive.footer = { text: footer };
-    }
+    if (header) interactive.header = header;
+    if (footer) interactive.footer = { text: footer };
 
     const response = await fetch(
       `${WHATSAPP_API_BASE_URL}/${phoneNumberId}/messages`,
       {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${whatsappToken}`,
+          Authorization: `Bearer ${whatsappToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -162,38 +150,32 @@ export async function POST(req: NextRequest) {
     if (!response.ok) {
       console.error("WhatsApp Interactive API Error:", data);
       return NextResponse.json(
-        { error: data.error?.message || "Failed to send interactive message" },
+        { error: (data as { error?: { message?: string } })?.error?.message || "Failed to send interactive message" },
         { status: response.status }
       );
     }
 
-    const whatsappMessageId = data.messages?.[0]?.id;
+    const whatsappMessageId = (data as { messages?: Array<{ id?: string }> })?.messages?.[0]?.id;
     const timestamp = new Date();
 
-    // Get or create conversation using snapshot-safe helper
-    let conversation;
-    if (conversationId) {
-      conversation = await WhatsAppConversation.findById(conversationId);
-    }
-
     if (!conversation) {
-      // Use helper to find or create with proper snapshot semantics
-      // User-initiated interactive message sending is "trusted" - can backfill empty snapshot fields
       conversation = await findOrCreateConversationWithSnapshot({
         participantPhone: formattedPhone,
         businessPhoneId: phoneNumberId,
-        participantName: formattedPhone, // Default name for new conversations
+        participantName: formattedPhone,
+        participantLocation: convForToken?.participantLocation,
+        conversationType: convForToken?.conversationType,
+        rentalType: convForToken?.rentalType,
+        channelType: convForToken?.channelType,
         snapshotSource: "trusted",
       });
     }
 
-    // Build content object with interactivePayload
     const contentObj = {
       text: body,
       interactivePayload: interactive,
     };
 
-    // Save message to database
     const savedMessage = await WhatsAppMessage.create({
       conversationId: conversation._id,
       messageId: whatsappMessageId,
@@ -213,32 +195,34 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Update conversation last message
     await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
       lastMessageId: whatsappMessageId,
-      lastMessageContent: body.substring(0, 100),
+      lastMessageContent: String(body).substring(0, 100),
       lastMessageTime: timestamp,
       lastMessageDirection: "outgoing",
       lastOutgoingMessageTime: timestamp,
     });
 
-    // Emit socket event for real-time updates
-    emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
-      conversationId: conversation._id.toString(),
-      businessPhoneId: phoneNumberId,
-      message: {
-        id: savedMessage._id.toString(),
-        messageId: whatsappMessageId,
-        from: phoneNumberId,
-        to: formattedPhone,
-        type: "interactive",
-        content: contentObj,
-        status: "sent",
-        direction: "outgoing",
-        timestamp,
-        senderName: token.name || "You",
-      },
-    });
+    const convRecord = conversation.toObject ? conversation.toObject() : conversation;
+    emitWhatsAppEvent(
+      WHATSAPP_EVENTS.NEW_MESSAGE,
+      buildWhatsAppRoomPayload(convRecord as Record<string, unknown>, {
+        conversationId: conversation._id.toString(),
+        businessPhoneId: phoneNumberId,
+        message: {
+          id: savedMessage._id.toString(),
+          messageId: whatsappMessageId,
+          from: phoneNumberId,
+          to: formattedPhone,
+          type: "interactive",
+          content: contentObj,
+          status: "sent",
+          direction: "outgoing",
+          timestamp,
+          senderName: token.name || "You",
+        },
+      }),
+    );
 
     return NextResponse.json({
       success: true,
@@ -248,11 +232,9 @@ export async function POST(req: NextRequest) {
       timestamp: timestamp.toISOString(),
       data,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal server error";
     console.error("Send interactive error:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

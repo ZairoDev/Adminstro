@@ -3,8 +3,10 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import { getAllowedPhoneIds, getRetargetPhoneId, FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
-import { buildConversationVisibilityFilter } from "@/lib/whatsapp/locationAccess";
+import { getRetargetPhoneId, FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { buildConversationVisibilityFilterAsync } from "@/lib/whatsapp/locationAccess";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 
 export const dynamic = "force-dynamic";
 
@@ -16,49 +18,53 @@ connectDb();
  */
 export async function GET(req: NextRequest) {
   try {
-    const token = await getDataFromToken(req) as any;
+    const token = await getDataFromToken(req) as Record<string, unknown>;
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const searchParams = req.nextUrl.searchParams;
     const phoneId = searchParams.get("phoneId");
-    const conversationId = searchParams.get("conversationId"); // Optional: filter by specific conversation
+    const conversationId = searchParams.get("conversationId");
     const limit = parseInt(searchParams.get("limit") || "100");
-    const mediaType = searchParams.get("type"); // Optional: "image" | "video" | "document" | "audio"
+    const mediaType = searchParams.get("type");
 
-    // Get user's allowed phone IDs
-    const userRole = token.role || "";
-    const userAreas = token.allotedArea || [];
-    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    const normalizedToken = normalizeWhatsAppToken(token);
+    const userRole = normalizedToken.role || "";
+    const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(userRole);
 
-    // Advert role: allow access to retarget phone media
+    let allowedPhoneIds = await resolveAllowedPhoneIdsAsync(normalizedToken);
     if (allowedPhoneIds.length === 0 && userRole === "Advert") {
       const retargetPhoneId = getRetargetPhoneId();
-      if (retargetPhoneId) {
-        allowedPhoneIds = [retargetPhoneId];
-      }
+      if (retargetPhoneId) allowedPhoneIds = [retargetPhoneId];
     }
 
-    if (allowedPhoneIds.length === 0) {
+    if (allowedPhoneIds.length === 0 && !isFullAccess) {
       return NextResponse.json(
         { error: "No WhatsApp access for your role/area" },
         { status: 403 }
       );
     }
 
-    // Build query for conversations — canonical dual visibility: phone AND location key
-    const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(token.role || "");
-    const visibilityFilter = isFullAccess
-      ? { businessPhoneId: { $in: allowedPhoneIds } }
-      : buildConversationVisibilityFilter(token as any);
+    if (conversationId) {
+      const conv = await WhatsAppConversation.findById(conversationId).lean();
+      if (!conv) {
+        return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+      }
+      if (!(await canAccessConversationAsync(normalizedToken, conv as Record<string, unknown>))) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
 
-    const conversationQuery: any = {
+    const visibilityFilter = isFullAccess
+      ? {}
+      : await buildConversationVisibilityFilterAsync(normalizedToken);
+
+    const conversationQuery: Record<string, unknown> = {
       ...visibilityFilter,
       status: { $ne: "archived" },
     };
 
-    // Override phone if explicitly requested (caller is already gated by visibility filter)
     if (phoneId) {
       if (!isFullAccess && !allowedPhoneIds.includes(phoneId)) {
         return NextResponse.json(
@@ -69,17 +75,15 @@ export async function GET(req: NextRequest) {
       conversationQuery.businessPhoneId = phoneId;
     }
 
-    // Filter by specific conversation if provided
     if (conversationId) {
       conversationQuery._id = conversationId;
     }
 
-    // Get conversation IDs
     const conversations = await WhatsAppConversation.find(conversationQuery)
       .select("_id participantName participantPhone")
       .lean();
 
-    const conversationIds = conversations.map((c: any) => c._id);
+    const conversationIds = conversations.map((c) => c._id);
 
     if (conversationIds.length === 0) {
       return NextResponse.json({
@@ -89,52 +93,41 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Build query for media messages
-    const messageQuery: any = {
+    const mediaTypes = mediaType
+      ? [mediaType]
+      : ["image", "video", "document", "audio"];
+
+    const mediaMessages = await WhatsAppMessage.find({
       conversationId: { $in: conversationIds },
-      mediaUrl: { $exists: true, $ne: null },
-    };
-
-    // Filter by media type if specified
-    if (mediaType === "media") {
-      // "media" tab should show images and videos
-      messageQuery.type = { $in: ["image", "video"] };
-    } else if (mediaType) {
-      messageQuery.type = mediaType;
-    } else {
-      // Default: all media types
-      messageQuery.type = { $in: ["image", "video", "document", "audio"] };
-    }
-
-    // Fetch media messages
-    const mediaMessages = await WhatsAppMessage.find(messageQuery)
-      .select("_id conversationId type mediaUrl mimeType filename timestamp content")
+      type: { $in: mediaTypes },
+      mediaUrl: { $exists: true, $ne: "" },
+    })
       .sort({ timestamp: -1 })
       .limit(limit)
       .lean();
 
-    // Create a map of conversation IDs to conversation info
-    const conversationMap = new Map<string, { name: string; phone: string }>();
-    conversations.forEach((conv: any) => {
-      conversationMap.set(conv._id.toString(), {
-        name: conv.participantName || conv.participantPhone,
-        phone: conv.participantPhone,
-      });
-    });
+    const conversationMap = new Map(
+      conversations.map((c) => [String(c._id), c])
+    );
 
-    // Transform media messages with conversation info
-    const media = mediaMessages.map((msg: any) => {
-      const convInfo = conversationMap.get(msg.conversationId.toString());
+    const media = mediaMessages.map((msg) => {
+      const conv = conversationMap.get(String(msg.conversationId));
       return {
-        id: msg._id.toString(),
-        conversationId: msg.conversationId.toString(),
+        _id: msg._id,
+        messageId: msg.messageId,
         type: msg.type,
         mediaUrl: msg.mediaUrl,
-        mimeType: msg.mimeType,
         filename: msg.filename,
+        mimeType: msg.mimeType,
+        caption:
+          typeof msg.content === "object" && msg.content
+            ? (msg.content as { caption?: string }).caption
+            : undefined,
         timestamp: msg.timestamp,
-        sender: convInfo?.name || convInfo?.phone || "Unknown",
-        caption: msg.content?.caption || msg.content?.text || "",
+        direction: msg.direction,
+        conversationId: msg.conversationId,
+        participantName: conv?.participantName,
+        participantPhone: conv?.participantPhone,
       };
     });
 
@@ -143,11 +136,9 @@ export async function GET(req: NextRequest) {
       media,
       count: media.length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal server error";
     console.error("Get media error:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

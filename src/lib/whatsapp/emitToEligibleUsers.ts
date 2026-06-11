@@ -1,8 +1,10 @@
 import { emitWhatsAppEvent } from "@/lib/pusher";
 import { getEligibleUsersForNotification } from "./notificationRecipients";
+import { buildWhatsAppRoomPayload } from "./socketPayload";
 
 type EmitPayload = Record<string, unknown> & {
   businessPhoneId?: string;
+  whatsappChannelId?: string;
   isRetarget?: boolean;
   retargetStage?: string | null;
 };
@@ -18,8 +20,12 @@ export async function emitWhatsAppEventToEligibleUsers(
   opts: { excludeUserId?: string } = {}
 ): Promise<number> {
   const eligible = await getEligibleUsersForNotification(conversation);
-  let count = 0;
+  const roomPayload = buildWhatsAppRoomPayload(conversation, basePayload);
 
+  // Broadcast to phone/channel rooms for clients not on personal user rooms.
+  emitWhatsAppEvent(event, roomPayload);
+
+  let count = 0;
   for (const user of eligible) {
     if (
       opts.excludeUserId &&
@@ -28,7 +34,7 @@ export async function emitWhatsAppEventToEligibleUsers(
       continue;
     }
     emitWhatsAppEvent(event, {
-      ...basePayload,
+      ...roomPayload,
       userId: user.userId,
     });
     count += 1;

@@ -239,6 +239,23 @@ app.prepare().then(() => {
       console.log(`📲 ${socket.id} left phone room: ${room}`);
     });
     
+    // Join stable channel room — used for dual-room emit after number migrations.
+    // Clients join this in addition to their phone room; the stable channelId never
+    // changes when a phone number is replaced, so historical conversations remain live.
+    socket.on("join-whatsapp-channel", (channelId?: string) => {
+      if (!channelId) return;
+      const room = `whatsapp-channel-${channelId}`;
+      socket.join(room);
+      console.log(`📡 ${socket.id} joined channel room: ${room}`);
+    });
+
+    socket.on("leave-whatsapp-channel", (channelId?: string) => {
+      if (!channelId) return;
+      const room = `whatsapp-channel-${channelId}`;
+      socket.leave(room);
+      console.log(`📡 ${socket.id} left channel room: ${room}`);
+    });
+
     // Join retarget-specific room (Advert/SuperAdmin will join this)
     socket.on("join-whatsapp-retarget", (phoneId?: string) => {
       if (!phoneId) return;

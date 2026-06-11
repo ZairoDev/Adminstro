@@ -51,7 +51,9 @@ export async function POST(req: NextRequest) {
     if (phoneNumberId) {
       if (
         !isFullAccess &&
-        !(await canUserAccessPhoneId(phoneNumberId, userRole, userAreas))
+        !(await canUserAccessPhoneId(phoneNumberId, userRole, userAreas, {
+          userRentalType: token.rentalType,
+        }))
       ) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }

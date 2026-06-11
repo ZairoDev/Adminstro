@@ -4,6 +4,7 @@ import {
 } from "./config";
 import {
   buildConversationVisibilityFilter,
+  buildConversationVisibilityFilterAsync,
   applyInboxLocationFilter,
 } from "./locationAccess";
 import { canAccessWhatsAppAdminQueue } from "./participantLocationPrivileges";
@@ -59,6 +60,64 @@ export function buildInboxListQuery(
     Object.assign(query, visibilityFilter);
   } else if (!isFullAccess) {
     const visibilityFilter = buildConversationVisibilityFilter(normalized);
+    if (visibilityFilter._id === null) return { _id: null };
+    Object.assign(query, visibilityFilter);
+  }
+
+  if (!params.adminQueue) {
+    applyInboxLocationFilter(query, normalized, params.locationFilter || "");
+  }
+
+  if (
+    params.conversationType === "owner" ||
+    params.conversationType === "guest"
+  ) {
+    query.conversationType = params.conversationType;
+  }
+
+  if (params.retargetOnly) {
+    query.isRetarget = true;
+  }
+
+  if (userRole === "Advert") {
+    query.isRetarget = true;
+  }
+
+  if (isSalesWhatsAppRole(userRole)) {
+    const and = (query.$and as Record<string, unknown>[]) || [];
+    and.push({
+      $or: [
+        { isRetarget: { $ne: true } },
+        { isRetarget: true, retargetStage: "handed_to_sales" },
+      ],
+    });
+    query.$and = and;
+  }
+
+  return query;
+}
+
+/** Async inbox filter — includes whatsappChannelId OR-branch for migrated conversations. */
+export async function buildInboxListQueryAsync(
+  token: WhatsAppToken,
+  params: InboxListParams,
+): Promise<Record<string, unknown>> {
+  const normalized = normalizeWhatsAppToken(token);
+  const userRole = normalized.role || "";
+  const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(userRole);
+  const query: Record<string, unknown> = {
+    status: params.status || "active",
+    source: { $ne: "internal" },
+  };
+
+  if (params.adminQueue) {
+    if (!canAccessWhatsAppAdminQueue(normalized)) return { _id: null };
+    const visibilityFilter = await buildConversationVisibilityFilterAsync(normalized, {
+      adminQueue: true,
+    });
+    Object.assign(query, visibilityFilter);
+  } else if (!isFullAccess) {
+    const visibilityFilter = await buildConversationVisibilityFilterAsync(normalized);
     if (visibilityFilter._id === null) return { _id: null };
     Object.assign(query, visibilityFilter);
   }

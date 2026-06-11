@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import { buildInboxListQuery, parseInboxListParams } from "@/lib/whatsapp/inboxQuery";
+import { buildInboxListQueryAsync, parseInboxListParams } from "@/lib/whatsapp/inboxQuery";
 import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
 
 connectDb();
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     }
 
     const inboxParams = parseInboxListParams(req.nextUrl.searchParams);
-    const baseQuery = buildInboxListQuery(normalizedToken, inboxParams);
+    const baseQuery = await buildInboxListQueryAsync(normalizedToken, inboxParams);
     if (baseQuery._id === null) {
       return NextResponse.json({
         success: true,

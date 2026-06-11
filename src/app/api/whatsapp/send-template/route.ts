@@ -7,7 +7,6 @@ import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import {
   getDefaultPhoneId,
   getRetargetPhoneId,
-  getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
   isSalesWhatsAppRole,
 } from "@/lib/whatsapp/config";
@@ -15,7 +14,13 @@ import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversatio
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
+import {
+  getOutboundTokenForPhoneId,
+  resolveOutboundSendCredentials,
+} from "@/lib/whatsapp/channelService";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 import RetargetContact from "@/models/retargetContact";
+import { isTemplateAllowedForConversationRentalType } from "@/lib/whatsapp/templateClassification";
 
 connectDb();
 
@@ -122,6 +127,26 @@ export async function POST(req: NextRequest) {
           { status: 403 },
         );
       }
+
+      const channelScoped = Boolean(
+        convLean.whatsappChannelId || convLean.wabaId,
+      );
+      if (
+        !isRetarget &&
+        !isTemplateAllowedForConversationRentalType(
+          templateName,
+          convLean.rentalType,
+          { channelScoped },
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "This template is not allowed for this conversation's rental type",
+          },
+          { status: 400 },
+        );
+      }
     }
 
     let phoneNumberId: string;
@@ -160,34 +185,62 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log("📨 [send-template] resolved phoneNumberId", {
-      phoneNumberId,
+    const convForToken = conversation
+      ? (conversation.toObject ? conversation.toObject() : conversation)
+      : null;
+
+    let sendPhoneNumberId = phoneNumberId;
+    let whatsappToken: string;
+    let credentialSource = "retarget_or_default";
+
+    if (isRetarget) {
+      whatsappToken = await getOutboundTokenForPhoneId(phoneNumberId);
+      if (!whatsappToken) {
+        return NextResponse.json(
+          { error: "WhatsApp configuration missing for retarget line" },
+          { status: 500 },
+        );
+      }
+    } else {
+      const credentials = await resolveOutboundSendCredentials({
+        phoneNumberId,
+        conversation: convForToken
+          ? {
+              whatsappChannelId: convForToken.whatsappChannelId,
+              businessPhoneId: convForToken.businessPhoneId,
+            }
+          : undefined,
+        allowWabaPhoneFallback: !conversationId,
+      });
+
+      if (!credentials) {
+        return NextResponse.json(
+          {
+            error:
+              "Cannot send from this business line — phone number ID or access token is invalid for Meta. Check WhatsApp Channels admin: ensure the channel has the correct phoneNumberId and access token for its WABA.",
+          },
+          { status: 400 },
+        );
+      }
+
+      sendPhoneNumberId = credentials.phoneNumberId;
+      whatsappToken = credentials.accessToken;
+      credentialSource = credentials.source;
+    }
+
+    console.log("📨 [send-template] resolved credentials", {
+      requestedPhoneNumberId: phoneNumberId,
+      sendPhoneNumberId,
+      credentialSource,
       isRetarget: Boolean(isRetarget),
     });
 
-    const whatsappToken = getWhatsAppToken();
-    if (!whatsappToken) {
-      return NextResponse.json(
-        { error: "WhatsApp configuration missing" },
-        { status: 500 }
-      );
-    }
-
-    console.log("📨 [send-template] sending to Meta", {
-      countryCodePrefix: formattedPhone.substring(0, 3),
-      toMasked: formattedPhone.replace(/\d(?=\d{4})/g, "x"),
-      templateName,
-      languageCode,
-      phoneNumberId,
-      components: Array.isArray(components) ? components : [],
-    });
-
-    const response = await fetch(
-      `${WHATSAPP_API_BASE_URL}/${phoneNumberId}/messages`,
-      {
+    const parsedRecipient = parsePhoneNumberFromString(`+${formattedPhone}`);
+    const sendTemplateToMeta = async (fromPhoneId: string, token: string) =>
+      fetch(`${WHATSAPP_API_BASE_URL}/${fromPhoneId}/messages`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${whatsappToken}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -203,9 +256,22 @@ export async function POST(req: NextRequest) {
             components: components,
           },
         }),
-      }
-    );
+      });
 
+    console.log("📨 [send-template] sending to Meta", {
+      toE164: formattedPhone.replace(/\d(?=\d{4})/g, "x"),
+      countryCallingCode: parsedRecipient?.countryCallingCode ?? null,
+      nationalNumberMasked: parsedRecipient?.nationalNumber
+        ? String(parsedRecipient.nationalNumber).replace(/\d(?=\d{4})/g, "x")
+        : null,
+      templateName,
+      languageCode,
+      phoneNumberId: sendPhoneNumberId,
+      credentialSource,
+      components: Array.isArray(components) ? components : [],
+    });
+
+    const response = await sendTemplateToMeta(sendPhoneNumberId, whatsappToken);
     const data = await response.json();
     console.log("📨 [send-template] Meta response", {
       ok: response.ok,
@@ -254,8 +320,8 @@ export async function POST(req: NextRequest) {
     const savedMessage = await WhatsAppMessage.create({
       conversationId: conversation._id,
       messageId: whatsappMessageId,
-      businessPhoneId: phoneNumberId,
-      from: phoneNumberId,
+      businessPhoneId: sendPhoneNumberId,
+      from: sendPhoneNumberId,
       to: formattedPhone,
       type: "template",
       content: contentObj,
@@ -321,12 +387,12 @@ export async function POST(req: NextRequest) {
     // Emit socket event for real-time updates (global)
     const emitPayload = {
       conversationId: conversation._id.toString(),
-      businessPhoneId: phoneNumberId,
+      businessPhoneId: sendPhoneNumberId,
       isRetarget: !!isRetarget,
       message: {
         id: savedMessage._id.toString(),
         messageId: whatsappMessageId,
-        from: phoneNumberId,
+        from: sendPhoneNumberId,
         to: formattedPhone,
         type: "template",
         content: contentObj,

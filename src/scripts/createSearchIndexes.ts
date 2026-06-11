@@ -79,6 +79,35 @@ async function createSearchIndexes() {
     );
     // Phone + location key compound index created
 
+    // 4c. Full visibility index — location + rentalType + channelType + status + time
+    // Used by buildConversationVisibilityFilter to avoid collection scans.
+    try {
+      await WhatsAppConversation.collection.createIndex(
+        {
+          participantLocationKey: 1,
+          rentalType: 1,
+          channelType: 1,
+          status: 1,
+          lastMessageTime: -1,
+        },
+        { name: "visibility_channel_idx" }
+      );
+      // Channel visibility compound index created
+    } catch (err: any) {
+      if (err.code !== 85 && err.codeName !== "IndexOptionsConflict") throw err;
+    }
+
+    // 4d. Channel-scoped reporting index — used for per-channel analytics / inbox queries.
+    try {
+      await WhatsAppConversation.collection.createIndex(
+        { whatsappChannelId: 1, status: 1, lastMessageTime: -1 },
+        { name: "channel_lookup_idx" }
+      );
+      // Channel lookup index created
+    } catch (err: any) {
+      if (err.code !== 85 && err.codeName !== "IndexOptionsConflict") throw err;
+    }
+
     // 5. Tags array index for tag search
     await WhatsAppConversation.collection.createIndex(
       { tags: 1 },

@@ -12,10 +12,7 @@ import { LayoutTemplate, Loader2, MessageSquare, Check, AlertTriangle } from "lu
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Template } from "../types";
 import { getTemplateParameters } from "../utils";
-import {
-  filterApprovedTemplates,
-  filterTemplatesForConversationType,
-} from "@/lib/whatsapp/templateClassification";
+import { filterTemplatesForConversation } from "@/lib/whatsapp/templateClassification";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -37,6 +34,8 @@ interface TemplateDialogProps {
     agentName?: string;
   };
   conversationType?: "owner" | "guest";
+  conversationRentalType?: "Short Term" | "Long Term" | "General" | null;
+  templatesChannelScoped?: boolean;
 }
 
 export const TemplateDialog = memo(function TemplateDialog({
@@ -51,6 +50,8 @@ export const TemplateDialog = memo(function TemplateDialog({
   sendingMessage,
   context,
   conversationType,
+  conversationRentalType,
+  templatesChannelScoped = false,
 }: TemplateDialogProps) {
   const params = useMemo(
     () => (selectedTemplate ? getTemplateParameters(selectedTemplate) : []),
@@ -89,9 +90,12 @@ export const TemplateDialog = memo(function TemplateDialog({
   const canSend = selectedTemplate && !sendingMessage && missingParams.length === 0 && !detectionIncomplete;
 
   const approvedTemplates = useMemo(() => {
-    const approved = filterApprovedTemplates(templates);
-    return filterTemplatesForConversationType(approved, conversationType);
-  }, [templates, conversationType]);
+    return filterTemplatesForConversation(templates, {
+      conversationType,
+      rentalType: conversationRentalType,
+      channelScoped: templatesChannelScoped,
+    });
+  }, [templates, conversationType, conversationRentalType, templatesChannelScoped]);
 
   const handleSelectTemplate = (templateName: string) => {
     const template = approvedTemplates.find((t) => t.name === templateName);

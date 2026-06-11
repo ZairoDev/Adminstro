@@ -2,6 +2,7 @@
 export const LEAD_DOCUMENT_VIEWER_ROLES = [
   "SuperAdmin",
   "LeadGen-TeamLead",
+  "LeadGen",
 ] as const;
 
 export type LeadDocumentViewerRole =

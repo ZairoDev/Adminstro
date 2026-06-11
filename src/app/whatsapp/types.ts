@@ -91,6 +91,7 @@ export interface Conversation {
   lastCustomerMessageAt?: Date;
   sessionExpiresAt?: Date;
   conversationType?: "owner" | "guest"; // Determined by first template message
+  rentalType?: "Short Term" | "Long Term" | "General";
   referenceLink?: string; // Property listing URL or reference link
   /** Outgoing VacationSaga listing links sent to this guest (sidebar) */
   listingLinkSentCount?: number;

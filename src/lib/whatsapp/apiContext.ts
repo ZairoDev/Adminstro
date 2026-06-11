@@ -13,6 +13,8 @@ export type WhatsAppToken = {
   role?: string;
   allotedArea?: string | string[];
   name?: string;
+  email?: string;
+  rentalType?: unknown;
 };
 
 /** Normalize token id and allotedArea for all WhatsApp API routes. */
@@ -41,7 +43,7 @@ export function hasFullWhatsAppAccess(role: string): boolean {
  * Resolve Meta business phone IDs the user may use (lines, not inbox tabs).
  * Advert without areas gets retarget phone only.
  */
-export function resolveAllowedPhoneIds(
+export function resolveAllowedPhoneIds( 
   token: WhatsAppToken,
   opts: { retargetOnly?: boolean } = {}
 ): string[] {

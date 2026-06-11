@@ -68,7 +68,7 @@ import { useUnifiedWhatsAppSearch } from "../hooks/useUnifiedWhatsAppSearch";
 import { UnifiedSearchResults } from "./UnifiedSearchResults";
 import { MediaPopup } from "./MediaPopup";
 import { WhatsAppConversationTypeMigrationButton } from "@/components/dashboard/WhatsAppConversationTypeMigrationButton";
-import { WhatsAppPhoneLocationsManager } from "@/components/dashboard/WhatsAppPhoneLocationsManager";
+// WhatsAppPhoneLocationsManager hidden — location-to-phone mapping now managed via /dashboard/whatsapp/channels
 import { WhatsAppPhoneMaskForm } from "./WhatsAppPhoneMaskForm";
 import {
   canAccessWhatsAppAdminQueue,
@@ -1136,7 +1136,6 @@ export function ConversationSidebar({
                       <>
                         <div className="h-px bg-[#e9edef] dark:bg-[#222d34] my-1" />
                         <div className="px-2 py-1.5 space-y-2">
-                          <WhatsAppPhoneLocationsManager />
                           <WhatsAppConversationTypeMigrationButton
                             onSuccess={onRefreshConversations}
                           />
@@ -1440,12 +1439,12 @@ export function ConversationSidebar({
                 if (!conv) {
                   try {
                     const response = await fetch(
-                      `/api/whatsapp/conversations/${conversationId}`,
+                      `/api/whatsapp/conversations?conversation=${encodeURIComponent(conversationId)}`,
                     );
                     if (response.ok) {
                       const data = await response.json();
-                      if (data.success && data.conversation) {
-                        conv = data.conversation;
+                      if (data.success && data.conversations?.[0]) {
+                        conv = data.conversations[0];
                       }
                     }
                   } catch (error) {

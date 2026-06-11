@@ -14,6 +14,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/superadmin",
     "/whatsapp",
     "/whatsapp/retarget",
+    "/whatsapp/channels",
+    "/dashboard/whatsapp/channels",
     "/application-form",
     "/spreadsheet",
     "/spreadsheet-short-term",

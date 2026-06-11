@@ -74,7 +74,7 @@ import { canAccessOwnerSheetVariant } from "@/util/employeeRentalTypeAccess";
 const isActive = (currentPath: string, path: string): boolean => {
   const routeBase = path.split("?")[0];
   const currentBase = currentPath.split("?")[0];
-  if (routeBase === "/whatsapp" || routeBase === "/whatsapp/retarget") {
+  if (routeBase === "/whatsapp" || routeBase === "/whatsapp/retarget" || routeBase === "/dashboard/whatsapp/channels") {
     return currentBase === routeBase;
   }
   return currentPath === path;
@@ -560,6 +560,11 @@ const roleRoutes: Record<string, Route[]> = {
       openInNewTab: true,
       label: "WhatsApp",
       Icon: <MessageSquare size={18} />,
+    },
+    {
+      path: "/dashboard/whatsapp/channels",
+      label: "WhatsApp Channels",
+      Icon: <FaWhatsapp size={18} />,
     },
     {
       path: "/dashboard/website-leads",
@@ -1417,6 +1422,11 @@ const otherSettingsRoutes = [
     path: "/dashboard/areapriceinfo",
     label: "Area Price Info",
     Icon: <BadgeEuro size={18} />,
+  },
+  {
+    path: "/dashboard/whatsapp/channels",
+    label: "WhatsApp Channels",
+    Icon: <FaWhatsapp size={18} />,
   },
 ];
 

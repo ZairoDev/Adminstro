@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import {
-  canAccessPhoneId,
-  getAllowedPhoneIds,
   getDefaultPhoneId,
   getRetargetPhoneId,
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
 } from "@/lib/whatsapp/config";
+import { getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
+import { canUserAccessPhoneId } from "@/lib/whatsapp/phoneAreaConfigService";
 
 export const dynamic = "force-dynamic";
 
@@ -42,10 +43,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Get user's allowed phone IDs
-    const userRole = token.role || "";
-    const userAreas = token.allotedArea || [];
-    let allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    const normalizedToken = normalizeWhatsAppToken(token);
+    const userRole = normalizedToken.role || "";
+    const userAreas = normalizedToken.allotedArea;
+    let allowedPhoneIds = await resolveAllowedPhoneIdsAsync(normalizedToken);
 
     // Advert role: allow uploading media for retarget conversations
     if (allowedPhoneIds.length === 0 && userRole === "Advert") {
@@ -78,14 +79,19 @@ export async function POST(req: NextRequest) {
       ? requestedPhoneId
       : getDefaultPhoneId(userRole, userAreas);
 
-    if (!phoneNumberId || !canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
+    if (
+      !phoneNumberId ||
+      !(await canUserAccessPhoneId(phoneNumberId, userRole, userAreas, {
+        userRentalType: normalizedToken.rentalType,
+      }))
+    ) {
       return NextResponse.json(
         { error: "You don't have permission to upload to this WhatsApp number" },
         { status: 403 }
       );
     }
 
-    const whatsappToken = getWhatsAppToken();
+    const whatsappToken = await getOutboundTokenForPhoneId(phoneNumberId);
     if (!whatsappToken) {
       return NextResponse.json(
         { error: "WhatsApp configuration missing" },
@@ -176,10 +182,10 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get user's allowed phone IDs
-    const userRole = token.role || "";
-    const userAreas = token.allotedArea || [];
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    const normalizedToken = normalizeWhatsAppToken(token);
+    const userRole = normalizedToken.role || "";
+    const userAreas = normalizedToken.allotedArea;
+    const allowedPhoneIds = await resolveAllowedPhoneIdsAsync(normalizedToken);
 
     if (allowedPhoneIds.length === 0) {
       return NextResponse.json(
@@ -190,6 +196,7 @@ export async function GET(req: NextRequest) {
 
     const searchParams = req.nextUrl.searchParams;
     const mediaId = searchParams.get("mediaId");
+    const phoneIdForGet = searchParams.get("phoneNumberId");
 
     if (!mediaId) {
       return NextResponse.json(
@@ -198,7 +205,18 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const whatsappToken = getWhatsAppToken();
+    if (
+      phoneIdForGet &&
+      !(await canUserAccessPhoneId(phoneIdForGet, userRole, userAreas, {
+        userRentalType: normalizedToken.rentalType,
+      }))
+    ) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const whatsappToken = phoneIdForGet
+      ? await getOutboundTokenForPhoneId(phoneIdForGet)
+      : getWhatsAppToken();
     if (!whatsappToken) {
       return NextResponse.json(
         { error: "WhatsApp configuration missing" },

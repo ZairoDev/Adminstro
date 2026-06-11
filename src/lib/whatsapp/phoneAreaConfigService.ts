@@ -1,9 +1,12 @@
 import { normalizeCityKey, toDisplayCity } from "@/lib/city-normalizer";
 import {
   WHATSAPP_PHONE_CONFIGS,
+  FULL_ACCESS_ROLES,
   getAllowedPhoneIds,
   type WhatsAppPhoneConfig,
 } from "@/lib/whatsapp/config";
+import WhatsappChannel, { type IWhatsappChannel } from "@/models/whatsappChannel";
+import { resolveWhatsAppEmployeeRentalType } from "@/lib/whatsapp/rentalTypeAccess";
 import WhatsAppPhoneAreaConfig, {
   type IPhoneLocationEntry,
 } from "@/models/whatsappPhoneAreaConfig";
@@ -108,6 +111,31 @@ async function loadPhoneLocationsMap(): Promise<PhoneLocationsMap> {
     }
   }
 
+  // Multi-portfolio channels: register phone lines from WhatsappChannel admin
+  // so inbox visibility, notifications, and send access include channel-only phones.
+  const channels = await WhatsappChannel.find({})
+    .select("phoneNumberId assignedLocations active")
+    .lean<IWhatsappChannel[]>();
+
+  for (const channel of channels) {
+    const phoneId = channel.phoneNumberId?.trim();
+    if (!phoneId) continue;
+
+    const fromChannel = (channel.assignedLocations || [])
+      .map((key) => {
+        const locationKey = normalizeCityKey(String(key));
+        if (!locationKey) return null;
+        return {
+          displayName: toDisplayCity(String(key)),
+          locationKey,
+        };
+      })
+      .filter((entry): entry is IPhoneLocationEntry => Boolean(entry));
+
+    const existing = map.get(phoneId) ?? [];
+    map.set(phoneId, dedupeLocations([...existing, ...fromChannel]));
+  }
+
   cache = { map, expiresAt: Date.now() + CACHE_TTL_MS };
   return map;
 }
@@ -164,13 +192,47 @@ export async function resolveUserAllowedPhoneIds(
   return phoneIdsFromLocationsMap(map, userRole, userAreas);
 }
 
+/**
+ * Whether a user may send/receive on a business phone line.
+ * Full-access roles may use any line (including channel-only phones not in
+ * legacy phone-area config). Other roles also pass when an active
+ * WhatsappChannel owns the phone and matches their area + rental type.
+ */
 export async function canUserAccessPhoneId(
   phoneNumberId: string,
   userRole: string,
   userAreas: string[] = [],
+  opts: { userRentalType?: unknown } = {},
 ): Promise<boolean> {
+  if (!phoneNumberId?.trim()) return false;
+
+  if ((FULL_ACCESS_ROLES as readonly string[]).includes(userRole)) {
+    return true;
+  }
+
   const allowed = await resolveUserAllowedPhoneIds(userRole, userAreas);
-  return allowed.includes(phoneNumberId);
+  if (allowed.includes(phoneNumberId)) return true;
+
+  const channel = (await WhatsappChannel.findOne({
+    phoneNumberId: phoneNumberId.trim(),
+    active: true,
+  }).lean()) as IWhatsappChannel | null;
+  if (!channel) return false;
+
+  const userKeys = userAreas.map((a) => normalizeCityKey(a)).filter(Boolean);
+  const channelLocations = channel.assignedLocations || [];
+
+  const locationOk =
+    userKeys.length === 0 ||
+    UNALLOCATED_AREA_USES_ALL_LINES.includes(userRole) ||
+    channelLocations.some((key) => userKeys.includes(key));
+
+  if (!locationOk) return false;
+
+  const employeeRental = resolveWhatsAppEmployeeRentalType(opts.userRentalType);
+  if (channel.rentalType === "General") return true;
+
+  return channel.rentalType === employeeRental;
 }
 
 export async function getLocationsForPhone(
@@ -422,4 +484,43 @@ export async function getPhoneConfigAreasForAccess(
   }
   const areas = Array.isArray(config.area) ? config.area : [config.area];
   return areas.filter((a) => a && a !== "all").map((a) => normalizeCityKey(String(a)));
+}
+
+/**
+ * Return all WhatsappChannel._id strings (as strings) that a user may access.
+ *
+ * A user may access a channel when:
+ *   - Their role is full-access (SuperAdmin etc.) — all active channels.
+ *   - Their allotedArea overlaps the channel's assignedLocations.
+ *   - (Rental type is already enforced by buildRentalTypeVisibilityClause on queries.)
+ *
+ * Used by buildConversationVisibilityFilterAsync to add an OR branch covering
+ * conversations frozen to an old channel whose phoneNumberId was migrated away.
+ */
+export async function getAccessibleChannelIds(
+  userRole: string,
+  userAreas: string[] = [],
+  userRentalType?: unknown,
+): Promise<string[]> {
+  const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(userRole);
+
+  const query: Record<string, unknown> = isFullAccess
+    ? {}
+    : {
+        assignedLocations:
+          userAreas.length === 0
+            ? { $exists: true }
+            : { $in: userAreas.map((a) => normalizeCityKey(a)).filter(Boolean) },
+      };
+
+  if (!isFullAccess) {
+    const employeeRental = resolveWhatsAppEmployeeRentalType(userRentalType);
+    query.$or = [{ rentalType: employeeRental }, { rentalType: "General" }];
+  }
+
+  const channels = await WhatsappChannel.find(query)
+    .select("_id")
+    .lean<{ _id: unknown }[]>();
+
+  return channels.map((c) => String(c._id));
 }

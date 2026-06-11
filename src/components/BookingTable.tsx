@@ -45,7 +45,7 @@ const monthNames = [
   "October",
   "November",
   "December",
-];
+];  
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -95,6 +95,12 @@ const WeeklyTargetTable = () => {
     };
   }, [viewMode, selectedMonth, selectedYear]);
 
+  const locations = useMemo(
+    () =>
+      (data?.locations ?? []).filter((loc) => (loc.monthlyTarget ?? 0) > 0),
+    [data],
+  );
+
   const handlePrevMonth = () => {
     if (selectedMonth === 0) {
       setSelectedMonth(11);
@@ -125,19 +131,19 @@ const WeeklyTargetTable = () => {
 
   // Determine maximum number of periods across locations (safe)
   const maxPeriods = useMemo(() => {
-    if (!data?.locations || data.locations.length === 0) return 0;
-    return Math.max(...data.locations.map((loc) => loc.weeks?.length || 0));
-  }, [data]);
+    if (locations.length === 0) return 0;
+    return Math.max(...locations.map((loc) => loc.weeks?.length || 0));
+  }, [locations]);
 
   // totals for summary cards
   const { totalTarget, totalAchieved, overallPercentage } = useMemo(() => {
     const tTarget =
-      data?.locations.reduce((s, loc) => s + (loc.monthlyTarget || 0), 0) || 0;
+      locations.reduce((s, loc) => s + (loc.monthlyTarget || 0), 0) || 0;
     const tAchieved =
-      data?.locations.reduce(
+      locations.reduce(
         (s, loc) =>
           s + (loc.weeks?.reduce((ws, w) => ws + (w.achieved || 0), 0) || 0),
-        0
+        0,
       ) || 0;
     const overall =
       tTarget > 0 ? Number(((tAchieved / tTarget) * 100).toFixed(1)) : 0;
@@ -146,19 +152,19 @@ const WeeklyTargetTable = () => {
       totalAchieved: tAchieved,
       overallPercentage: overall,
     };
-  }, [data]);
+  }, [locations]);
 
   // Calculate period targets using proportional-by-days method (Option B).
   // We'll compute the total days in month using selectedMonth/year.
   const periodTargetsByLocation = useMemo(() => {
-    if (!data) return new Map<string, number[]>();
+    if (!data || locations.length === 0) return new Map<string, number[]>();
 
     // days in selected month
     const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
 
     const map = new Map<string, number[]>();
 
-    for (const loc of data.locations) {
+    for (const loc of locations) {
       // calculate days per period from the weeks array for this location
       const daysArray = (loc.weeks || []).map((w) =>
         Math.max(1, daysInclusive(w.startDate, w.endDate))
@@ -186,18 +192,18 @@ const WeeklyTargetTable = () => {
     }
 
     return map;
-  }, [data, selectedMonth, selectedYear]);    
+  }, [data, locations, selectedMonth, selectedYear]);
 
   // Compute total achieved and target per period
   const totalAchievedPerPeriod = useMemo(() => {
     const totals = Array(maxPeriods).fill(0);
-    data?.locations.forEach((loc) => {
+    locations.forEach((loc) => {
       loc.weeks.forEach((week, idx) => {
         if (idx < maxPeriods) totals[idx] += week.achieved || 0;
       });
     });
     return totals;
-  }, [data, maxPeriods]);
+  }, [locations, maxPeriods]);
 
   const totalTargetPerPeriod = useMemo(() => {
     const totals = Array(maxPeriods).fill(0);
@@ -325,7 +331,7 @@ const WeeklyTargetTable = () => {
         </div>
 
         {/* Summary Cards */}
-        {data && data.locations.length > 0 && (
+        {data && locations.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white dark:bg-stone-950 rounded-xl border border-gray-200 dark:border-gray-700 p-5 transition-colors duration-300">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
@@ -381,7 +387,7 @@ const WeeklyTargetTable = () => {
                 Loading data...
               </p>
             </div>
-          ) : data && data.locations.length > 0 ? (
+          ) : data && locations.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-white dark:bg-stone-950 border-b border-gray-200 dark:border-gray-700">
@@ -403,7 +409,7 @@ const WeeklyTargetTable = () => {
                 </thead>
 
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                  {data.locations.map((location, index) => {
+                  {locations.map((location, index) => {
                     const targets =
                       periodTargetsByLocation.get(location.location) || [];
 
@@ -537,16 +543,16 @@ const WeeklyTargetTable = () => {
                       const percentage = getPercentage(achieved, target);
 
                       // Prepare chart data for stacked radial chart
-                      const periodData = data.locations.reduce((acc, loc) => {
+                      const periodData = locations.reduce((acc, loc) => {
                         acc[loc.location] = loc.weeks[i]?.achieved || 0;
                         return acc;
                       }, {} as Record<string, number>);
                       const chartData = [periodData];
 
-                      const chartConfig = data.locations.reduce((acc, loc, idx) => {
+                      const chartConfig = locations.reduce((acc, loc, idx) => {
                         acc[loc.location] = {
                           label: loc.location,
-                          color: `hsl(${idx * 360 / data.locations.length}, 70%, 50%)`,
+                          color: `hsl(${(idx * 360) / locations.length}, 70%, 50%)`,
                         };
                         return acc;
                       }, {} as ChartConfig);
@@ -614,7 +620,7 @@ const WeeklyTargetTable = () => {
                                         }}
                                       />
                                     </PolarRadiusAxis>
-                                    {data.locations.map((loc) => (
+                                    {locations.map((loc) => (
                                       <RadialBar
                                         key={loc.location}
                                         dataKey={loc.location}

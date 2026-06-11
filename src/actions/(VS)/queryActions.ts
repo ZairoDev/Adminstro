@@ -2184,12 +2184,13 @@ export const getLocationWeeklyTargets = async ({
     }
   > = new Map();
 
-  // Initialize all locations from targets
+  // Initialize locations that have a non-zero monthly sales target
   monthlyTargets.forEach((target) => {
-    if (target.city) {
+    const salesTarget = target.sales || 0;
+    if (target.city && salesTarget > 0) {
       locationResults.set(target.city.toLowerCase(), {
         location: target.city,
-        monthlyTarget: target.sales || 0,
+        monthlyTarget: salesTarget,
         weeks: periods.map((period, index) => ({
           weekNumber: index + 1,
           weekLabel: period.periodLabel,
@@ -2291,22 +2292,6 @@ export const getLocationWeeklyTargets = async ({
 
       if (locationData && locationData.weeks[periodIndex]) {
         locationData.weeks[periodIndex].achieved = result.totalPaid || 0;
-      } else {
-        // Location exists in bookings but not in targets - add it with 0 target
-        const existingData = locationResults.get(locationKey);
-        if (!existingData) {
-          locationResults.set(locationKey, {
-            location: result.originalLocation,
-            monthlyTarget: 0,
-            weeks: periods.map((p, idx) => ({
-              weekNumber: idx + 1,
-              weekLabel: p.periodLabel,
-              achieved: idx === periodIndex ? result.totalPaid || 0 : 0,
-              startDate: p.startDate.toISOString(),
-              endDate: p.endDate.toISOString(),
-            })),
-          });
-        }
       }
     });
 
@@ -2328,10 +2313,10 @@ export const getLocationWeeklyTargets = async ({
     "December",
   ];
 
-  // Convert Map to Array and sort by location name
-  const finalLocations = Array.from(locationResults.values()).sort((a, b) =>
-    a.location.localeCompare(b.location)
-  );
+  // Only include locations with a configured monthly sales target
+  const finalLocations = Array.from(locationResults.values())
+    .filter((loc) => loc.monthlyTarget > 0)
+    .sort((a, b) => a.location.localeCompare(b.location));
 
   return {
     locations: finalLocations,

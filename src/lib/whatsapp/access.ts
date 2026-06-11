@@ -18,6 +18,7 @@ type AccessUser = {
   role?: string;
   allotedArea?: string | string[];
   email?: string;
+  rentalType?: unknown;
 };
 
 function parseUserAreas(user: AccessUser): string[] {
@@ -121,6 +122,7 @@ export async function canAccessConversationAsync(
       String(conversation.businessPhoneId),
       userRole,
       userAreas,
+      { userRentalType: user.rentalType },
     );
   }
 

@@ -32,6 +32,11 @@ import {
 } from "@/lib/whatsapp/config";
 import { parseConfiguredLocationDisplays } from "@/lib/whatsapp/areaTokenUtils";
 import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
+import { normalizeEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
+import {
+  DEFAULT_CONVERSATION_RENTAL_TYPE,
+  type CreateConversationRentalType,
+} from "@/lib/whatsapp/rentalTypeAccess";
 import type { Conversation } from "../types";
 
 interface AddGuestModalProps {
@@ -41,6 +46,7 @@ interface AddGuestModalProps {
   userRole?: string;
   userEmail?: string;
   userAreas?: string | string[];
+  userRentalType?: unknown;
   conversationType?: "owner" | "guest";
   /** City-based inbox: phone is chosen from location, not shown to the user */
   hidePhoneLineLabel?: boolean;
@@ -76,17 +82,23 @@ export const AddGuestModal = memo(function AddGuestModal({
   userRole,
   userEmail,
   userAreas,
+  userRentalType,
   conversationType = "owner",
   hidePhoneLineLabel = true,
 }: AddGuestModalProps) {
   const isOwner = conversationType === "owner";
   const contactLabel = isOwner ? "Owner" : "Guest";
+  const channelTypeForRouting = isOwner ? "owner" : "guest";
+  const isSuperAdmin = userRole === "SuperAdmin";
+  const employeeRentalType = normalizeEmployeeRentalType(userRentalType);
   const { toast } = useToast();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [countryCode, setCountryCode] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [referenceLink, setReferenceLink] = useState("");
   const [selectedLocation, setSelectedLocation] = useState("");
+  const [selectedRentalType, setSelectedRentalType] =
+    useState<CreateConversationRentalType>(DEFAULT_CONVERSATION_RENTAL_TYPE);
   const [resolvedPhoneNumberId, setResolvedPhoneNumberId] = useState<string | null>(null);
   const [resolvingPhone, setResolvingPhone] = useState(false);
   const [locations, setLocations] = useState<string[]>([]);
@@ -97,6 +109,10 @@ export const AddGuestModal = memo(function AddGuestModal({
     referenceLink?: string;
     location?: string;
   }>({});
+
+  const effectiveRentalType: CreateConversationRentalType = isSuperAdmin
+    ? selectedRentalType
+    : employeeRentalType ?? DEFAULT_CONVERSATION_RENTAL_TYPE;
   
   // Mobile detection for responsive modal/drawer
   const [isMobile, setIsMobile] = useState(false);
@@ -169,7 +185,11 @@ export const AddGuestModal = memo(function AddGuestModal({
 
     axios
       .get("/api/whatsapp/resolve-phone-for-location", {
-        params: { location: selectedLocation.trim() },
+        params: {
+          location: selectedLocation.trim(),
+          rentalType: effectiveRentalType,
+          channelType: channelTypeForRouting,
+        },
       })
       .then((res) => {
         if (!cancelled) {
@@ -193,7 +213,7 @@ export const AddGuestModal = memo(function AddGuestModal({
     return () => {
       cancelled = true;
     };
-  }, [open, selectedLocation]);
+  }, [open, selectedLocation, effectiveRentalType, channelTypeForRouting]);
 
   const phoneIdForSelectedLocation = resolvedPhoneNumberId;
   const selectedPhoneConfig = phoneIdForSelectedLocation
@@ -273,7 +293,11 @@ export const AddGuestModal = memo(function AddGuestModal({
     if (!phoneNumberId) {
       try {
         const resolveRes = await axios.get("/api/whatsapp/resolve-phone-for-location", {
-          params: { location: selectedLocation.trim() },
+          params: {
+            location: selectedLocation.trim(),
+            rentalType: effectiveRentalType,
+            channelType: channelTypeForRouting,
+          },
         });
         phoneNumberId = resolveRes.data.phoneNumberId ?? null;
       } catch {
@@ -286,8 +310,8 @@ export const AddGuestModal = memo(function AddGuestModal({
         ...prev,
         location:
           userRole === "SuperAdmin"
-            ? "No WhatsApp line for this city — open sidebar ⋮ → Phone locations and assign Athens to a phone line, then Save line"
-            : "No WhatsApp line configured for this location. Ask SuperAdmin to assign this city to a phone line.",
+            ? `No WhatsApp channel for ${selectedLocation} (${effectiveRentalType}). Create one under Other Settings → WhatsApp Channels.`
+            : `No WhatsApp line for this location (${effectiveRentalType}). Ask SuperAdmin to configure a channel.`,
       }));
       return;
     }
@@ -303,6 +327,8 @@ export const AddGuestModal = memo(function AddGuestModal({
         participantLocation: selectedLocation.trim(),
         location: selectedLocation.trim(),
         phoneNumberId,
+        rentalType: effectiveRentalType,
+        channelType: channelTypeForRouting,
         referenceLink: referenceLink.trim() || undefined,
         conversationType,
       });
@@ -318,6 +344,7 @@ export const AddGuestModal = memo(function AddGuestModal({
         setOwnerName("");
         setReferenceLink("");
         setSelectedLocation("");
+        setSelectedRentalType(DEFAULT_CONVERSATION_RENTAL_TYPE);
         setErrors({});
         onOpenChange(false);
 
@@ -379,6 +406,7 @@ export const AddGuestModal = memo(function AddGuestModal({
       setOwnerName("");
       setReferenceLink("");
       setSelectedLocation("");
+      setSelectedRentalType(DEFAULT_CONVERSATION_RENTAL_TYPE);
       setErrors({});
       onOpenChange(false);
     }
@@ -440,6 +468,42 @@ export const AddGuestModal = memo(function AddGuestModal({
             <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
             <p className="text-[12px] text-red-600 dark:text-red-400">{errors.phone}</p>
           </div>
+        )}
+      </div>
+
+      {/* Rental type — SuperAdmin chooses; staff use their assigned type */}
+      <div className="space-y-2">
+        <Label className="text-[13px] font-medium text-[#54656f] dark:text-[#8696a0]">
+          Rental Type
+        </Label>
+        {isSuperAdmin ? (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={effectiveRentalType === "Long Term" ? "default" : "outline"}
+              className="h-10 flex-1 rounded-lg"
+              onClick={() => setSelectedRentalType("Long Term")}
+              disabled={loading}
+            >
+              Long Term
+            </Button>
+            <Button
+              type="button"
+              variant={effectiveRentalType === "Short Term" ? "default" : "outline"}
+              className="h-10 flex-1 rounded-lg"
+              onClick={() => setSelectedRentalType("Short Term")}
+              disabled={loading}
+            >
+              Short Term
+            </Button>
+          </div>
+        ) : (
+          <p className="text-sm text-[#667781] dark:text-[#8696a0]">
+            {effectiveRentalType}
+            {employeeRentalType
+              ? " (from your account)"
+              : " (default — no rental type on your account)"}
+          </p>
         )}
       </div>
 

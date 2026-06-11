@@ -4,8 +4,9 @@ import { connectDb } from "@/util/db";
 import mongoose from "mongoose";
 import WhatsAppCallLog from "@/models/whatsappCallLog";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import { getAllowedPhoneIds } from "@/lib/whatsapp/config";
-import { canAccessConversation } from "@/lib/whatsapp/access";
+import { FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
 
 export const dynamic = "force-dynamic";
 
@@ -21,14 +22,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userRole = typeof token.role === "string" ? token.role : "";
-    const userAreas: string[] = Array.isArray(token.allotedArea)
-      ? token.allotedArea.filter((a): a is string => typeof a === "string")
-      : typeof token.allotedArea === "string"
-        ? [token.allotedArea]
-        : [];
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
-    if (allowedPhoneIds.length === 0) {
+    const normalizedToken = normalizeWhatsAppToken(token);
+    const userRole = normalizedToken.role || "";
+    const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(userRole);
+    const allowedPhoneIds = await resolveAllowedPhoneIdsAsync(normalizedToken);
+    if (!isFullAccess && allowedPhoneIds.length === 0) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -36,9 +34,9 @@ export async function GET(req: NextRequest) {
     const conversationId = searchParams.get("conversationId") || "";
     const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit")) || 40));
 
-    const baseFilter: Record<string, unknown> = {
-      businessPhoneId: { $in: allowedPhoneIds },
-    };
+    const baseFilter: Record<string, unknown> = isFullAccess
+      ? {}
+      : { businessPhoneId: { $in: allowedPhoneIds } };
 
     if (conversationId) {
       if (!mongoose.Types.ObjectId.isValid(conversationId)) {
@@ -48,7 +46,7 @@ export async function GET(req: NextRequest) {
       if (!conv || Array.isArray(conv)) {
         return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
       }
-      const allowed = canAccessConversation(token, conv as Record<string, unknown>);
+      const allowed = await canAccessConversationAsync(token, conv as Record<string, unknown>);
       if (!allowed) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }

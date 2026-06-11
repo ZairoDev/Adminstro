@@ -6,9 +6,9 @@ import WhatsAppCallLog from "@/models/whatsappCallLog";
 import {
   canAccessPhoneId,
   getAllowedPhoneIds,
-  getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
 } from "@/lib/whatsapp/config";
+import { getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
 import { canAccessConversation } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const whatsappTokenIncoming = getWhatsAppToken();
+      const whatsappTokenIncoming = await getOutboundTokenForPhoneId(phoneNumberId);
       if (!whatsappTokenIncoming) {
         return NextResponse.json({ error: "WhatsApp configuration missing" }, { status: 500 });
       }
@@ -293,7 +293,7 @@ export async function POST(req: NextRequest) {
         phoneNumberId = phoneResolution.phoneNumberId;
       }
 
-      const whatsappTokenTerminate = getWhatsAppToken();
+      const whatsappTokenTerminate = await getOutboundTokenForPhoneId(phoneNumberId);
       if (!whatsappTokenTerminate) {
         return NextResponse.json({ error: "WhatsApp configuration missing" }, { status: 500 });
       }
@@ -373,7 +373,7 @@ export async function POST(req: NextRequest) {
 
     const phoneNumberId = phoneResolution.phoneNumberId;
 
-    const whatsappToken = getWhatsAppToken();
+    const whatsappToken = await getOutboundTokenForPhoneId(phoneNumberId);
     if (!whatsappToken) {
       return NextResponse.json(
         { error: "WhatsApp configuration missing" },
@@ -624,7 +624,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
-      const whatsappToken = getWhatsAppToken();
+      const whatsappToken = await getOutboundTokenForPhoneId(phoneNumberId);
       if (!whatsappToken) return NextResponse.json({ error: "WhatsApp configuration missing" }, { status: 500 });
 
       const url = new URL(`${WHATSAPP_API_BASE_URL}/${phoneNumberId}/call_permissions`);

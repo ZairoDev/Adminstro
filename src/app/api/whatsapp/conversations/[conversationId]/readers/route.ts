@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import ConversationReadState from "@/models/conversationReadState";
+import WhatsAppConversation from "@/models/whatsappConversation";
 import Employee from "@/models/employee";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 
 connectDb();
 
@@ -29,22 +31,32 @@ export async function GET(
       );
     }
 
-    // Get all read states for this conversation
+    const conversation = await WhatsAppConversation.findById(conversationId).lean();
+    if (!conversation) {
+      return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
+    }
+
+    if (!(await canAccessConversationAsync(token as Record<string, unknown>, conversation as Record<string, unknown>))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const readStates = (await ConversationReadState.find({
       conversationId,
     })
-      // Explicitly pass the Employee model to ensure it's registered
       .populate({ path: "userId", model: Employee, select: "name profilePic" })
       .sort({ lastReadAt: -1 })
-      .lean()) as any[];
+      .lean()) as Array<{
+      userId?: { _id?: unknown; name?: string; profilePic?: string };
+      lastReadAt?: Date;
+      lastReadMessageId?: string;
+    }>;
 
-    // Transform to include user info
     const readers = readStates
-      .filter((rs) => rs.userId) // Filter out any null users
+      .filter((rs) => rs.userId)
       .map((rs) => {
         const user = rs.userId;
         return {
-          userId: user?._id?.toString() || user?.toString(),
+          userId: user?._id?.toString(),
           name: user?.name || "Unknown",
           avatar: user?.profilePic || null,
           lastReadAt: rs.lastReadAt,
@@ -56,11 +68,9 @@ export async function GET(
       success: true,
       readers,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal server error";
     console.error("Error fetching conversation readers:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

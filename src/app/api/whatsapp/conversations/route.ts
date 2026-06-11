@@ -15,20 +15,27 @@ import {
   FULL_ACCESS_ROLES,
   INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
-import { canAccessConversation } from "@/lib/whatsapp/access";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import {
   assertLocationAllowedForCreate,
 } from "@/lib/whatsapp/locationAccess";
 import {
-  buildInboxListQuery,
+  buildInboxListQueryAsync,
   parseInboxListParams,
 } from "@/lib/whatsapp/inboxQuery";
-import { normalizeWhatsAppToken, resolveAllowedPhoneIds } from "@/lib/whatsapp/apiContext";
+import {
+  normalizeWhatsAppToken,
+  resolveAllowedPhoneIdsAsync,
+} from "@/lib/whatsapp/apiContext";
 import { canUserAccessPhoneId } from "@/lib/whatsapp/phoneAreaConfigService";
 import {
   isLocationAllowedForPhone,
-  resolvePhoneIdForLocation,
 } from "@/lib/whatsapp/phoneAreaConfigService";
+import {
+  inferChannelTypeFromConversation,
+  resolveWhatsappChannel,
+} from "@/lib/whatsapp/channelService";
+import { resolveCreateConversationRentalType } from "@/lib/whatsapp/rentalTypeAccess";
 import {
   applyPhoneMaskToConversation,
   resolveMaskRulesForToken,
@@ -58,7 +65,7 @@ export async function GET(req: NextRequest) {
     const normalizedToken = normalizeWhatsAppToken(token);
     const userRole = normalizedToken.role || "";
     const userAreas = normalizedToken.allotedArea;
-    let allowedPhoneIds = resolveAllowedPhoneIds(normalizedToken);
+    let allowedPhoneIds = await resolveAllowedPhoneIdsAsync(normalizedToken);
     // Debug: log role, areas, and initial allowed phone IDs
     // console.log(`[DEBUG][conversations][GET] role=${userRole} areas=${JSON.stringify(userAreas)} allowedPhoneIdsInitial=${JSON.stringify(allowedPhoneIds)}`);
 
@@ -74,7 +81,7 @@ export async function GET(req: NextRequest) {
           return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
         }
 
-        const allowed = canAccessConversation(token, convDoc);
+        const allowed = await canAccessConversationAsync(token, convDoc);
         if (!allowed) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
@@ -162,7 +169,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const visibilityQuery = buildInboxListQuery(normalizedToken, inboxParams);
+    const visibilityQuery = await buildInboxListQueryAsync(normalizedToken, inboxParams);
     if (visibilityQuery._id === null) {
       return NextResponse.json({
         success: true,
@@ -528,6 +535,8 @@ export async function POST(req: NextRequest) {
       participantLocation,
       participantProfilePic,
       location: leadLocation, // Lead's location – conversation will use the phone number assigned to this location
+      rentalType: requestedRentalType,
+      channelType: requestedChannelType,
     } = await req.json();
 
     if (!participantPhone) {
@@ -560,8 +569,34 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
-    // Debug: log role, areas, and allowed phone IDs for POST requests
+    const allowedPhoneIds = await resolveAllowedPhoneIdsAsync({
+      role: userRole,
+      allotedArea: userAreas,
+    });
+
+    const resolvedLocation = (participantLocation || leadLocation || "").trim();
+    const conversationRentalType = resolveCreateConversationRentalType({
+      userRole,
+      userRentalType: token.rentalType,
+      requestedRentalType,
+    });
+
+    const explicitType =
+      conversationType === "owner" || conversationType === "guest"
+        ? conversationType
+        : undefined;
+
+    const effectiveChannelType = inferChannelTypeFromConversation({
+      channelType: requestedChannelType ?? null,
+      conversationType: explicitType ?? null,
+    });
+
+    if (explicitType && !resolvedLocation) {
+      return NextResponse.json(
+        { error: "Location is required when adding an owner or guest" },
+        { status: 400 }
+      );
+    }
 
     // Bug 1 fix: contacts MUST be scoped to a specific WhatsApp account
     // (phone_number_id). Order of resolution:
@@ -572,16 +607,29 @@ export async function POST(req: NextRequest) {
     //      and did not disambiguate, reject the request so we do not silently
     //      place the contact under the wrong account.
     let selectedPhoneId: string | null = null;
-    if (phoneNumberId) {
-      selectedPhoneId = phoneNumberId;
-    } else if (leadLocation?.trim()) {
-      const phoneIdForLocation = await resolvePhoneIdForLocation(leadLocation);
-      if (phoneIdForLocation) {
-        selectedPhoneId = phoneIdForLocation;
+    let channelFromRouting: Awaited<ReturnType<typeof resolveWhatsappChannel>> = null;
+
+    if (resolvedLocation) {
+      channelFromRouting = await resolveWhatsappChannel({
+        location: resolvedLocation,
+        rentalType: conversationRentalType,
+        channelType: effectiveChannelType,
+      });
+      if (channelFromRouting?.phoneNumberId) {
+        selectedPhoneId = channelFromRouting.phoneNumberId;
       }
     }
 
+    if (!selectedPhoneId && phoneNumberId) {
+      selectedPhoneId = phoneNumberId;
+    }
+
     if (!selectedPhoneId) {
+      // NOTE: The old rentalType-blind resolvePhoneIdForLocation fallback has been removed.
+      // When location-based routing fails to find a channel (because rentalType/channelType
+      // is not configured or no active channel exists for the triple), we now require the
+      // caller to provide an explicit phoneNumberId rather than silently using whichever
+      // phone happens to be first for that location.
       const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(userRole);
       if (isFullAccess) {
         selectedPhoneId = getDefaultPhoneId(userRole, userAreas);
@@ -592,7 +640,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "Please select which WhatsApp account this contact should be created under.",
+              resolvedLocation
+                ? `No active WhatsApp channel found for location "${resolvedLocation}" (${conversationRentalType}${effectiveChannelType ? `, ${effectiveChannelType}` : ""}). Please configure a channel or select one explicitly.`
+                : "Please select which WhatsApp account this contact should be created under.",
             code: "PHONE_ID_REQUIRED",
           },
           { status: 400 }
@@ -603,19 +653,6 @@ export async function POST(req: NextRequest) {
     if (!selectedPhoneId) {
       return NextResponse.json(
         { error: "No valid phone number available" },
-        { status: 400 }
-      );
-    }
-
-    const resolvedLocation = (participantLocation || leadLocation || "").trim();
-    const explicitType =
-      conversationType === "owner" || conversationType === "guest"
-        ? conversationType
-        : undefined;
-
-    if (explicitType && !resolvedLocation) {
-      return NextResponse.json(
-        { error: "Location is required when adding an owner or guest" },
         { status: 400 }
       );
     }
@@ -636,8 +673,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Verify user can access this phone (DB + static — matches resolvePhoneIdForLocation)
-    if (!(await canUserAccessPhoneId(selectedPhoneId, userRole, userAreas))) {
+    // Verify user can access this phone (legacy area config + channel routing).
+    if (
+      !(await canUserAccessPhoneId(selectedPhoneId, userRole, userAreas, {
+        userRentalType: token.rentalType,
+      }))
+    ) {
       return NextResponse.json(
         { error: "You don't have permission to use this WhatsApp number (area mismatch)" },
         { status: 403 }
@@ -654,12 +695,16 @@ export async function POST(req: NextRequest) {
           { status: err.status || 400 }
         );
       }
-      const onPhone = await isLocationAllowedForPhone(selectedPhoneId, resolvedLocation);
-      if (!onPhone) {
-        return NextResponse.json(
-          { error: "Location is not assigned to this WhatsApp phone line" },
-          { status: 400 }
-        );
+      // Channel routing already validated location + rental type; legacy path
+      // still checks phone-area config.
+      if (!channelFromRouting) {
+        const onPhone = await isLocationAllowedForPhone(selectedPhoneId, resolvedLocation);
+        if (!onPhone) {
+          return NextResponse.json(
+            { error: "Location is not assigned to this WhatsApp phone line" },
+            { status: 400 }
+          );
+        }
       }
     }
 
@@ -697,6 +742,8 @@ export async function POST(req: NextRequest) {
       participantProfilePic: participantProfilePic || undefined,
       conversationType: explicitType,
       referenceLink,
+      rentalType: conversationRentalType,
+      channelType: effectiveChannelType ?? undefined,
       snapshotSource: "trusted",
     });
 

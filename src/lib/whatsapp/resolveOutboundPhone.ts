@@ -16,7 +16,10 @@ import type { WhatsAppToken } from "./apiContext";
 
 import { normalizeWhatsAppToken } from "./apiContext";
 
-import { canUserAccessPhoneId } from "./phoneAreaConfigService";
+import {
+  canUserAccessPhoneId,
+  getAccessibleChannelIds,
+} from "./phoneAreaConfigService";
 
 import {
 
@@ -163,7 +166,7 @@ export async function resolveOutboundBusinessPhoneId(params: {
 
     if (channel?.phoneNumberId) {
 
-      const canUse = await canUserAccessPhoneId(
+      let canUse = await canUserAccessPhoneId(
 
         channel.phoneNumberId,
 
@@ -174,6 +177,29 @@ export async function resolveOutboundBusinessPhoneId(params: {
         { userRentalType: token.rentalType },
 
       );
+
+      if (
+        !canUse &&
+        !(userRole === "Advert" && conv.isRetarget)
+      ) {
+        const accessibleChannelIds = await getAccessibleChannelIds(
+          userRole,
+          userAreas,
+          token.rentalType,
+        );
+        const frozenId = conv.whatsappChannelId
+          ? String(conv.whatsappChannelId)
+          : "";
+        const resolvedChannelId = channel.channelId
+          ? String(channel.channelId)
+          : "";
+        if (
+          (frozenId && accessibleChannelIds.includes(frozenId)) ||
+          (resolvedChannelId && accessibleChannelIds.includes(resolvedChannelId))
+        ) {
+          canUse = true;
+        }
+      }
 
       if (!canUse && !(userRole === "Advert" && conv.isRetarget)) {
 

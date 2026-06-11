@@ -52,6 +52,11 @@ export function isRentalTypeFullAccessRole(role: string | undefined): boolean {
   return RENTAL_TYPE_FULL_ACCESS_ROLES.includes((role || "").trim());
 }
 
+/** Sales interns use both ST/LT owner sheets — see all rental types on WhatsApp. */
+export function isDualRentalWhatsAppRole(role: string | undefined): boolean {
+  return (role || "").trim() === "sales-intern";
+}
+
 export function normalizeChannelRentalType(
   value: unknown,
 ): WhatsAppChannelRentalType | null {
@@ -73,7 +78,9 @@ export function rentalTypeVisibleToUser(
   userRentalType: unknown,
   conversationRentalType: unknown,
 ): boolean {
-  if (isRentalTypeFullAccessRole(userRole)) return true;
+  if (isRentalTypeFullAccessRole(userRole) || isDualRentalWhatsAppRole(userRole)) {
+    return true;
+  }
 
   const employeeRental = resolveWhatsAppEmployeeRentalType(userRentalType);
   const convRental = normalizeChannelRentalType(conversationRentalType);
@@ -113,7 +120,9 @@ export function buildRentalTypeVisibilityClause(
   userRole: string | undefined,
   userRentalType: unknown,
 ): Record<string, unknown> | null {
-  if (isRentalTypeFullAccessRole(userRole)) return null;
+  if (isRentalTypeFullAccessRole(userRole) || isDualRentalWhatsAppRole(userRole)) {
+    return null;
+  }
 
   const employeeRental = resolveWhatsAppEmployeeRentalType(userRentalType);
 

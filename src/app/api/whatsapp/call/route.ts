@@ -3,14 +3,14 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import WhatsAppCallLog from "@/models/whatsappCallLog";
-import {
-  canAccessPhoneId,
-  getAllowedPhoneIds,
-  WHATSAPP_API_BASE_URL,
-} from "@/lib/whatsapp/config";
+import { WHATSAPP_API_BASE_URL } from "@/lib/whatsapp/config";
 import { getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
-import { canAccessConversation } from "@/lib/whatsapp/access";
-import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import {
+  normalizeWhatsAppToken,
+  resolveAllowedPhoneIdsAsync,
+} from "@/lib/whatsapp/apiContext";
+import { canUserAccessPhoneId } from "@/lib/whatsapp/phoneAreaConfigService";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 import { z } from "zod";
 import { collectMetaGraphErrorText } from "@/lib/whatsapp/metaGraphError";
@@ -70,9 +70,10 @@ export async function POST(req: NextRequest) {
 
     const { action, bodyText } = parsed.data;
 
-    const userRole = token.role || "";
-    const userAreas = Array.isArray(token.allotedArea) ? token.allotedArea : token.allotedArea ? [token.allotedArea] : [];
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    const normalizedToken = normalizeWhatsAppToken(token);
+    const userRole = normalizedToken.role || "";
+    const userAreas = normalizedToken.allotedArea;
+    const allowedPhoneIds = await resolveAllowedPhoneIdsAsync(normalizedToken);
 
     if (allowedPhoneIds.length === 0) {
       return NextResponse.json(
@@ -88,7 +89,12 @@ export async function POST(req: NextRequest) {
       if (!callId) {
         return NextResponse.json({ error: "callId is required" }, { status: 400 });
       }
-      if (!phoneNumberId || !canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
+      if (
+        !phoneNumberId ||
+        !(await canUserAccessPhoneId(phoneNumberId, userRole, userAreas, {
+          userRentalType: normalizedToken.rentalType,
+        }))
+      ) {
         return NextResponse.json(
           { error: "Invalid or missing phoneNumberId for this account" },
           { status: 403 },
@@ -102,6 +108,7 @@ export async function POST(req: NextRequest) {
           participantLocationKey?: string;
           source?: string;
           isRetarget?: boolean;
+          whatsappChannelId?: string;
         } | null;
         if (!conversation) {
           return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
@@ -112,7 +119,7 @@ export async function POST(req: NextRequest) {
             { status: 400 },
           );
         }
-        const allowed = await canAccessConversation(token, conversation);
+        const allowed = await canAccessConversationAsync(normalizedToken, conversation);
         if (!allowed) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
@@ -253,7 +260,7 @@ export async function POST(req: NextRequest) {
         if (!conversation) {
           return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
         }
-        if (!canAccessConversation(token, conversation)) {
+        if (!(await canAccessConversationAsync(normalizedToken, conversation))) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
         terminateConversation = conversation;
@@ -601,9 +608,10 @@ export async function GET(req: NextRequest) {
     const phoneNumberId = searchParams.get("phoneNumberId") || "";
     const userWaId = searchParams.get("userWaId") || "";
 
-    const userRole = token.role || "";
-    const userAreas = Array.isArray(token.allotedArea) ? token.allotedArea : token.allotedArea ? [token.allotedArea] : [];
-    const allowedPhoneIds = getAllowedPhoneIds(userRole, userAreas);
+    const normalizedToken = normalizeWhatsAppToken(token);
+    const userRole = normalizedToken.role || "";
+    const userAreas = normalizedToken.allotedArea;
+    const allowedPhoneIds = await resolveAllowedPhoneIdsAsync(normalizedToken);
 
     // Roles that can make calls
     const callEnabledRoles = [
@@ -621,7 +629,11 @@ export async function GET(req: NextRequest) {
 
     // Optional: query Meta for a specific conversation/user permission state
     if (phoneNumberId && userWaId) {
-      if (!canAccessPhoneId(phoneNumberId, userRole, userAreas)) {
+      if (
+        !(await canUserAccessPhoneId(phoneNumberId, userRole, userAreas, {
+          userRentalType: normalizedToken.rentalType,
+        }))
+      ) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 

@@ -20,7 +20,11 @@ import {
   getConversationTemplateContext,
   getConversationBusinessPhoneId,
 } from "./utils";
-import { FULL_ACCESS_ROLES, getRetargetPhoneId } from "@/lib/whatsapp/config";
+import {
+  FULL_ACCESS_ROLES,
+  getRetargetPhoneId,
+  isWhatsAppAccessRole,
+} from "@/lib/whatsapp/config";
 import { ConversationSidebar } from "./components/ConversationSidebar";
 import { ChatHeader } from "./components/ChatHeader";
 import { MessageList } from "./components/MessageList";
@@ -1240,10 +1244,7 @@ export default function WhatsAppChat() {
 
     console.log("ðŸ”§ Initializing notification controller");
 
-    const hasWhatsAppAccess =
-      token?.role === "SuperAdmin" ||
-      token?.role === "Sales-TeamLead" ||
-      token?.role === "Sales";
+    const hasWhatsAppAccess = isWhatsAppAccessRole(token?.role || "");
 
     const userLocations =
       Array.isArray(token?.allotedArea)

@@ -5,6 +5,7 @@ import {
 } from "./config";
 import {
   canUserAccessPhoneId,
+  getAccessibleChannelIds,
   getPhoneIdsForUserAreasSync,
 } from "./phoneAreaConfigService";
 import {
@@ -124,6 +125,19 @@ export async function canAccessConversationAsync(
       userAreas,
       { userRentalType: user.rentalType },
     );
+  }
+
+  // Mirror inbox visibility: conversations visible via frozen whatsappChannelId
+  // (e.g. after number migration) must remain sendable.
+  if (!hasPhoneAccess && conversation.whatsappChannelId) {
+    const accessibleChannelIds = await getAccessibleChannelIds(
+      userRole,
+      userAreas,
+      user.rentalType,
+    );
+    if (accessibleChannelIds.includes(String(conversation.whatsappChannelId))) {
+      hasPhoneAccess = true;
+    }
   }
 
   if (conversation.isRetarget) {

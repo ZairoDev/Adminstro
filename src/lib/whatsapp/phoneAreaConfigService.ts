@@ -6,7 +6,10 @@ import {
   type WhatsAppPhoneConfig,
 } from "@/lib/whatsapp/config";
 import WhatsappChannel, { type IWhatsappChannel } from "@/models/whatsappChannel";
-import { resolveWhatsAppEmployeeRentalType } from "@/lib/whatsapp/rentalTypeAccess";
+import {
+  isDualRentalWhatsAppRole,
+  resolveWhatsAppEmployeeRentalType,
+} from "@/lib/whatsapp/rentalTypeAccess";
 import WhatsAppPhoneAreaConfig, {
   type IPhoneLocationEntry,
 } from "@/models/whatsappPhoneAreaConfig";
@@ -228,6 +231,8 @@ export async function canUserAccessPhoneId(
     channelLocations.some((key) => userKeys.includes(key));
 
   if (!locationOk) return false;
+
+  if (isDualRentalWhatsAppRole(userRole)) return true;
 
   const employeeRental = resolveWhatsAppEmployeeRentalType(opts.userRentalType);
   if (channel.rentalType === "General") return true;
@@ -514,8 +519,16 @@ export async function getAccessibleChannelIds(
       };
 
   if (!isFullAccess) {
-    const employeeRental = resolveWhatsAppEmployeeRentalType(userRentalType);
-    query.$or = [{ rentalType: employeeRental }, { rentalType: "General" }];
+    if (isDualRentalWhatsAppRole(userRole)) {
+      query.$or = [
+        { rentalType: "Short Term" },
+        { rentalType: "Long Term" },
+        { rentalType: "General" },
+      ];
+    } else {
+      const employeeRental = resolveWhatsAppEmployeeRentalType(userRentalType);
+      query.$or = [{ rentalType: employeeRental }, { rentalType: "General" }];
+    }
   }
 
   const channels = await WhatsappChannel.find(query)

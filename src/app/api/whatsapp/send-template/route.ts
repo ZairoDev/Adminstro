@@ -21,6 +21,11 @@ import {
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import RetargetContact from "@/models/retargetContact";
 import { isTemplateAllowedForConversationRentalType } from "@/lib/whatsapp/templateClassification";
+import {
+  assertCanInitiateGuestConversation,
+  guestConversationExists,
+  recordGuestInitiation,
+} from "@/lib/whatsapp/initiationLimitService";
 
 connectDb();
 
@@ -258,6 +263,24 @@ export async function POST(req: NextRequest) {
         }),
       });
 
+    if (!conversation && !isRetarget) {
+      const isNewGuest = !(await guestConversationExists(formattedPhone));
+      if (isNewGuest) {
+        const initiationCheck = await assertCanInitiateGuestConversation({
+          employeeId: normalizedToken.id,
+          userRole,
+          guestPhone: formattedPhone,
+          conversationType: "guest",
+        });
+        if (!initiationCheck.allowed) {
+          return NextResponse.json(
+            { error: initiationCheck.message, code: initiationCheck.code },
+            { status: 403 },
+          );
+        }
+      }
+    }
+
     console.log("📨 [send-template] sending to Meta", {
       toE164: formattedPhone.replace(/\d(?=\d{4})/g, "x"),
       countryCallingCode: parsedRecipient?.countryCallingCode ?? null,
@@ -298,6 +321,7 @@ export async function POST(req: NextRequest) {
     const timestamp = new Date();
 
     if (!conversation) {
+      const wasNewGuest = !(await guestConversationExists(formattedPhone));
       conversation = await findOrCreateConversationWithSnapshot({
         participantPhone: formattedPhone,
         businessPhoneId: phoneNumberId,
@@ -309,6 +333,14 @@ export async function POST(req: NextRequest) {
       const allowed = await canAccessConversationAsync(normalizedToken, convLean);
       if (!allowed) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      if (!isRetarget && wasNewGuest && conversation._id) {
+        await recordGuestInitiation({
+          employeeId: normalizedToken.id,
+          guestPhone: formattedPhone,
+          conversationId: String(conversation._id),
+        });
       }
     }
 

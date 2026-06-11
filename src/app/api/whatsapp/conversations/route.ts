@@ -35,6 +35,10 @@ import {
   inferChannelTypeFromConversation,
   resolveWhatsappChannel,
 } from "@/lib/whatsapp/channelService";
+import {
+  assertCanInitiateGuestConversation,
+  recordGuestInitiation,
+} from "@/lib/whatsapp/initiationLimitService";
 import { resolveCreateConversationRentalType } from "@/lib/whatsapp/rentalTypeAccess";
 import {
   applyPhoneMaskToConversation,
@@ -732,6 +736,24 @@ export async function POST(req: NextRequest) {
         )
       : false;
 
+    if (!existingSameAccount) {
+      const initiationCheck = await assertCanInitiateGuestConversation({
+        employeeId: String(token.id || token._id),
+        userRole,
+        guestPhone: normalizedPhone,
+        conversationType: explicitType ?? "guest",
+      });
+      if (!initiationCheck.allowed) {
+        return NextResponse.json(
+          {
+            error: initiationCheck.message,
+            code: initiationCheck.code,
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     // Find or create conversation with snapshot semantics.
     // This path is considered a trusted creation flow (manual / lead).
     const conversation = await findOrCreateConversationWithSnapshot({
@@ -746,6 +768,14 @@ export async function POST(req: NextRequest) {
       channelType: effectiveChannelType ?? undefined,
       snapshotSource: "trusted",
     });
+
+    if (!existingSameAccount && conversation?._id) {
+      await recordGuestInitiation({
+        employeeId: String(token.id || token._id),
+        guestPhone: normalizedPhone,
+        conversationId: String(conversation._id),
+      });
+    }
 
     return NextResponse.json({
       success: true,

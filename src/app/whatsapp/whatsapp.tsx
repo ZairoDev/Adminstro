@@ -30,12 +30,19 @@ import { ChatHeader } from "./components/ChatHeader";
 import { MessageList } from "./components/MessageList";
 import { MessageComposer } from "./components/MessageComposer";
 import { AddGuestModal } from "./components/AddGuestModal";
+import { useInitiationLimit } from "./hooks/useInitiationLimit";
+import { InitiationLimitBadge } from "./components/InitiationLimitBadge";
+import { CrmQuickActionsBar } from "./components/CrmQuickActionsBar";
+import { DispositionDialog } from "./components/DispositionDialog";
+import { SetVisitDialog } from "./components/SetVisitDialog";
+import { ReminderDialog } from "./components/ReminderDialog";
 import {
   canUseInboxLocationFilter,
   getInboxLocationFilterOptionsForUser,
 } from "@/lib/whatsapp/participantLocationPrivileges";
 import { ForwardDialog } from "./components/ForwardDialog";
 import { LeadTransferDialog } from "./components/LeadTransferDialog";
+import { CrmPanel } from "./components/CrmPanel";
 import { getWhatsAppNotificationController } from "@/lib/notifications/whatsappNotificationController";
 import { collectMetaGraphErrorText } from "@/lib/whatsapp/metaGraphError";
 import {
@@ -375,6 +382,24 @@ export default function WhatsAppChat() {
   const [adminLocationOptions, setAdminLocationOptions] = useState<string[]>([]);
   /** After Add Owner/Guest, switch sidebar tab so the new chat is not hidden by tab filter */
   const [sidebarTabHint, setSidebarTabHint] = useState<"all" | "owners" | "guests" | null>(null);
+  const [labelFilter, setLabelFilter] = useState("all");
+  const [initiationLimitRefreshKey, setInitiationLimitRefreshKey] = useState(0);
+  const { status: initiationLimitStatus } = useInitiationLimit(initiationLimitRefreshKey);
+  const guestInitiationAtLimit = initiationLimitStatus?.atLimit ?? false;
+  const [crmLeadId, setCrmLeadId] = useState<string | null>(null);
+  const [showDispositionDialog, setShowDispositionDialog] = useState(false);
+  const [showVisitDialog, setShowVisitDialog] = useState(false);
+  const [showReminderDialog, setShowReminderDialog] = useState(false);
+
+  // CRM panel (right panel) — default open on large screens, closed on smaller
+  const [showCrmPanel, setShowCrmPanel] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1280px)");
+    setShowCrmPanel(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setShowCrmPanel(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
   
   // Total unread messages count (socket-based, real-time)
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
@@ -526,6 +551,64 @@ export default function WhatsAppChat() {
     }
   }, []);
 
+  const markReadInFlightRef = useRef(new Set<string>());
+  const lastMarkedReadMessageRef = useRef<Record<string, string>>({});
+  const markConversationAsReadRef = useRef<
+    (conversationId: string, opts?: { lastMessageId?: string }) => Promise<void>
+  >(async () => {});
+
+  const markConversationAsRead = useCallback(
+    async (conversationId: string, opts?: { lastMessageId?: string }) => {
+      if (!conversationId || markReadInFlightRef.current.has(conversationId)) return;
+
+      const messageId = opts?.lastMessageId?.trim() || "";
+      if (
+        messageId &&
+        lastMarkedReadMessageRef.current[conversationId] === messageId
+      ) {
+        return;
+      }
+
+      markReadInFlightRef.current.add(conversationId);
+      try {
+        const response = await axios.post("/api/whatsapp/conversations/read", {
+          conversationId,
+        });
+        if (response.data?.skipped) return;
+
+        const markedId = response.data?.lastReadMessageId;
+        if (markedId) {
+          lastMarkedReadMessageRef.current[conversationId] = String(markedId);
+        } else if (messageId) {
+          lastMarkedReadMessageRef.current[conversationId] = messageId;
+        }
+
+        updateLocalLastReadAt(conversationId);
+        setConversations((prev) => {
+          const updated = prev.map((c) =>
+            c._id === conversationId ? { ...c, unreadCount: 0 } : c,
+          );
+          setTotalUnreadCount(
+            updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0),
+          );
+          return updated;
+        });
+        setArchivedConversations((prev) =>
+          prev.map((c) => (c._id === conversationId ? { ...c, unreadCount: 0 } : c)),
+        );
+      } catch {
+        // Non-blocking — read state will reconcile on next inbox fetch
+      } finally {
+        markReadInFlightRef.current.delete(conversationId);
+      }
+    },
+    [updateLocalLastReadAt],
+  );
+
+  useEffect(() => {
+    markConversationAsReadRef.current = markConversationAsRead;
+  }, [markConversationAsRead]);
+
   const persistActiveConversation = useCallback(
     (conversationId?: string | null) => {
       if (typeof window === "undefined") return;
@@ -563,6 +646,16 @@ export default function WhatsAppChat() {
     );
     setSelectedConversation((prev) => (prev && prev._id === conversationId ? { ...prev, ...patch } : prev));
   }, []);
+
+  const handleCrmLabelsUpdated = useCallback(
+    (labels: string[]) => {
+      if (selectedConversationRef.current) {
+        handleUpdateConversation(selectedConversationRef.current._id, { labels });
+      }
+      setInitiationLimitRefreshKey((k) => k + 1);
+    },
+    [handleUpdateConversation],
+  );
 
   const handleConversationTypeChange = useCallback(
     async (conversationId: string, conversationType: "owner" | "guest") => {
@@ -602,6 +695,27 @@ export default function WhatsAppChat() {
       persistActiveConversation(null);
     };
   }, [selectedConversation, persistActiveConversation]);
+
+  useEffect(() => {
+    if (!selectedConversation?.participantPhone) {
+      setCrmLeadId(null);
+      return;
+    }
+    let cancelled = false;
+    axios
+      .get("/api/whatsapp/leads/lookup", {
+        params: { phone: selectedConversation.participantPhone },
+      })
+      .then((res) => {
+        if (!cancelled) setCrmLeadId(res.data?.lead?._id || null);
+      })
+      .catch(() => {
+        if (!cancelled) setCrmLeadId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedConversation?._id, selectedConversation?.participantPhone]);
 
   const cleanupOutboundCallResources = useCallback(() => {
     suppressPrematureInboundIceCleanupRef.current = false;
@@ -1612,7 +1726,7 @@ export default function WhatsAppChat() {
       fetchConversations(true);
     }, searchQuery.trim() ? 300 : 0);
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, token, adminQueue, adminLocationFilter]);
+  }, [searchQuery, token, adminQueue, adminLocationFilter, labelFilter]);
 
   // Prefetch archived conversations so the "Archived" row can show unread count without opening archive
   useEffect(() => {
@@ -1928,9 +2042,9 @@ export default function WhatsAppChat() {
         });
 
         if (message.direction === "incoming") {
-          axios.post("/api/whatsapp/conversations/read", {
-            conversationId: conversationId,
-          }).catch(() => {});
+          void markConversationAsReadRef.current(conversationId, {
+            lastMessageId: message.messageId,
+          });
         }
       }
 
@@ -2321,15 +2435,19 @@ export default function WhatsAppChat() {
       const { conversationId, userId } = data;
       const currentConversation = selectedConversationRef.current;
 
-      // If this is the currently open conversation, bump the refresh token
-      // so ChatHeader can refetch readers immediately (socket-first, polling-fallback)
-      if (currentConversation?._id === conversationId) {
+      const currentUserId = token?.id || (token as any)?._id;
+
+      // Only refetch readers when someone else read the open chat (not our own mark-read).
+      if (
+        currentConversation?._id === conversationId &&
+        currentUserId &&
+        String(userId) !== String(currentUserId)
+      ) {
         setReadersRefreshToken((prev) => prev + 1);
       }
 
       // If this read event is for the current logged-in user, clear unread
       // state for that conversation across all tabs/devices (both main and archived).
-      const currentUserId = token?.id || (token as any)?._id;
       if (currentUserId && String(userId) === String(currentUserId)) {
         setConversations((prev) => {
           const updated = prev.map((conv) =>
@@ -2464,6 +2582,9 @@ export default function WhatsAppChat() {
         params.append("retargetOnly", "1");
       }
       // Admin Queue mode: conversations without a location key
+      if (labelFilter && labelFilter !== "all") {
+        params.append("labelFilter", labelFilter);
+      }
       if (adminQueue) {
         params.append("adminQueue", "true");
       } else {
@@ -2787,49 +2908,46 @@ export default function WhatsAppChat() {
   };
 
   const selectConversation = (conversation: Conversation | null) => {
-    setSelectedConversation(conversation ? maskConversationForViewer(conversation) : null);
     setReplyToMessage(null); // Clear any pending reply when switching conversations
-    
+
     if (conversation) {
-      fetchMessages(conversation._id, true);
-      
-      // Navigate to chat view on mobile
-      if (isMobile) {
-        navigateToChat();
+      const isSameConversation =
+        selectedConversationRef.current?._id === conversation._id;
+      const alreadyRead =
+        (conversation.unreadCount || 0) === 0 &&
+        conversation.lastMessageDirection !== "incoming";
+
+      if (isSameConversation && alreadyRead) {
+        return;
       }
-      // CRITICAL: Mark conversation as read in ConversationReadState
-      // This updates the per-user read state so notifications stop for this user
-      axios.post("/api/whatsapp/conversations/read", {
-        conversationId: conversation._id,
-      })
-      .then((response) => {
-        console.log(`âœ… [FRONTEND] Successfully marked conversation ${conversation._id} as read:`, response.data);
-      })
-      .catch((err) => {
-        console.error("âŒ [FRONTEND] Error marking conversation as read:", err);
-        if (err.response) {
-          console.error("âŒ [FRONTEND] Response error:", err.response.data);
+
+      setSelectedConversation(maskConversationForViewer(conversation));
+
+      if (!isSameConversation) {
+        fetchMessages(conversation._id, true);
+
+        if (isMobile) {
+          navigateToChat();
         }
-      });
-      updateLocalLastReadAt(conversation._id);
-      
-      // Reset unread count locally
-      setConversations((prev) => {
-        const updated = prev.map((c) =>
-          c._id === conversation._id ? { ...c, unreadCount: 0 } : c
-        );
-        
-        // Update total unread count in real-time (socket-based)
-        const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
-        setTotalUnreadCount(newTotalUnread);
-        
-        return updated;
-      });
-      
-      // Use the conversation's account so deep links stay on the correct WhatsApp line
-      const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
-      router.push(`/whatsapp?conversation=${conversation._id}${suffix}`, { scroll: false });
+      }
+
+      const shouldMarkRead =
+        (conversation.unreadCount || 0) > 0 ||
+        conversation.lastMessageDirection === "incoming";
+      if (shouldMarkRead) {
+        void markConversationAsRead(conversation._id, {
+          lastMessageId: conversation.lastMessageId,
+        });
+      }
+
+      const currentConvParam =
+        searchParams?.get("conversation") || searchParams?.get("conversationId");
+      if (!isSameConversation || currentConvParam !== conversation._id) {
+        const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
+        router.push(`/whatsapp?conversation=${conversation._id}${suffix}`, { scroll: false });
+      }
     } else {
+      setSelectedConversation(null);
       // Navigate back to sidebar on mobile when clearing selection
       if (isMobile) {
         setMobileView("conversations");
@@ -4498,6 +4616,10 @@ export default function WhatsAppChat() {
   // "You" conversations are always active - no template requirement, no 24-hour window
   const isYouConversation = selectedConversation?.isInternal || selectedConversation?.source === "internal";
   const canSendFreeForm = isYouConversation || (selectedConversation ? isMessageWindowActive(selectedConversation) : false);
+  const showCrmActions =
+    Boolean(selectedConversation) &&
+    !selectedConversation?.isInternal &&
+    selectedConversation?.source !== "internal";
 
   const copyPhoneNumber = () => {
     if (!selectedConversation) return;
@@ -4608,9 +4730,9 @@ export default function WhatsAppChat() {
               // Mobile: Full screen width, hidden when chat is open
               "w-full max-w-full",
               isMobile && mobileView === "chat" && "hidden",
-              // Tablet and up: Fixed sidebar width (nav strip 70px + main content ~330px)
-              "md:w-[400px] md:min-w-[320px] md:max-w-[400px]",
-              "lg:w-[700px] lg:min-w-[400px] lg:max-w-[700px]",
+              // Tablet and up: Fixed sidebar width
+              "md:w-[340px] md:min-w-[280px] md:max-w-[340px]",
+              "lg:w-[600px] lg:min-w-[340px] lg:max-w-[600px]",
               // Transition for smooth view changes
               "transition-all duration-200 ease-out"
             )}>
@@ -4636,6 +4758,15 @@ export default function WhatsAppChat() {
                 setShowAddContactModal(true);
               }}
               onAddGuest={() => {
+                if (guestInitiationAtLimit) {
+                  toast({
+                    title: "Daily limit reached",
+                    description:
+                      "You have reached your daily limit of 15 new guest conversations.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
                 setAddContactType("guest");
                 setShowAddContactModal(true);
               }}
@@ -4673,6 +4804,18 @@ export default function WhatsAppChat() {
               onAdminLocationFilterChange={handleAdminLocationFilterChange}
               sidebarTabHint={sidebarTabHint}
               onSidebarTabHintConsumed={() => setSidebarTabHint(null)}
+              labelFilter={labelFilter}
+              onLabelFilterChange={setLabelFilter}
+              initiationLimitRefreshKey={initiationLimitRefreshKey}
+              guestInitiationAtLimit={guestInitiationAtLimit}
+              onOpenDisposition={() => setShowDispositionDialog(true)}
+              onOpenSetVisit={() => setShowVisitDialog(true)}
+              onOpenReminder={() => setShowReminderDialog(true)}
+              onCrmActionForConversation={(conversation) => {
+                if (selectedConversation?._id !== conversation._id) {
+                  selectConversation(conversation);
+                }
+              }}
               // Jump to message from search results
               onJumpToMessage={(conversationId, messageId) => {
                 // Find and select the conversation
@@ -4707,6 +4850,15 @@ export default function WhatsAppChat() {
                 "transition-all duration-200 ease-out"
               )}
             >
+              {initiationLimitStatus?.limited && (
+                <div className="px-4 py-2.5 bg-[#e7f8f3] dark:bg-[#0b3328] border-b border-[#cfe8f6] dark:border-[#2a3942] flex-shrink-0">
+                  <InitiationLimitBadge
+                    refreshKey={initiationLimitRefreshKey}
+                    variant="banner"
+                  />
+                </div>
+              )}
+
               {selectedConversation ? (
                 <>
                   <ChatHeader
@@ -4745,7 +4897,30 @@ export default function WhatsAppChat() {
                       } as Partial<Conversation>);
                       void fetchConversations(true);
                     }}
+                    onOpenDisposition={
+                      showCrmActions ? () => setShowDispositionDialog(true) : undefined
+                    }
+                    onOpenSetVisit={
+                      showCrmActions ? () => setShowVisitDialog(true) : undefined
+                    }
+                    onOpenReminder={
+                      showCrmActions ? () => setShowReminderDialog(true) : undefined
+                    }
+                    onToggleCrmPanel={
+                      showCrmActions && !isMobile
+                        ? () => setShowCrmPanel((p) => !p)
+                        : undefined
+                    }
+                    crmPanelOpen={showCrmPanel}
                   />
+
+                  {showCrmActions && (
+                    <CrmQuickActionsBar
+                      onOpenDisposition={() => setShowDispositionDialog(true)}
+                      onOpenSetVisit={() => setShowVisitDialog(true)}
+                      onOpenReminder={() => setShowReminderDialog(true)}
+                    />
+                  )}
 
                   <MessageList
                     key={selectedConversation._id}
@@ -4801,6 +4976,25 @@ export default function WhatsAppChat() {
                     selectedConversation={selectedConversation}
                     onSendMediaWithCaptions={handleSendMediaWithCaptions}
                   />
+                  <DispositionDialog
+                    open={showDispositionDialog}
+                    onOpenChange={setShowDispositionDialog}
+                    conversation={selectedConversation}
+                    onApplied={handleCrmLabelsUpdated}
+                  />
+                  <SetVisitDialog
+                    open={showVisitDialog}
+                    onOpenChange={setShowVisitDialog}
+                    conversation={selectedConversation}
+                    leadId={crmLeadId}
+                    onScheduled={handleCrmLabelsUpdated}
+                  />
+                  <ReminderDialog
+                    open={showReminderDialog}
+                    onOpenChange={setShowReminderDialog}
+                    conversation={selectedConversation}
+                    onCreated={handleCrmLabelsUpdated}
+                  />
                 </>
               ) : (
                 /* Empty state - WhatsApp Web style (hidden on mobile) */
@@ -4845,6 +5039,19 @@ export default function WhatsAppChat() {
                 </div>
               )}
             </div>
+
+            {/* CRM Panel — right side, desktop only */}
+            {showCrmPanel && selectedConversation && showCrmActions && (
+              <CrmPanel
+                conversation={selectedConversation}
+                onClose={() => setShowCrmPanel(false)}
+                onOpenDisposition={() => setShowDispositionDialog(true)}
+                onOpenSetVisit={() => setShowVisitDialog(true)}
+                onOpenReminder={() => setShowReminderDialog(true)}
+                onLabelsUpdated={handleCrmLabelsUpdated}
+                className="hidden md:flex w-[400px] min-w-[300px] max-w-[400px] flex-shrink-0"
+              />
+            )}
           </div>
         </div>
       

@@ -49,7 +49,22 @@ export interface IWhatsAppConversation extends Document {
   lastOutgoingMessageTime?: Date;
 
   tags?: string[];
+  /** CRM disposition / workflow labels (indexed for sidebar filters) */
+  labels?: string[];
   notes?: string;
+
+  /** Conversation-level translation preference */
+  preferredLanguage?: string;
+  preferredLanguageCode?: string;
+  preferredLanguageUpdatedAt?: Date;
+
+  /** Linked CRM Query document */
+  leadQueryId?: mongoose.Types.ObjectId;
+
+  /** Active reminder metadata (mirrors PersonalReminder when set from WhatsApp) */
+  hasActiveReminder?: boolean;
+  reminderAt?: Date;
+  reminderNote?: string;
 
   conversationType?: "owner" | "guest"; // Determined by first template message
   referenceLink?: string; // Property listing URL or reference link
@@ -210,8 +225,50 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
       default: [],
     },
 
+    labels: {
+      type: [String],
+      default: [],
+      index: true,
+    },
+
     notes: {
       type: String,
+    },
+
+    preferredLanguage: {
+      type: String,
+      default: "",
+    },
+
+    preferredLanguageCode: {
+      type: String,
+      default: "",
+    },
+
+    preferredLanguageUpdatedAt: {
+      type: Date,
+    },
+
+    leadQueryId: {
+      type: Schema.Types.ObjectId,
+      ref: "Query",
+      index: true,
+    },
+
+    hasActiveReminder: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    reminderAt: {
+      type: Date,
+      index: true,
+    },
+
+    reminderNote: {
+      type: String,
+      default: "",
     },
 
     conversationType: {
@@ -339,6 +396,12 @@ whatsAppConversationSchema.index({
   status: 1,
   lastMessageTime: -1,
 }, { name: "channel_lookup_idx" });
+
+whatsAppConversationSchema.index({
+  labels: 1,
+  status: 1,
+  lastMessageTime: -1,
+}, { name: "crm_labels_inbox_idx" });
 
 const WhatsAppConversation =
   mongoose.models?.WhatsAppConversation ||

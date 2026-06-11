@@ -8,6 +8,7 @@ import {
   getAccessibleChannelIds,
   getPhoneIdsForUserAreasSync,
 } from "./phoneAreaConfigService";
+import { normalizeWhatsAppToken, type WhatsAppToken } from "./apiContext";
 import {
   canUserSeeConversation,
   getUserAreasFromToken,
@@ -21,6 +22,20 @@ type AccessUser = {
   email?: string;
   rentalType?: unknown;
 };
+
+/** Mongoose .select() fields required by canAccessConversationAsync. */
+export const CONVERSATION_ACCESS_SELECT = [
+  "businessPhoneId",
+  "whatsappChannelId",
+  "participantLocationKey",
+  "participantLocation",
+  "source",
+  "rentalType",
+  "channelType",
+  "isRetarget",
+  "retargetStage",
+  "assignedAgent",
+].join(" ");
 
 function parseUserAreas(user: AccessUser): string[] {
   return getUserAreasFromToken(user);
@@ -111,42 +126,50 @@ export async function canAccessConversationAsync(
   user: AccessUser,
   conversation: Record<string, unknown>,
 ): Promise<boolean> {
-  const early = baseAccessChecks(user, conversation);
+  const normalized = normalizeWhatsAppToken(user as WhatsAppToken);
+
+  const early = baseAccessChecks(normalized, conversation);
   if (early !== null) return early;
 
-  const userRole = user.role || "";
-  const userAreas = parseUserAreas(user);
+  const userRole = normalized.role || "";
+  const userAreas = normalized.allotedArea;
 
   let hasPhoneAccess = !conversation.businessPhoneId;
+  let accessedViaChannelId = false;
+
   if (conversation.businessPhoneId) {
     hasPhoneAccess = await canUserAccessPhoneId(
       String(conversation.businessPhoneId),
       userRole,
       userAreas,
-      { userRentalType: user.rentalType },
+      { userRentalType: normalized.rentalType },
     );
   }
 
   // Mirror inbox visibility: conversations visible via frozen whatsappChannelId
-  // (e.g. after number migration) must remain sendable.
+  // (e.g. after number migration) must remain openable/sendable.
   if (!hasPhoneAccess && conversation.whatsappChannelId) {
     const accessibleChannelIds = await getAccessibleChannelIds(
       userRole,
       userAreas,
-      user.rentalType,
+      normalized.rentalType,
     );
     if (accessibleChannelIds.includes(String(conversation.whatsappChannelId))) {
       hasPhoneAccess = true;
+      accessedViaChannelId = true;
     }
   }
 
   if (conversation.isRetarget) {
-    return evaluateRetargetAccess(user, conversation, hasPhoneAccess);
+    return evaluateRetargetAccess(normalized, conversation, hasPhoneAccess);
   }
 
   if (!hasPhoneAccess) return false;
 
-  return canUserSeeConversation(user, conversation, { skipPhoneCheck: true });
+  return canUserSeeConversation(normalized, conversation, {
+    skipPhoneCheck: true,
+    skipLocationCheck: accessedViaChannelId,
+  });
 }
 
 /**

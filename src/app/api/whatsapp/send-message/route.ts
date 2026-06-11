@@ -13,6 +13,11 @@ import crypto from "crypto";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
+import {
+  assertCanInitiateGuestConversation,
+  guestConversationExists,
+  recordGuestInitiation,
+} from "@/lib/whatsapp/initiationLimitService";
 import { getChannelByPhoneNumberId, getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
 import { buildWhatsAppRoomPayload } from "@/lib/whatsapp/socketPayload";
 
@@ -504,6 +509,24 @@ export async function POST(req: NextRequest) {
         );
     }
 
+    if (!conversation && !conversationId) {
+      const isNewGuest = !(await guestConversationExists(formattedPhone));
+      if (isNewGuest) {
+        const initiationCheck = await assertCanInitiateGuestConversation({
+          employeeId: normalizedToken.id,
+          userRole,
+          guestPhone: formattedPhone,
+          conversationType: "guest",
+        });
+        if (!initiationCheck.allowed) {
+          return NextResponse.json(
+            { error: initiationCheck.message, code: initiationCheck.code },
+            { status: 403 },
+          );
+        }
+      }
+    }
+
     // Send message via WhatsApp API
     const response = await fetch(
       `${WHATSAPP_API_BASE_URL}/${phoneNumberId}/messages`,
@@ -547,8 +570,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (!conversation) {
-        // Use helper to find or create with proper snapshot semantics
-        // User-initiated message sending is "trusted" - can backfill empty snapshot fields
+        const wasNewGuest = !(await guestConversationExists(formattedPhone));
         const phoneChannel = await getChannelByPhoneNumberId(phoneNumberId);
         conversation = await findOrCreateConversationWithSnapshot({
           participantPhone: formattedPhone,
@@ -558,6 +580,13 @@ export async function POST(req: NextRequest) {
           channelType: phoneChannel?.channelType,
           snapshotSource: "trusted",
         });
+        if (wasNewGuest && conversation._id) {
+          await recordGuestInitiation({
+            employeeId: normalizedToken.id,
+            guestPhone: formattedPhone,
+            conversationId: String(conversation._id),
+          });
+        }
       }
     }
 

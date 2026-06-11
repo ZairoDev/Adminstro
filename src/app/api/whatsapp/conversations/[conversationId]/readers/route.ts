@@ -5,6 +5,7 @@ import ConversationReadState from "@/models/conversationReadState";
 import WhatsAppConversation from "@/models/whatsappConversation";
 import Employee from "@/models/employee";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken, type WhatsAppToken } from "@/lib/whatsapp/apiContext";
 
 connectDb();
 
@@ -36,7 +37,12 @@ export async function GET(
       return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
     }
 
-    if (!(await canAccessConversationAsync(token as Record<string, unknown>, conversation as Record<string, unknown>))) {
+    if (
+      !(await canAccessConversationAsync(
+        normalizeWhatsAppToken(token as WhatsAppToken),
+        conversation as Record<string, unknown>,
+      ))
+    ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

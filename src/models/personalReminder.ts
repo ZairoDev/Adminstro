@@ -10,6 +10,8 @@ export interface IPersonalReminder extends Document {
   status: PersonalReminderStatus;
   emailSentAt: Date | null;
   dismissedAt: Date | null;
+  whatsappConversationId?: mongoose.Types.ObjectId | null;
+  leadQueryId?: mongoose.Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +54,18 @@ const personalReminderSchema = new Schema<IPersonalReminder>(
     dismissedAt: {
       type: Date,
       default: null,
+    },
+    whatsappConversationId: {
+      type: Schema.Types.ObjectId,
+      ref: "WhatsAppConversation",
+      default: null,
+      index: true,
+    },
+    leadQueryId: {
+      type: Schema.Types.ObjectId,
+      ref: "Query",
+      default: null,
+      index: true,
     },
   },
   { timestamps: true },

@@ -15,6 +15,7 @@ import { BoostMultiLineChart } from "@/components/charts/BoostMultiLineChart";
 import BookingChartImproved from "@/components/BookingChart";
 import WeeklyTargetDashboard from "@/components/BookingTable";
 import { PhoneNumberHealth } from "@/components/whatsapp/PhoneNumberHealth";
+import { InitiationLimitBadge } from "@/app/whatsapp/components/InitiationLimitBadge";
 import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastNotificationForm";
 
 // Hooks
@@ -172,7 +173,12 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
   const showRevenueAndTargetHere = !isAdmin && !["SuperAdmin", "Admin", "Developer"].includes(role);
 
   // WhatsApp features visible to SuperAdmin, Sales-TeamLead, and Sales
-  const canViewWhatsAppFeatures = ["SuperAdmin", "Sales-TeamLead", "Sales"].includes(role);
+  const canViewWhatsAppFeatures = [
+    "SuperAdmin",
+    "Sales-TeamLead",
+    "Sales",
+    "sales-intern",
+  ].includes(role);
 
   if (!hasSalesAccess) {
     return null;
@@ -189,7 +195,8 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
       
       {/* WhatsApp Phone Number Health */}
       {canViewWhatsAppFeatures && (
-        <div className="my-6">
+        <div className="my-6 space-y-3">
+          <InitiationLimitBadge />
           <PhoneNumberHealth />
         </div>
       )}

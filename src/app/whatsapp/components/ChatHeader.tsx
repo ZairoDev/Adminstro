@@ -18,6 +18,8 @@ import {
   Users,
   MapPin,
   MapPinOff,
+  ListChecks,
+  PanelRight,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -79,6 +81,11 @@ interface ChatHeaderProps {
   userEmail?: string;
   userAreas?: string | string[];
   onLocationSet?: (conversationId: string, location: string) => void;
+  onOpenDisposition?: () => void;
+  onOpenSetVisit?: () => void;
+  onOpenReminder?: () => void;
+  onToggleCrmPanel?: () => void;
+  crmPanelOpen?: boolean;
 }
 
 interface Reader {
@@ -114,6 +121,11 @@ export const ChatHeader = memo(function ChatHeader({
   userEmail = "",
   userAreas,
   onLocationSet,
+  onOpenDisposition,
+  onOpenSetVisit,
+  onOpenReminder,
+  onToggleCrmPanel,
+  crmPanelOpen = false,
 }: ChatHeaderProps) {
   const [isMounted, setIsMounted] = useState(false);
   const [readers, setReaders] = useState<Reader[]>([]);
@@ -439,6 +451,52 @@ export const ChatHeader = memo(function ChatHeader({
         </div>
 
         <div className="flex items-center gap-0 md:gap-1 flex-shrink-0">
+          {onOpenDisposition && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenDisposition}
+              title="Lead disposition"
+              className={cn(
+                "text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full",
+                "h-11 w-11 min-h-[44px] min-w-[44px]",
+                "md:h-10 md:w-10 md:min-h-0 md:min-w-0",
+              )}
+            >
+              <ListChecks className="h-5 w-5" />
+            </Button>
+          )}
+          {onOpenSetVisit && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenSetVisit}
+              title="Set visit"
+              className={cn(
+                "text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full",
+                "h-11 w-11 min-h-[44px] min-w-[44px]",
+                "md:h-10 md:w-10 md:min-h-0 md:min-w-0",
+              )}
+            >
+              <MapPin className="h-5 w-5" />
+            </Button>
+          )}
+          {onOpenReminder && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenReminder}
+              title="Set reminder"
+              className={cn(
+                "text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full",
+                "h-11 w-11 min-h-[44px] min-w-[44px]",
+                "md:h-10 md:w-10 md:min-h-0 md:min-w-0",
+              )}
+            >
+              <Timer className="h-5 w-5" />
+            </Button>
+          )}
+
           {onTransferLead && availablePhoneConfigs.length > 1 && (
             <Button
               variant="ghost"
@@ -471,6 +529,24 @@ export const ChatHeader = memo(function ChatHeader({
               ) : (
                 <Phone className="h-5 w-5" />
               )}
+            </Button>
+          )}
+
+          {onToggleCrmPanel && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleCrmPanel}
+              title={crmPanelOpen ? "Hide CRM panel" : "Show CRM panel"}
+              className={cn(
+                "hidden md:flex rounded-full",
+                "md:h-10 md:w-10",
+                crmPanelOpen
+                  ? "text-[#008069] bg-[#d9fdd3] dark:bg-[#005c4b] hover:bg-[#d9fdd3] dark:hover:bg-[#005c4b]"
+                  : "text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045]",
+              )}
+            >
+              <PanelRight className="h-5 w-5" />
             </Button>
           )}
 
@@ -516,6 +592,24 @@ export const ChatHeader = memo(function ChatHeader({
                 <RefreshCw className={cn("h-4 w-4 mr-3", templatesLoading && "animate-spin")} />
                 Refresh templates
               </DropdownMenuItem>
+              {onOpenDisposition && (
+                <DropdownMenuItem onClick={onOpenDisposition}>
+                  <ListChecks className="h-4 w-4 mr-3" />
+                  Lead disposition
+                </DropdownMenuItem>
+              )}
+              {onOpenSetVisit && (
+                <DropdownMenuItem onClick={onOpenSetVisit}>
+                  <MapPin className="h-4 w-4 mr-3" />
+                  Set visit
+                </DropdownMenuItem>
+              )}
+              {onOpenReminder && (
+                <DropdownMenuItem onClick={onOpenReminder}>
+                  <Timer className="h-4 w-4 mr-3" />
+                  Set reminder
+                </DropdownMenuItem>
+              )}
               {canChangeType && role !== "owner" && (
                 <DropdownMenuItem
                   onClick={() =>

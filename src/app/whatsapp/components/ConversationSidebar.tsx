@@ -40,6 +40,7 @@ import {
   ListChecks,
   MapPin,
   MapPinOff,
+  Timer,
 } from "lucide-react";
 import axios from "@/util/axios";
 import { cn } from "@/lib/utils";
@@ -81,6 +82,9 @@ import {
 } from "@/lib/whatsapp/phoneMask";
 import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
 import { SetParticipantLocationDialog } from "./SetParticipantLocationDialog";
+import { InitiationLimitBadge } from "./InitiationLimitBadge";
+import { ConversationLabelChips } from "./ConversationLabelChips";
+import { SIDEBAR_LABEL_FILTERS } from "@/lib/whatsapp/crmLabels";
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -146,6 +150,16 @@ interface SidebarProps {
   /** Parent sets this after Add Owner/Guest so tab filter does not hide the new chat */
   sidebarTabHint?: "all" | "owners" | "guests" | null;
   onSidebarTabHintConsumed?: () => void;
+  /** CRM label filter — server-side via labelFilter query param */
+  labelFilter?: string;
+  onLabelFilterChange?: (value: string) => void;
+  initiationLimitRefreshKey?: number;
+  /** When true, sales users cannot start new guest conversations */
+  guestInitiationAtLimit?: boolean;
+  onOpenDisposition?: () => void;
+  onOpenSetVisit?: () => void;
+  onOpenReminder?: () => void;
+  onCrmActionForConversation?: (conversation: Conversation) => void;
 }
 
 /** Theme toggle button for the nav strip: toggles between light and dark mode */
@@ -198,6 +212,10 @@ function ConversationActionItems({
   onSetLocation,
   canSetLocation,
   isMobile,
+  onOpenDisposition,
+  onOpenSetVisit,
+  onOpenReminder,
+  onCrmActionForConversation,
 }: {
   MenuItem: ComponentType<{
     onSelect?: () => void;
@@ -219,11 +237,52 @@ function ConversationActionItems({
   onSetLocation?: (conversation: Conversation) => void;
   canSetLocation?: boolean;
   isMobile?: boolean;
+  onOpenDisposition?: () => void;
+  onOpenSetVisit?: () => void;
+  onOpenReminder?: () => void;
+  onCrmActionForConversation?: (conversation: Conversation) => void;
 }) {
+  const isInternal =
+    conversation.isInternal || conversation.source === "internal";
+  const runCrmAction = (action: () => void) => {
+    onCrmActionForConversation?.(conversation);
+    action();
+  };
   const itemClass = isMobile ? "py-3 text-base" : undefined;
 
   return (
     <>
+      {!isInternal && onOpenDisposition && (
+        <MenuItem
+          className={itemClass}
+          onSelect={() => runCrmAction(onOpenDisposition)}
+        >
+          <ListChecks className="h-4 w-4 mr-2" />
+          Lead disposition
+        </MenuItem>
+      )}
+      {!isInternal && onOpenSetVisit && (
+        <MenuItem
+          className={itemClass}
+          onSelect={() => runCrmAction(onOpenSetVisit)}
+        >
+          <MapPin className="h-4 w-4 mr-2" />
+          Set visit
+        </MenuItem>
+      )}
+      {!isInternal && onOpenReminder && (
+        <MenuItem
+          className={itemClass}
+          onSelect={() => runCrmAction(onOpenReminder)}
+        >
+          <Timer className="h-4 w-4 mr-2" />
+          Set reminder
+        </MenuItem>
+      )}
+      {!isInternal &&
+        (onOpenDisposition || onOpenSetVisit || onOpenReminder) && (
+          <div className="h-px bg-[#e9edef] dark:bg-[#222d34] my-1" />
+        )}
       {canSetLocation && onSetLocation ? (
         <MenuItem
           className={itemClass}
@@ -306,6 +365,10 @@ function ConversationItem({
   userRole = "",
   userEmail = "",
   userAreas,
+  onOpenDisposition,
+  onOpenSetVisit,
+  onOpenReminder,
+  onCrmActionForConversation,
 }: {
   conversation: Conversation;
   isSelected: boolean;
@@ -327,6 +390,10 @@ function ConversationItem({
   userRole?: string;
   userEmail?: string;
   userAreas?: string | string[];
+  onOpenDisposition?: () => void;
+  onOpenSetVisit?: () => void;
+  onOpenReminder?: () => void;
+  onCrmActionForConversation?: (conversation: Conversation) => void;
 }): JSX.Element {
   // Use parent-level upload/rename handlers to avoid input unmount issues
   const hasUnread =
@@ -407,12 +474,17 @@ function ConversationItem({
       allotedArea: userAreas,
     });
 
+  const hasCrmActions =
+    !isInternal &&
+    Boolean(onOpenDisposition || onOpenSetVisit || onOpenReminder);
+
   const hasActions = Boolean(
     onArchive ||
       onUnarchive ||
       canChangeType ||
       onRenameFor ||
-      canSetLocation
+      canSetLocation ||
+      hasCrmActions
   );
 
   const actionMenuProps = {
@@ -428,6 +500,10 @@ function ConversationItem({
     onSetLocation,
     canSetLocation,
     isMobile,
+    onOpenDisposition,
+    onOpenSetVisit,
+    onOpenReminder,
+    onCrmActionForConversation,
   };
 
   const row = (
@@ -520,6 +596,7 @@ function ConversationItem({
             {messagePreview || phone || " "}
           </span>
         </div>
+        <ConversationLabelChips labels={conversation.labels} max={2} />
         {showGuestStats && (
           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
             {listingLinkSentCount > 0 && (
@@ -680,6 +757,14 @@ export function ConversationSidebar({
   onAdminLocationFilterChange,
   sidebarTabHint = null,
   onSidebarTabHintConsumed,
+  labelFilter = "all",
+  onLabelFilterChange,
+  initiationLimitRefreshKey = 0,
+  guestInitiationAtLimit = false,
+  onOpenDisposition,
+  onOpenSetVisit,
+  onOpenReminder,
+  onCrmActionForConversation,
 }: SidebarProps) {
   const [showPhoneMaskForm, setShowPhoneMaskForm] = useState(false);
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
@@ -1065,7 +1150,10 @@ export function ConversationSidebar({
                         </DropdownMenuItem>
                       )}
                       {onAddGuest && (
-                        <DropdownMenuItem onClick={onAddGuest}>
+                        <DropdownMenuItem
+                          onClick={onAddGuest}
+                          disabled={guestInitiationAtLimit}
+                        >
                           <Users className="h-4 w-4 mr-2" />
                           Guest
                         </DropdownMenuItem>
@@ -1198,10 +1286,18 @@ export function ConversationSidebar({
                     if (e.key === "Enter") onStartConversation();
                   }}
                 />
+                {guestInitiationAtLimit && (
+                  <p className="text-xs text-red-600 dark:text-red-400">
+                    Daily new guest limit reached. Existing chats are unaffected.
+                  </p>
+                )}
                 <Button
                   onClick={onStartConversation}
                   disabled={
-                    loading || !newCountryCode.trim() || !newPhoneNumber.trim()
+                    guestInitiationAtLimit ||
+                    loading ||
+                    !newCountryCode.trim() ||
+                    !newPhoneNumber.trim()
                   }
                   className={cn(
                     "bg-[#25d366] hover:bg-[#1da851] text-white flex-shrink-0",
@@ -1267,6 +1363,7 @@ export function ConversationSidebar({
               onClick={() => {
                 setFilterPill("all");
                 setConversationTab("all");
+                onLabelFilterChange?.("all");
               }}
               className={cn(
                 "shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
@@ -1278,7 +1375,10 @@ export function ConversationSidebar({
               All
             </button>
             <button
-              onClick={() => setFilterPill("unread")}
+              onClick={() => {
+                setFilterPill("unread");
+                onLabelFilterChange?.("unread");
+              }}
               className={cn(
                 "shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
                 filterPill === "unread"
@@ -1306,76 +1406,100 @@ export function ConversationSidebar({
                   <ChevronDown className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem
-                  onClick={() => {
-                    setConversationTab("all");
-                    setFilterPill("all");
-                  }}
-                >
-                  All
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    setConversationTab("owners");
-                    setFilterPill("all");
-                  }}
-                >
-                  <User className="h-4 w-4 mr-2" />
-                  Owners
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => {
-                    setConversationTab("guests");
-                    setFilterPill("all");
-                  }}
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  Guests
-                </DropdownMenuItem>
+              <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+                {SIDEBAR_LABEL_FILTERS.map((item) => (
+                  <DropdownMenuItem
+                    key={item.key}
+                    onClick={() => {
+                      if (item.key === "owners") {
+                        setConversationTab("owners");
+                        setFilterPill("all");
+                      } else if (item.key === "guests") {
+                        setConversationTab("guests");
+                        setFilterPill("all");
+                      } else if (item.key === "unread") {
+                        setFilterPill("unread");
+                        setConversationTab("all");
+                      } else {
+                        setConversationTab("all");
+                        setFilterPill("all");
+                      }
+                      onLabelFilterChange?.(item.key);
+                    }}
+                    className={cn(
+                      labelFilter === item.key &&
+                        "bg-[#e9edef] dark:bg-[#2a3942]",
+                    )}
+                  >
+                    {item.label}
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            {showInboxLocationFilter && !showNewChat && (
-              <div
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 border-b flex-shrink-0 min-w-0",
-                  adminQueue
-                    ? "bg-[#f0f2f5] dark:bg-[#202c33] border-[#e9edef] dark:border-[#222d34] opacity-60"
-                    : "bg-[#e7f5ff] dark:bg-[#1a2a33] border-[#cfe8f6] dark:border-[#2a3942]",
-                )}
-              >
-                <MapPin className="h-4 w-4 text-[#008069] dark:text-[#00a884] flex-shrink-0" />
-                <Select
-                  value={adminLocationFilter}
-                  onValueChange={(v) => onAdminLocationFilterChange?.(v)}
-                  disabled={adminQueue}
-                >
-                  <SelectTrigger className="h-8 flex-1 text-[13px] bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#374045]">
-                    <SelectValue
-                      placeholder={
-                        userRole === "SuperAdmin"
+
+            {showInboxLocationFilter && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={adminQueue}
+                    className={cn(
+                      "flex items-center gap-1 shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors max-w-[160px]",
+                      adminLocationFilter !== "all"
+                        ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
+                        : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]",
+                      adminQueue && "opacity-60 cursor-not-allowed",
+                    )}
+                  >
+                    <MapPin className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">
+                      {adminLocationFilter === "all"
+                        ? userRole === "SuperAdmin"
                           ? "All locations"
                           : "All my locations"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      {userRole === "SuperAdmin" ? "All locations" : "All my locations"}
-                    </SelectItem>
-                    {adminLocationOptions.map((loc) => (
-                      <SelectItem key={loc} value={loc}>
-                        {loc}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                        : adminLocationFilter}
+                    </span>
+                    <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+                  <DropdownMenuItem
+                    onClick={() => onAdminLocationFilterChange?.("all")}
+                    className={cn(
+                      adminLocationFilter === "all" &&
+                        "bg-[#e9edef] dark:bg-[#2a3942]",
+                    )}
+                  >
+                    {userRole === "SuperAdmin" ? "All locations" : "All my locations"}
+                  </DropdownMenuItem>
+                  {adminLocationOptions.map((loc) => (
+                    <DropdownMenuItem
+                      key={loc}
+                      onClick={() => onAdminLocationFilterChange?.(loc)}
+                      className={cn(
+                        adminLocationFilter === loc &&
+                          "bg-[#e9edef] dark:bg-[#2a3942]",
+                      )}
+                    >
+                      {loc}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         )}
 
-        {/* SuperAdmin location filter */}
+        {!showNewChat && (
+          <div className="px-3 pb-2 bg-white dark:bg-[#111b21] flex-shrink-0 space-y-2">
+            <InitiationLimitBadge refreshKey={initiationLimitRefreshKey} />
+            {guestInitiationAtLimit && (
+              <p className="text-xs text-red-600 dark:text-red-400 px-1">
+                You have reached your daily limit of 15 new guest conversations.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Admin Queue banner */}
         {adminQueue && (
@@ -1544,6 +1668,10 @@ export function ConversationSidebar({
                   userRole={userRole}
                   userEmail={userEmail}
                   userAreas={userAreas}
+                  onOpenDisposition={onOpenDisposition}
+                  onOpenSetVisit={onOpenSetVisit}
+                  onOpenReminder={onOpenReminder}
+                  onCrmActionForConversation={onCrmActionForConversation}
                 />
               ))}
 

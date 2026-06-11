@@ -30,7 +30,7 @@ import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 
 const NewUser = () => {
   const searchParams = useSearchParams();
-  const shortTermOwner = searchParams.get("shortTermOwner") === "1";
+  const shortTermOwner = searchParams?.get("shortTermOwner") === "1";
   const { toast } = useToast();
   const [profilePic, setProfilepic] = useState("");
 
@@ -99,21 +99,21 @@ const NewUser = () => {
       shortTermOwner ? shortTermOwnerUserSchema : userSchema,
     ),
     defaultValues: {
-      name: searchParams.get("name") ?? "",
-      email: searchParams.get("email") ?? "",
+      name: searchParams?.get("name") ?? "",
+      email: searchParams?.get("email") ?? "",
       sendDetails: false,
       nationality: "",
       gender: shortTermOwner ? "Male" : undefined,
       spokenLanguage: shortTermOwner ? "English" : "",
       bankDetails: "",
-      phone: searchParams.get("phone") ?? "",
+      phone: searchParams?.get("phone") ?? "",
       address: "",
       role: shortTermOwner ? "Owner" : undefined,
     },
   });
 
   useEffect(() => {
-    const prefillPhone = searchParams.get("phone");
+    const prefillPhone = searchParams?.get("phone");
     if (prefillPhone) setPhone(prefillPhone);
   }, [searchParams]);
 

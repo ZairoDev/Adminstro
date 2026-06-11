@@ -6,6 +6,7 @@ import WhatsAppConversation from "@/models/whatsappConversation";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import { emitWhatsAppEvent } from "@/lib/pusher";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken, type WhatsAppToken } from "@/lib/whatsapp/apiContext";
 
 connectDb();
 
@@ -61,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     // Enforce access rules
     const allowed = await canAccessConversationAsync(
-      token,
+      normalizeWhatsAppToken(token as WhatsAppToken),
       conversation.toObject ? conversation.toObject() : conversation,
     );
     if (!allowed) {
@@ -79,7 +80,26 @@ export async function POST(req: NextRequest) {
     const lastReadMessageId = latestMessage?.messageId || conversation.lastMessageId || "";
     const lastReadAt = new Date();
 
- 
+    const existingReadState = await ConversationReadState.findOne({
+      conversationId: conversation._id,
+      userId,
+    })
+      .select("lastReadMessageId lastReadAt")
+      .lean() as { lastReadMessageId?: string; lastReadAt?: Date } | null;
+
+    // Idempotent: skip DB write and realtime fan-out when already marked at this message.
+    if (
+      existingReadState?.lastReadMessageId &&
+      existingReadState.lastReadMessageId === lastReadMessageId
+    ) {
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        conversationId: conversation._id.toString(),
+        lastReadMessageId: existingReadState.lastReadMessageId,
+        lastReadAt: existingReadState.lastReadAt,
+      });
+    }
 
     // Upsert read state for this user and conversation
     const readState = await ConversationReadState.findOneAndUpdate(

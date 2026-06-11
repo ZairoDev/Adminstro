@@ -2,6 +2,15 @@ import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { SUPPORTED_TRANSLATION_LANGUAGES } from "@/lib/whatsapp/translation/types";
+import {
   LayoutTemplate,
   Loader2,
   Music,
@@ -17,6 +26,7 @@ import {
   Camera,
   Play,
   Reply,
+  Languages,
 } from "lucide-react";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
@@ -82,6 +92,8 @@ interface MessageComposerProps {
     _id: string;
     participantPhone: string;
     rentalType?: "Short Term" | "Long Term" | "General";
+    preferredLanguageCode?: string;
+    preferredLanguage?: string;
   } | null;
   onSendMediaWithCaptions?: (files: Array<{ file: File; caption: string }>) => Promise<void>;
 }
@@ -118,19 +130,29 @@ export const MessageComposer = memo(function MessageComposer({
   selectedConversation,
   onSendMediaWithCaptions,
 }: MessageComposerProps) {
+  const { toast } = useToast();
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showTemplateSuggestions, setShowTemplateSuggestions] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [preferredLanguageCode, setPreferredLanguageCode] = useState<string | null>(
+    null,
+  );
+  const [pickerLanguageCode, setPickerLanguageCode] = useState("el");
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [translating, setTranslating] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const addMoreInputRef = useRef<HTMLInputElement>(null);
+  const translatePickerRef = useRef<HTMLDivElement>(null);
   const newMessageCacheRef = useRef(newMessage);
   const cursorPositionRef = useRef<number>(0);
 
   const isTemplateOnlyMode = !canSendFreeForm && !isYouConversation;
+  const canTranslate =
+    canSendFreeForm && !isYouConversation && Boolean(newMessage.trim());
 
   const effectiveRentalType =
     conversationRentalType ?? selectedConversation?.rentalType ?? null;
@@ -195,6 +217,146 @@ export const MessageComposer = memo(function MessageComposer({
     const newHeight = Math.min(textarea.scrollHeight, 150); // Max 6 lines approximately
     textarea.style.height = `${newHeight}px`;
   }, [newMessage]);
+
+  // Load saved translation language for this conversation
+  useEffect(() => {
+    const conversationId = selectedConversation?._id;
+    if (!conversationId) {
+      setPreferredLanguageCode(null);
+      setShowLanguagePicker(false);
+      return;
+    }
+
+    const fromConversation = selectedConversation.preferredLanguageCode?.trim();
+    if (fromConversation) {
+      setPreferredLanguageCode(fromConversation);
+      setPickerLanguageCode(fromConversation);
+      return;
+    }
+
+    let cancelled = false;
+    axios
+      .get(`/api/whatsapp/conversations/${conversationId}/preferences`)
+      .then((res) => {
+        if (cancelled) return;
+        const code = res.data?.preferredLanguageCode?.trim();
+        if (code) {
+          setPreferredLanguageCode(code);
+          setPickerLanguageCode(code);
+        } else {
+          setPreferredLanguageCode(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPreferredLanguageCode(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedConversation?._id,
+    selectedConversation?.preferredLanguageCode,
+  ]);
+
+  // Close language picker on outside click
+  useEffect(() => {
+    if (!showLanguagePicker) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (
+        translatePickerRef.current &&
+        !translatePickerRef.current.contains(event.target as Node)
+      ) {
+        setShowLanguagePicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [showLanguagePicker]);
+
+  const saveLanguagePreference = useCallback(
+    async (code: string) => {
+      if (!selectedConversation?._id) return;
+      const lang = SUPPORTED_TRANSLATION_LANGUAGES.find((l) => l.code === code);
+      await axios.patch(
+        `/api/whatsapp/conversations/${selectedConversation._id}/preferences`,
+        {
+          preferredLanguageCode: code,
+          preferredLanguage: lang?.name || code,
+        },
+      );
+      setPreferredLanguageCode(code);
+    },
+    [selectedConversation?._id],
+  );
+
+  const runTranslation = useCallback(
+    async (targetCode: string) => {
+      if (!newMessage.trim()) return;
+      setTranslating(true);
+      try {
+        const res = await axios.post("/api/translate", {
+          text: newMessage,
+          to: targetCode,
+        });
+        const translated = String(res.data?.text || "").trim();
+        if (translated) {
+          onMessageChange(translated);
+          setShowLanguagePicker(false);
+        } else {
+          toast({
+            title: "Translation error",
+            description: "No translated text was returned.",
+            variant: "destructive",
+          });
+        }
+      } catch (err: unknown) {
+        const message =
+          (err as { response?: { data?: { error?: string } } })?.response?.data
+            ?.error || "Translation failed";
+        toast({
+          title: "Translation error",
+          description: message,
+          variant: "destructive",
+        });
+      } finally {
+        setTranslating(false);
+      }
+    },
+    [newMessage, onMessageChange, toast],
+  );
+
+  const handleTranslateClick = useCallback(() => {
+    if (!canTranslate || translating) return;
+    if (preferredLanguageCode) {
+      void runTranslation(preferredLanguageCode);
+      return;
+    }
+    setShowLanguagePicker(true);
+  }, [canTranslate, translating, preferredLanguageCode, runTranslation]);
+
+  const handleConfirmLanguageAndTranslate = useCallback(async () => {
+    if (!pickerLanguageCode.trim() || translating) return;
+    try {
+      await saveLanguagePreference(pickerLanguageCode);
+      await runTranslation(pickerLanguageCode);
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { error?: string } } })?.response?.data
+          ?.error || "Could not save language preference";
+      toast({
+        title: "Translation error",
+        description: message,
+        variant: "destructive",
+      });
+    }
+  }, [
+    pickerLanguageCode,
+    translating,
+    saveLanguagePreference,
+    runTranslation,
+    toast,
+  ]);
 
   // Cleanup preview URLs on unmount
   useEffect(() => {
@@ -808,6 +970,31 @@ export const MessageComposer = memo(function MessageComposer({
                   <span className="text-[12px] text-[#54656f] dark:text-[#8696a0]">Template</span>
                 </button>
               )}
+
+              {canTranslate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleTranslateClick();
+                    setShowAttachmentMenu(false);
+                  }}
+                  disabled={translating}
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 rounded-lg hover:bg-[#f0f2f5] dark:hover:bg-[#374045] transition-colors",
+                    "p-4 min-h-[80px]",
+                    "md:p-3 md:min-h-0",
+                  )}
+                >
+                  <div className="w-12 h-12 rounded-full bg-[#008069] flex items-center justify-center">
+                    {translating ? (
+                      <Loader2 className="h-6 w-6 text-white animate-spin" />
+                    ) : (
+                      <Languages className="h-6 w-6 text-white" />
+                    )}
+                  </div>
+                  <span className="text-[12px] text-[#54656f] dark:text-[#8696a0]">Translate</span>
+                </button>
+              )}
             </div>
           </PopoverContent>
         </Popover>
@@ -901,6 +1088,93 @@ export const MessageComposer = memo(function MessageComposer({
             )}
           />
         </div>
+
+        {canTranslate && (
+          <div ref={translatePickerRef} className="relative flex-shrink-0">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={handleTranslateClick}
+              disabled={translating}
+              className={cn(
+                "rounded-full text-[#008069] dark:text-[#00a884] hover:bg-[#e9edef] dark:hover:bg-[#374045]",
+                "h-11 w-11 min-h-[44px] min-w-[44px]",
+                "md:h-10 md:w-10 md:min-h-0 md:min-w-0",
+              )}
+              aria-label="Translate message"
+              title={
+                preferredLanguageCode
+                  ? `Translate to ${
+                      SUPPORTED_TRANSLATION_LANGUAGES.find(
+                        (l) => l.code === preferredLanguageCode,
+                      )?.name || preferredLanguageCode
+                    }`
+                  : "Translate message"
+              }
+            >
+              {translating ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Languages className="h-5 w-5" />
+              )}
+            </Button>
+
+            {showLanguagePicker && (
+              <div
+                className={cn(
+                  "absolute bottom-full right-0 mb-2 z-50 w-72 rounded-xl border",
+                  "border-[#e9edef] dark:border-[#374045]",
+                  "bg-white dark:bg-[#2a3942] shadow-lg p-3 space-y-3",
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[13px] font-medium text-[#111b21] dark:text-[#e9edef]">
+                    Translate to
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowLanguagePicker(false)}
+                    className="text-[#8696a0] hover:text-[#54656f] dark:hover:text-[#aebac1]"
+                    aria-label="Close"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <Select
+                  value={pickerLanguageCode}
+                  onValueChange={setPickerLanguageCode}
+                >
+                  <SelectTrigger className="h-9 text-[13px] bg-[#f0f2f5] dark:bg-[#202c33] border-[#e9edef] dark:border-[#374045]">
+                    <SelectValue placeholder="Select language" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {SUPPORTED_TRANSLATION_LANGUAGES.map((lang) => (
+                      <SelectItem key={lang.code} value={lang.code}>
+                        {lang.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-[#8696a0]">
+                  This language will be saved for this conversation.
+                </p>
+                <Button
+                  type="button"
+                  className="w-full bg-[#008069] hover:bg-[#006b57] text-white"
+                  onClick={() => void handleConfirmLanguageAndTranslate()}
+                  disabled={translating}
+                >
+                  {translating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Translate"
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Send / template button */}
         {isTemplateOnlyMode ? (

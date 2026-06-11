@@ -17,8 +17,8 @@ export default function ManageUserContent() {
   const searchParams = useSearchParams();
   const { token } = useAuthStore();
 
-  const tabParam = searchParams.get("tab");
-  const searchParam = searchParams.get("search") ?? "";
+  const tabParam = searchParams?.get("tab");
+  const searchParam = searchParams?.get("search") ?? "";
 
   const [activeTab, setActiveTab] = useState(
     tabParam === "listing-queue" ? "listing-queue" : "all",
@@ -92,7 +92,7 @@ export default function ManageUserContent() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
     if (value === "listing-queue") {
       params.set("tab", "listing-queue");
     } else {

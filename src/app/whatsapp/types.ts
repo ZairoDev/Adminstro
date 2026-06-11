@@ -122,6 +122,13 @@ export interface Conversation {
    * Flag for internal conversations (convenience flag)
    */
   isInternal?: boolean;
+  /** CRM workflow labels */
+  labels?: string[];
+  preferredLanguage?: string;
+  preferredLanguageCode?: string;
+  hasActiveReminder?: boolean;
+  reminderAt?: Date | string;
+  leadQueryId?: string;
 }
 
 export interface Template {

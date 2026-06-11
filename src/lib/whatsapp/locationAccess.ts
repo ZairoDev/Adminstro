@@ -253,7 +253,7 @@ export function canUserSeeConversation(
     rentalType?: unknown;
     channelType?: unknown;
   },
-  opts: { skipPhoneCheck?: boolean } = {},
+  opts: { skipPhoneCheck?: boolean; skipLocationCheck?: boolean } = {},
 ): boolean {
   // Internal conversations are always visible
   if (
@@ -302,6 +302,12 @@ export function canUserSeeConversation(
             role,
           )));
     if (!locationOk) return false;
+  }
+
+  // When inbox visibility came from whatsappChannelId (migrated phone), do not
+  // re-fail on participantLocationKey — mirrors buildConversationVisibilityFilterAsync.
+  if (opts.skipLocationCheck) {
+    return true;
   }
 
   // Empty key — try participantLocation display, then admin queue

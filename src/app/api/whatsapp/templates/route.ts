@@ -15,7 +15,8 @@ import {
   resolveWabaIdFromPhoneNumberId,
 } from "@/lib/whatsapp/channelService";
 import mongoose from "mongoose";
-import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { canAccessConversationAsync, CONVERSATION_ACCESS_SELECT } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken, type WhatsAppToken } from "@/lib/whatsapp/apiContext";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +87,7 @@ export async function GET(req: NextRequest) {
     if (conversationId && mongoose.isValidObjectId(conversationId)) {
       await connectDb();
       const conv = await WhatsAppConversation.findById(conversationId)
-        .select("whatsappChannelId businessPhoneId wabaId businessPortfolioId")
+        .select(`${CONVERSATION_ACCESS_SELECT} wabaId businessPortfolioId`)
         .lean() as {
           whatsappChannelId?: mongoose.Types.ObjectId;
           businessPhoneId?: string;
@@ -95,7 +96,12 @@ export async function GET(req: NextRequest) {
         } | null;
 
       if (conv) {
-        if (!(await canAccessConversationAsync(token as Record<string, unknown>, conv as Record<string, unknown>))) {
+        if (
+          !(await canAccessConversationAsync(
+            normalizeWhatsAppToken(token as WhatsAppToken),
+            conv as Record<string, unknown>,
+          ))
+        ) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

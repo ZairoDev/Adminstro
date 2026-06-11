@@ -8,6 +8,7 @@ import {
   applyInboxLocationFilter,
 } from "./locationAccess";
 import { canAccessWhatsAppAdminQueue } from "./participantLocationPrivileges";
+import { resolveLabelFilterMongo } from "./crmLabels";
 import type { WhatsAppToken } from "./apiContext";
 import { normalizeWhatsAppToken } from "./apiContext";
 
@@ -15,6 +16,7 @@ export type InboxListParams = {
   status?: string;
   adminQueue?: boolean;
   locationFilter?: string;
+  labelFilter?: string;
   retargetOnly?: boolean;
   conversationType?: string;
   search?: string;
@@ -27,6 +29,7 @@ export function parseInboxListParams(
     status: searchParams.get("status") || "active",
     adminQueue: searchParams.get("adminQueue") === "true",
     locationFilter: searchParams.get("locationFilter")?.trim() || "",
+    labelFilter: searchParams.get("labelFilter")?.trim() || "",
     retargetOnly:
       searchParams.get("retargetOnly") === "1" ||
       searchParams.get("retargetOnly") === "true",
@@ -68,12 +71,7 @@ export function buildInboxListQuery(
     applyInboxLocationFilter(query, normalized, params.locationFilter || "");
   }
 
-  if (
-    params.conversationType === "owner" ||
-    params.conversationType === "guest"
-  ) {
-    query.conversationType = params.conversationType;
-  }
+  applyLabelFilterToQuery(query, params);
 
   if (params.retargetOnly) {
     query.isRetarget = true;
@@ -95,6 +93,36 @@ export function buildInboxListQuery(
   }
 
   return query;
+}
+
+function applyLabelFilterToQuery(
+  query: Record<string, unknown>,
+  params: InboxListParams,
+): void {
+  const labelClause = resolveLabelFilterMongo(params.labelFilter);
+  if (!labelClause) {
+    if (
+      params.conversationType === "owner" ||
+      params.conversationType === "guest"
+    ) {
+      query.conversationType = params.conversationType;
+    }
+    return;
+  }
+
+  if (labelClause.conversationType) {
+    Object.assign(query, labelClause);
+    return;
+  }
+
+  if (
+    params.conversationType === "owner" ||
+    params.conversationType === "guest"
+  ) {
+    query.conversationType = params.conversationType;
+  }
+
+  Object.assign(query, labelClause);
 }
 
 /** Async inbox filter — includes whatsappChannelId OR-branch for migrated conversations. */
@@ -126,12 +154,7 @@ export async function buildInboxListQueryAsync(
     applyInboxLocationFilter(query, normalized, params.locationFilter || "");
   }
 
-  if (
-    params.conversationType === "owner" ||
-    params.conversationType === "guest"
-  ) {
-    query.conversationType = params.conversationType;
-  }
+  applyLabelFilterToQuery(query, params);
 
   if (params.retargetOnly) {
     query.isRetarget = true;

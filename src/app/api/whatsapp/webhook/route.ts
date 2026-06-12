@@ -1093,7 +1093,7 @@ async function processIncomingMessage(
             messageType: type,
             timestamp: timestamp.getTime(),
           },
-          channelId: "default",
+          channelId: "whatsapp-messages",
         });
       } catch (err) {
         console.error("[push] failed", {

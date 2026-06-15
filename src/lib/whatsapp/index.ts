@@ -17,6 +17,7 @@ export {
   applySuperAdminInboxLocationFilter,
   buildAdminQueueFilter,
   SUPERADMIN_INBOX_LOCATION_ALL,
+  SUPERADMIN_DEFAULT_INBOX_LOCATION,
 } from "./locationAccess";
 
 export {

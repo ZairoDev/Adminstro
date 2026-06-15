@@ -45,6 +45,9 @@ export async function sendExpoPushToEmployee(input: SendExpoPushInput): Promise<
     .filter((t) => Expo.isExpoPushToken(t));
 
   if (expoTokens.length === 0) {
+    console.warn("[push][expo] no registered device tokens", {
+      employeeId: input.employeeId,
+    });
     return { attempted: 0, sent: 0, removed: 0 };
   }
 
@@ -54,6 +57,7 @@ export async function sendExpoPushToEmployee(input: SendExpoPushInput): Promise<
     body: input.body,
     data: input.data ?? {},
     sound: input.sound ?? "default",
+    priority: "high",
     ...(input.channelId ? { channelId: input.channelId } : {}),
   }));
 
@@ -118,5 +122,20 @@ export async function sendExpoPushToEmployee(input: SendExpoPushInput): Promise<
   }
 
   return { attempted, sent, removed };
+}
+
+/** Send a test push to every device registered for the given employee. */
+export async function sendExpoPushTestToEmployee(employeeId: string) {
+  return sendExpoPushToEmployee({
+    employeeId,
+    title: "Test notification",
+    body: "Push notifications are working on this device.",
+    data: {
+      conversationId: "__push_test__",
+      messageType: "text",
+      timestamp: Date.now(),
+    },
+    channelId: "whatsapp-messages",
+  });
 }
 

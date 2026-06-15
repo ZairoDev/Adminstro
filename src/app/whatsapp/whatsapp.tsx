@@ -40,6 +40,7 @@ import {
   canUseInboxLocationFilter,
   getInboxLocationFilterOptionsForUser,
 } from "@/lib/whatsapp/participantLocationPrivileges";
+import { SUPERADMIN_DEFAULT_INBOX_LOCATION } from "@/lib/whatsapp/locationAccess";
 import { ForwardDialog } from "./components/ForwardDialog";
 import { LeadTransferDialog } from "./components/LeadTransferDialog";
 import { CrmPanel } from "./components/CrmPanel";
@@ -378,7 +379,25 @@ export default function WhatsAppChat() {
   // Admin Queue: show conversations without a location key (full-access roles only)
   const [adminQueue, setAdminQueue] = useState(false);
   /** SuperAdmin: filter inbox by participant city ("all" = no filter) */
-  const [adminLocationFilter, setAdminLocationFilter] = useState("all");
+  const [adminLocationFilter, setAdminLocationFilter] = useState(() => {
+    if (typeof window === "undefined") return "all";
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get("locationFilter");
+    if (fromUrl) return fromUrl;
+    if (params.get("adminQueue") === "true") return "all";
+    try {
+      const stored = JSON.parse(localStorage.getItem("token") || "null") as {
+        role?: string;
+      } | null;
+      if (stored?.role === "SuperAdmin") {
+        return SUPERADMIN_DEFAULT_INBOX_LOCATION;
+      }
+    } catch {
+      /* ignore malformed token */
+    }
+    return "all";
+  });
+  const inboxLocationFilterInitializedRef = useRef(false);
   const [adminLocationOptions, setAdminLocationOptions] = useState<string[]>([]);
   /** After Add Owner/Guest, switch sidebar tab so the new chat is not hidden by tab filter */
   const [sidebarTabHint, setSidebarTabHint] = useState<"all" | "owners" | "guests" | null>(null);
@@ -1602,8 +1621,19 @@ export default function WhatsAppChat() {
     const fromUrl = searchParams?.get("locationFilter");
     if (fromUrl) {
       setAdminLocationFilter(fromUrl);
+      inboxLocationFilterInitializedRef.current = true;
+      return;
     }
-  }, [searchParams]);
+
+    if (!token || inboxLocationFilterInitializedRef.current) return;
+
+    const adminQueueFromUrl = searchParams?.get("adminQueue") === "true";
+    if (token.role === "SuperAdmin" && !adminQueueFromUrl) {
+      setAdminLocationFilter(SUPERADMIN_DEFAULT_INBOX_LOCATION);
+    }
+
+    inboxLocationFilterInitializedRef.current = true;
+  }, [token, searchParams]);
 
   useEffect(() => {
     if (!token) return;
@@ -1678,6 +1708,25 @@ export default function WhatsAppChat() {
     },
     [syncWhatsAppUrlParams],
   );
+
+  // Persist SuperAdmin default (Athens) in the URL when no explicit filter was linked.
+  useEffect(() => {
+    if (!token || token.role !== "SuperAdmin") return;
+    if (searchParams?.get("locationFilter")) return;
+    if (searchParams?.get("adminQueue") === "true") return;
+    if (adminLocationFilter !== SUPERADMIN_DEFAULT_INBOX_LOCATION) return;
+    if (!inboxLocationFilterInitializedRef.current) return;
+
+    syncWhatsAppUrlParams({
+      locationFilter: SUPERADMIN_DEFAULT_INBOX_LOCATION,
+      adminQueue: false,
+    });
+  }, [
+    token,
+    adminLocationFilter,
+    searchParams,
+    syncWhatsAppUrlParams,
+  ]);
 
   const handleAdminQueueChange = useCallback(
     (value: boolean) => {

@@ -1,5 +1,3 @@
-import { Expo, ExpoPushMessage, ExpoPushTicket } from "expo-server-sdk";
-
 import ExpoPushTokens from "@/models/expoPushToken";
 import { connectDb } from "@/util/db";
 
@@ -14,16 +12,81 @@ export type SendExpoPushInput = {
   channelId?: string;
 };
 
-const expo = new Expo();
+type ExpoPushMessage = {
+  to: string;
+  title?: string;
+  body?: string;
+  data?: PushData;
+  sound?: "default" | null;
+  priority?: "default" | "normal" | "high";
+  channelId?: string;
+};
+
+type ExpoPushTicket =
+  | { status: "ok"; id: string }
+  | { status: "error"; message: string; details?: { error?: string } };
+
+const EXPO_PUSH_ENDPOINT = "https://exp.host/--/api/v2/push/send";
+const EXPO_TOKEN_PATTERN = /^Expo(nent)?PushToken\[[^\]]+\]$/;
+
+/**
+ * Validates an Expo push token without depending on `expo-server-sdk`.
+ *
+ * The SDK's runtime (`ExpoClient.js`) does `require('../package.json')`, which
+ * breaks in bundled/standalone deployments ("Cannot find module '../package.json'").
+ * We talk to Expo's HTTP API directly instead, so there is no such dependency.
+ */
+export function isExpoPushToken(token: unknown): token is string {
+  return typeof token === "string" && EXPO_TOKEN_PATTERN.test(token.trim());
+}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function isDeviceNotRegisteredError(err: any): boolean {
-  const details = err?.details;
-  const code = details?.error;
-  return code === "DeviceNotRegistered";
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size));
+  }
+  return out;
+}
+
+/** POSTs one chunk (max 100 messages) to Expo and returns ordered tickets. */
+async function sendChunk(messages: ExpoPushMessage[]): Promise<ExpoPushTicket[]> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    "Accept-Encoding": "gzip, deflate",
+  };
+  // Optional — only needed if the Expo account enforces push security.
+  if (process.env.EXPO_ACCESS_TOKEN) {
+    headers.Authorization = `Bearer ${process.env.EXPO_ACCESS_TOKEN}`;
+  }
+
+  const res = await fetch(EXPO_PUSH_ENDPOINT, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(messages),
+  });
+
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(`Expo push returned non-JSON (HTTP ${res.status}): ${text.slice(0, 200)}`);
+  }
+
+  if (!res.ok) {
+    throw new Error(`Expo push HTTP ${res.status}: ${text.slice(0, 300)}`);
+  }
+  if (json?.errors) {
+    throw new Error(`Expo push error: ${JSON.stringify(json.errors).slice(0, 300)}`);
+  }
+
+  const data = json?.data;
+  return Array.isArray(data) ? data : data ? [data] : [];
 }
 
 export async function sendExpoPushToEmployee(input: SendExpoPushInput): Promise<{
@@ -42,7 +105,7 @@ export async function sendExpoPushToEmployee(input: SendExpoPushInput): Promise<
 
   const expoTokens = tokens
     .map((t: any) => String(t.token))
-    .filter((t) => Expo.isExpoPushToken(t));
+    .filter((t) => isExpoPushToken(t));
 
   if (expoTokens.length === 0) {
     console.warn("[push][expo] no registered device tokens", {
@@ -61,15 +124,15 @@ export async function sendExpoPushToEmployee(input: SendExpoPushInput): Promise<
     ...(input.channelId ? { channelId: input.channelId } : {}),
   }));
 
-  // Expo recommends chunking for large sends.
-  const chunks = expo.chunkPushNotifications(messages);
+  // Expo accepts up to 100 messages per request.
+  const chunks = chunk(messages, 100);
 
   let sent = 0;
   let removed = 0;
-  let attempted = messages.length;
+  const attempted = messages.length;
 
-  for (const chunk of chunks) {
-    // Retry this chunk up to 3 times with 1s, 3s, 7s backoff.
+  for (const messageChunk of chunks) {
+    // Retry this chunk with 0s, 1s, 3s, 7s backoff.
     const backoffs = [0, 1000, 3000, 7000];
 
     let tickets: ExpoPushTicket[] | null = null;
@@ -80,7 +143,7 @@ export async function sendExpoPushToEmployee(input: SendExpoPushInput): Promise<
       if (waitMs > 0) await sleep(waitMs);
 
       try {
-        tickets = await expo.sendPushNotificationsAsync(chunk);
+        tickets = await sendChunk(messageChunk);
         lastErr = null;
         break;
       } catch (e) {
@@ -95,22 +158,19 @@ export async function sendExpoPushToEmployee(input: SendExpoPushInput): Promise<
       continue;
     }
 
-    // Count successes and remove invalid tokens.
-    // Ticket errors are per-message; DeviceNotRegistered can appear here too.
     for (let i = 0; i < tickets.length; i++) {
-      const t = tickets[i] as any;
-      const msg = chunk[i] as any;
+      const t = tickets[i];
+      const msg = messageChunk[i];
       if (t?.status === "ok") {
         sent += 1;
         continue;
       }
 
-      const errDetails = t?.details;
-      const errCode = errDetails?.error;
+      const errCode = t?.status === "error" ? t.details?.error : undefined;
       console.warn("[push][expo] ticket error", {
         to: msg?.to,
         status: t?.status,
-        message: t?.message,
+        message: t?.status === "error" ? t.message : undefined,
         code: errCode,
       });
 
@@ -138,4 +198,3 @@ export async function sendExpoPushTestToEmployee(employeeId: string) {
     channelId: "whatsapp-messages",
   });
 }
-

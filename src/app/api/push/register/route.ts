@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Expo } from "expo-server-sdk";
 
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import ExpoPushTokens from "@/models/expoPushToken";
+import { isExpoPushToken } from "@/services/push/expoPush.service";
 
 type RegisterBody = {
   expoPushToken: string;
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     const token = body.expoPushToken.trim();
-    if (!Expo.isExpoPushToken(token)) {
+    if (!isExpoPushToken(token)) {
       return NextResponse.json({ error: "Invalid Expo push token" }, { status: 400 });
     }
 

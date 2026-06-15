@@ -5,7 +5,8 @@ import { sendExpoPushTestToEmployee } from "@/services/push/expoPush.service";
 
 /**
  * POST /api/push/test
- * Sends a test notification to all devices registered for the logged-in employee.
+ * Sends a test notification to all devices registered for the logged-in employee
+ * and verifies real delivery via Expo receipts so the app can show the exact result.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -31,11 +32,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({
-      success: result.sent > 0,
-      message:
-        result.sent > 0
-          ? "Test notification sent."
-          : "Push was attempted but Expo returned errors — check server logs.",
+      success: result.ok,
+      message: result.summary,
       result,
     });
   } catch (e: any) {

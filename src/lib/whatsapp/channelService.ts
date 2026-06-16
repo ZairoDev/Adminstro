@@ -78,8 +78,8 @@ type OutboundConversationContext = {
 
 /**
  * Resolve which channel (and phone line) should send outbound messages for a
- * conversation. Honors frozen whatsappChannelId when set; otherwise routes by
- * location + rentalType + guest/owner channelType.
+ * conversation. Routes by current location + rentalType + guest/owner first so
+ * reassigned locations use the correct line; falls back to frozen whatsappChannelId.
  */
 export async function resolveOutboundChannelForConversation(
   conversation: OutboundConversationContext,
@@ -101,15 +101,7 @@ export async function resolveOutboundChannelForConversation(
     "";
   const rentalType = conversation.rentalType;
 
-  // Frozen channel preserves continuity after admin remaps active channels.
-  if (conversation.whatsappChannelId) {
-    const frozen = await resolveChannelContextFromConversation(conversation);
-    if (frozen) {
-      return { channel: frozen, source: "frozen_channel" };
-    }
-  }
-
-  // Route by location + rentalType + guest/owner (authoritative for new/legacy rows).
+  // Current location is authoritative when guest/owner is reassigned to a new city.
   if (location && rentalType) {
     const routed = await resolveWhatsappChannel({
       location,
@@ -118,6 +110,14 @@ export async function resolveOutboundChannelForConversation(
     });
     if (routed) {
       return { channel: routed, source: "channel_routing" };
+    }
+  }
+
+  // Frozen channel preserves continuity when location routing has no match.
+  if (conversation.whatsappChannelId) {
+    const frozen = await resolveChannelContextFromConversation(conversation);
+    if (frozen) {
+      return { channel: frozen, source: "frozen_channel" };
     }
   }
 
@@ -131,6 +131,52 @@ export async function resolveOutboundChannelForConversation(
   }
 
   return { channel: null, source: "none" };
+}
+
+export type ConversationChannelFields = {
+  whatsappChannelId: string;
+  businessPhoneId: string;
+  channelType?: WhatsappChannelType;
+  rentalType?: WhatsappChannelRentalType;
+  businessPortfolioId?: string;
+  wabaId?: string;
+};
+
+/**
+ * Resolve and return channel fields for a conversation's current location.
+ * Used when participant location is reassigned so outbound sends use the new line.
+ */
+export async function resolveChannelFieldsForConversationLocation(
+  conversation: OutboundConversationContext,
+): Promise<ConversationChannelFields | null> {
+  const channelType = inferChannelTypeFromConversation({
+    channelType: conversation.channelType,
+    conversationType: conversation.conversationType,
+  });
+  const location =
+    conversation.participantLocation?.trim() ||
+    conversation.participantLocationKey?.trim() ||
+    "";
+  const rentalType = conversation.rentalType;
+  if (!location || !rentalType) return null;
+
+  const channel = await resolveWhatsappChannel({
+    location,
+    rentalType,
+    channelType,
+  });
+  if (!channel) return null;
+
+  return {
+    whatsappChannelId: channel.channelId,
+    businessPhoneId: channel.phoneNumberId,
+    channelType: channelType ?? channel.channelType,
+    rentalType: channel.rentalType,
+    businessPortfolioId: channel.businessPortfolioId || undefined,
+    wabaId:
+      normalizeStoredWabaId(channel.wabaId, channel.businessPortfolioId) ||
+      undefined,
+  };
 }
 
 /**

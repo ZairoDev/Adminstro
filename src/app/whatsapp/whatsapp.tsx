@@ -299,6 +299,7 @@ export default function WhatsAppChat() {
   const audioInputRef = useRef<HTMLInputElement>(null);
   const seenEventIdsRef = useRef<Set<string>>(new Set());
   const seenMessageIdsRef = useRef<Set<string>>(new Set());
+  const messagesFetchGenRef = useRef(0);
   const lastSoundPlayedRef = useRef<number>(0);
   const handleWhatsAppMessageRef = useRef<((data: any) => void) | null>(null);
   
@@ -1441,55 +1442,11 @@ export default function WhatsAppChat() {
         if (typeof window === "undefined") return true;
         return window.location.pathname.startsWith("/whatsapp");
       },
-      onInApp: (raw) => {
-        try {
-          console.log("ðŸ”” [NOTIF] onInApp called with:", raw);
-          // Trigger in-app toast handler (SystemNotificationToast handles rendering)
-          // Provide the raw payload so the toast can display contextual info
-          // Use handleWhatsAppMessage to update UI state as well
-          if (handleWhatsAppMessageRef.current) {
-            try {
-              handleWhatsAppMessageRef.current(raw);
-            } catch (e) {
-              console.error("Error calling handleWhatsAppMessageRef:", e);
-            }
-          } else {
-            console.warn("handleWhatsAppMessageRef not set yet");
-          }
-        } catch (err) {
-          console.error("âŒ [NOTIF] onInApp error:", err);
-        }
+      onInApp: () => {
+        // Toast handled by SystemNotificationToast — do not re-enter socket handler
       },
       onBrowser: (raw) => {
         try {
-          console.log("ðŸ”” [NOTIF] onBrowser called with:", raw);
-          // DEBUG: force a browser notification for testing
-          const DEBUG_FORCE_NOTIF = true;
-          if (DEBUG_FORCE_NOTIF) {
-            try {
-              const displayText =
-                typeof raw.message?.content === "string"
-                  ? raw.message.content
-                  : raw.message?.content?.text ||
-                    raw.message?.content?.caption ||
-                    "New message (debug)";
-
-              const notif = new Notification(
-                raw.participantName || raw.message?.from || "WhatsApp (debug)",
-                {
-                  body: displayText.substring(0, 100),
-                  icon: "/favicon.ico",
-                  badge: "/favicon.ico",
-                  tag: raw.conversationId,
-                }
-              );
-              console.log("ðŸ”” [NOTIF] Debug notification created:", notif);
-            } catch (e) {
-              console.error("ðŸ”” [NOTIF] Debug notification failed:", e);
-            }
-            return;
-          }
-
           const displayText =
             typeof raw.message?.content === "string"
               ? raw.message.content
@@ -1497,34 +1454,25 @@ export default function WhatsAppChat() {
                 raw.message?.content?.caption ||
                 "New message";
 
-          let notif: Notification | null = null;
-          try {
-            notif = new Notification(
-              raw.participantName || raw.message?.from || "WhatsApp",
-              {
-                body: displayText.substring(0, 100),
-                icon: "/favicon.ico",
-                badge: "/favicon.ico",
-                tag: raw.conversationId,
-              }
-            );
-          } catch (createErr) {
-            console.error("âŒ [NOTIF] Failed to create browser notification:", createErr);
-            return;
-          }
+          const notif = new Notification(
+            raw.participantName || raw.message?.from || "WhatsApp",
+            {
+              body: displayText.substring(0, 100),
+              icon: "/favicon.ico",
+              badge: "/favicon.ico",
+              tag: raw.conversationId,
+            },
+          );
 
           notif.onclick = () => {
             window.focus();
-            notif?.close();
+            notif.close();
             if (raw.conversationId) {
-              const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
-              router.push(`/whatsapp?conversation=${raw.conversationId}${suffix}`);
+              router.push(`/whatsapp?conversation=${raw.conversationId}`);
             }
           };
-
-          setTimeout(() => notif?.close(), 5000);
         } catch (err) {
-          console.error("âŒ [NOTIF] onBrowser error:", err);
+          console.error("[NOTIF] Browser notification failed:", err);
         }
       },
     });
@@ -1872,103 +1820,40 @@ export default function WhatsAppChat() {
       if (retargetOnlyRef.current && !data.isRetarget) {
         return;
       }
-      
-      const notificationController = getWhatsAppNotificationController();
-      notificationController.process(data);
 
       const { conversationId, message } = data;
-      
+
       if (!conversationId || !message) {
         return;
       }
-      // Expose handler to external callers (notification controller) via ref
+
+      if (message.messageId && seenMessageIdsRef.current.has(message.messageId)) {
+        return;
+      }
+
       try {
         handleWhatsAppMessageRef.current = handleWhatsAppMessage;
-      } catch (e) {
+      } catch {
         // ignore
       }
 
-      const displayText = (data.lastMessagePreview != null && data.lastMessagePreview !== "")
-        ? data.lastMessagePreview
-        : (typeof message.content === "string" 
-            ? message.content 
-            : message.content?.text || message.content?.caption || `${message.type} message`);
+      const displayText =
+        data.lastMessagePreview != null && data.lastMessagePreview !== ""
+          ? data.lastMessagePreview
+          : typeof message.content === "string"
+            ? message.content
+            : message.content?.text ||
+              message.content?.caption ||
+              `${message.type} message`;
 
       const isCurrentConversation = currentConversation?._id === conversationId;
       const isIncomingMessage = message.direction === "incoming";
-
-      requestAnimationFrame(() => {
-        setConversations((prev) => {
-          const updated = prev.map((conv) => {
-            if (conv._id === conversationId) {
-              const newUnreadCount = isIncomingMessage && !isCurrentConversation
-                ? (conv.unreadCount || 0) + 1
-                : conv.unreadCount || 0;
-              
-              return {
-                ...conv,
-                lastMessageContent: displayText,
-                lastMessageTime: message.timestamp,
-                lastMessageDirection: message.direction,
-                unreadCount: newUnreadCount,
-                ...(isIncomingMessage ? { lastCustomerMessageAt: new Date(message.timestamp) } : {}),
-              };
-            }
-            return conv;
-          });
-          
-          const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
-          setTotalUnreadCount(newTotalUnread);
-          
-          return sortConversations(updated);
-        });
-
-        setArchivedConversations((prev) => {
-          const updated = prev.map((conv) => {
-            if (conv._id === conversationId) {
-              const prevUnreadCount = conv.unreadCount || 0;
-              const newUnreadCount = isIncomingMessage && !isCurrentConversation
-                ? prevUnreadCount + 1
-                : prevUnreadCount;
-              // Only increment unread chat count if this conversation previously had 0 unread messages
-              // (i.e., it's becoming an unread chat for the first time)
-              if (isIncomingMessage && !isCurrentConversation && prevUnreadCount === 0) {
-                setArchivedUnreadCount((c) => c + 1);
-              }
-              return {
-                ...conv,
-                lastMessageContent: displayText,
-                lastMessageTime: message.timestamp,
-                lastMessageDirection: message.direction,
-                unreadCount: newUnreadCount,
-              };
-            }
-            return conv;
-          });
-          
-          return sortConversations(updated);
-        });
-
-        if (isCurrentConversation) {
-          setSelectedConversation((prev) => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              lastMessageTime: message.timestamp,
-              ...(isIncomingMessage ? { lastCustomerMessageAt: new Date(message.timestamp) } : {}),
-            };
-          });
-        }
-        
-        if (isIncomingMessage && !isCurrentConversation) {
-          setTotalUnreadCount((prev) => prev + 1);
-        }
-      });
+      const outgoingStatus =
+        message.direction === "outgoing"
+          ? (message.status as Message["status"]) || "sent"
+          : undefined;
 
       if (isCurrentConversation) {
-        if (seenMessageIdsRef.current.has(message.messageId)) {
-          return;
-        }
         addToLRUSet(seenMessageIdsRef.current, message.messageId);
 
         setMessages((prev) => {
@@ -1976,14 +1861,21 @@ export default function WhatsAppChat() {
             return prev.map((msg) => {
               if (msg.messageId === message.reactedToMessageId) {
                 const existingReactions = msg.reactions || [];
-                const reactionEmoji = message.reactionEmoji || message.content?.text?.replace("Reacted: ", "") || "ðŸ‘";
+                const reactionEmoji =
+                  message.reactionEmoji ||
+                  message.content?.text?.replace("Reacted: ", "") ||
+                  "👍";
                 const hasReaction = existingReactions.some(
-                  (r) => r.emoji === reactionEmoji && r.direction === message.direction
+                  (r) =>
+                    r.emoji === reactionEmoji && r.direction === message.direction,
                 );
                 if (!hasReaction) {
                   return {
                     ...msg,
-                    reactions: [...existingReactions, { emoji: reactionEmoji, direction: message.direction }],
+                    reactions: [
+                      ...existingReactions,
+                      { emoji: reactionEmoji, direction: message.direction },
+                    ],
                   };
                 }
               }
@@ -1994,7 +1886,6 @@ export default function WhatsAppChat() {
           const exists = prev.find((m) => m.messageId === message.messageId);
           if (exists) return prev;
 
-          // Merge optimistic outgoing placeholder (temp-*) when socket arrives before API response.
           if (message.direction === "outgoing") {
             const tempIdx = prev.findIndex(
               (m) =>
@@ -2002,7 +1893,7 @@ export default function WhatsAppChat() {
                 m.messageId.startsWith("temp-") &&
                 (m.status === "sending" || m.status === "sent") &&
                 m.type === message.type &&
-                m.direction === "outgoing"
+                m.direction === "outgoing",
             );
             if (tempIdx !== -1) {
               return prev.map((m, i) =>
@@ -2016,7 +1907,7 @@ export default function WhatsAppChat() {
                       timestamp: new Date(message.timestamp),
                       status: message.status || "sent",
                     }
-                  : m
+                  : m,
               );
             }
           }
@@ -2048,23 +1939,99 @@ export default function WhatsAppChat() {
         }
       }
 
+      requestAnimationFrame(() => {
+        setConversations((prev) => {
+          const updated = prev.map((conv) => {
+            if (conv._id === conversationId) {
+              const newUnreadCount =
+                isIncomingMessage && !isCurrentConversation
+                  ? (conv.unreadCount || 0) + 1
+                  : isCurrentConversation
+                    ? 0
+                    : conv.unreadCount || 0;
+
+              return {
+                ...conv,
+                lastMessageContent: displayText,
+                lastMessageTime: message.timestamp,
+                lastMessageDirection: message.direction,
+                lastMessageId: message.messageId,
+                lastMessageStatus: outgoingStatus,
+                unreadCount: newUnreadCount,
+                ...(isIncomingMessage
+                  ? { lastCustomerMessageAt: new Date(message.timestamp) }
+                  : {}),
+              };
+            }
+            return conv;
+          });
+
+          const newTotalUnread = updated.reduce(
+            (sum, conv) => sum + (conv.unreadCount || 0),
+            0,
+          );
+          setTotalUnreadCount(newTotalUnread);
+
+          return sortConversations(updated);
+        });
+
+        setArchivedConversations((prev) => {
+          const updated = prev.map((conv) => {
+            if (conv._id === conversationId) {
+              const prevUnreadCount = conv.unreadCount || 0;
+              const newUnreadCount =
+                isIncomingMessage && !isCurrentConversation
+                  ? prevUnreadCount + 1
+                  : prevUnreadCount;
+              if (
+                isIncomingMessage &&
+                !isCurrentConversation &&
+                prevUnreadCount === 0
+              ) {
+                setArchivedUnreadCount((c) => c + 1);
+              }
+              return {
+                ...conv,
+                lastMessageContent: displayText,
+                lastMessageTime: message.timestamp,
+                lastMessageDirection: message.direction,
+                lastMessageId: message.messageId,
+                lastMessageStatus: outgoingStatus,
+                unreadCount: newUnreadCount,
+              };
+            }
+            return conv;
+          });
+
+          return sortConversations(updated);
+        });
+
+        if (isCurrentConversation) {
+          setSelectedConversation((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              lastMessageTime: message.timestamp,
+              lastMessageId: message.messageId,
+              lastMessageStatus: outgoingStatus,
+              ...(isIncomingMessage
+                ? { lastCustomerMessageAt: new Date(message.timestamp) }
+                : {}),
+            };
+          });
+        }
+      });
+
       const internalLike =
         message.isInternal === true ||
         message.source === "internal" ||
-        (typeof message.messageId === "string" && message.messageId.startsWith("internal_"));
-      const tabHidden = typeof document !== "undefined" && document.hidden;
-      if (message.direction === "incoming" && !internalLike && (!isCurrentConversation || tabHidden)) {
+        (typeof message.messageId === "string" &&
+          message.messageId.startsWith("internal_"));
+      if (message.direction === "incoming" && !internalLike) {
         playNotificationSound();
-        const preview =
-          typeof displayText === "string" && displayText.trim() ? displayText.trim().slice(0, 180) : "New message";
-        showDesktopNotification({
-          title: "WhatsApp",
-          body: preview,
-          tag: `wa-msg-${conversationId}-${message.messageId}`,
-        });
       }
-      // Note: In-app toast notifications are handled by the notification controller
-      // via SystemNotificationToast component - no need for duplicate toast here
+
+      getWhatsAppNotificationController().process(data);
     };
 
     socket.on("whatsapp-new-message", handleWhatsAppMessage);
@@ -2129,10 +2096,14 @@ export default function WhatsAppChat() {
       }
       
       setConversations((prev) => {
-        const idx = prev.findIndex((conv) => conv._id === conversationId && conv.lastMessageId === messageId);
+        const idx = prev.findIndex(
+          (conv) =>
+            conv._id === conversationId &&
+            (conv.lastMessageId === messageId || !conv.lastMessageId),
+        );
         if (idx === -1 || prev[idx].lastMessageStatus === status) return prev;
         const updated = [...prev];
-        updated[idx] = { ...updated[idx], lastMessageStatus: status };
+        updated[idx] = { ...updated[idx], lastMessageStatus: status, lastMessageId: messageId };
         return updated;
       });
     };
@@ -2157,6 +2128,10 @@ export default function WhatsAppChat() {
               lastMessageTime: message.timestamp,
               lastMessageDirection: message.direction,
               lastMessageId: message.messageId || message.id,
+              lastMessageStatus:
+                message.direction === "outgoing"
+                  ? (message.status as Message["status"]) || "sent"
+                  : undefined,
             };
           }
           return conv;
@@ -2684,12 +2659,12 @@ export default function WhatsAppChat() {
   };
 
   const fetchMessages = async (conversationId: string, reset = true) => {
+    const fetchGen = ++messagesFetchGenRef.current;
     try {
       if (reset) {
         setMessagesLoading(true);
         setMessagesCursor(null);
         setHasMoreMessages(false);
-        // Clear messages immediately to prevent flash of old messages
         setMessages([]);
       } else {
         setLoadingOlderMessages(true);
@@ -2704,23 +2679,36 @@ export default function WhatsAppChat() {
       const response = await axios.get(
         `/api/whatsapp/conversations/${conversationId}/messages?${params.toString()}`
       );
+      if (fetchGen !== messagesFetchGenRef.current) return;
+
       if (response.data.success) {
-        const newMessages = response.data.messages || [];
-        
+        const newMessages: Message[] = response.data.messages || [];
+
         if (reset) {
-          setMessages(newMessages);
-          // Let MessageList handle scrolling via its useEffect
-          // Remove the manual scroll here to prevent double-scroll
+          setMessages((prev) => {
+            if (prev.length === 0) return newMessages;
+            const byId = new Map<string, Message>();
+            for (const msg of newMessages) {
+              if (msg.messageId) byId.set(msg.messageId, msg);
+            }
+            for (const msg of prev) {
+              if (msg.messageId && !byId.has(msg.messageId)) {
+                byId.set(msg.messageId, msg);
+              }
+            }
+            return Array.from(byId.values()).sort(
+              (a, b) =>
+                new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+            );
+          });
         } else {
-          // Prepend older messages (don't scroll, preserve position)
           setMessages((prev) => [...newMessages, ...prev]);
         }
 
-        // Update cursor and hasMore
         setHasMoreMessages(response.data.pagination?.hasMore || false);
         setMessagesCursor(response.data.pagination?.nextCursor || null);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching messages:", error);
       toast({
         title: "Error",
@@ -2728,8 +2716,10 @@ export default function WhatsAppChat() {
         variant: "destructive",
       });
     } finally {
-      setMessagesLoading(false);
-      setLoadingOlderMessages(false);
+      if (fetchGen === messagesFetchGenRef.current) {
+        setMessagesLoading(false);
+        setLoadingOlderMessages(false);
+      }
     }
   };
 
@@ -3208,6 +3198,8 @@ export default function WhatsAppChat() {
                 lastMessageContent: messageContent,
                 lastMessageTime: sendTimestamp,
                 lastMessageDirection: "outgoing",
+                lastMessageId: tempId,
+                lastMessageStatus: "sending" as const,
               }
             : conv
         );
@@ -3251,20 +3243,17 @@ export default function WhatsAppChat() {
         const realTimestamp = new Date(response.data.timestamp || sendTimestamp);
 
         setMessages((prev) => {
-          // If a message with the real messageId was already appended via socket,
-          // merge by removing the temp message and updating the existing one.
           const existingIdx = prev.findIndex((m) => m.messageId === realMessageId);
           if (existingIdx !== -1) {
             return prev
-              .filter((m) => m._id !== tempId) // remove temp
-              .map((m, i) =>
+              .filter((m) => m._id !== tempId)
+              .map((m) =>
                 m.messageId === realMessageId
                   ? { ...m, _id: savedMessageId, status: "sent", timestamp: realTimestamp }
-                  : m
+                  : m,
               );
           }
 
-          // Otherwise, replace the temp message with the real one
           return prev.map((msg) =>
             msg._id === tempId
               ? {
@@ -3274,9 +3263,21 @@ export default function WhatsAppChat() {
                   status: "sent",
                   timestamp: realTimestamp,
                 }
-              : msg
+              : msg,
           );
         });
+
+        setConversations((prev) =>
+          prev.map((conv) =>
+            conv._id === selectedConversation._id
+              ? {
+                  ...conv,
+                  lastMessageId: realMessageId,
+                  lastMessageStatus: "sent" as const,
+                }
+              : conv,
+          ),
+        );
 
         // Mark this messageId as seen to avoid duplicate processing
         try {

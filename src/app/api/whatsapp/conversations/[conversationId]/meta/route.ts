@@ -8,6 +8,7 @@ import { assertParticipantLocationAssignable } from "@/lib/whatsapp/assignableLo
 import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
 import { WHATSAPP_EVENTS } from "@/lib/pusher";
 import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
+import { resolveChannelFieldsForConversationLocation } from "@/lib/whatsapp/channelService";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +111,32 @@ export async function POST(
 
       update.participantLocation = displayLocation;
       update.participantLocationKey = locationKeyFromDisplay(displayLocation);
+
+      // Re-route outbound line to the new location's guest/owner channel.
+      const channelFields = await resolveChannelFieldsForConversationLocation({
+        participantLocation: displayLocation,
+        participantLocationKey: update.participantLocationKey,
+        rentalType: (conversation as { rentalType?: string }).rentalType,
+        channelType: (conversation as { channelType?: "guest" | "owner" }).channelType,
+        conversationType: (conversation as { conversationType?: "guest" | "owner" })
+          .conversationType,
+      });
+      if (channelFields) {
+        update.whatsappChannelId = channelFields.whatsappChannelId;
+        update.businessPhoneId = channelFields.businessPhoneId;
+        if (channelFields.channelType) {
+          update.channelType = channelFields.channelType;
+        }
+        if (channelFields.rentalType) {
+          update.rentalType = channelFields.rentalType;
+        }
+        if (channelFields.businessPortfolioId) {
+          update.businessPortfolioId = channelFields.businessPortfolioId;
+        }
+        if (channelFields.wabaId) {
+          update.wabaId = channelFields.wabaId;
+        }
+      }
     }
 
     if (Object.keys(update).length === 0) {
@@ -135,6 +162,12 @@ export async function POST(
             updates: {
               participantLocation: update.participantLocation,
               participantLocationKey: update.participantLocationKey,
+              ...(update.businessPhoneId
+                ? { businessPhoneId: update.businessPhoneId }
+                : {}),
+              ...(update.whatsappChannelId
+                ? { whatsappChannelId: update.whatsappChannelId }
+                : {}),
             },
           }
         );

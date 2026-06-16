@@ -58,6 +58,7 @@ export async function GET(req: NextRequest) {
           propertyId: String(property._id),
           vsid: property.VSID,
           title: property.propertyTitle || property.street || property.VSID,
+          street: property.street,
           image:
             property.propertyCoverFileUrl ||
             (Array.isArray(property.propertyImages)

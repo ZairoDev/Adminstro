@@ -99,9 +99,9 @@ export type OutboundPhoneResult =
 
  * For open conversations, resolves the sending phone via:
 
- *   1. Frozen whatsappChannelId (when stamped at creation)
+ *   1. Active channel matching current location + rentalType + guest/owner channelType
 
- *   2. Active channel matching location + rentalType + guest/owner channelType
+ *   2. Frozen whatsappChannelId (when location routing has no match)
 
  *   3. Legacy businessPhoneId lookup
 
@@ -164,7 +164,22 @@ export async function resolveOutboundBusinessPhoneId(params: {
 
     const { channel, source } = await resolveOutboundChannelForConversation(conv);
 
+    const expectedChannelType = inferChannelTypeFromConversation({
+      channelType: conv.channelType as "guest" | "owner" | null | undefined,
+      conversationType: conv.conversationType as "guest" | "owner" | null | undefined,
+    });
+
     if (channel?.phoneNumberId) {
+      if (
+        expectedChannelType &&
+        channel.channelType !== expectedChannelType &&
+        source === "phone_lookup"
+      ) {
+        return {
+          error: `WhatsApp ${expectedChannelType} channel not configured for this conversation's location and rental type`,
+          status: 404,
+        };
+      }
 
       let canUse = await canUserAccessPhoneId(
 
@@ -229,6 +244,21 @@ export async function resolveOutboundBusinessPhoneId(params: {
     }
 
 
+
+    if (expectedChannelType) {
+      const location =
+        conv.participantLocation?.trim() ||
+        conv.participantLocationKey?.trim() ||
+        "";
+      const rentalType = conv.rentalType;
+      return {
+        error:
+          location && rentalType
+            ? `No active WhatsApp ${expectedChannelType} channel for ${location} (${rentalType})`
+            : `No active WhatsApp ${expectedChannelType} channel configured for this conversation`,
+        status: 404,
+      };
+    }
 
     const line = conv.businessPhoneId?.trim();
 

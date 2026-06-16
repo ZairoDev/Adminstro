@@ -629,16 +629,23 @@ export async function POST(req: NextRequest) {
     }
 
     if (!selectedPhoneId) {
-      // NOTE: The old rentalType-blind resolvePhoneIdForLocation fallback has been removed.
-      // When location-based routing fails to find a channel (because rentalType/channelType
-      // is not configured or no active channel exists for the triple), we now require the
-      // caller to provide an explicit phoneNumberId rather than silently using whichever
-      // phone happens to be first for that location.
+      if (conversationType === "guest" || conversationType === "owner" || effectiveChannelType) {
+        return NextResponse.json(
+          {
+            error:
+              resolvedLocation
+                ? `No active WhatsApp channel found for location "${resolvedLocation}" (${conversationRentalType}${effectiveChannelType ? `, ${effectiveChannelType}` : ""}). Please configure a channel or select one explicitly.`
+                : "Please select which WhatsApp account this contact should be created under.",
+            code: "CHANNEL_NOT_FOUND",
+          },
+          { status: 400 },
+        );
+      }
+
       const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(userRole);
       if (isFullAccess) {
         selectedPhoneId = getDefaultPhoneId(userRole, userAreas);
       } else if (allowedPhoneIds.length === 1) {
-        // Only one possible account - safe to default.
         selectedPhoneId = allowedPhoneIds[0];
       } else {
         return NextResponse.json(
@@ -649,7 +656,7 @@ export async function POST(req: NextRequest) {
                 : "Please select which WhatsApp account this contact should be created under.",
             code: "PHONE_ID_REQUIRED",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }

@@ -54,7 +54,10 @@ export function isRentalTypeUnrestricted(rentalType: unknown): boolean {
 }
 
 export function isRentalTypeExemptRole(role: string): boolean {
-  return (role || "").trim() === "SuperAdmin";
+  return (
+    (role || "").trim() === "SuperAdmin" ||
+    (role || "").trim() === "LeadGen-TeamLead"
+  );
 }
 
 export function resolveEmployeeRentalType(

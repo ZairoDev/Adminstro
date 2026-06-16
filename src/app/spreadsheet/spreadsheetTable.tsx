@@ -503,7 +503,13 @@ useEffect(() => {
     }
   };
 
-  const canToggleGeoVerified =
+  const canToggleGeoVerified = ["Advert", "SuperAdmin"].includes(
+    token?.role,
+  );
+  const canEditLinkAndVsid = ["Advert", "SuperAdmin"].includes(
+    token?.role,
+  );
+  const canToggleOwnerVerified =
     token?.role === "Advert" || token?.role === "SuperAdmin";
 
   const handleGeoAddressVerified = async (id: string) => {
@@ -1097,7 +1103,7 @@ useEffect(() => {
     const fieldKey = fieldMap[selectedCell.field];
     if (
       fieldKey === "geoAddressVerified" &&
-      !(token?.role === "Advert" || token?.role === "SuperAdmin")
+      !canToggleGeoVerified
     ) {
       return;
     }
@@ -1232,7 +1238,7 @@ useEffect(() => {
                   >
                     {serialOffset + index + 1}
 
-                    {token?.role === "Advert" && (
+                    {canToggleOwnerVerified && (
                       <span
                         className="cursor-pointer"
                         onClick={() => handleResponseStatus(item?._id, index)}
@@ -1753,7 +1759,7 @@ useEffect(() => {
                     }}
                   >
                     <div className="flex items-center gap-1 w-full">
-                      {["Advert", "SuperAdmin"].includes(token?.role) ? (
+                      {canEditLinkAndVsid ? (
                         <EditableCell
                           value={item.link}
                           onSave={(newValue) =>
@@ -1816,7 +1822,7 @@ useEffect(() => {
                       setSelectedRow(item._id);
                     }}
                   >
-                    {["Advert", "SuperAdmin"].includes(token?.role) ? (
+                    {canEditLinkAndVsid ? (
                       <EditableCell
                         value={item.VSID}
                         onSave={(newValue) =>
@@ -1894,7 +1900,7 @@ useEffect(() => {
                       className="flex items-center justify-center w-full"
                       onClick={(e) => e.stopPropagation()}
                       title={
-                        (token?.role === "Advert" || token?.role === "SuperAdmin")
+                        canToggleGeoVerified
                           ? "Toggle: address verified vs geolocation"
                           : item.geoAddressVerified === "Verified"
                             ? "Address verified (geo)"
@@ -1903,9 +1909,9 @@ useEffect(() => {
                     >
                       <Switch
                         checked={item.geoAddressVerified === "Verified"}
-                        disabled={!(token?.role === "Advert" || token?.role === "SuperAdmin")}
+                        disabled={!canToggleGeoVerified}
                         onCheckedChange={() => {
-                          if (!(token?.role === "Advert" || token?.role === "SuperAdmin")) return;
+                          if (!canToggleGeoVerified) return;
                           void handleGeoAddressVerified(item._id);
                         }}
                         className="scale-90 data-[state=checked]:bg-emerald-600 data-[state=unchecked]:bg-input"

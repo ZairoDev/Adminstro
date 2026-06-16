@@ -238,6 +238,18 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Property List",
       Icon: <List size={18} />,
     },
+    {
+      path: "/spreadsheet",
+      label: "Owner Sheet Long Term",
+      Icon: <PencilLine size={18} />,
+      openInNewTab: true,
+    },
+    {
+      path: "/spreadsheet-short-term",
+      label: "Owner Sheet Short Term",
+      Icon: <PencilLine size={18} />,
+      openInNewTab: true,
+    },
   ],
   Admin: [
     {

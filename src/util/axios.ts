@@ -38,7 +38,13 @@ axios.interceptors.response.use(
         (status === 403 && AUTH_FAILURE_CODES.includes(code)));
 
     if (shouldLogout && typeof window !== "undefined") {
-      console.log("🔐 Logging out due to auth failure:", { status, code });
+      console.log("🔐 Logging out due to auth failure:", {
+        status,
+        code,
+        requestUrl,
+        method: error?.config?.method ?? null,
+        responseData: error?.response?.data ?? null,
+      });
 
       // Fire-and-forget: clear the server-side MongoDB session so the user
       // can log in again immediately without hitting a 409 "already logged in".

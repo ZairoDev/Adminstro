@@ -15,6 +15,7 @@ import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 import {
+  explainOutboundSendCredentialsFailure,
   getOutboundTokenForPhoneId,
   resolveOutboundSendCredentials,
 } from "@/lib/whatsapp/channelService";
@@ -219,10 +220,24 @@ export async function POST(req: NextRequest) {
       });
 
       if (!credentials) {
+        const failure = await explainOutboundSendCredentialsFailure({
+          phoneNumberId,
+          conversation: convForToken
+            ? {
+                whatsappChannelId: convForToken.whatsappChannelId,
+                businessPhoneId: convForToken.businessPhoneId,
+              }
+            : undefined,
+        });
+        console.error("📨 [send-template] credential resolution failed", failure);
         return NextResponse.json(
           {
-            error:
-              "Cannot send from this business line — phone number ID or access token is invalid for Meta. Check WhatsApp Channels admin: ensure the channel has the correct phoneNumberId and access token for its WABA.",
+            error: failure.hint,
+            code: "INVALID_SEND_CREDENTIALS",
+            channelId: failure.channel?.id ?? null,
+            channelName: failure.channel?.name ?? null,
+            phoneNumberId: failure.requestedPhone,
+            hasAccessToken: failure.channel?.hasAccessToken ?? false,
           },
           { status: 400 },
         );

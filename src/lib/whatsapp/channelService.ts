@@ -104,6 +104,17 @@ export async function resolveOutboundChannelForConversation(
     "";
   const rentalType = resolveConversationRentalType(conversation.rentalType);
 
+  // Open threads stay on their frozen business line when the snapshot still matches.
+  if (conversation.whatsappChannelId && conversation.businessPhoneId?.trim()) {
+    const frozen = await resolveChannelContextFromConversation(conversation);
+    if (
+      frozen &&
+      frozen.phoneNumberId.trim() === conversation.businessPhoneId.trim()
+    ) {
+      return { channel: frozen, source: "frozen_channel" };
+    }
+  }
+
   // Current location is authoritative when guest/owner is reassigned to a new city.
   if (location) {
     const routed = await resolveWhatsappChannel({
@@ -396,6 +407,21 @@ export type OutboundSendCredentials = {
   source: string;
 };
 
+export type OutboundCredentialFailure = {
+  requestedPhone: string;
+  conversationPhone: string | null;
+  channel: {
+    id: string;
+    name: string;
+    phoneNumberId: string;
+    wabaId: string;
+    hasAccessToken: boolean;
+    active: boolean;
+  } | null;
+  tokensAvailable: Array<"frozen_channel" | "phone_lookup" | "env_global">;
+  hint: string;
+};
+
 /** Meta Graph error when an object id is missing or the token cannot access it. */
 export function isInvalidGraphObjectError(data: unknown): boolean {
   const err = (data as { error?: { code?: number; error_subcode?: number } })?.error;
@@ -536,6 +562,67 @@ export async function resolveOutboundSendCredentials(params: {
   }
 
   return null;
+}
+
+/** Actionable diagnostics when {@link resolveOutboundSendCredentials} returns null. */
+export async function explainOutboundSendCredentialsFailure(params: {
+  phoneNumberId: string;
+  conversation?: OutboundTokenConversation | null;
+}): Promise<OutboundCredentialFailure> {
+  const requestedPhone = params.phoneNumberId?.trim() || "";
+  const conversationPhone = params.conversation?.businessPhoneId?.trim() || null;
+
+  const frozenChannel = params.conversation
+    ? await resolveChannelContextFromConversation(params.conversation)
+    : null;
+  const phoneChannel = requestedPhone
+    ? await getChannelByPhoneNumberId(requestedPhone)
+    : null;
+  const channelRecord = frozenChannel ?? phoneChannel;
+
+  const tokensAvailable: OutboundCredentialFailure["tokensAvailable"] = [];
+  if (frozenChannel?.accessToken?.trim()) tokensAvailable.push("frozen_channel");
+  if (
+    phoneChannel?.accessToken?.trim() &&
+    phoneChannel.channelId !== frozenChannel?.channelId
+  ) {
+    tokensAvailable.push("phone_lookup");
+  }
+  if (getWhatsAppToken().trim()) tokensAvailable.push("env_global");
+
+  let hint =
+    "Check WhatsApp Channels admin: ensure the channel has the correct phoneNumberId and a valid Meta access token for its WABA.";
+
+  if (!channelRecord) {
+    hint =
+      "No WhatsApp channel is linked to this conversation. Assign Athens + rental type in Channels admin or re-save the conversation location.";
+  } else if (!channelRecord.accessToken?.trim()) {
+    hint = `Channel "${channelRecord.name}" has no access token saved. Open WhatsApp Channels admin, edit this channel, and paste the Meta access token for WABA ${channelRecord.wabaId || "(unknown)"}.`;
+  } else if (tokensAvailable.length === 1 && tokensAvailable[0] === "env_global") {
+    hint =
+      "This line uses a dedicated channel token, but none is configured. The global env token cannot access this WABA phone — add the channel access token in WhatsApp Channels admin.";
+  } else if (conversationPhone && conversationPhone !== requestedPhone) {
+    hint = `Conversation is on phone ${conversationPhone}, but routing resolved ${requestedPhone}. Update the channel token for the frozen channel "${channelRecord.name}" or re-save the conversation location.`;
+  } else {
+    hint = `Access token on channel "${channelRecord.name}" is invalid or expired for Meta phone ${channelRecord.phoneNumberId}. Generate a new token in Meta Business Manager and update it in WhatsApp Channels admin.`;
+  }
+
+  return {
+    requestedPhone,
+    conversationPhone,
+    channel: channelRecord
+      ? {
+          id: channelRecord.channelId,
+          name: channelRecord.name,
+          phoneNumberId: channelRecord.phoneNumberId,
+          wabaId: channelRecord.wabaId,
+          hasAccessToken: Boolean(channelRecord.accessToken?.trim()),
+          active: channelRecord.active,
+        }
+      : null,
+    tokensAvailable,
+    hint,
+  };
 }
 
 /**

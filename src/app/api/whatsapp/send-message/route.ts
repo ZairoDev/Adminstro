@@ -18,7 +18,11 @@ import {
   guestConversationExists,
   recordGuestInitiation,
 } from "@/lib/whatsapp/initiationLimitService";
-import { getChannelByPhoneNumberId, getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
+import {
+  explainOutboundSendCredentialsFailure,
+  getChannelByPhoneNumberId,
+  resolveOutboundSendCredentials,
+} from "@/lib/whatsapp/channelService";
 import { buildWhatsAppRoomPayload } from "@/lib/whatsapp/socketPayload";
 import { isWithinMessagingWindow } from "@/lib/whatsapp/messagingWindow";
 import { resolveMessagingWindowAnchor } from "@/lib/whatsapp/messagingWindowServer";
@@ -355,18 +359,41 @@ export async function POST(req: NextRequest) {
     const convForToken = conversation
       ? (conversation.toObject ? conversation.toObject() : conversation)
       : null;
-    const whatsappToken = await getOutboundTokenForPhoneId(phoneNumberId, convForToken
-      ? {
-          whatsappChannelId: convForToken.whatsappChannelId,
-          businessPhoneId: phoneNumberId,
-        }
-      : null);
-    if (!whatsappToken) {
+    const credentials = await resolveOutboundSendCredentials({
+      phoneNumberId,
+      conversation: convForToken
+        ? {
+            whatsappChannelId: convForToken.whatsappChannelId,
+            businessPhoneId: convForToken.businessPhoneId,
+          }
+        : undefined,
+      allowWabaPhoneFallback: !conversationId,
+    });
+    if (!credentials) {
+      const failure = await explainOutboundSendCredentialsFailure({
+        phoneNumberId,
+        conversation: convForToken
+          ? {
+              whatsappChannelId: convForToken.whatsappChannelId,
+              businessPhoneId: convForToken.businessPhoneId,
+            }
+          : undefined,
+      });
+      console.error("📤 [send-message] credential resolution failed", failure);
       return NextResponse.json(
-        { error: "WhatsApp configuration missing" },
-        { status: 500 }
+        {
+          error: failure.hint,
+          code: "INVALID_SEND_CREDENTIALS",
+          channelId: failure.channel?.id ?? null,
+          channelName: failure.channel?.name ?? null,
+          phoneNumberId: failure.requestedPhone,
+          hasAccessToken: failure.channel?.hasAccessToken ?? false,
+        },
+        { status: 400 },
       );
     }
+    const sendPhoneNumberId = credentials.phoneNumberId;
+    const whatsappToken = credentials.accessToken;
 
     const rawRecipient =
       conversation?.participantPhone && conversationId
@@ -536,7 +563,7 @@ export async function POST(req: NextRequest) {
 
     // Send message via WhatsApp API
     const response = await fetch(
-      `${WHATSAPP_API_BASE_URL}/${phoneNumberId}/messages`,
+      `${WHATSAPP_API_BASE_URL}/${sendPhoneNumberId}/messages`,
       {
         method: "POST",
         headers: {
@@ -680,8 +707,8 @@ export async function POST(req: NextRequest) {
     const savedMessage = await WhatsAppMessage.create({
       conversationId: conversation._id,
       messageId: whatsappMessageId,
-      businessPhoneId: phoneNumberId,
-      from: phoneNumberId,
+      businessPhoneId: sendPhoneNumberId,
+      from: sendPhoneNumberId,
       to: formattedPhone,
       type,
       content: contentObj,
@@ -725,11 +752,11 @@ export async function POST(req: NextRequest) {
       WHATSAPP_EVENTS.NEW_MESSAGE,
       buildWhatsAppRoomPayload(convEmit as Record<string, unknown>, {
         conversationId: conversation._id.toString(),
-        businessPhoneId: phoneNumberId,
+        businessPhoneId: sendPhoneNumberId,
         message: {
           id: savedMessage._id.toString(),
           messageId: whatsappMessageId,
-          from: phoneNumberId,
+          from: sendPhoneNumberId,
           to: formattedPhone,
           type: type,
           content: contentObj,
@@ -753,7 +780,7 @@ export async function POST(req: NextRequest) {
       messageId: whatsappMessageId,
       savedMessageId: savedMessage._id,
       conversationId: conversation._id,
-      phoneNumberId,
+      phoneNumberId: sendPhoneNumberId,
       timestamp: timestamp.toISOString(), // Return timestamp for frontend
       data,
     });

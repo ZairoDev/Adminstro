@@ -52,7 +52,6 @@ type SetVisitDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   conversation: Conversation | null;
-  leadId?: string | null;
   onScheduled: (labels: string[]) => void;
 };
 
@@ -69,7 +68,6 @@ export function SetVisitDialog({
   open,
   onOpenChange,
   conversation,
-  leadId,
   onScheduled,
 }: SetVisitDialogProps) {
   const { toast } = useToast();
@@ -98,6 +96,8 @@ export function SetVisitDialog({
 
   const [agents, setAgents] = useState<AgentOption[]>([]);
   const [fetchingAgents, setFetchingAgents] = useState(false);
+  const [leadId, setLeadId] = useState<string | null>(null);
+  const [leadLookupLoading, setLeadLookupLoading] = useState(false);
 
   const pitchAmount = ownerCommission + travellerCommission;
   const vsFinal = pitchAmount - (agentCommission + documentationCharges);
@@ -128,6 +128,32 @@ export function SetVisitDialog({
     setPropertyUrl(buildPropertyUrl(property));
     setStep(2);
   };
+
+  useEffect(() => {
+    if (!open || !conversation?.participantPhone) {
+      setLeadId(null);
+      setLeadLookupLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLeadLookupLoading(true);
+    axios
+      .get("/api/whatsapp/leads/lookup", {
+        params: { phone: conversation.participantPhone },
+      })
+      .then((res) => {
+        if (!cancelled) setLeadId(res.data?.lead?._id || null);
+      })
+      .catch(() => {
+        if (!cancelled) setLeadId(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLeadLookupLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, conversation?.participantPhone]);
 
   useEffect(() => {
     if (!open) return;
@@ -301,12 +327,17 @@ export function SetVisitDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {!leadId && (
+        {leadLookupLoading ? (
+          <p className="text-sm text-muted-foreground flex items-center gap-2 px-1">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Looking up linked lead…
+          </p>
+        ) : !leadId ? (
           <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-lg px-3 py-2">
             No lead is linked to this conversation yet. Visit scheduling requires a
             lead record.
           </p>
-        )}
+        ) : null}
 
         {step === 1 && (
           <div className="space-y-4">
@@ -581,7 +612,7 @@ export function SetVisitDialog({
           {step === 2 && (
             <Button
               className="bg-[#00a884] hover:bg-[#008f6f]"
-              disabled={!scheduleValue || submitting || !leadId}
+              disabled={!scheduleValue || submitting || leadLookupLoading || !leadId}
               onClick={() => void submitVisit()}
             >
               {submitting ? (

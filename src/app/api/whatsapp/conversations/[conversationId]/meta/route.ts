@@ -9,6 +9,10 @@ import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participant
 import { WHATSAPP_EVENTS } from "@/lib/pusher";
 import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
 import { resolveChannelFieldsForConversationLocation } from "@/lib/whatsapp/channelService";
+import {
+  DEFAULT_CONVERSATION_RENTAL_TYPE,
+  resolveConversationRentalType,
+} from "@/lib/whatsapp/rentalTypeAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -112,11 +116,18 @@ export async function POST(
       update.participantLocation = displayLocation;
       update.participantLocationKey = locationKeyFromDisplay(displayLocation);
 
+      const convRental = resolveConversationRentalType(
+        (conversation as { rentalType?: string }).rentalType,
+      );
+      if (!(conversation as { rentalType?: string }).rentalType?.trim()) {
+        update.rentalType = DEFAULT_CONVERSATION_RENTAL_TYPE;
+      }
+
       // Re-route outbound line to the new location's guest/owner channel.
       const channelFields = await resolveChannelFieldsForConversationLocation({
         participantLocation: displayLocation,
         participantLocationKey: update.participantLocationKey,
-        rentalType: (conversation as { rentalType?: string }).rentalType,
+        rentalType: convRental,
         channelType: (conversation as { channelType?: "guest" | "owner" }).channelType,
         conversationType: (conversation as { conversationType?: "guest" | "owner" })
           .conversationType,

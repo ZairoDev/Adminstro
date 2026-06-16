@@ -42,6 +42,8 @@ export interface IWhatsAppConversation extends Document {
   status: "active" | "archived" | "blocked";
 
   lastCustomerMessageAt?: Date;
+  /** Per business line — Meta 24h window is scoped to each phone number. */
+  lastCustomerMessageAtByPhone?: Map<string, Date>;
   sessionExpiresAt?: Date;
 
   firstMessageTime?: Date;
@@ -202,6 +204,12 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
 
     lastCustomerMessageAt: {
       type: Date,
+    },
+
+    lastCustomerMessageAtByPhone: {
+      type: Map,
+      of: Date,
+      default: undefined,
     },
 
     sessionExpiresAt: {

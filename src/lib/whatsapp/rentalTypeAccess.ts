@@ -97,6 +97,20 @@ export function rentalTypeVisibleToUser(
  * - SuperAdmin: uses client choice (defaults to Long Term).
  * - Other staff: uses employee.rentalType when set, else Long Term (legacy default).
  */
+/**
+ * Effective rental type for channel routing on an existing conversation.
+ * Unset / legacy values default to Long Term.
+ */
+export function resolveConversationRentalType(
+  rentalType: unknown,
+): CreateConversationRentalType {
+  const normalized = normalizeChannelRentalType(rentalType);
+  if (normalized === "Short Term" || normalized === "Long Term") {
+    return normalized;
+  }
+  return DEFAULT_CONVERSATION_RENTAL_TYPE;
+}
+
 export function resolveCreateConversationRentalType(params: {
   userRole?: string;
   userRentalType?: unknown;

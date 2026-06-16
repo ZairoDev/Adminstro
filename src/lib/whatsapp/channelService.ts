@@ -6,7 +6,10 @@ import WhatsappChannel, {
 } from "@/models/whatsappChannel";
 import WhatsappChannelAssignment from "@/models/whatsappChannelAssignment";
 import { getWhatsAppToken, WHATSAPP_API_BASE_URL } from "@/lib/whatsapp/config";
-import { normalizeChannelRentalType } from "@/lib/whatsapp/rentalTypeAccess";
+import {
+  normalizeChannelRentalType,
+  resolveConversationRentalType,
+} from "@/lib/whatsapp/rentalTypeAccess";
 import mongoose from "mongoose";
 
 export type ResolvedChannel = {
@@ -99,10 +102,10 @@ export async function resolveOutboundChannelForConversation(
     conversation.participantLocation?.trim() ||
     conversation.participantLocationKey?.trim() ||
     "";
-  const rentalType = conversation.rentalType;
+  const rentalType = resolveConversationRentalType(conversation.rentalType);
 
   // Current location is authoritative when guest/owner is reassigned to a new city.
-  if (location && rentalType) {
+  if (location) {
     const routed = await resolveWhatsappChannel({
       location,
       rentalType,
@@ -157,8 +160,8 @@ export async function resolveChannelFieldsForConversationLocation(
     conversation.participantLocation?.trim() ||
     conversation.participantLocationKey?.trim() ||
     "";
-  const rentalType = conversation.rentalType;
-  if (!location || !rentalType) return null;
+  const rentalType = resolveConversationRentalType(conversation.rentalType);
+  if (!location) return null;
 
   const channel = await resolveWhatsappChannel({
     location,

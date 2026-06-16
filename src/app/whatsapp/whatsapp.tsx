@@ -387,21 +387,12 @@ export default function WhatsAppChat() {
   const [initiationLimitRefreshKey, setInitiationLimitRefreshKey] = useState(0);
   const { status: initiationLimitStatus } = useInitiationLimit(initiationLimitRefreshKey);
   const guestInitiationAtLimit = initiationLimitStatus?.atLimit ?? false;
-  const [crmLeadId, setCrmLeadId] = useState<string | null>(null);
   const [showDispositionDialog, setShowDispositionDialog] = useState(false);
   const [showVisitDialog, setShowVisitDialog] = useState(false);
   const [showReminderDialog, setShowReminderDialog] = useState(false);
 
-  // CRM panel (right panel) — default open on large screens, closed on smaller
   const [showCrmPanel, setShowCrmPanel] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1280px)");
-    setShowCrmPanel(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setShowCrmPanel(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-  
+
   // Total unread messages count (socket-based, real-time)
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
@@ -696,27 +687,6 @@ export default function WhatsAppChat() {
       persistActiveConversation(null);
     };
   }, [selectedConversation, persistActiveConversation]);
-
-  useEffect(() => {
-    if (!selectedConversation?.participantPhone) {
-      setCrmLeadId(null);
-      return;
-    }
-    let cancelled = false;
-    axios
-      .get("/api/whatsapp/leads/lookup", {
-        params: { phone: selectedConversation.participantPhone },
-      })
-      .then((res) => {
-        if (!cancelled) setCrmLeadId(res.data?.lead?._id || null);
-      })
-      .catch(() => {
-        if (!cancelled) setCrmLeadId(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedConversation?._id, selectedConversation?.participantPhone]);
 
   const cleanupOutboundCallResources = useCallback(() => {
     suppressPrematureInboundIceCleanupRef.current = false;
@@ -1959,7 +1929,19 @@ export default function WhatsAppChat() {
                 lastMessageStatus: outgoingStatus,
                 unreadCount: newUnreadCount,
                 ...(isIncomingMessage
-                  ? { lastCustomerMessageAt: new Date(message.timestamp) }
+                  ? {
+                      lastCustomerMessageAt: new Date(message.timestamp),
+                      ...(data.businessPhoneId
+                        ? {
+                            lastCustomerMessageAtByPhone: {
+                              ...(conv.lastCustomerMessageAtByPhone ?? {}),
+                              [String(data.businessPhoneId)]: new Date(
+                                message.timestamp,
+                              ).toISOString(),
+                            },
+                          }
+                        : {}),
+                    }
                   : {}),
               };
             }
@@ -2015,7 +1997,19 @@ export default function WhatsAppChat() {
               lastMessageId: message.messageId,
               lastMessageStatus: outgoingStatus,
               ...(isIncomingMessage
-                ? { lastCustomerMessageAt: new Date(message.timestamp) }
+                ? {
+                    lastCustomerMessageAt: new Date(message.timestamp),
+                    ...(data.businessPhoneId
+                      ? {
+                          lastCustomerMessageAtByPhone: {
+                            ...(prev.lastCustomerMessageAtByPhone ?? {}),
+                            [String(data.businessPhoneId)]: new Date(
+                              message.timestamp,
+                            ).toISOString(),
+                          },
+                        }
+                      : {}),
+                  }
                 : {}),
             };
           });
@@ -3136,7 +3130,13 @@ export default function WhatsAppChat() {
 
     // Skip 24-hour window check for "You" conversations (always active)
     const isYouConv = selectedConversation.isInternal || selectedConversation.source === "internal";
-    if (!isYouConv && !isMessageWindowActive(selectedConversation)) {
+    if (
+      !isYouConv &&
+      !isMessageWindowActive(
+        selectedConversation,
+        getConversationBusinessPhoneId(selectedConversation),
+      )
+    ) {
       setShowTemplateDialog(true);
       return;
     }
@@ -3293,11 +3293,19 @@ export default function WhatsAppChat() {
 
       // Server-side 24-hour window enforcement: redirect to templates.
       if (error.response?.data?.code === "WINDOW_CLOSED") {
-        // Update local conversation state so the UI banner reflects the closed window.
-        if (error.response.data.lastCustomerMessageAt) {
+        const closedPhoneId =
+          typeof error.response.data.businessPhoneId === "string"
+            ? error.response.data.businessPhoneId
+            : selectedOutboundPhoneId;
+        if (closedPhoneId) {
+          const priorByPhone =
+            selectedConversation.lastCustomerMessageAtByPhone ?? {};
           handleUpdateConversation(selectedConversation._id, {
-            lastCustomerMessageAt: new Date(error.response.data.lastCustomerMessageAt),
-          });
+            lastCustomerMessageAtByPhone: {
+              ...priorByPhone,
+              [closedPhoneId]: new Date(0).toISOString(),
+            },
+          } as Partial<Conversation>);
         }
         setShowTemplateDialog(true);
         toast({
@@ -3715,7 +3723,13 @@ export default function WhatsAppChat() {
 
       // Skip 24-hour window check for "You" conversations (always active)
       const isYouConv = selectedConversation.isInternal || selectedConversation.source === "internal";
-      if (!isYouConv && !isMessageWindowActive(selectedConversation)) {
+      if (
+      !isYouConv &&
+      !isMessageWindowActive(
+        selectedConversation,
+        getConversationBusinessPhoneId(selectedConversation),
+      )
+    ) {
         setShowTemplateDialog(true);
         return;
       }
@@ -3848,7 +3862,13 @@ export default function WhatsAppChat() {
 
     // Skip 24-hour window check for "You" conversations (always active)
     const isYouConv = selectedConversation.isInternal || selectedConversation.source === "internal";
-    if (!isYouConv && !isMessageWindowActive(selectedConversation)) {
+    if (
+      !isYouConv &&
+      !isMessageWindowActive(
+        selectedConversation,
+        getConversationBusinessPhoneId(selectedConversation),
+      )
+    ) {
       setShowTemplateDialog(true);
       // Reset the file input
       event.target.value = "";
@@ -4616,7 +4636,13 @@ export default function WhatsAppChat() {
 
   // "You" conversations are always active - no template requirement, no 24-hour window
   const isYouConversation = selectedConversation?.isInternal || selectedConversation?.source === "internal";
-  const canSendFreeForm = isYouConversation || (selectedConversation ? isMessageWindowActive(selectedConversation) : false);
+  const selectedOutboundPhoneId =
+    getConversationBusinessPhoneId(selectedConversation) ?? null;
+  const canSendFreeForm =
+    isYouConversation ||
+    (selectedConversation
+      ? isMessageWindowActive(selectedConversation, selectedOutboundPhoneId)
+      : false);
   const showCrmActions =
     Boolean(selectedConversation) &&
     !selectedConversation?.isInternal &&
@@ -4987,7 +5013,6 @@ export default function WhatsAppChat() {
                     open={showVisitDialog}
                     onOpenChange={setShowVisitDialog}
                     conversation={selectedConversation}
-                    leadId={crmLeadId}
                     onScheduled={handleCrmLabelsUpdated}
                   />
                   <ReminderDialog
@@ -5044,6 +5069,7 @@ export default function WhatsAppChat() {
             {/* CRM Panel — right side, desktop only */}
             {showCrmPanel && selectedConversation && showCrmActions && (
               <CrmPanel
+                isOpen={showCrmPanel}
                 conversation={selectedConversation}
                 onClose={() => setShowCrmPanel(false)}
                 onOpenDisposition={() => setShowDispositionDialog(true)}

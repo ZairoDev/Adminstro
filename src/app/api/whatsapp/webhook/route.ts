@@ -803,6 +803,8 @@ async function processIncomingMessage(
             lastIncomingMessageTime: timestamp,
             lastMessageDirection: "incoming",
             lastCustomerMessageAt: timestamp,
+            [`lastCustomerMessageAtByPhone.${phoneNumberId}`]: timestamp,
+            sessionExpiresAt: new Date(timestamp.getTime() + 24 * 60 * 60 * 1000),
           }
         }
       );
@@ -976,6 +978,8 @@ async function processIncomingMessage(
         lastIncomingMessageTime: timestamp,
         lastMessageDirection: "incoming",
         lastCustomerMessageAt: timestamp,
+        [`lastCustomerMessageAtByPhone.${phoneNumberId}`]: timestamp,
+        sessionExpiresAt: new Date(timestamp.getTime() + 24 * 60 * 60 * 1000),
       },
       { new: true }
     );

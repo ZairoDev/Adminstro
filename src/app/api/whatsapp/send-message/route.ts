@@ -20,6 +20,10 @@ import {
 } from "@/lib/whatsapp/initiationLimitService";
 import { getChannelByPhoneNumberId, getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
 import { buildWhatsAppRoomPayload } from "@/lib/whatsapp/socketPayload";
+import {
+  isWithinMessagingWindow,
+  resolveMessagingWindowAnchor,
+} from "@/lib/whatsapp/messagingWindow";
 
 connectDb();
 
@@ -287,39 +291,6 @@ export async function POST(req: NextRequest) {
     // Regular WhatsApp conversation - Continue with Meta API
     // =========================================================
 
-    // 24-hour messaging window enforcement.
-    // Free-form messages (text, image, document, audio, video, sticker, interactive)
-    // are only permitted within 24 hours of the customer's last incoming message.
-    // Template messages bypass this restriction — they initiate/re-open the window.
-    // Internal conversations, new conversations (no lastCustomerMessageAt), and
-    // conversations that have never had an incoming message are excluded.
-    const FREE_FORM_TYPES = ["text", "image", "document", "audio", "video", "sticker", "interactive"];
-    if (
-      conversation &&
-      FREE_FORM_TYPES.includes(type) &&
-      !templateName // not a template send
-    ) {
-      const lastCustomerMsg = conversation.lastCustomerMessageAt
-        ? new Date(conversation.lastCustomerMessageAt)
-        : null;
-
-      if (lastCustomerMsg) {
-        const hoursSinceLastMsg =
-          (Date.now() - lastCustomerMsg.getTime()) / (1000 * 60 * 60);
-        if (hoursSinceLastMsg >= 24) {
-          return NextResponse.json(
-            {
-              error:
-                "The 24-hour messaging window has closed. You can only send template messages to re-open the conversation.",
-              code: "WINDOW_CLOSED",
-              lastCustomerMessageAt: lastCustomerMsg.toISOString(),
-            },
-            { status: 400 },
-          );
-        }
-      }
-    }
-
     const phoneResolution = await resolveOutboundBusinessPhoneId({
       token: normalizedToken,
       conversation: conversation
@@ -337,6 +308,44 @@ export async function POST(req: NextRequest) {
     }
 
     const phoneNumberId = phoneResolution.phoneNumberId;
+
+    // 24-hour window is per business line — check against the resolved outbound phone.
+    const FREE_FORM_TYPES = [
+      "text",
+      "image",
+      "document",
+      "audio",
+      "video",
+      "sticker",
+      "interactive",
+    ];
+    if (
+      conversation &&
+      FREE_FORM_TYPES.includes(type) &&
+      !templateName
+    ) {
+      const convObj = conversation.toObject
+        ? conversation.toObject()
+        : conversation;
+      const lastCustomerMsg = await resolveMessagingWindowAnchor({
+        conversationId: String(conversation._id),
+        businessPhoneId: phoneNumberId,
+        conversation: convObj,
+      });
+
+      if (!lastCustomerMsg || !isWithinMessagingWindow(lastCustomerMsg)) {
+        return NextResponse.json(
+          {
+            error:
+              "The 24-hour messaging window has closed on this WhatsApp line. Send a template message to re-open the conversation.",
+            code: "WINDOW_CLOSED",
+            lastCustomerMessageAt: lastCustomerMsg?.toISOString() ?? null,
+            businessPhoneId: phoneNumberId,
+          },
+          { status: 400 },
+        );
+      }
+    }
 
     console.log("📤 [send-message] phone resolution", {
       source: phoneResolution.source,
@@ -555,9 +564,21 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       console.error("📤 [send-message] Meta rejected message:", data);
+      const metaCode = data.error?.code;
+      if (metaCode === 131047) {
+        return NextResponse.json(
+          {
+            error:
+              "The 24-hour messaging window has closed on this WhatsApp line. Send a template message to re-open the conversation.",
+            code: "WINDOW_CLOSED",
+            metaErrorCode: metaCode,
+          },
+          { status: 400 },
+        );
+      }
       return NextResponse.json(
         { error: data.error?.message || "Failed to send message" },
-        { status: response.status }
+        { status: response.status },
       );
     }
 

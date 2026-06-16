@@ -113,6 +113,7 @@ interface SharedProperty {
 }
 
 interface CrmPanelProps {
+  isOpen?: boolean;
   conversation: Conversation | null;
   onClose: () => void;
   onOpenDisposition: () => void;
@@ -123,6 +124,7 @@ interface CrmPanelProps {
 }
 
 export function CrmPanel({
+  isOpen = true,
   conversation,
   onClose,
   onOpenDisposition,
@@ -147,8 +149,9 @@ export function CrmPanel({
   }, [conversation?.labels]);
 
   useEffect(() => {
-    if (!conversationId) {
+    if (!isOpen || !conversationId) {
       setSharedProperties([]);
+      setLoadingProperties(false);
       return;
     }
     let cancelled = false;
@@ -167,7 +170,7 @@ export function CrmPanel({
     return () => {
       cancelled = true;
     };
-  }, [conversationId]);
+  }, [isOpen, conversationId]);
 
   const handleRemoveLabel = async (label: string) => {
     if (!conversationId) return;

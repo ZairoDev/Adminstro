@@ -89,6 +89,7 @@ export interface Conversation {
   unreadCount: number;
   status: string;
   lastCustomerMessageAt?: Date;
+  lastCustomerMessageAtByPhone?: Record<string, string | Date>;
   sessionExpiresAt?: Date;
   conversationType?: "owner" | "guest"; // Determined by first template message
   rentalType?: "Short Term" | "Long Term" | "General";

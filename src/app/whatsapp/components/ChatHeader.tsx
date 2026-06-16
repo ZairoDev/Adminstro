@@ -39,7 +39,7 @@ import {
   resolveConversationDisplayLabel,
   type WhatsAppPhoneMaskRules,
 } from "@/lib/whatsapp/phoneMask";
-import { getRemainingHours } from "../utils";
+import { getConversationBusinessPhoneId, getRemainingHours } from "../utils";
 import { cn } from "@/lib/utils";
 import axios from "@/util/axios";
 import {
@@ -200,9 +200,11 @@ export const ChatHeader = memo(function ChatHeader({
     };
   }, [conversationId, readersRefreshToken]);
 
+  const outboundPhoneId = getConversationBusinessPhoneId(conversation);
   const remaining = useMemo(
-    () => (isMounted ? getRemainingHours(conversation) : null),
-    [conversation, isMounted],
+    () =>
+      isMounted ? getRemainingHours(conversation, outboundPhoneId) : null,
+    [conversation, isMounted, outboundPhoneId],
   );
 
   const maskRules = phoneMaskRules ?? {

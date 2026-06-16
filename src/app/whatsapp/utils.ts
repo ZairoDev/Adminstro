@@ -1,4 +1,9 @@
 import type { Conversation, Message, Template } from "./types";
+import {
+  getLastCustomerMessageAtForPhone,
+  getMessagingWindowRemaining,
+  isWithinMessagingWindow,
+} from "@/lib/whatsapp/messagingWindow";
 
  /** Business line for outbound API calls — from the open chat, not a sidebar phone tab. */
 export function getConversationBusinessPhoneId(
@@ -337,33 +342,26 @@ export function getConversationTemplateContext(conversation: Conversation | null
   return { clientName, locationName };
 }
 
-export function isMessageWindowActive(conversation: Conversation | null): boolean {
-  // "You" conversations (internal) are always active - no 24-hour window restriction
+export function isMessageWindowActive(
+  conversation: Conversation | null,
+  outboundPhoneId?: string | null,
+): boolean {
   if (conversation?.isInternal || conversation?.source === "internal") {
     return true;
   }
-  
-  if (!conversation?.lastCustomerMessageAt) return false;
-  const lastMessage = new Date(conversation.lastCustomerMessageAt);
-  const now = new Date();
-  const hoursDiff = (now.getTime() - lastMessage.getTime()) / (1000 * 60 * 60);
-  return hoursDiff < 24;
+
+  const phone = outboundPhoneId ?? getConversationBusinessPhoneId(conversation);
+  const lastAt = getLastCustomerMessageAtForPhone(conversation, phone);
+  return isWithinMessagingWindow(lastAt);
 }
 
 export function getRemainingHours(
-  conversation: Conversation | null
+  conversation: Conversation | null,
+  outboundPhoneId?: string | null,
 ): { hours: number; minutes: number } | null {
-  if (!conversation?.lastCustomerMessageAt) return null;
-  const lastMessage = new Date(conversation.lastCustomerMessageAt);
-  const now = new Date();
-  const msRemaining = lastMessage.getTime() + 24 * 60 * 60 * 1000 - now.getTime();
-
-  if (msRemaining <= 0) return null;
-
-  const hours = Math.floor(msRemaining / (1000 * 60 * 60));
-  const minutes = Math.floor((msRemaining % (1000 * 60 * 60)) / (1000 * 60));
-
-  return { hours, minutes };
+  const phone = outboundPhoneId ?? getConversationBusinessPhoneId(conversation);
+  const lastAt = getLastCustomerMessageAtForPhone(conversation, phone);
+  return getMessagingWindowRemaining(lastAt);
 }
 
 export function getTemplatePreviewText(

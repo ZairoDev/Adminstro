@@ -16,7 +16,8 @@ type ExpoPushMessage = {
   to: string;
   title?: string;
   body?: string;
-  data?: PushData;
+  // Keep FCM-safe: strings only. (Expo accepts arbitrary objects, but FCM is strict.)
+  data?: Record<string, string>;
   sound?: "default" | null;
   priority?: "default" | "normal" | "high";
   channelId?: string;
@@ -63,6 +64,24 @@ const EXPO_TOKEN_PATTERN = /^Expo(nent)?PushToken\[[^\]]+\]$/;
  */
 export function isExpoPushToken(token: unknown): token is string {
   return typeof token === "string" && EXPO_TOKEN_PATTERN.test(token.trim());
+}
+
+function normalizeData(data: PushData | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!data) return out;
+  for (const [k, v] of Object.entries(data)) {
+    if (v == null) continue;
+    if (typeof v === "string") out[k] = v;
+    else if (typeof v === "number" || typeof v === "boolean") out[k] = String(v);
+    else {
+      try {
+        out[k] = JSON.stringify(v);
+      } catch {
+        out[k] = String(v);
+      }
+    }
+  }
+  return out;
 }
 
 function sleep(ms: number) {
@@ -157,29 +176,41 @@ export async function sendExpoPushToEmployee(
     employeeId: input.employeeId,
     disabledAt: null,
   })
-    .select("token")
+    .select("token platform")
     .lean();
 
-  const expoTokens = tokens
-    .map((t: any) => String(t.token))
-    .filter((t) => isExpoPushToken(t));
+  const expoTargets = tokens
+    .map((t: any) => ({
+      token: String(t.token),
+      platform: typeof t.platform === "string" ? String(t.platform) : undefined,
+    }))
+    .filter((t) => isExpoPushToken(t.token));
 
-  if (expoTokens.length === 0) {
+  if (expoTargets.length === 0) {
     console.warn("[push][expo] no registered device tokens", {
       employeeId: input.employeeId,
     });
     return { attempted: 0, accepted: 0, delivered: 0, removed: 0, errors: [] };
   }
 
-  const messages: ExpoPushMessage[] = expoTokens.map((to) => ({
-    to,
-    title: input.title,
-    body: input.body,
-    data: input.data ?? {},
-    sound: input.sound ?? "default",
-    priority: "high",
-    ...(input.channelId ? { channelId: input.channelId } : {}),
-  }));
+  const normalizedData = normalizeData(input.data);
+
+  const messages: ExpoPushMessage[] = expoTargets.map((t) => {
+    // Platform-safe payload:
+    // - `sound` is iOS-only
+    // - `channelId` is Android-only
+    const isAndroid = t.platform === "android";
+    const isIos = t.platform === "ios";
+    return {
+      to: t.token,
+      title: input.title,
+      body: input.body,
+      data: normalizedData,
+      priority: "high",
+      ...(isIos ? { sound: input.sound ?? "default" } : {}),
+      ...(isAndroid && input.channelId ? { channelId: input.channelId } : {}),
+    };
+  });
 
   const chunks = chunk(messages, 100);
 

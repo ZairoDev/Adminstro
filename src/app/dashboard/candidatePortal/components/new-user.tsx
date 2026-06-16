@@ -152,6 +152,7 @@ const NewUser: React.FC<NewUserProps> = ({
       country: "",
       empType: "Probation",
       assignedCountry: "",
+      rentalType: null,
       phone: "",
       duration: undefined, // Changed to undefined
     },
@@ -513,6 +514,7 @@ const NewUser: React.FC<NewUserProps> = ({
   const selectedEmpType = watch("empType");
   const selectedCountry = watch("assignedCountry");
   const selectedCity = watch("allotedArea");
+  const selectedRentalType = watch("rentalType");
   const phoneValue = watch("phone");
 
   // Clear duration when employment type is Permanent
@@ -855,8 +857,32 @@ const NewUser: React.FC<NewUserProps> = ({
                   </div>
 
                   {(selectedRole === "Sales" ||
-                    selectedRole === "Sales-TeamLead") && (
+                    selectedRole === "Sales-TeamLead" ||
+                    selectedRole === "sales-intern") && (
                     <>
+                      <div className="space-y-2">
+                        <Label>Rental Type *</Label>
+                        <Select
+                          onValueChange={(v) =>
+                            setValue("rentalType", v as any, { shouldValidate: true })
+                          }
+                          value={(selectedRentalType as any) ?? undefined}
+                        >
+                          <SelectTrigger className="h-11">
+                            <SelectValue placeholder="Select rental type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Short Term">Short Term</SelectItem>
+                            <SelectItem value="Long Term">Long Term</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {errors.rentalType && (
+                          <p className="text-red-500 text-xs">
+                            {errors.rentalType.message as any}
+                          </p>
+                        )}
+                      </div>
+
                       <div className="space-y-2">
                         <Label>Assigned Country *</Label>
                         <Select

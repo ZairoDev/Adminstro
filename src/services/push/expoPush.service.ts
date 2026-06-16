@@ -157,29 +157,37 @@ export async function sendExpoPushToEmployee(
     employeeId: input.employeeId,
     disabledAt: null,
   })
-    .select("token")
+    .select("token platform")
     .lean();
 
-  const expoTokens = tokens
-    .map((t: any) => String(t.token))
-    .filter((t) => isExpoPushToken(t));
+  const expoTargets = tokens
+    .map((t: any) => ({
+      token: String(t.token),
+      platform: typeof t.platform === "string" ? String(t.platform) : undefined,
+    }))
+    .filter((t) => isExpoPushToken(t.token));
 
-  if (expoTokens.length === 0) {
+  if (expoTargets.length === 0) {
     console.warn("[push][expo] no registered device tokens", {
       employeeId: input.employeeId,
     });
     return { attempted: 0, accepted: 0, delivered: 0, removed: 0, errors: [] };
   }
 
-  const messages: ExpoPushMessage[] = expoTokens.map((to) => ({
-    to,
-    title: input.title,
-    body: input.body,
-    data: input.data ?? {},
-    sound: input.sound ?? "default",
-    priority: "high",
-    ...(input.channelId ? { channelId: input.channelId } : {}),
-  }));
+  const messages: ExpoPushMessage[] = expoTargets.map((t) => {
+    // `channelId` is an Android concept; including it for iOS tokens can lead to
+    // Expo receipt errors such as `DeveloperError` even when the ticket is ok.
+    const isAndroid = t.platform === "android";
+    return {
+      to: t.token,
+      title: input.title,
+      body: input.body,
+      data: input.data ?? {},
+      sound: input.sound ?? "default",
+      priority: "high",
+      ...(isAndroid && input.channelId ? { channelId: input.channelId } : {}),
+    };
+  });
 
   const chunks = chunk(messages, 100);
 

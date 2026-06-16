@@ -64,7 +64,7 @@ export function resolveAllowedPhoneIds(
   return ids;
 }
 
-/** DB + static phone access (use in API routes that must match resolvePhoneIdForLocation). */
+/** DB + static phone access for API routes. */
 export async function resolveAllowedPhoneIdsAsync(
   token: WhatsAppToken,
   opts: { retargetOnly?: boolean } = {},

@@ -11,6 +11,7 @@ import {
   deactivateChannel,
   createChannelWithAssignment,
 } from "@/lib/whatsapp/channelService";
+import { invalidatePhoneAreaCache } from "@/lib/whatsapp/phoneAreaConfigService";
 
 export const dynamic = "force-dynamic";
 
@@ -188,6 +189,8 @@ export async function PATCH(
 
     await existing.save();
 
+    invalidatePhoneAreaCache();
+
     // Sync assignment rows.
     if (becomingInactive) {
       await WhatsappChannelAssignment.updateMany(
@@ -270,6 +273,8 @@ export async function DELETE(
       { channelId: new mongoose.Types.ObjectId(id), endedAt: null },
       { endedAt: now },
     );
+
+    invalidatePhoneAreaCache();
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -40,7 +40,7 @@ import {
   canUseInboxLocationFilter,
   getInboxLocationFilterOptionsForUser,
 } from "@/lib/whatsapp/participantLocationPrivileges";
-import { SUPERADMIN_DEFAULT_INBOX_LOCATION } from "@/lib/whatsapp/locationAccess";
+import { SUPERADMIN_DEFAULT_INBOX_LOCATION } from "@/lib/whatsapp/locationConstants";
 import { ForwardDialog } from "./components/ForwardDialog";
 import { LeadTransferDialog } from "./components/LeadTransferDialog";
 import { CrmPanel } from "./components/CrmPanel";

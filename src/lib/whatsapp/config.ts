@@ -146,14 +146,6 @@ export const WHATSAPP_ACCESS_ROLES = [
   "Developer",
 ] as const;
 
-/**
- * One inbox for all roles: list/filter by location visibility, not by phone tab.
- * Outbound sends still use each conversation's businessPhoneId.
- */
-export function usesUnifiedWhatsAppInbox(_userRole?: string): boolean {
-  return true;
-}
-
 export function getAllowedPhoneConfigs(
   userRole: string,
   userAreas: string[] = []

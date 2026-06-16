@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import axios from "@/util/axios";
 import { toast } from "sonner";
 import { useAuthStore } from "@/AuthStore";
 import { Button } from "@/components/ui/button";
@@ -116,6 +116,7 @@ export default function WhatsAppChannelsDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [filterType, setFilterType] = useState<ChannelType | "all">("all");
@@ -174,12 +175,14 @@ export default function WhatsAppChannelsDashboardPage() {
 
   const openCreate = () => {
     setEditingId(null);
+    setEditingChannel(null);
     setForm(emptyForm);
     setModalOpen(true);
   };
 
   const openEdit = (channel: Channel) => {
     setEditingId(channel._id);
+    setEditingChannel(channel);
     setForm({
       name: channel.name,
       channelType: channel.channelType || "guest",
@@ -213,39 +216,81 @@ export default function WhatsAppChannelsDashboardPage() {
 
   const handleSubmit = async () => {
     if (!form.name.trim()) return toast.error("Channel name is required");
-    if (!form.phoneNumberId.trim()) return toast.error("Phone Number ID is required");
+    if (!editingId && !form.phoneNumberId.trim()) {
+      return toast.error("Phone Number ID is required");
+    }
     if (form.locations.length === 0) return toast.error("Assign at least one location");
 
     setSaving(true);
     try {
-      const payload = {
-        name: form.name,
-        channelType: form.channelType,
-        businessPortfolioName: form.businessPortfolioName,
-        businessPortfolioId: form.businessPortfolioId,
-        wabaId: form.wabaId,
-        wabaName: form.wabaName,
-        phoneNumberId: form.phoneNumberId,
-        displayPhoneNumber: form.displayPhoneNumber,
-        accessToken: form.accessToken,
-        rentalType: form.rentalType,
-        locations: form.locations,
-        active: form.active,
-      };
+      if (editingId && editingChannel) {
+        const identityChanged =
+          form.phoneNumberId.trim() !== editingChannel.phoneNumberId ||
+          form.wabaId.trim() !== editingChannel.wabaId ||
+          form.businessPortfolioId.trim() !== editingChannel.businessPortfolioId ||
+          form.channelType !== editingChannel.channelType ||
+          form.rentalType !== editingChannel.rentalType;
 
-      if (editingId) {
-        await axios.patch(`/api/whatsapp/channels/${editingId}`, payload);
-        toast.success("Channel updated");
+        if (identityChanged) {
+          const migratePayload = {
+            name: form.name.trim(),
+            channelType: form.channelType,
+            businessPortfolioName: form.businessPortfolioName,
+            businessPortfolioId: form.businessPortfolioId.trim(),
+            wabaId: form.wabaId.trim(),
+            wabaName: form.wabaName,
+            phoneNumberId: form.phoneNumberId.trim(),
+            displayPhoneNumber: form.displayPhoneNumber,
+            accessToken: form.accessToken,
+            rentalType: form.rentalType,
+            locations: form.locations,
+          };
+          await axios.post(
+            `/api/whatsapp/channels/${editingId}/migrate`,
+            migratePayload,
+          );
+          toast.success("Channel migrated (new routing identity)");
+        } else {
+          const patchPayload: Record<string, unknown> = {
+            name: form.name.trim(),
+            displayPhoneNumber: form.displayPhoneNumber,
+            locations: form.locations,
+            active: form.active,
+            businessPortfolioName: form.businessPortfolioName,
+            wabaName: form.wabaName,
+          };
+          if (form.accessToken.trim()) {
+            patchPayload.accessToken = form.accessToken.trim();
+          }
+          await axios.patch(`/api/whatsapp/channels/${editingId}`, patchPayload);
+          toast.success("Channel updated");
+        }
       } else {
-        await axios.post("/api/whatsapp/channels", payload);
+        await axios.post("/api/whatsapp/channels", {
+          name: form.name.trim(),
+          channelType: form.channelType,
+          businessPortfolioName: form.businessPortfolioName,
+          businessPortfolioId: form.businessPortfolioId,
+          wabaId: form.wabaId,
+          wabaName: form.wabaName,
+          phoneNumberId: form.phoneNumberId.trim(),
+          displayPhoneNumber: form.displayPhoneNumber,
+          accessToken: form.accessToken,
+          rentalType: form.rentalType,
+          locations: form.locations,
+          active: form.active,
+        });
         toast.success("Channel created");
       }
       setModalOpen(false);
+      setEditingChannel(null);
       await loadChannels();
     } catch (error) {
+      const data = (error as { response?: { data?: { error?: string; hint?: string } } })
+        ?.response?.data;
       const message =
-        (error as { response?: { data?: { error?: string } } })?.response?.data
-          ?.error || "Failed to save channel";
+        data?.error ||
+        (editingId ? "Failed to update channel" : "Failed to create channel");
       toast.error(message);
     } finally {
       setSaving(false);
@@ -437,6 +482,7 @@ export default function WhatsAppChannelsDashboardPage() {
               <Select
                 value={form.channelType}
                 onValueChange={(v) => setForm({ ...form, channelType: v as ChannelType })}
+                disabled={Boolean(editingId)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -455,6 +501,7 @@ export default function WhatsAppChannelsDashboardPage() {
               <Select
                 value={form.rentalType}
                 onValueChange={(v) => setForm({ ...form, rentalType: v as RentalType })}
+                disabled={Boolean(editingId)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -485,6 +532,8 @@ export default function WhatsAppChannelsDashboardPage() {
                 onChange={(e) =>
                   setForm({ ...form, businessPortfolioId: e.target.value })
                 }
+                readOnly={Boolean(editingId)}
+                className={editingId ? "bg-muted" : undefined}
               />
             </div>
             <div className="space-y-1.5">
@@ -500,6 +549,8 @@ export default function WhatsAppChannelsDashboardPage() {
               <Input
                 value={form.wabaId}
                 onChange={(e) => setForm({ ...form, wabaId: e.target.value })}
+                readOnly={Boolean(editingId)}
+                className={editingId ? "bg-muted" : undefined}
               />
             </div>
             <div className="space-y-1.5">
@@ -507,7 +558,15 @@ export default function WhatsAppChannelsDashboardPage() {
               <Input
                 value={form.phoneNumberId}
                 onChange={(e) => setForm({ ...form, phoneNumberId: e.target.value })}
+                readOnly={Boolean(editingId)}
+                className={editingId ? "bg-muted" : undefined}
               />
+              {editingId ? (
+                <p className="text-xs text-muted-foreground">
+                  Routing identity fields are locked on edit. Create a new channel to
+                  use a different phone line or WABA.
+                </p>
+              ) : null}
             </div>
             <div className="space-y-1.5">
               <Label>Display Phone Number</Label>

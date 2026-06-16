@@ -28,6 +28,7 @@ import {
   deactivateChannel,
   createChannelWithAssignment,
 } from "@/lib/whatsapp/channelService";
+import { invalidatePhoneAreaCache } from "@/lib/whatsapp/phoneAreaConfigService";
 
 export const dynamic = "force-dynamic";
 
@@ -154,6 +155,8 @@ export async function POST(
       metadata: data.metadata,
       assignedAt: now,
     });
+
+    invalidatePhoneAreaCache();
 
     return NextResponse.json({
       success: true,

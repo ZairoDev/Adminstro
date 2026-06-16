@@ -619,39 +619,6 @@ export async function assertChannelTripleUnique(params: {
   }
 }
 
-/** @deprecated Use assertChannelTripleUnique which includes channelType. */
-export async function assertLocationRentalTypeUnique(params: {
-  rentalType: WhatsappChannelRentalType;
-  assignedLocationKeys: string[];
-  excludeChannelId?: string;
-}): Promise<void> {
-  // Legacy shim — channels created before channelType was mandatory did not have
-  // a channelType, so we still need to check for conflicts without it.
-  const { rentalType, assignedLocationKeys, excludeChannelId } = params;
-  if (assignedLocationKeys.length === 0) return;
-
-  const filter: Record<string, unknown> = {
-    rentalType,
-    assignedLocations: { $in: assignedLocationKeys },
-    active: true,
-  };
-  if (excludeChannelId) {
-    filter._id = { $ne: excludeChannelId };
-  }
-
-  const conflict = await WhatsappChannel.findOne(filter).lean<IWhatsappChannel | null>();
-  if (conflict) {
-    const overlap = (conflict.assignedLocations || []).filter((k) =>
-      assignedLocationKeys.includes(k),
-    );
-    const err: { message: string; status: number } = {
-      message: `Location(s) ${overlap.join(", ")} already assigned to "${conflict.name}" for rental type "${rentalType}".`,
-      status: 409,
-    };
-    throw err;
-  }
-}
-
 /**
  * Deactivate an active channel (channel versioning).
  *

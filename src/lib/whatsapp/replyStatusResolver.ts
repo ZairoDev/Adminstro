@@ -177,23 +177,6 @@ export async function computeWhatsAppReplyStatus(
   }
 }
 
-export async function classifyWhatsAppReplyForPhone(
-  phoneNo: string | number | undefined | null,
-): Promise<WhatsAppReplyClassification> {
-  const normalizedPhone = normalizePhone(phoneNo);
-  if (!normalizedPhone || normalizedPhone.length < 7) {
-    return { replied: false, notReplied: false, notDelivered: false };
-  }
-
-  try {
-    const messages = await loadMessagesForPhone(normalizedPhone);
-    return classifyMessagesReplyState(messages);
-  } catch (error) {
-    console.error("Error classifying WhatsApp reply for phone:", error);
-    return { replied: false, notReplied: false, notDelivered: false };
-  }
-}
-
 /**
  * Batch classify phones (deduped). Returns map keyed by normalized phone digits.
  */
@@ -231,7 +214,7 @@ export async function batchClassifyWhatsAppReplyForPhones(
   return results;
 }
 
-/** @deprecated Use batchClassifyWhatsAppReplyForPhones for dashboard stats */
+/** @deprecated Prefer batchClassifyWhatsAppReplyForPhones for new code */
 export async function batchComputeWhatsAppReplyStatus(
   phoneNumbers: string[],
 ): Promise<Map<string, string | null>> {

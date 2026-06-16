@@ -43,8 +43,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       locations,
-      /** @deprecated use locations[].displayName */
-      locationDisplays: locations.map((l) => l.displayName),
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal server error";

@@ -26,6 +26,15 @@ import {
   channelTypeVisibleToRole,
 } from "@/lib/whatsapp/channelTypeAccess";
 import Query from "@/models/query";
+import {
+  SUPERADMIN_INBOX_LOCATION_ALL,
+  SUPERADMIN_DEFAULT_INBOX_LOCATION,
+} from "@/lib/whatsapp/locationConstants";
+
+export {
+  SUPERADMIN_INBOX_LOCATION_ALL,
+  SUPERADMIN_DEFAULT_INBOX_LOCATION,
+} from "@/lib/whatsapp/locationConstants";
 
 type VisibilityUser = {
   role?: string;
@@ -180,15 +189,6 @@ export async function buildConversationVisibilityFilterAsync(
 }
 
 /**
- * MongoDB filter selecting conversations without a location key set.
- * Used by full-access roles to view the Admin Queue.
- */
-export const SUPERADMIN_INBOX_LOCATION_ALL = "all";
-
-/** Default inbox city filter for SuperAdmin when no URL param is present. */
-export const SUPERADMIN_DEFAULT_INBOX_LOCATION = "Athens";
-
-/**
  * Inbox: optional filter by participant city (display name or key).
  * SuperAdmin: any configured city; multi-area staff: only their assigned keys.
  */
@@ -212,15 +212,6 @@ export function applyInboxLocationFilter(
   if (scopedKeys.length > 1 && scopedKeys.includes(key)) {
     query.participantLocationKey = key;
   }
-}
-
-/** @deprecated Use {@link applyInboxLocationFilter} with full user context. */
-export function applySuperAdminInboxLocationFilter(
-  query: Record<string, unknown>,
-  userRole: string,
-  locationFilter: string | null | undefined
-): void {
-  applyInboxLocationFilter(query, { role: userRole }, locationFilter);
 }
 
 export function buildAdminQueueFilter(): Record<string, unknown> {

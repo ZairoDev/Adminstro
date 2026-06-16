@@ -20,10 +20,8 @@ import {
 } from "@/lib/whatsapp/initiationLimitService";
 import { getChannelByPhoneNumberId, getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
 import { buildWhatsAppRoomPayload } from "@/lib/whatsapp/socketPayload";
-import {
-  isWithinMessagingWindow,
-  resolveMessagingWindowAnchor,
-} from "@/lib/whatsapp/messagingWindow";
+import { isWithinMessagingWindow } from "@/lib/whatsapp/messagingWindow";
+import { resolveMessagingWindowAnchor } from "@/lib/whatsapp/messagingWindowServer";
 
 connectDb();
 

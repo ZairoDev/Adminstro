@@ -543,7 +543,7 @@ export const AddGuestModal = memo(function AddGuestModal({
         {locations.length === 0 && !loadingLocations && (
           <p className="text-[11px] text-amber-700 dark:text-amber-400">
             {userRole === "SuperAdmin"
-              ? "No cities on any WhatsApp line yet. Sidebar ⋮ → Phone locations → assign cities (e.g. Athens) and Save line, or use Configure from .env + config."
+              ? "No cities on any WhatsApp line yet. SuperAdmin can assign locations under Dashboard → WhatsApp Channels."
               : "No locations available on your WhatsApp lines. Ask SuperAdmin to assign cities to phone lines."}
           </p>
         )}
@@ -565,7 +565,7 @@ export const AddGuestModal = memo(function AddGuestModal({
             <p className="text-[11px] text-amber-700 dark:text-amber-400">
               No line for this city yet.
               {userRole === "SuperAdmin"
-                ? " Assign it under Phone locations."
+                ? " Assign it under Dashboard → WhatsApp Channels."
                 : " Ask SuperAdmin to assign it to a phone line."}
             </p>
           )}

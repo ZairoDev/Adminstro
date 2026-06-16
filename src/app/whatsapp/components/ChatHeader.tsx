@@ -309,7 +309,7 @@ export const ChatHeader = memo(function ChatHeader({
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : assignableLocations.length === 0 ? (
                       <span className="text-[10px] text-amber-600">
-                        No cities configured — Phone locations (⋮ menu)
+                        No cities configured — add locations in Dashboard → WhatsApp Channels
                       </span>
                     ) : (
                       <Select

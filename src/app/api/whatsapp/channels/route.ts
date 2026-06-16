@@ -8,6 +8,7 @@ import {
   normalizeChannelLocationKeys,
   createChannelWithAssignment,
 } from "@/lib/whatsapp/channelService";
+import { invalidatePhoneAreaCache } from "@/lib/whatsapp/phoneAreaConfigService";
 
 export const dynamic = "force-dynamic";
 
@@ -133,6 +134,8 @@ export async function POST(req: NextRequest) {
       active: data.active,
       metadata: data.metadata,
     });
+
+    invalidatePhoneAreaCache();
 
     return NextResponse.json(
       { success: true, channel: serializeChannel(channel) },

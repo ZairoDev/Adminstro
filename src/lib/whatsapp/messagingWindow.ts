@@ -1,5 +1,3 @@
-import WhatsAppMessage from "@/models/whatsappMessage";
-
 /** Meta customer care window — 24 hours from last customer message on the same line. */
 export const MESSAGING_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -67,7 +65,6 @@ export function getLastCustomerMessageAtForPhone(
   );
   if (fromMap) return fromMap;
 
-  // Legacy rows: single line matches stored businessPhoneId.
   if (
     conversation.lastCustomerMessageAt &&
     conversation.businessPhoneId?.trim() === phone
@@ -76,45 +73,4 @@ export function getLastCustomerMessageAtForPhone(
   }
 
   return null;
-}
-
-export async function getLastIncomingOnBusinessLine(
-  conversationId: string,
-  businessPhoneId: string,
-): Promise<Date | null> {
-  const phone = businessPhoneId.trim();
-  if (!phone) return null;
-
-  const row = (await WhatsAppMessage.findOne({
-    conversationId,
-    businessPhoneId: phone,
-    direction: "incoming",
-  })
-    .sort({ timestamp: -1 })
-    .select("timestamp")
-    .lean()) as { timestamp?: Date | string } | null;
-
-  if (!row?.timestamp) return null;
-  return new Date(row.timestamp);
-}
-
-/**
- * Authoritative window anchor for outbound sends — prefers DB lookup on the
- * resolved business line, falls back to conversation snapshot fields.
- */
-export async function resolveMessagingWindowAnchor(params: {
-  conversationId: string;
-  businessPhoneId: string;
-  conversation?: MessagingWindowConversation | null;
-}): Promise<Date | null> {
-  const fromDb = await getLastIncomingOnBusinessLine(
-    params.conversationId,
-    params.businessPhoneId,
-  );
-  if (fromDb) return fromDb;
-
-  return getLastCustomerMessageAtForPhone(
-    params.conversation ?? null,
-    params.businessPhoneId,
-  );
 }

@@ -31,7 +31,7 @@ export async function assertParticipantLocationAssignable(
   if (!configured) {
     const err: { message: string; status: number } = {
       message:
-        "This city is not configured on any WhatsApp line. Add it in Phone locations (SuperAdmin).",
+        "This city is not configured on any WhatsApp line. Add it under Dashboard → WhatsApp Channels (SuperAdmin).",
       status: 400,
     };
     throw err;

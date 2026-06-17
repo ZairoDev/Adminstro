@@ -8,6 +8,11 @@
 
 import { WHATSAPP_API_BASE_URL, getWhatsAppToken, WHATSAPP_BUSINESS_ACCOUNT_ID, type WhatsAppPhoneConfig } from "./config";
 
+function isMetaTokenInvalidated(data: unknown): boolean {
+  const err = (data as { error?: { code?: number; error_subcode?: number } })?.error;
+  return err?.code === 190 && err?.error_subcode === 460;
+}
+
 export interface MetaPhoneMetadata {
   verified_name?: string;
   display_phone_number?: string;
@@ -68,8 +73,14 @@ export async function fetchPhoneMetadataFromMeta(
         // Only log non-timeout errors (4xx, 5xx)
         const errorData = await response.json().catch(() => ({}));
         if (response.status >= 400 && response.status < 500) {
-          // Client errors (4xx) - might be auth issues, log once
-          console.warn(`[Meta API] Client error fetching metadata for ${phoneNumberId}:`, response.status, errorData);
+          // Client errors (4xx) - suppress known token invalidation spam
+          if (!isMetaTokenInvalidated(errorData)) {
+            console.warn(
+              `[Meta API] Client error fetching metadata for ${phoneNumberId}:`,
+              response.status,
+              errorData,
+            );
+          }
         } else if (response.status >= 500) {
           // Server errors (5xx) - Meta API issue, log once
           console.warn(`[Meta API] Server error fetching metadata for ${phoneNumberId}:`, response.status);
@@ -142,7 +153,14 @@ export async function fetchPhoneNumbersFromMeta(
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         if (response.status >= 400 && response.status < 500) {
-          console.warn(`[Meta API] Client error fetching phone numbers:`, response.status, errorData);
+          // Suppress token invalidation spam; caller may be running without Meta access.
+          if (!isMetaTokenInvalidated(errorData)) {
+            console.warn(
+              `[Meta API] Client error fetching phone numbers:`,
+              response.status,
+              errorData,
+            );
+          }
         } else if (response.status >= 500) {
           console.warn(`[Meta API] Server error fetching phone numbers:`, response.status);
         }

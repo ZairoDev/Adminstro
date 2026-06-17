@@ -10,7 +10,6 @@ import {
   type WhatsAppPhoneConfig,
 } from "@/lib/whatsapp/config";
 import { normalizeCityKey, toDisplayCity } from "@/lib/city-normalizer";
-import { fetchPhoneNumbersFromMeta, mapMetaPhonesToConfigs } from "@/lib/whatsapp/phoneMetadataSync";
 import {
   getAllPhoneLocationConfigs,
   resolveUserAllowedPhoneIds,
@@ -21,21 +20,9 @@ import WhatsAppConversation from "@/models/whatsappConversation";
 // Force dynamic rendering since we use request.cookies for authentication
 export const dynamic = 'force-dynamic';
 
-/** Filter Meta-fetched configs using the same rules as getAllowedPhoneConfigs. */
-function filterPhoneConfigsByRole(
-  configs: { phoneNumberId?: string }[],
-  userRole: string,
-  userAreas: string[] = [],
-): { phoneNumberId?: string }[] {
-  const allowedIds = new Set(
-    getAllowedPhoneConfigs(userRole, userAreas.map((a) => normalizeCityKey(a)))
-      .map((c) => c.phoneNumberId)
-      .filter(Boolean),
-  );
-  return configs.filter(
-    (c) => c.phoneNumberId && allowedIds.has(c.phoneNumberId),
-  );
-}
+// NOTE: This endpoint no longer filters Meta-fetched configs because we no longer
+// fetch phone lists from Meta here (no env fallback). Role/area filtering is
+// applied directly via getAllowedPhoneConfigs + DB channel visibility.
 
 /**
  * GET /api/whatsapp/phone-configs
@@ -104,10 +91,7 @@ export async function GET(req: NextRequest) {
     // Debug logging to help diagnose differences between local and production
 
 
-    // Legacy env WABA — channel-only phones live in WhatsappChannel admin instead.
-    const businessAccountId = WHATSAPP_BUSINESS_ACCOUNT_ID || "770501279114785";
-    const metaPhones = await fetchPhoneNumbersFromMeta(businessAccountId);
-    
+    // No Meta fetch here: channels admin + DB mappings are the source of truth.
     // Area mapping: DB is source of truth; config.ts is fallback via service
     const dbPhoneLocations = await getAllPhoneLocationConfigs();
     const areaMapping = new Map<string, string | string[]>();
@@ -124,28 +108,20 @@ export async function GET(req: NextRequest) {
         areaMapping.set(config.phoneNumberId, config.area);
       }
     });
-    
-    // Map Meta phones to configs with area information
-    const allMetaConfigs = mapMetaPhonesToConfigs(metaPhones, areaMapping);
-    
+
     const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(userRole);
 
-    // Staff: Meta ∩ legacy .env config, then role/area filter.
-    // Full-access: every Meta WABA line (channel-only / env-less phones included).
-    const configPhoneIds = new Set(WHATSAPP_PHONE_CONFIGS.map(c => c.phoneNumberId).filter(Boolean));
-    const metaAndConfigConfigs = allMetaConfigs.filter(config => 
-      config.phoneNumberId && configPhoneIds.has(config.phoneNumberId)
-    );
-    
+    // Staff: legacy configs only (role/area gated) + allowed channel rows.
+    // Full-access: all channel rows + legacy configs (for display labels).
     let allowedPhoneConfigs = isFullAccess
-      ? (allMetaConfigs.filter((c) => c.phoneNumberId) as ChannelPhoneConfig[])
-      : filterPhoneConfigsByRole(metaAndConfigConfigs, userRole, userAreas);
+      ? (WHATSAPP_PHONE_CONFIGS.filter((c) => c.phoneNumberId) as ChannelPhoneConfig[])
+      : (getAllowedPhoneConfigs(userRole, userAreas) as ChannelPhoneConfig[]);
 
     // Advert role: grant access to retarget phone only (for retarget WhatsApp inbox)
     if (allowedPhoneConfigs.length === 0 && userRole === "Advert") {
       const retargetPhoneId = getRetargetPhoneId();
       if (retargetPhoneId) {
-        const retargetConfig = metaAndConfigConfigs.find(
+        const retargetConfig = allowedPhoneConfigs.find(
           (c: any) => c.phoneNumberId === retargetPhoneId
         );
         if (retargetConfig) {
@@ -207,7 +183,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    allowedPhoneConfigs = Array.from(mergedByPhone.values()) as WhatsAppPhoneConfig[];
+    allowedPhoneConfigs = Array.from(mergedByPhone.values()) as ChannelPhoneConfig[];
 
     // Attach full location entries for clients (display + key)
     const locationsByPhone = new Map(
@@ -223,12 +199,12 @@ export async function GET(req: NextRequest) {
       locationsByPhone.set(channel.phoneNumberId, [...existing, ...fromChannel]);
     }
 
-    allowedPhoneConfigs = allowedPhoneConfigs.map((config: { phoneNumberId?: string }) => ({
+    allowedPhoneConfigs = allowedPhoneConfigs.map((config) => ({
       ...config,
       locations: config.phoneNumberId
         ? locationsByPhone.get(config.phoneNumberId) ?? []
         : [],
-    }));
+    })) as unknown as ChannelPhoneConfig[];
 
     return NextResponse.json({
       success: true,

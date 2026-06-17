@@ -2,147 +2,344 @@ name: Deploy to VPS (Zero-Downtime)
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
+# cancel-in-progress: true so only the newest commit deploys.
+# Queuing with false means a slow older deploy can finish AFTER
+# a newer one has already been queued, briefly running stale code.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 25
+
     steps:
-    - name: 🚀 Deploy to VPS
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.VPS_HOST }}
-        username: ${{ secrets.VPS_USERNAME }}
-        key: ${{ secrets.VPS_SSH_KEY }}
-        port: 22
-        command_timeout: 30m
-        script: |
-          set -e
-          
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🚀 Starting Zero-Downtime Deployment"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          
-          DEPLOY_DIR="/var/www/adminstro"
-          NEW_BUILD_DIR="/var/www/adminstro_new_build"
-          BACKUP_DIR="/var/www/adminstro_rollback_$(date +%Y%m%d_%H%M%S)"
-          PM2_APP_NAME="adminstro"
-          
-          echo "📊 Current status:"
-          pm2 list | grep ${PM2_APP_NAME} || echo "App not running"
-          
-          # Backup
-          echo ""
-          echo "💾 Backing up..."
-          if [ -d "${DEPLOY_DIR}/.next" ]; then
-            sudo mkdir -p ${BACKUP_DIR}
-            sudo cp -r ${DEPLOY_DIR}/.next ${DEPLOY_DIR}/package*.json ${BACKUP_DIR}/ 2>/dev/null || true
-            sudo chown -R jenkins:jenkins ${BACKUP_DIR}
-            echo "✅ Backup created"
-          fi
-          
-          # New build
-          echo ""
-          echo "📁 Preparing new build..."
-          sudo rm -rf ${NEW_BUILD_DIR}
-          sudo mkdir -p ${NEW_BUILD_DIR}
-          sudo chown -R jenkins:jenkins ${NEW_BUILD_DIR}
-          
-          cd ${NEW_BUILD_DIR}
-          git clone --depth 1 --branch main https://github.com/ZairoDev/Adminstro.git .
-          sudo chown -R jenkins:jenkins ${NEW_BUILD_DIR}
-          
-          # Copy env
-          [ -f "${DEPLOY_DIR}/.env.production" ] && cp ${DEPLOY_DIR}/.env.production .
-          [ -f "${DEPLOY_DIR}/.env.local" ] && cp ${DEPLOY_DIR}/.env.local .
-          [ ! -f ".env.local" ] && [ -f ".env.production" ] && cp .env.production .env.local
-          
-          # Install
-          echo ""
-          echo "📦 Installing..."
-          npm install || { echo "❌ Install failed"; sudo rm -rf ${NEW_BUILD_DIR}; exit 1; }
-          
-          # Build
-          echo ""
-          echo "🏗️ Building..."
-          sudo rm -rf .next
-          npm run build || { echo "❌ Build failed"; sudo rm -rf ${NEW_BUILD_DIR}; exit 1; }
-          
-          [ ! -d ".next" ] && { echo "❌ No .next"; sudo rm -rf ${NEW_BUILD_DIR}; exit 1; }
-          
-          sudo chown -R jenkins:jenkins ${NEW_BUILD_DIR}
-          echo "✅ Build: $(du -sh .next | cut -f1)"
-          
-          # Swap
-          echo ""
-          echo "🔄 Swapping..."
-          pm2 delete ${PM2_APP_NAME} 2>/dev/null || true
-          
-          TEMP_OLD="${DEPLOY_DIR}_old"
-          sudo mv ${DEPLOY_DIR} ${TEMP_OLD}
-          sudo mv ${NEW_BUILD_DIR} ${DEPLOY_DIR}
-          sudo chown -R jenkins:jenkins ${DEPLOY_DIR}
-          
-          cd ${DEPLOY_DIR}
-          pm2 start npm --name ${PM2_APP_NAME} --update-env -- start
-          pm2 save
-          
-          # Health check
-          echo ""
-          echo "🏥 Health check..."
-          sleep 15
-          
-          HEALTH_OK=false
-          
-          if pm2 describe ${PM2_APP_NAME} | grep -q "status.*online"; then
-            sleep 10
-            if pm2 describe ${PM2_APP_NAME} | grep -q "status.*online"; then
-              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000 || echo "000")
-              if [ "$HTTP_CODE" != "000" ]; then
-                HEALTH_OK=true
-              fi
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Fetch production env from VPS
+        run: |
+          set -euo pipefail
+          SSH_OPTS="-i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"
+          REMOTE="${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}"
+
+          for REMOTE_ENV in \
+            /var/www/adminstro/.env.production \
+            /var/www/adminstro/.env.local; do
+            if scp ${SSH_OPTS} "${REMOTE}:${REMOTE_ENV}" .env.production 2>/dev/null; then
+              cp .env.production .env.local
+              echo "Using env from ${REMOTE_ENV}"
+              exit 0
             fi
-          fi
-          
-          # Rollback if needed
-          if [ "$HEALTH_OK" = false ]; then
-            echo "❌ ROLLING BACK"
-            pm2 delete ${PM2_APP_NAME} 2>/dev/null || true
-            sudo rm -rf ${DEPLOY_DIR}
-            sudo mv ${TEMP_OLD} ${DEPLOY_DIR}
-            sudo chown -R jenkins:jenkins ${DEPLOY_DIR}
-            cd ${DEPLOY_DIR}
-            pm2 start npm --name ${PM2_APP_NAME} -- start
-            pm2 save
-            echo "🔄 Rollback done"
-            exit 1
-          fi
-          
-          # Success
-          echo ""
-          echo "✅ Cleaning up..."
-          sudo rm -rf ${TEMP_OLD}
-          cd /var/www && ls -t adminstro_rollback_* 2>/dev/null | tail -n +6 | xargs -r sudo rm -rf
-
-          # Cleanup old backups (keep last 5)
-          echo "🧹 Removing old rollback backups (keeping last 5)..."
-          cd /var/www
-
-          ls -dt adminstro_rollback_* 2>/dev/null | tail -n +6 | while read dir; do
-            echo "🗑️ Removing backup: $dir"
-             sudo rm -rf "$dir"
           done
 
-          echo "✅ Backup cleanup complete"
-          
-          echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🎉 DEPLOYMENT SUCCESSFUL!"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "Time: $(date)"
-          echo "Status: ONLINE ✅"
-          echo ""
-          pm2 list
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Could not fetch .env.production or .env.local from VPS"
+          exit 1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Prepare production dependencies
+        run: |
+          rm -rf node_modules
+          npm ci --omit=dev
+          # tsx must be in dependencies in package.json (not devDependencies)
+          # so it is lockfile-pinned and included by --omit=dev above.
+          # If it is still in devDependencies, move it and re-lock before merging.
+
+      - name: Package release
+        run: |
+          tar -czf release.tar.gz \
+            --exclude='.next/cache' \
+            --exclude='node_modules/.cache' \
+            .next \
+            node_modules \
+            public \
+            src \
+            socket.ts \
+            package.json \
+            package-lock.json \
+            next.config.mjs \
+            tsconfig.json \
+            postcss.config.mjs \
+            tailwind.config.ts \
+            components.json \
+            next-env.d.ts
+
+      - name: Upload release to VPS
+        run: |
+          RELEASE_ID="$(date -u +%Y%m%d_%H%M%S)_${GITHUB_SHA::7}"
+          echo "RELEASE_ID=${RELEASE_ID}" >> "${GITHUB_ENV}"
+
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            release.tar.gz \
+            "${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/tmp/adminstro_${RELEASE_ID}.tar.gz"
+
+      - name: Activate release on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          RELEASE_ID: ${{ env.RELEASE_ID }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          command_timeout: 10m
+          script_stop: true
+          envs: RELEASE_ID
+          script: |
+            set -euo pipefail
+
+            DEPLOY_DIR="/var/www/adminstro"
+            RELEASES_DIR="/var/www/adminstro_releases"
+            PM2_APP_NAME="adminstro"
+            ARCHIVE="/tmp/adminstro_${RELEASE_ID}.tar.gz"
+            NEW_RELEASE="${RELEASES_DIR}/${RELEASE_ID}"
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "Activating release: ${RELEASE_ID}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+            # ── health_check ────────────────────────────────────────────────
+            # Polls until PM2 reports online AND HTTP responds with a non-5xx
+            # code. Returns 1 after max_attempts so the caller can rollback.
+            #
+            # Fix: HTTP_CODE is explicitly defaulted to "000" (a string),
+            # then tested as a string first before integer comparison to avoid
+            # arithmetic errors under set -euo pipefail when curl misbehaves.
+            # PM2 grep now matches the exact output column ("online") rather
+            # than a loose regex that could match timestamps or other fields.
+            health_check() {
+              local attempt=1
+              local max_attempts=30   # 30 × 2s = 60s window
+
+              while [ "${attempt}" -le "${max_attempts}" ]; do
+                # pm2 jlist is machine-readable JSON; parse the status field
+                # exactly rather than grepping human-readable table output.
+                APP_STATUS="$(pm2 jlist 2>/dev/null \
+                  | python3 -c "
+import sys, json
+apps = json.load(sys.stdin)
+match = [a for a in apps if a.get('name') == '${PM2_APP_NAME}']
+print(match[0]['pm2_env']['status'] if match else 'missing')
+" 2>/dev/null || echo "error")"
+
+                if [ "${APP_STATUS}" = "online" ]; then
+                  HTTP_CODE="$(curl -s -o /dev/null -w "%{http_code}" \
+                    --max-time 5 http://localhost:3000 2>/dev/null || echo "000")"
+
+                  # String-guard first, then integer comparison — safe under pipefail.
+                  if [ "${HTTP_CODE}" != "000" ] && [ "${HTTP_CODE}" -ge 200 ] && [ "${HTTP_CODE}" -lt 500 ]; then
+                    echo "Health check passed (HTTP ${HTTP_CODE}) on attempt ${attempt}"
+                    return 0
+                  fi
+                fi
+
+                echo "Attempt ${attempt}/${max_attempts}: status=${APP_STATUS} http=${HTTP_CODE:-pending}"
+                sleep 2
+                attempt=$((attempt + 1))
+              done
+
+              echo "Health check failed after ${max_attempts} attempts"
+              return 1
+            }
+
+            # ── ensure_release_layout ────────────────────────────────────────
+            # One-time migration: converts /var/www/adminstro from a plain
+            # directory into a symlink pointing at a versioned release.
+            #
+            # Fix: the original called pm2 delete then pm2 start with no
+            # health check, guaranteeing a downtime window. This version uses
+            # pm2 reload (graceful) so existing workers keep serving until new
+            # workers are ready. delete/start is never used during migration.
+            ensure_release_layout() {
+              sudo mkdir -p "${RELEASES_DIR}"
+
+              if [ -d "${DEPLOY_DIR}" ] && [ ! -L "${DEPLOY_DIR}" ]; then
+                echo "One-time migration to release symlink layout..."
+                MIGRATED="${RELEASES_DIR}/migrated_$(date +%Y%m%d_%H%M%S)"
+                sudo mv "${DEPLOY_DIR}" "${MIGRATED}"
+                sudo ln -s "${MIGRATED}" "${DEPLOY_DIR}"
+                sudo chown -h jenkins:jenkins "${DEPLOY_DIR}" || true
+                sudo chown -R jenkins:jenkins "${MIGRATED}"
+
+                # Reload (not delete+start) so workers restart gracefully.
+                # Only fall back to a fresh start if the app isn't registered.
+                if pm2 describe "${PM2_APP_NAME}" >/dev/null 2>&1; then
+                  pm2 reload "${PM2_APP_NAME}" --update-env
+                else
+                  cd "${DEPLOY_DIR}"
+                  pm2 start npm --name "${PM2_APP_NAME}" --update-env -- start
+                fi
+                pm2 save
+              fi
+
+              if [ ! -e "${DEPLOY_DIR}" ]; then
+                sudo mkdir -p "${RELEASES_DIR}/bootstrap"
+                sudo chown -R jenkins:jenkins "${RELEASES_DIR}/bootstrap"
+                sudo ln -s "${RELEASES_DIR}/bootstrap" "${DEPLOY_DIR}"
+                sudo chown -h jenkins:jenkins "${DEPLOY_DIR}" || true
+              fi
+            }
+
+            # ── copy_runtime_env ─────────────────────────────────────────────
+            # Copies .env files from the currently-live release into the new
+            # release directory.
+            #
+            # Fix: DEPLOY_DIR may already point at the new release if the
+            # symlink was swapped before this function runs. We resolve the
+            # actual previous release path via PREVIOUS_RELEASE (captured
+            # before the swap) so we always copy from the right source.
+            copy_runtime_env() {
+              local source_dir="$1"   # explicit source, not inferred from symlink
+              local target_dir="$2"
+
+              for ENV_FILE in .env.production .env.local; do
+                if [ -f "${source_dir}/${ENV_FILE}" ]; then
+                  cp "${source_dir}/${ENV_FILE}" "${target_dir}/${ENV_FILE}"
+                fi
+              done
+
+              if [ ! -f "${target_dir}/.env.local" ] && [ -f "${target_dir}/.env.production" ]; then
+                cp "${target_dir}/.env.production" "${target_dir}/.env.local"
+              fi
+            }
+
+            # ── rollback_to ──────────────────────────────────────────────────
+            # Points the symlink back at the previous release and reloads PM2.
+            rollback_to() {
+              local previous_release="$1"
+
+              if [ -n "${previous_release}" ] && [ -d "${previous_release}" ]; then
+                echo "Rolling back to ${previous_release}"
+                sudo ln -sfn "${previous_release}" "${DEPLOY_DIR}"
+                sudo chown -h jenkins:jenkins "${DEPLOY_DIR}" || true
+
+                if pm2 describe "${PM2_APP_NAME}" >/dev/null 2>&1; then
+                  pm2 reload "${PM2_APP_NAME}" --update-env
+                else
+                  cd "${DEPLOY_DIR}"
+                  pm2 start npm --name "${PM2_APP_NAME}" --update-env -- start
+                fi
+                pm2 save
+              else
+                echo "WARNING: No valid previous release to roll back to (${previous_release})"
+              fi
+            }
+
+            # ── cleanup_old_releases ─────────────────────────────────────────
+            # Removes releases older than the 5 most recent, but re-reads the
+            # live symlink at call time rather than relying on variables that
+            # may be stale after a rollback.
+            #
+            # Fix: original captured PREVIOUS_RELEASE and NEW_RELEASE in
+            # variables set before a potential rollback. After a rollback the
+            # symlink changes but the variables don't, so the guard could allow
+            # deletion of the now-live release. Reading the symlink here avoids
+            # that race.
+            cleanup_old_releases() {
+              local live_release
+              live_release="$(readlink -f "${DEPLOY_DIR}" 2>/dev/null || echo "")"
+
+              echo "Cleaning up old releases (keeping last 5, live=${live_release})..."
+              cd "${RELEASES_DIR}"
+              ls -dt */ 2>/dev/null | tail -n +6 | while read -r dir; do
+                TARGET="${RELEASES_DIR}/${dir%/}"
+                if [ "${TARGET}" = "${live_release}" ]; then
+                  echo "Skipping live release: ${TARGET}"
+                  continue
+                fi
+                echo "Removing ${TARGET}"
+                sudo rm -rf "${TARGET}"
+              done
+
+              # Remove legacy artifacts from the old pipeline.
+              cd /var/www
+              ls -dt adminstro_rollback_* 2>/dev/null | tail -n +1 | while read -r dir; do
+                echo "Removing legacy backup ${dir}"
+                sudo rm -rf "${dir}"
+              done
+              sudo rm -rf /var/www/adminstro_new_build 2>/dev/null || true
+            }
+
+            # ── main ─────────────────────────────────────────────────────────
+
+            ensure_release_layout
+
+            if [ ! -f "${ARCHIVE}" ]; then
+              echo "Release archive not found: ${ARCHIVE}"
+              exit 1
+            fi
+
+            # Resolve the previous release BEFORE touching the symlink.
+            PREVIOUS_RELEASE=""
+            if [ -L "${DEPLOY_DIR}" ]; then
+              PREVIOUS_RELEASE="$(readlink -f "${DEPLOY_DIR}")"
+            fi
+
+            echo "Extracting release to ${NEW_RELEASE}..."
+            sudo rm -rf "${NEW_RELEASE}"
+            sudo mkdir -p "${NEW_RELEASE}"
+            sudo tar -xzf "${ARCHIVE}" -C "${NEW_RELEASE}"
+            sudo chown -R jenkins:jenkins "${NEW_RELEASE}"
+            rm -f "${ARCHIVE}"
+
+            # Pass the explicit previous-release path so copy_runtime_env
+            # reads from the right directory regardless of symlink state.
+            copy_runtime_env "${PREVIOUS_RELEASE}" "${NEW_RELEASE}"
+
+            echo "Switching live symlink..."
+            sudo ln -sfn "${NEW_RELEASE}" "${DEPLOY_DIR}"
+            sudo chown -h jenkins:jenkins "${DEPLOY_DIR}" || true
+
+            cd "${DEPLOY_DIR}"
+
+            if pm2 describe "${PM2_APP_NAME}" >/dev/null 2>&1; then
+              pm2 reload "${PM2_APP_NAME}" --update-env
+            else
+              pm2 start npm --name "${PM2_APP_NAME}" --update-env -- start
+            fi
+            pm2 save
+
+            echo "Running health checks..."
+            if ! health_check; then
+              echo "Health check failed — initiating rollback"
+              rollback_to "${PREVIOUS_RELEASE}"
+              sudo rm -rf "${NEW_RELEASE}"
+              exit 1
+            fi
+
+            # Cleanup runs only after a confirmed healthy deploy, and re-reads
+            # the symlink internally so it always protects the live release.
+            cleanup_old_releases
+
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "DEPLOYMENT SUCCESSFUL"
+            echo "Release: ${RELEASE_ID}"
+            echo "Time: $(date)"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            pm2 list

@@ -27,6 +27,53 @@ function parseConversationType(value: unknown): "owner" | "guest" | null {
   return null;
 }
 
+function mergeChannelFieldsIntoUpdate(
+  update: Record<string, string>,
+  channelFields: Awaited<ReturnType<typeof resolveChannelFieldsForConversationLocation>>,
+): void {
+  if (!channelFields) return;
+  update.whatsappChannelId = channelFields.whatsappChannelId;
+  update.businessPhoneId = channelFields.businessPhoneId;
+  if (channelFields.channelType) {
+    update.channelType = channelFields.channelType;
+  }
+  if (channelFields.rentalType) {
+    update.rentalType = channelFields.rentalType;
+  }
+  if (channelFields.businessPortfolioId) {
+    update.businessPortfolioId = channelFields.businessPortfolioId;
+  }
+  if (channelFields.wabaId) {
+    update.wabaId = channelFields.wabaId;
+  }
+}
+
+async function restampOutboundChannelForConversation(params: {
+  update: Record<string, string>;
+  conversation: {
+    rentalType?: string;
+    participantLocation?: string;
+    participantLocationKey?: string;
+    conversationType?: string;
+  };
+  conversationType: "owner" | "guest";
+  displayLocation: string;
+  locationKey: string;
+}): Promise<void> {
+  const convRental = resolveConversationRentalType(params.conversation.rentalType);
+  if (!params.conversation.rentalType?.trim()) {
+    params.update.rentalType = DEFAULT_CONVERSATION_RENTAL_TYPE;
+  }
+
+  const channelFields = await resolveChannelFieldsForConversationLocation({
+    participantLocation: params.displayLocation,
+    participantLocationKey: params.locationKey,
+    rentalType: convRental,
+    conversationType: params.conversationType,
+  });
+  mergeChannelFieldsIntoUpdate(params.update, channelFields);
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { conversationId: string } }
@@ -57,6 +104,12 @@ export async function POST(
 
     const body = await req.json();
     const update: Record<string, string> = {};
+    const parsedConversationType = parseConversationType(body.conversationType);
+    const storedType = (conversation as { conversationType?: string }).conversationType;
+    const nextConversationType: "owner" | "guest" =
+      parsedConversationType ??
+      (storedType === "owner" || storedType === "guest" ? storedType : "guest");
+
     if (typeof body.participantName === "string") {
       update.participantName = body.participantName;
     }
@@ -65,8 +118,8 @@ export async function POST(
     }
 
     // Primary field for owner/guest classification
-    if (parseConversationType(body.conversationType)) {
-      update.conversationType = parseConversationType(body.conversationType)!;
+    if (parsedConversationType) {
+      update.conversationType = parsedConversationType;
     }
 
     // participantLocation — owners/guests; city team + admins
@@ -116,37 +169,39 @@ export async function POST(
       update.participantLocation = displayLocation;
       update.participantLocationKey = locationKeyFromDisplay(displayLocation);
 
-      const convRental = resolveConversationRentalType(
-        (conversation as { rentalType?: string }).rentalType,
-      );
-      if (!(conversation as { rentalType?: string }).rentalType?.trim()) {
-        update.rentalType = DEFAULT_CONVERSATION_RENTAL_TYPE;
-      }
-
-      // Re-route outbound line to the new location's guest/owner channel.
-      const channelFields = await resolveChannelFieldsForConversationLocation({
-        participantLocation: displayLocation,
-        participantLocationKey: update.participantLocationKey,
-        rentalType: convRental,
-        channelType: (conversation as { channelType?: "guest" | "owner" }).channelType,
-        conversationType: (conversation as { conversationType?: "guest" | "owner" })
-          .conversationType,
+      await restampOutboundChannelForConversation({
+        update,
+        conversation: conversation as {
+          rentalType?: string;
+          participantLocation?: string;
+          participantLocationKey?: string;
+          conversationType?: string;
+        },
+        conversationType: nextConversationType,
+        displayLocation,
+        locationKey: update.participantLocationKey,
       });
-      if (channelFields) {
-        update.whatsappChannelId = channelFields.whatsappChannelId;
-        update.businessPhoneId = channelFields.businessPhoneId;
-        if (channelFields.channelType) {
-          update.channelType = channelFields.channelType;
-        }
-        if (channelFields.rentalType) {
-          update.rentalType = channelFields.rentalType;
-        }
-        if (channelFields.businessPortfolioId) {
-          update.businessPortfolioId = channelFields.businessPortfolioId;
-        }
-        if (channelFields.wabaId) {
-          update.wabaId = channelFields.wabaId;
-        }
+    } else if (parsedConversationType) {
+      const existingLocation =
+        (conversation as { participantLocation?: string }).participantLocation?.trim() ||
+        "";
+      const existingLocationKey =
+        (conversation as { participantLocationKey?: string }).participantLocationKey?.trim() ||
+        (existingLocation ? locationKeyFromDisplay(existingLocation) : "");
+
+      if (existingLocation) {
+        await restampOutboundChannelForConversation({
+          update,
+          conversation: conversation as {
+            rentalType?: string;
+            participantLocation?: string;
+            participantLocationKey?: string;
+            conversationType?: string;
+          },
+          conversationType: parsedConversationType,
+          displayLocation: existingLocation,
+          locationKey: existingLocationKey,
+        });
       }
     }
 
@@ -160,9 +215,12 @@ export async function POST(
       { new: true }
     ).lean();
 
-    // Emit socket refresh so the conversation moves out of Admin Queue
-    // and appears in the correct city team's inbox immediately
-    if (update.participantLocationKey && updated) {
+    const shouldEmitConversationUpdate =
+      Boolean(update.participantLocationKey) ||
+      Boolean(update.conversationType) ||
+      Boolean(update.businessPhoneId);
+
+    if (shouldEmitConversationUpdate && updated) {
       try {
         await emitWhatsAppEventToEligibleUsers(
           WHATSAPP_EVENTS.CONVERSATION_UPDATE,
@@ -171,14 +229,22 @@ export async function POST(
             conversationId,
             businessPhoneId: (updated as { businessPhoneId?: string }).businessPhoneId,
             updates: {
-              participantLocation: update.participantLocation,
-              participantLocationKey: update.participantLocationKey,
+              ...(update.participantLocation
+                ? { participantLocation: update.participantLocation }
+                : {}),
+              ...(update.participantLocationKey
+                ? { participantLocationKey: update.participantLocationKey }
+                : {}),
+              ...(update.conversationType
+                ? { conversationType: update.conversationType }
+                : {}),
               ...(update.businessPhoneId
                 ? { businessPhoneId: update.businessPhoneId }
                 : {}),
               ...(update.whatsappChannelId
                 ? { whatsappChannelId: update.whatsappChannelId }
                 : {}),
+              ...(update.channelType ? { channelType: update.channelType } : {}),
             },
           }
         );

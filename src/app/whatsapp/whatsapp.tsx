@@ -671,10 +671,24 @@ export default function WhatsAppChat() {
   const handleConversationTypeChange = useCallback(
     async (conversationId: string, conversationType: "owner" | "guest") => {
       try {
-        await axios.post(`/api/whatsapp/conversations/${conversationId}/meta`, {
-          conversationType,
-        });
-        handleUpdateConversation(conversationId, { conversationType });
+        const response = await axios.post(
+          `/api/whatsapp/conversations/${conversationId}/meta`,
+          { conversationType },
+        );
+        const patch: Partial<Conversation> = { conversationType };
+        const updated = response.data?.updated as Record<string, string> | undefined;
+        if (updated?.businessPhoneId) {
+          patch.businessPhoneId = updated.businessPhoneId;
+        }
+        if (updated?.whatsappChannelId) {
+          (patch as { whatsappChannelId?: string }).whatsappChannelId =
+            updated.whatsappChannelId;
+        }
+        if (updated?.channelType === "guest" || updated?.channelType === "owner") {
+          (patch as { channelType?: "guest" | "owner" }).channelType =
+            updated.channelType;
+        }
+        handleUpdateConversation(conversationId, patch);
         toast({
           title: "Conversation updated",
           description: `Marked as ${conversationType}.`,
@@ -2917,16 +2931,26 @@ export default function WhatsAppChat() {
   };
 
   const fetchTemplates = async (conversationId?: string | null) => {
+    if (!conversationId) {
+      setTemplates([]);
+      setTemplatesChannelScoped(false);
+      return;
+    }
     try {
       setTemplatesLoading(true);
-      const params: Record<string, string> = {};
-      if (conversationId) {
-        params.conversationId = conversationId;
-      }
-      const response = await axios.get("/api/whatsapp/templates", { params });
+      const response = await axios.get("/api/whatsapp/templates", {
+        params: { conversationId },
+      });
       if (response.data.success) {
         setTemplates(response.data.templates);
         setTemplatesChannelScoped(Boolean(response.data.channelScoped));
+        if (response.data.metaUnavailable && response.data.warning) {
+          toast({
+            title: "Templates unavailable",
+            description: String(response.data.warning),
+            variant: "destructive",
+          });
+        }
       }
     } catch (error: any) {
       console.error("Error fetching templates:", error);
@@ -3063,7 +3087,12 @@ export default function WhatsAppChat() {
     const typeParam = searchParams?.get("conversationType");
     const openType =
       typeParam === "guest" || typeParam === "owner" ? typeParam : undefined;
-    const cacheKey = `${phoneParam}_${locationParam}_${openType ?? ""}`;
+    const rentalTypeParam = searchParams?.get("rentalType");
+    const openRentalType =
+      rentalTypeParam === "Short Term" || rentalTypeParam === "Long Term"
+        ? rentalTypeParam
+        : undefined;
+    const cacheKey = `${phoneParam}_${locationParam}_${openType ?? ""}_${openRentalType ?? ""}`;
     if (openedByPhoneRef.current === cacheKey) return;
     openedByPhoneRef.current = cacheKey;
 
@@ -3079,7 +3108,13 @@ export default function WhatsAppChat() {
           try {
             const resolveRes = await axios.get(
               "/api/whatsapp/resolve-phone-for-location",
-              { params: { location: locationParam } },
+              {
+                params: {
+                  location: locationParam,
+                  ...(openType ? { conversationType: openType } : {}),
+                  ...(openRentalType ? { rentalType: openRentalType } : {}),
+                },
+              },
             );
             phoneNumberId = resolveRes.data.phoneNumberId || phoneNumberId;
           } catch {
@@ -3147,6 +3182,7 @@ export default function WhatsAppChat() {
             participantLocation: locationParam || undefined,
             location: locationParam || undefined,
             conversationType: openType,
+            ...(openRentalType ? { rentalType: openRentalType } : {}),
             ...(profilePicParam ? { participantProfilePic: profilePicParam } : {}),
           });
           if (createRes.data.success) {

@@ -20,7 +20,27 @@
  */
 
 import type { WhatsappChannelType } from "@/models/whatsappChannel";
-import { FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { FULL_ACCESS_ROLES, WHATSAPP_ACCESS_ROLES } from "@/lib/whatsapp/config";
+
+/** Roles that may open owner threads (owner sheet, add owner) in their allotted area. */
+const OWNER_OUTREACH_ROLES: readonly string[] = [
+  "Sales",
+  "sales-intern",
+  "Sales-TeamLead",
+  "OwnerSales",
+  "OwnerLeadGen",
+  "OwnerAdvert",
+];
+
+function effectiveConversationChannelType(params: {
+  channelType?: unknown;
+  conversationType?: unknown;
+}): WhatsappChannelType | null {
+  if (params.conversationType === "guest") return "guest";
+  if (params.conversationType === "owner") return "owner";
+  const ct = String(params.channelType ?? "").trim();
+  return ct ? (ct as WhatsappChannelType) : null;
+}
 
 const CHANNEL_TYPE_ROLE_MAP: Record<string, WhatsappChannelType[]> = {
   // Guest-facing sales & lead gen
@@ -66,15 +86,31 @@ export function getAllowedChannelTypes(role: string | undefined): WhatsappChanne
 export function channelTypeVisibleToRole(
   role: string | undefined,
   conversationChannelType: unknown,
+  conversationType?: unknown,
 ): boolean {
-  const allowed = getAllowedChannelTypes(role);
-  if (allowed === null) return true; // no restriction
+  const r = (role || "").trim();
+  const allowed = getAllowedChannelTypes(r);
+  if (allowed === null) return true;
 
-  // Legacy conversation without channelType — visible
-  const ct = String(conversationChannelType ?? "").trim();
-  if (!ct) return true;
+  const effective = effectiveConversationChannelType({
+    channelType: conversationChannelType,
+    conversationType,
+  });
+  if (!effective) return true;
 
-  return allowed.includes(ct as WhatsappChannelType);
+  if (allowed.includes(effective)) return true;
+
+  // Owner-sheet / add-owner: Sales-family roles may access owner threads in
+  // their allotted area (location gate is applied separately).
+  if (
+    effective === "owner" &&
+    OWNER_OUTREACH_ROLES.includes(r) &&
+    (WHATSAPP_ACCESS_ROLES as readonly string[]).includes(r)
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -84,15 +120,32 @@ export function channelTypeVisibleToRole(
 export function buildChannelTypeVisibilityClause(
   role: string | undefined,
 ): Record<string, unknown> | null {
-  const allowed = getAllowedChannelTypes(role);
+  const r = (role || "").trim();
+  const allowed = getAllowedChannelTypes(r);
   if (allowed === null) return null;
 
-  return {
-    $or: [
-      { channelType: { $in: allowed } },
-      { channelType: { $exists: false } },
-      { channelType: null },
-      { channelType: "" },
-    ],
-  };
+  const orClauses: Record<string, unknown>[] = [
+    { channelType: { $in: allowed } },
+    { channelType: { $exists: false } },
+    { channelType: null },
+    { channelType: "" },
+  ];
+
+  // Owner outreach roles see explicit owner threads even when channelType is guest/stale.
+  if (
+    OWNER_OUTREACH_ROLES.includes(r) &&
+    (WHATSAPP_ACCESS_ROLES as readonly string[]).includes(r) &&
+    !allowed.includes("owner")
+  ) {
+    orClauses.push({ conversationType: "owner" });
+  }
+
+  const guestOwnerTypes = allowed.filter(
+    (t): t is "guest" | "owner" => t === "guest" || t === "owner",
+  );
+  if (guestOwnerTypes.length > 0) {
+    orClauses.push({ conversationType: { $in: guestOwnerTypes } });
+  }
+
+  return { $or: orClauses };
 }

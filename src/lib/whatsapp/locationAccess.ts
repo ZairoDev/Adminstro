@@ -11,6 +11,7 @@
  * canUserSeeConversation() for runtime per-document checks.
  */
 
+import { toDisplayCity } from "@/lib/city-normalizer";
 import { FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
 import { getPhoneIdsForUserAreasSync } from "@/lib/whatsapp/phoneAreaConfigService";
 import {
@@ -81,6 +82,188 @@ import {
 // Mongo filter builders
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Match participant city — lowercase-normalize keys and display labels before compare. */
+function buildParticipantLocationMatchClause(
+  normalizedAreas: string[],
+): Record<string, unknown> {
+  if (normalizedAreas.length === 0) return {};
+
+  const matchLower = (field: string) => ({
+    $expr: {
+      $or: normalizedAreas.map((area) => ({
+        $eq: [
+          {
+            $toLower: {
+              $trim: { input: { $ifNull: [`$${field}`, ""] } },
+            },
+          },
+          area,
+        ],
+      })),
+    },
+  });
+
+  return {
+    $or: [matchLower("participantLocationKey"), matchLower("participantLocation")],
+  };
+}
+
+function buildWhatsappChannelIdVisibilityBranch(
+  accessibleChannelIds: string[],
+  normalizedAreas: string[],
+): Record<string, unknown> {
+  const base = { whatsappChannelId: { $in: accessibleChannelIds } };
+  if (normalizedAreas.length === 0) return base;
+  const locationClause = buildParticipantLocationMatchClause(normalizedAreas);
+  if (!("$or" in locationClause)) return base;
+  return { $and: [base, locationClause] };
+}
+
+const UNALLOCATED_AREA_SKIP_LOCATION_CHECK: readonly string[] = [
+  "Sales",
+  "sales-intern",
+  "Sales-TeamLead",
+  "LeadGen",
+  "LeadGen-TeamLead",
+];
+
+/**
+ * Runtime location check — mirrors Mongo staff location clauses.
+ * Allocated staff must have an explicit area match; unset location is excluded.
+ */
+export function participantLocationMatchesUserAreas(
+  conversation: {
+    participantLocationKey?: string;
+    participantLocation?: string;
+  },
+  userAreas: string[],
+  role = "",
+): boolean {
+  const normalizedAreas = normalizeAreas(userAreas);
+
+  const rawKey = conversation.participantLocationKey?.trim() || "";
+  const rawDisplay = conversation.participantLocation?.trim() || "";
+  const conversationKey = rawKey
+    ? locationKeyFromDisplay(rawKey)
+    : rawDisplay
+      ? locationKeyFromDisplay(rawDisplay)
+      : "";
+
+  if (!conversationKey) {
+    if (
+      normalizedAreas.length === 0 &&
+      UNALLOCATED_AREA_SKIP_LOCATION_CHECK.includes(role)
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  if (normalizedAreas.length === 0) {
+    if (UNALLOCATED_AREA_SKIP_LOCATION_CHECK.includes(role)) return true;
+    return false;
+  }
+
+  return normalizedAreas.includes(conversationKey);
+}
+
+/**
+ * Async runtime check — mirrors buildConversationVisibilityFilterAsync.
+ * Use in API routes instead of duplicating phone/location/channel rules.
+ */
+export async function conversationMatchesStaffVisibilityAsync(
+  user: VisibilityUser,
+  conversation: Record<string, unknown>,
+): Promise<boolean> {
+  const role = user.role || "";
+
+  if (
+    !rentalTypeVisibleToUser(role, user.rentalType, conversation.rentalType)
+  ) {
+    return false;
+  }
+
+  if (!channelTypeVisibleToRole(role, conversation.channelType, conversation.conversationType)) {
+    return false;
+  }
+
+  const userAreas = getUserAreasFromToken(user);
+  const { resolveUserAllowedPhoneIds, getAccessibleChannelIds, canUserAccessPhoneId } =
+    await import("@/lib/whatsapp/phoneAreaConfigService");
+
+  const allowedPhoneIds = await resolveUserAllowedPhoneIds(role, userAreas);
+  const accessibleChannelIds = await getAccessibleChannelIds(
+    role,
+    userAreas,
+    user.rentalType,
+  );
+
+  if (
+    conversation.whatsappChannelId &&
+    accessibleChannelIds.includes(String(conversation.whatsappChannelId))
+  ) {
+    const normalizedAreas = normalizeAreas(userAreas);
+    if (normalizedAreas.length === 0) return true;
+    return participantLocationMatchesUserAreas(
+      conversation as { participantLocationKey?: string; participantLocation?: string },
+      userAreas,
+      role,
+    );
+  }
+
+  const phoneId = String(conversation.businessPhoneId || "").trim();
+  if (!phoneId) return false;
+
+  const phoneOk =
+    allowedPhoneIds.includes(phoneId) ||
+    (await canUserAccessPhoneId(phoneId, role, userAreas, {
+      userRentalType: user.rentalType,
+    }));
+
+  if (!phoneOk) return false;
+
+  return participantLocationMatchesUserAreas(
+    conversation as { participantLocationKey?: string; participantLocation?: string },
+    userAreas,
+    role,
+  );
+}
+
+function buildScopedStaffVisibilityFilter(
+  user: VisibilityUser,
+  allowedPhoneIds: string[],
+): Record<string, unknown> {
+  const role = user.role || "";
+
+  if (allowedPhoneIds.length === 0) {
+    return { _id: null };
+  }
+
+  const normalizedAreas = normalizeAreas(getUserAreasFromToken(user));
+  if (normalizedAreas.length === 0) {
+    const unallocatedBypassRoles: readonly string[] = [
+      "Sales", "sales-intern", "Sales-TeamLead", "LeadGen", "LeadGen-TeamLead",
+    ];
+    if (unallocatedBypassRoles.includes(role)) {
+      return applyVisibilityFilters(
+        { businessPhoneId: { $in: allowedPhoneIds } },
+        user,
+      );
+    }
+    return { _id: null };
+  }
+
+  return applyVisibilityFilters(
+    {
+      $and: [
+        { businessPhoneId: { $in: allowedPhoneIds } },
+        buildParticipantLocationMatchClause(normalizedAreas),
+      ],
+    },
+    user,
+  );
+}
+
 /**
  * Build a MongoDB filter that enforces the dual visibility rule:
  *   (phone ∈ allowedPhoneIds) AND (locationKey ∈ userNormalizedAreas)
@@ -110,38 +293,10 @@ export function buildConversationVisibilityFilter(
 
   // Full-access roles: no location constraint beyond phone (if they chose a specific phone)
   if (isFullAccess) {
-    // Return empty filter — phone scoping handled by callers via phoneIdFilter
     return {};
   }
 
-  if (allowedPhoneIds.length === 0) {
-    return { _id: null };
-  }
-
-  const normalizedAreas = normalizeAreas(userAreas);
-  if (normalizedAreas.length === 0) {
-    // For roles that get all phone lines when no area is configured, scope
-    // by phone only (mirrors UNALLOCATED_AREA_USES_ALL_LINES in config.ts).
-    // All other roles see nothing until the admin assigns them an area.
-    const unallocatedBypassRoles: readonly string[] = [
-      "Sales", "sales-intern", "Sales-TeamLead", "LeadGen", "LeadGen-TeamLead",
-    ];
-    if (unallocatedBypassRoles.includes(role)) {
-      return applyVisibilityFilters(
-        { businessPhoneId: { $in: allowedPhoneIds } },
-        user,
-      );
-    }
-    return { _id: null };
-  }
-
-  return applyVisibilityFilters(
-    {
-      businessPhoneId: { $in: allowedPhoneIds },
-      participantLocationKey: { $in: normalizedAreas },
-    },
-    user,
-  );
+  return buildScopedStaffVisibilityFilter(user, allowedPhoneIds);
 }
 
 /**
@@ -156,7 +311,9 @@ export async function buildConversationVisibilityFilterAsync(
   user: VisibilityUser,
   opts: { adminQueue?: boolean } = {},
 ): Promise<Record<string, unknown>> {
-  const { getAccessibleChannelIds } = await import("@/lib/whatsapp/phoneAreaConfigService");
+  const { getAccessibleChannelIds, resolveUserAllowedPhoneIds } = await import(
+    "@/lib/whatsapp/phoneAreaConfigService"
+  );
 
   const role = user.role || "";
   const isFullAccess = (FULL_ACCESS_ROLES as readonly string[]).includes(role);
@@ -166,24 +323,37 @@ export async function buildConversationVisibilityFilterAsync(
     return buildAdminQueueFilter();
   }
 
-  // Full-access: no filter needed (callers may add phone scoping separately)
   if (isFullAccess) return {};
 
-  const syncFilter = buildConversationVisibilityFilter(user, opts);
-  // If sync already returns no-match, nothing to extend.
-  if ("_id" in syncFilter && syncFilter._id === null) return syncFilter;
-
   const userAreas = getUserAreasFromToken(user);
-  const accessibleChannelIds = await getAccessibleChannelIds(role, userAreas, user.rentalType);
+  const allowedPhoneIds = await resolveUserAllowedPhoneIds(role, userAreas);
+  const accessibleChannelIds = await getAccessibleChannelIds(
+    role,
+    userAreas,
+    user.rentalType,
+  );
+
+  const normalizedAreas = normalizeAreas(userAreas);
+
+  const syncFilter = buildScopedStaffVisibilityFilter(user, allowedPhoneIds);
+
+  if ("_id" in syncFilter && syncFilter._id === null) {
+    if (accessibleChannelIds.length === 0) return syncFilter;
+    return applyVisibilityFilters(
+      buildWhatsappChannelIdVisibilityBranch(accessibleChannelIds, normalizedAreas),
+      user,
+    );
+  }
 
   if (accessibleChannelIds.length === 0) return syncFilter;
 
-  // Merge: conversation matches if it passes the sync phone+location filter OR
-  // if its frozen whatsappChannelId is one we can access.
   return {
     $or: [
       syncFilter,
-      { whatsappChannelId: { $in: accessibleChannelIds } },
+      applyVisibilityFilters(
+        buildWhatsappChannelIdVisibilityBranch(accessibleChannelIds, normalizedAreas),
+        user,
+      ),
     ],
   };
 }
@@ -246,6 +416,7 @@ export function canUserSeeConversation(
     participantLocation?: string;
     rentalType?: unknown;
     channelType?: unknown;
+    conversationType?: "owner" | "guest";
   },
   opts: { skipPhoneCheck?: boolean; skipLocationCheck?: boolean } = {},
 ): boolean {
@@ -268,7 +439,7 @@ export function canUserSeeConversation(
   }
 
   // Channel-type gate (backward compatible: legacy conversations without channelType pass).
-  if (!channelTypeVisibleToRole(role, conversation.channelType)) {
+  if (!channelTypeVisibleToRole(role, conversation.channelType, conversation.conversationType)) {
     return false;
   }
 
@@ -284,10 +455,11 @@ export function canUserSeeConversation(
     // Cache may be cold — allow if location matches allotted area for WhatsApp roles
     const normalizedAreas = normalizeAreas(userAreas);
     const fallbackKey =
-      conversation.participantLocationKey ||
-      (conversation.participantLocation
-        ? locationKeyFromDisplay(conversation.participantLocation)
-        : "");
+      conversation.participantLocationKey?.trim()
+        ? locationKeyFromDisplay(conversation.participantLocationKey)
+        : conversation.participantLocation?.trim()
+          ? locationKeyFromDisplay(conversation.participantLocation)
+          : "";
     const locationOk =
       fallbackKey &&
       (normalizedAreas.includes(fallbackKey) ||
@@ -304,27 +476,7 @@ export function canUserSeeConversation(
     return true;
   }
 
-  // Empty key — try participantLocation display, then admin queue
-  let key = conversation.participantLocationKey || "";
-  if (!key && conversation.participantLocation?.trim()) {
-    key = locationKeyFromDisplay(conversation.participantLocation);
-  }
-  if (!key) return canAccessWhatsAppAdminQueue(user);
-
-  const normalizedAreas = normalizeAreas(userAreas);
-
-  // Mirror UNALLOCATED_AREA_USES_ALL_LINES: if no areas are assigned but the
-  // user already passed the phone check above, let them see conversations on
-  // their allowed phones regardless of location key.
-  if (normalizedAreas.length === 0) {
-    const unallocatedBypassRoles: readonly string[] = [
-      "Sales", "sales-intern", "Sales-TeamLead", "LeadGen", "LeadGen-TeamLead",
-    ];
-    if (unallocatedBypassRoles.includes(role)) return true;
-    return false;
-  }
-
-  return normalizedAreas.includes(key);
+  return participantLocationMatchesUserAreas(conversation, userAreas, role);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -338,14 +490,6 @@ export function canUserSeeConversation(
 // Roles that are allowed to create conversations for any location when they
 // have no allotedArea configured — mirrors the UNALLOCATED_AREA_USES_ALL_LINES
 // bypass in config.ts so the phone-access and location-key checks are consistent.
-const UNALLOCATED_AREA_SKIP_LOCATION_CHECK: readonly string[] = [
-  "Sales",
-  "sales-intern",
-  "Sales-TeamLead",
-  "LeadGen",
-  "LeadGen-TeamLead",
-];
-
 export function assertLocationAllowedForCreate(
   user: { role?: string; allotedArea?: string | string[] },
   location: string,

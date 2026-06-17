@@ -1053,6 +1053,7 @@ const handleSave = async (
                         profilePic: (query as { profilePicture?: string }).profilePicture,
                         location: query?.location,
                         conversationType: "guest",
+                        bookingTerm: query?.bookingTerm,
                       })}
                       rel="noopener noreferrer"
                       onClick={() => {

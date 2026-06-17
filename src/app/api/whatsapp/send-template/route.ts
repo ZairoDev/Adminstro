@@ -18,6 +18,7 @@ import {
   explainOutboundSendCredentialsFailure,
   getOutboundTokenForPhoneId,
   resolveOutboundSendCredentials,
+  toOutboundTokenConversation,
 } from "@/lib/whatsapp/channelService";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
 import RetargetContact from "@/models/retargetContact";
@@ -192,8 +193,10 @@ export async function POST(req: NextRequest) {
     }
 
     const convForToken = conversation
-      ? (conversation.toObject ? conversation.toObject() : conversation)
-      : null;
+      ? toOutboundTokenConversation(
+          conversation.toObject ? conversation.toObject() : conversation,
+        )
+      : undefined;
 
     let sendPhoneNumberId = phoneNumberId;
     let whatsappToken: string;
@@ -210,24 +213,14 @@ export async function POST(req: NextRequest) {
     } else {
       const credentials = await resolveOutboundSendCredentials({
         phoneNumberId,
-        conversation: convForToken
-          ? {
-              whatsappChannelId: convForToken.whatsappChannelId,
-              businessPhoneId: convForToken.businessPhoneId,
-            }
-          : undefined,
+        conversation: convForToken,
         allowWabaPhoneFallback: !conversationId,
       });
 
       if (!credentials) {
         const failure = await explainOutboundSendCredentialsFailure({
           phoneNumberId,
-          conversation: convForToken
-            ? {
-                whatsappChannelId: convForToken.whatsappChannelId,
-                businessPhoneId: convForToken.businessPhoneId,
-              }
-            : undefined,
+          conversation: convForToken,
         });
         console.error("📨 [send-template] credential resolution failed", failure);
         return NextResponse.json(

@@ -459,11 +459,14 @@ useEffect(() => {
   ) => {
     e.stopPropagation();
     e.preventDefault();
-    const url = buildOwnerSheetWhatsAppUrl({
-      phoneNumber: owner.phoneNumber,
-      name: owner.name,
-      location: owner.location,
-    });
+    const url = buildOwnerSheetWhatsAppUrl(
+      {
+        phoneNumber: owner.phoneNumber,
+        name: owner.name,
+        location: owner.location,
+      },
+      sheetVariant === "short-term" ? "Short Term" : "Long Term",
+    );
     if (!url) return;
     window.open(url, "_blank", "noopener,noreferrer");
   };

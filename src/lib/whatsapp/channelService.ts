@@ -62,9 +62,11 @@ export function inferChannelTypeFromConversation(params: {
   channelType?: WhatsappChannelType | null;
   conversationType?: "owner" | "guest" | null;
 }): WhatsappChannelType | null {
-  if (params.channelType) return params.channelType;
+  // conversationType is authoritative for guest/owner CRM threads — stale
+  // channelType must not keep routing on the old line after a type switch.
   if (params.conversationType === "guest") return "guest";
   if (params.conversationType === "owner") return "owner";
+  if (params.channelType) return params.channelType;
   return null;
 }
 
@@ -104,18 +106,7 @@ export async function resolveOutboundChannelForConversation(
     "";
   const rentalType = resolveConversationRentalType(conversation.rentalType);
 
-  // Open threads stay on their frozen business line when the snapshot still matches.
-  if (conversation.whatsappChannelId && conversation.businessPhoneId?.trim()) {
-    const frozen = await resolveChannelContextFromConversation(conversation);
-    if (
-      frozen &&
-      frozen.phoneNumberId.trim() === conversation.businessPhoneId.trim()
-    ) {
-      return { channel: frozen, source: "frozen_channel" };
-    }
-  }
-
-  // Current location is authoritative when guest/owner is reassigned to a new city.
+  // Current location + guest/owner type is authoritative (Athens owner vs guest line).
   if (location) {
     const routed = await resolveWhatsappChannel({
       location,
@@ -396,10 +387,53 @@ export function normalizeStoredWabaId(
 // OUTBOUND SEND CREDENTIALS (phone + token pairs)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type OutboundTokenConversation = {
-  whatsappChannelId?: mongoose.Types.ObjectId | string | null;
-  businessPhoneId?: string;
-};
+export type OutboundTokenConversation = OutboundConversationContext;
+
+/** Build token/credential context from a loaded conversation document. */
+export function toOutboundTokenConversation(
+  conversation: OutboundConversationContext | null | undefined,
+): OutboundTokenConversation | undefined {
+  if (!conversation) return undefined;
+  return {
+    whatsappChannelId: conversation.whatsappChannelId,
+    businessPhoneId: conversation.businessPhoneId,
+    participantLocation: conversation.participantLocation,
+    participantLocationKey: conversation.participantLocationKey,
+    rentalType: conversation.rentalType,
+    channelType: conversation.channelType,
+    conversationType: conversation.conversationType,
+    isRetarget: conversation.isRetarget,
+  };
+}
+
+/**
+ * Resolve the channel row whose token/WABA should be used operationally.
+ * Prefers current location + guest/owner routing over a frozen/inactive snapshot.
+ */
+export async function resolveCredentialChannelForConversation(
+  conversation: OutboundTokenConversation,
+): Promise<ResolvedChannel | null> {
+  const hasRoutingContext =
+    Boolean(conversation.participantLocation?.trim()) ||
+    Boolean(conversation.participantLocationKey?.trim());
+
+  if (hasRoutingContext) {
+    const { channel } = await resolveOutboundChannelForConversation(conversation);
+    if (channel) return channel;
+  }
+
+  const frozen = await resolveChannelContextFromConversation(conversation);
+  if (frozen) return frozen;
+
+  if (conversation.businessPhoneId?.trim()) {
+    return (
+      (await getActiveChannelByPhoneNumberId(conversation.businessPhoneId)) ??
+      (await getChannelByPhoneNumberId(conversation.businessPhoneId))
+    );
+  }
+
+  return null;
+}
 
 export type OutboundSendCredentials = {
   phoneNumberId: string;
@@ -418,7 +452,7 @@ export type OutboundCredentialFailure = {
     hasAccessToken: boolean;
     active: boolean;
   } | null;
-  tokensAvailable: Array<"frozen_channel" | "phone_lookup" | "env_global">;
+  tokensAvailable: Array<"operational_channel" | "phone_lookup">;
   hint: string;
 };
 
@@ -490,11 +524,13 @@ export async function resolveOutboundSendCredentials(params: {
   const requestedPhone = params.phoneNumberId?.trim();
   if (!requestedPhone) return null;
 
-  const frozenChannel = params.conversation
-    ? await resolveChannelContextFromConversation(params.conversation)
+  const operationalChannel = params.conversation
+    ? await resolveCredentialChannelForConversation(params.conversation)
     : null;
-  const phoneChannel = await getChannelByPhoneNumberId(requestedPhone);
-  const channelRecord = frozenChannel ?? phoneChannel;
+  const phoneChannel =
+    (await getActiveChannelByPhoneNumberId(requestedPhone)) ??
+    (await getChannelByPhoneNumberId(requestedPhone));
+  const channelRecord = operationalChannel ?? phoneChannel;
 
   const tokens: Array<{ token: string; source: string }> = [];
   const addToken = (token: string | undefined | null, source: string) => {
@@ -503,9 +539,8 @@ export async function resolveOutboundSendCredentials(params: {
     tokens.push({ token: value, source });
   };
 
-  addToken(frozenChannel?.accessToken, "frozen_channel");
+  addToken(operationalChannel?.accessToken, "operational_channel");
   addToken(phoneChannel?.accessToken, "phone_lookup");
-  addToken(getWhatsAppToken(), "env_global");
 
   if (tokens.length === 0) return null;
 
@@ -517,7 +552,7 @@ export async function resolveOutboundSendCredentials(params: {
   };
 
   addPhone(requestedPhone, "requested");
-  addPhone(frozenChannel?.phoneNumberId, "frozen_channel");
+  addPhone(operationalChannel?.phoneNumberId, "operational_channel");
   addPhone(phoneChannel?.phoneNumberId, "phone_lookup");
 
   for (const { token, source: tokenSource } of tokens) {
@@ -572,37 +607,36 @@ export async function explainOutboundSendCredentialsFailure(params: {
   const requestedPhone = params.phoneNumberId?.trim() || "";
   const conversationPhone = params.conversation?.businessPhoneId?.trim() || null;
 
-  const frozenChannel = params.conversation
-    ? await resolveChannelContextFromConversation(params.conversation)
+  const operationalChannel = params.conversation
+    ? await resolveCredentialChannelForConversation(params.conversation)
     : null;
   const phoneChannel = requestedPhone
-    ? await getChannelByPhoneNumberId(requestedPhone)
+    ? (await getActiveChannelByPhoneNumberId(requestedPhone)) ??
+      (await getChannelByPhoneNumberId(requestedPhone))
     : null;
-  const channelRecord = frozenChannel ?? phoneChannel;
+  const channelRecord = operationalChannel ?? phoneChannel;
 
   const tokensAvailable: OutboundCredentialFailure["tokensAvailable"] = [];
-  if (frozenChannel?.accessToken?.trim()) tokensAvailable.push("frozen_channel");
+  if (operationalChannel?.accessToken?.trim()) {
+    tokensAvailable.push("operational_channel");
+  }
   if (
     phoneChannel?.accessToken?.trim() &&
-    phoneChannel.channelId !== frozenChannel?.channelId
+    phoneChannel.channelId !== operationalChannel?.channelId
   ) {
     tokensAvailable.push("phone_lookup");
   }
-  if (getWhatsAppToken().trim()) tokensAvailable.push("env_global");
 
   let hint =
     "Check WhatsApp Channels admin: ensure the channel has the correct phoneNumberId and a valid Meta access token for its WABA.";
 
   if (!channelRecord) {
     hint =
-      "No WhatsApp channel is linked to this conversation. Assign Athens + rental type in Channels admin or re-save the conversation location.";
+      "No WhatsApp channel is linked to this conversation. Assign location + rental type in Channels admin, or re-save the conversation location/type so templates use the current line.";
   } else if (!channelRecord.accessToken?.trim()) {
     hint = `Channel "${channelRecord.name}" has no access token saved. Open WhatsApp Channels admin, edit this channel, and paste the Meta access token for WABA ${channelRecord.wabaId || "(unknown)"}.`;
-  } else if (tokensAvailable.length === 1 && tokensAvailable[0] === "env_global") {
-    hint =
-      "This line uses a dedicated channel token, but none is configured. The global env token cannot access this WABA phone — add the channel access token in WhatsApp Channels admin.";
   } else if (conversationPhone && conversationPhone !== requestedPhone) {
-    hint = `Conversation is on phone ${conversationPhone}, but routing resolved ${requestedPhone}. Update the channel token for the frozen channel "${channelRecord.name}" or re-save the conversation location.`;
+    hint = `This conversation was created on phone ${conversationPhone}, but the current ${channelRecord.channelType} line for its location is ${requestedPhone}. Templates use the current channel — update its access token in WhatsApp Channels admin if needed.`;
   } else {
     hint = `Access token on channel "${channelRecord.name}" is invalid or expired for Meta phone ${channelRecord.phoneNumberId}. Generate a new token in Meta Business Manager and update it in WhatsApp Channels admin.`;
   }
@@ -647,19 +681,21 @@ export async function getOutboundTokenForPhoneId(
 
   try {
     if (conversation) {
-      const frozen = await resolveChannelContextFromConversation(conversation);
-      if (frozen?.accessToken?.trim()) return frozen.accessToken.trim();
+      const operational = await resolveCredentialChannelForConversation(conversation);
+      if (operational?.accessToken?.trim()) return operational.accessToken.trim();
     }
 
-    const channel = await getChannelByPhoneNumberId(phoneId);
-    if (channel) {
-      return channel.accessToken?.trim() || "";
+    const channel =
+      (await getActiveChannelByPhoneNumberId(phoneId)) ??
+      (await getChannelByPhoneNumberId(phoneId));
+    if (channel?.accessToken?.trim()) {
+      return channel.accessToken.trim();
     }
   } catch {
     // fall through only when lookup failed entirely
   }
 
-  return getWhatsAppToken();
+  return "";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

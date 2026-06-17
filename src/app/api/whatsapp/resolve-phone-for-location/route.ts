@@ -7,7 +7,7 @@ import {
   inferChannelTypeFromConversation,
   resolveWhatsappChannel,
 } from "@/lib/whatsapp/channelService";
-import { resolveCreateConversationRentalType } from "@/lib/whatsapp/rentalTypeAccess";
+import { resolveLeadLinkedConversationRentalType } from "@/lib/whatsapp/rentalTypeAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -46,10 +46,11 @@ export async function GET(req: NextRequest) {
       | "guest"
       | "owner"
       | null;
-    const rentalType = resolveCreateConversationRentalType({
+    const rentalType = resolveLeadLinkedConversationRentalType({
       userRole: tokenPayload.role,
       userRentalType: tokenPayload.rentalType,
       requestedRentalType,
+      bookingTerm: req.nextUrl.searchParams.get("bookingTerm"),
     });
 
     const channelType = inferChannelTypeFromConversation({

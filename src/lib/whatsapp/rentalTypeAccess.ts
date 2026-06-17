@@ -15,7 +15,10 @@
  *   regardless of the employee's own rentalType.
  */
 
-import { normalizeEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
+import {
+  normalizeEmployeeRentalType,
+  normalizeLeadBookingTerm,
+} from "@/util/employeeRentalTypeAccess";
 
 export type WhatsAppChannelRentalType = "Short Term" | "Long Term" | "General";
 
@@ -124,6 +127,54 @@ export function resolveCreateConversationRentalType(params: {
   }
 
   return resolveWhatsAppEmployeeRentalType(params.userRentalType);
+}
+
+/** Map CRM lead bookingTerm → WhatsApp channel rental type. */
+export function bookingTermToConversationRentalType(
+  bookingTerm: unknown,
+): CreateConversationRentalType | null {
+  const term = normalizeLeadBookingTerm(bookingTerm);
+  if (term === "Short Term") return "Short Term";
+  if (term === "Long Term" || term === "Mid Term") return "Long Term";
+  return null;
+}
+
+/**
+ * Rental type when opening WhatsApp from a CRM deep link (leads / owner sheet).
+ * Honors an explicit rentalType/bookingTerm when the employee may use that line.
+ */
+export function resolveLeadLinkedConversationRentalType(params: {
+  userRole?: string;
+  userRentalType?: unknown;
+  requestedRentalType?: unknown;
+  bookingTerm?: unknown;
+}): CreateConversationRentalType {
+  const fromParam = normalizeChannelRentalType(params.requestedRentalType);
+  const fromBooking =
+    fromParam === "Short Term" || fromParam === "Long Term"
+      ? fromParam
+      : bookingTermToConversationRentalType(params.bookingTerm);
+
+  const leadRental =
+    fromParam === "Short Term" || fromParam === "Long Term"
+      ? fromParam
+      : fromBooking;
+
+  if (!leadRental) {
+    return resolveCreateConversationRentalType(params);
+  }
+
+  const role = (params.userRole || "").trim();
+  if (isRentalTypeFullAccessRole(role) || isDualRentalWhatsAppRole(role)) {
+    return leadRental;
+  }
+
+  const employeeRental = resolveWhatsAppEmployeeRentalType(params.userRentalType);
+  if (leadRental === employeeRental) {
+    return leadRental;
+  }
+
+  return resolveCreateConversationRentalType(params);
 }
 
 /**

@@ -39,7 +39,7 @@ import {
   assertCanInitiateGuestConversation,
   recordGuestInitiation,
 } from "@/lib/whatsapp/initiationLimitService";
-import { resolveCreateConversationRentalType } from "@/lib/whatsapp/rentalTypeAccess";
+import { resolveLeadLinkedConversationRentalType } from "@/lib/whatsapp/rentalTypeAccess";
 import {
   applyPhoneMaskToConversation,
   resolveMaskRulesForToken,
@@ -579,7 +579,7 @@ export async function POST(req: NextRequest) {
     });
 
     const resolvedLocation = (participantLocation || leadLocation || "").trim();
-    const conversationRentalType = resolveCreateConversationRentalType({
+    const conversationRentalType = resolveLeadLinkedConversationRentalType({
       userRole,
       userRentalType: token.rentalType,
       requestedRentalType,

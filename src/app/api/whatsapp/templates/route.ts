@@ -9,12 +9,22 @@ import {
   getActiveChannelByPhoneNumberId,
   getChannelByPhoneNumberId,
   normalizeStoredWabaId,
-  resolveChannelContextFromConversation,
+  resolveCredentialChannelForConversation,
+  resolveOutboundChannelForConversation,
   resolveWabaIdFromPhoneNumberId,
+  resolveWhatsappChannel,
+  inferChannelTypeFromConversation,
+  toOutboundTokenConversation,
 } from "@/lib/whatsapp/channelService";
 import mongoose from "mongoose";
 import { canAccessConversationAsync, CONVERSATION_ACCESS_SELECT } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken, type WhatsAppToken } from "@/lib/whatsapp/apiContext";
+import {
+  getUserAreasFromToken,
+  locationKeyFromDisplay,
+  normalizeAreas,
+} from "@/lib/whatsapp/locationAccess";
+import { resolveConversationRentalType } from "@/lib/whatsapp/rentalTypeAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +44,61 @@ function isInvalidWabaGraphError(data: unknown): boolean {
 function isMetaTokenInvalidated(data: unknown): boolean {
   const err = (data as { error?: { code?: number; error_subcode?: number } })?.error;
   return err?.code === 190 && err?.error_subcode === 460;
+}
+
+async function applyChannelToResolution(
+  resolution: WabaResolution,
+  channel: {
+    phoneNumberId?: string;
+    accessToken?: string;
+    wabaId?: string;
+    businessPortfolioId?: string;
+  },
+  source: string,
+  fallbackPhoneId?: string | null,
+): Promise<void> {
+  resolution.phoneNumberId =
+    channel.phoneNumberId?.trim() || fallbackPhoneId?.trim() || resolution.phoneNumberId;
+  if (channel.accessToken?.trim()) {
+    resolution.accessToken = channel.accessToken.trim();
+  }
+  const channelWaba = normalizeStoredWabaId(channel.wabaId, channel.businessPortfolioId);
+  if (channelWaba) {
+    resolution.wabaId = channelWaba;
+    resolution.channelScoped = true;
+    resolution.source = source;
+  }
+}
+
+async function resolveAreaRoutedChannelForConversation(
+  conv: {
+    participantLocationKey?: string;
+    participantLocation?: string;
+    rentalType?: string;
+    channelType?: "guest" | "owner" | "support" | "backup";
+    conversationType?: "guest" | "owner";
+  },
+  userToken: WhatsAppToken,
+) {
+  const userAreas = normalizeAreas(getUserAreasFromToken(userToken));
+  const locationKey =
+    conv.participantLocationKey?.trim() ||
+    (conv.participantLocation?.trim()
+      ? locationKeyFromDisplay(conv.participantLocation)
+      : "") ||
+    userAreas[0] ||
+    "";
+
+  if (!locationKey) return null;
+
+  return resolveWhatsappChannel({
+    location: locationKey,
+    rentalType: resolveConversationRentalType(conv.rentalType),
+    channelType: inferChannelTypeFromConversation({
+      channelType: conv.channelType,
+      conversationType: conv.conversationType,
+    }),
+  });
 }
 
 async function fetchTemplatesFromMeta(
@@ -59,13 +124,13 @@ async function fetchTemplatesFromMeta(
  * GET /api/whatsapp/templates
  *
  * WABA + token resolution (operational — not historical):
- *   1. Live WhatsappChannel (by conversation channel id or phone)
- *   2. Meta API: phone_number_id → whatsapp_business_account (authoritative)
- *   3. Frozen conversation wabaId (only if channel/Meta have nothing)
- *   4. Env WHATSAPP_BUSINESS_ACCOUNT_ID fallback
+ *   1. Current WhatsappChannel via location + guest/owner routing
+ *   2. Active channel for resolved phoneNumberId
+ *   3. Meta API: phone_number_id → whatsapp_business_account
+ *   4. Frozen conversation snapshot only when routing has no match
  *
- * Note: stale wabaId on WhatsAppConversation (e.g. portfolio ID saved as WABA)
- * is ignored when channel or Meta can provide the real WABA.
+ * Legacy conversations keep frozen whatsappChannelId for history, but templates
+ * always use the current operational channel/WABA after a migration.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -78,6 +143,16 @@ export async function GET(req: NextRequest) {
     const conversationId = params.get("conversationId")?.trim();
     const phoneNumberIdParam = params.get("phoneNumberId")?.trim();
     const explicitWabaId = params.get("wabaId")?.trim();
+
+    if (!conversationId && !phoneNumberIdParam && !explicitWabaId) {
+      return NextResponse.json({
+        success: true,
+        templates: [],
+        channelScoped: false,
+      });
+    }
+
+    const normalizedToken = normalizeWhatsAppToken(token as WhatsAppToken);
 
     let resolution: WabaResolution = {
       wabaId: null,
@@ -96,38 +171,44 @@ export async function GET(req: NextRequest) {
           businessPhoneId?: string;
           wabaId?: string;
           businessPortfolioId?: string;
+          participantLocation?: string;
+          participantLocationKey?: string;
+          rentalType?: string;
+          channelType?: "guest" | "owner" | "support" | "backup";
+          conversationType?: "guest" | "owner";
+          isRetarget?: boolean;
         } | null;
 
       if (conv) {
         if (
           !(await canAccessConversationAsync(
-            normalizeWhatsAppToken(token as WhatsAppToken),
+            normalizedToken,
             conv as Record<string, unknown>,
           ))
         ) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        resolution.phoneNumberId = conv.businessPhoneId?.trim() || resolution.phoneNumberId;
+        const tokenContext = toOutboundTokenConversation(conv);
+        const { channel, source } = tokenContext
+          ? await resolveOutboundChannelForConversation(tokenContext)
+          : { channel: null, source: "none" };
 
-        const channel = await resolveChannelContextFromConversation({
-          whatsappChannelId: conv.whatsappChannelId,
-          businessPhoneId: conv.businessPhoneId,
-        });
+        const operational =
+          channel ??
+          (tokenContext
+            ? await resolveCredentialChannelForConversation(tokenContext)
+            : null);
 
-        if (channel?.accessToken?.trim()) {
-          resolution.accessToken = channel.accessToken.trim();
-        }
-
-        // Prefer live channel WABA over frozen conversation snapshot.
-        const channelWaba = normalizeStoredWabaId(
-          channel?.wabaId,
-          channel?.businessPortfolioId,
-        );
-        if (channelWaba) {
-          resolution.wabaId = channelWaba;
-          resolution.channelScoped = true;
-          resolution.source = "channel";
+        if (operational) {
+          await applyChannelToResolution(
+            resolution,
+            operational,
+            source !== "none" ? source : "operational_channel",
+            conv.businessPhoneId,
+          );
+        } else {
+          resolution.phoneNumberId = conv.businessPhoneId?.trim() || resolution.phoneNumberId;
         }
 
         if (!resolution.wabaId && resolution.phoneNumberId && resolution.accessToken) {
@@ -148,6 +229,21 @@ export async function GET(req: NextRequest) {
             resolution.wabaId = convWaba;
             resolution.channelScoped = true;
             resolution.source = "conversation_snapshot";
+          }
+        }
+
+        if (!resolution.wabaId || !resolution.accessToken) {
+          const areaRouted = await resolveAreaRoutedChannelForConversation(
+            conv,
+            normalizedToken,
+          );
+          if (areaRouted) {
+            await applyChannelToResolution(
+              resolution,
+              areaRouted,
+              "area_routed_channel",
+              conv.businessPhoneId,
+            );
           }
         }
       }
@@ -201,7 +297,7 @@ export async function GET(req: NextRequest) {
           metaUnavailable: true,
           code: "NO_CHANNEL_CONTEXT",
           warning:
-            "Templates require a conversation/channel context. Provide `conversationId` (or `phoneNumberId`) so we can use the channel token (no env fallback).",
+            "No WhatsApp channel token is configured for this conversation. Set the chat location or configure the channel in WhatsApp Channels admin.",
         },
         { status: 200 },
       );
@@ -259,7 +355,7 @@ export async function GET(req: NextRequest) {
             metaUnavailable: true,
             code: "META_TOKEN_INVALID",
             warning:
-              "Meta access token is invalid/expired for template fetch. Update the token in WhatsApp Channels admin (preferred) or refresh the env token for legacy fallback.",
+              "Meta access token is invalid or expired for this channel. Update the token in WhatsApp Channels admin.",
             upstreamMessage: upstreamMsg,
           },
           { status: 200 },

@@ -22,6 +22,7 @@ import {
   explainOutboundSendCredentialsFailure,
   getChannelByPhoneNumberId,
   resolveOutboundSendCredentials,
+  toOutboundTokenConversation,
 } from "@/lib/whatsapp/channelService";
 import { buildWhatsAppRoomPayload } from "@/lib/whatsapp/socketPayload";
 import { isWithinMessagingWindow } from "@/lib/whatsapp/messagingWindow";
@@ -357,27 +358,19 @@ export async function POST(req: NextRequest) {
     });
 
     const convForToken = conversation
-      ? (conversation.toObject ? conversation.toObject() : conversation)
-      : null;
+      ? toOutboundTokenConversation(
+          conversation.toObject ? conversation.toObject() : conversation,
+        )
+      : undefined;
     const credentials = await resolveOutboundSendCredentials({
       phoneNumberId,
-      conversation: convForToken
-        ? {
-            whatsappChannelId: convForToken.whatsappChannelId,
-            businessPhoneId: convForToken.businessPhoneId,
-          }
-        : undefined,
+      conversation: convForToken,
       allowWabaPhoneFallback: !conversationId,
     });
     if (!credentials) {
       const failure = await explainOutboundSendCredentialsFailure({
         phoneNumberId,
-        conversation: convForToken
-          ? {
-              whatsappChannelId: convForToken.whatsappChannelId,
-              businessPhoneId: convForToken.businessPhoneId,
-            }
-          : undefined,
+        conversation: convForToken,
       });
       console.error("📤 [send-message] credential resolution failed", failure);
       return NextResponse.json(

@@ -11,6 +11,7 @@ import {
 import { normalizeWhatsAppToken, type WhatsAppToken } from "./apiContext";
 import {
   canUserSeeConversation,
+  conversationMatchesStaffVisibilityAsync,
   getUserAreasFromToken,
 } from "./locationAccess";
 
@@ -32,6 +33,7 @@ export const CONVERSATION_ACCESS_SELECT = [
   "source",
   "rentalType",
   "channelType",
+  "conversationType",
   "isRetarget",
   "retargetStage",
   "assignedAgent",
@@ -134,42 +136,30 @@ export async function canAccessConversationAsync(
   const userRole = normalized.role || "";
   const userAreas = normalized.allotedArea;
 
-  let hasPhoneAccess = !conversation.businessPhoneId;
-  let accessedViaChannelId = false;
-
-  if (conversation.businessPhoneId) {
-    hasPhoneAccess = await canUserAccessPhoneId(
-      String(conversation.businessPhoneId),
-      userRole,
-      userAreas,
-      { userRentalType: normalized.rentalType },
-    );
-  }
-
-  // Mirror inbox visibility: conversations visible via frozen whatsappChannelId
-  // (e.g. after number migration) must remain openable/sendable.
-  if (!hasPhoneAccess && conversation.whatsappChannelId) {
-    const accessibleChannelIds = await getAccessibleChannelIds(
-      userRole,
-      userAreas,
-      normalized.rentalType,
-    );
-    if (accessibleChannelIds.includes(String(conversation.whatsappChannelId))) {
-      hasPhoneAccess = true;
-      accessedViaChannelId = true;
-    }
-  }
-
   if (conversation.isRetarget) {
+    let hasPhoneAccess = !conversation.businessPhoneId;
+    if (conversation.businessPhoneId) {
+      hasPhoneAccess = await canUserAccessPhoneId(
+        String(conversation.businessPhoneId),
+        userRole,
+        userAreas,
+        { userRentalType: normalized.rentalType },
+      );
+    }
+    if (!hasPhoneAccess && conversation.whatsappChannelId) {
+      const accessibleChannelIds = await getAccessibleChannelIds(
+        userRole,
+        userAreas,
+        normalized.rentalType,
+      );
+      if (accessibleChannelIds.includes(String(conversation.whatsappChannelId))) {
+        hasPhoneAccess = true;
+      }
+    }
     return evaluateRetargetAccess(normalized, conversation, hasPhoneAccess);
   }
 
-  if (!hasPhoneAccess) return false;
-
-  return canUserSeeConversation(normalized, conversation, {
-    skipPhoneCheck: true,
-    skipLocationCheck: accessedViaChannelId,
-  });
+  return conversationMatchesStaffVisibilityAsync(normalized, conversation);
 }
 
 /**

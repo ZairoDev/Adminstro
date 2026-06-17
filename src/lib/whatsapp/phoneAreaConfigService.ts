@@ -9,6 +9,7 @@ import {
   isDualRentalWhatsAppRole,
   resolveWhatsAppEmployeeRentalType,
 } from "@/lib/whatsapp/rentalTypeAccess";
+import { getAllowedChannelTypes } from "@/lib/whatsapp/channelTypeAccess";
 
 const CACHE_TTL_MS = 30_000;
 
@@ -283,9 +284,14 @@ export async function getAccessibleChannelIds(
       const employeeRental = resolveWhatsAppEmployeeRentalType(userRentalType);
       query.$or = [{ rentalType: employeeRental }, { rentalType: "General" }];
     }
+
+    const allowedChannelTypes = getAllowedChannelTypes(userRole);
+    if (allowedChannelTypes) {
+      query.channelType = { $in: allowedChannelTypes };
+    }
   }
 
-  const channels = await WhatsappChannel.find(query)
+  const channels = await WhatsappChannel.find({ ...query, active: true })
     .select("_id")
     .lean<{ _id: unknown }[]>();
 

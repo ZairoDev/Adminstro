@@ -64,6 +64,14 @@ function canEmit(conversationId: string, userId: string): boolean {
   return true;
 }
 
+/** Structured logs for in-app (socket) + mobile (Expo push) notification debugging. */
+function logWebhookNotify(
+  stage: string,
+  details: Record<string, unknown> = {},
+) {
+  console.log(`[webhook-notify] ${stage}`, details);
+}
+
 
 export async function GET(req: NextRequest) {
   try {
@@ -779,8 +787,16 @@ async function processIncomingMessage(
       { upsert: true, new: true, rawResult: true }
     ) as any;
     
-    const isNewMessage = result.lastErrorObject?.upserted !== undefined;
+    const isNewMessage = result.lastErrorObject?.updateExisting === false;
     const savedMessage = result.value;
+
+    logWebhookNotify("message.saved", {
+      messageId: message.id,
+      conversationId: conversation._id.toString(),
+      isNewMessage,
+      phoneNumberId,
+      type: message.type || "text",
+    });
     
     // ============================================================
     // DUPLICATE MESSAGE HANDLING: Full idempotency using modifiedCount
@@ -811,7 +827,11 @@ async function processIncomingMessage(
 
       // CRITICAL IDEMPOTENCY CHECK: Skip all processing if nothing changed
       if (conversationUpdateResult.modifiedCount === 0) {
-        // Silent skip - no log spam for true duplicates
+        logWebhookNotify("duplicate.idempotent-skip", {
+          messageId: message.id,
+          conversationId: conversation._id.toString(),
+          reason: "conversation_not_modified_true_duplicate",
+        });
         return;
       }
 
@@ -828,7 +848,21 @@ async function processIncomingMessage(
       if (!existingMessage) return;
 
       const eligibleUsers = await getEligibleUsersForNotification(conversation);
-      if (!eligibleUsers.length) return;
+      logWebhookNotify("duplicate.eligible-users", {
+        messageId: message.id,
+        conversationId: conversation._id.toString(),
+        phoneNumberId,
+        eligibleCount: eligibleUsers.length,
+        eligibleUserIds: eligibleUsers.map((u) => u.userId),
+        eligibleRoles: eligibleUsers.map((u) => ({ userId: u.userId, role: u.role })),
+      });
+      if (!eligibleUsers.length) {
+        logWebhookNotify("duplicate.skip", {
+          messageId: message.id,
+          reason: "no_eligible_users",
+        });
+        return;
+      }
 
       // Batch read-state query
       const userIds = eligibleUsers.map(u => u.userId);
@@ -849,11 +883,37 @@ async function processIncomingMessage(
         const lastReadMs = lastReadAt ? new Date(lastReadAt).getTime() : 0;
         const isUnread = timestampMs > lastReadMs;
 
-        if (!isUnread) continue;
-        if (!canEmit(conversation._id.toString(), user.userId)) continue;
+        if (!isUnread) {
+          logWebhookNotify("duplicate.user-skip", {
+            messageId: message.id,
+            userId: user.userId,
+            reason: "already_read",
+            lastReadAt: lastReadAt ?? null,
+          });
+          continue;
+        }
+        if (!canEmit(conversation._id.toString(), user.userId)) {
+          logWebhookNotify("duplicate.user-skip", {
+            messageId: message.id,
+            userId: user.userId,
+            reason: "emit_debounced",
+          });
+          continue;
+        }
 
         const eventId = `${conversation._id}:${message.id}:${user.userId}:duplicate`;
         const deliveryId = `${eventId}:${Date.now()}`;
+
+        logWebhookNotify("duplicate.socket-emit", {
+          messageId: message.id,
+          userId: user.userId,
+          role: user.role,
+          event: WHATSAPP_EVENTS.NEW_MESSAGE,
+          eventId,
+          deliveryId,
+          conversationId: conversation._id.toString(),
+          preview: displayText.substring(0, 100),
+        });
 
         emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
           deliveryId,
@@ -885,7 +945,22 @@ async function processIncomingMessage(
 
       // Only log if something was actually emitted
       if (emittedCount > 0) {
+        logWebhookNotify("duplicate.done", {
+          messageId: message.id,
+          socketEmitted: emittedCount,
+          eligibleUsers: eligibleUsers.length,
+          pushSent: 0,
+          note: "duplicate_path_socket_only_no_expo_push",
+        });
         console.log(`📨 [DUP-EMIT] ${message.id} → ${emittedCount} user(s)`);
+      } else {
+        logWebhookNotify("duplicate.done", {
+          messageId: message.id,
+          socketEmitted: 0,
+          eligibleUsers: eligibleUsers.length,
+          pushSent: 0,
+          note: "no_users_received_socket_emit",
+        });
       }
       return;
     }
@@ -994,7 +1069,21 @@ async function processIncomingMessage(
     // ============================================================
     const eligibleUsers = await getEligibleUsersForNotification(conversation);
 
+    logWebhookNotify("new.eligible-users", {
+      messageId: message.id,
+      conversationId: conversation._id.toString(),
+      phoneNumberId,
+      senderName,
+      eligibleCount: eligibleUsers.length,
+      eligibleUserIds: eligibleUsers.map((u) => u.userId),
+      eligibleRoles: eligibleUsers.map((u) => ({ userId: u.userId, role: u.role })),
+    });
+
     if (!eligibleUsers.length) {
+      logWebhookNotify("new.skip", {
+        messageId: message.id,
+        reason: "no_eligible_users",
+      });
       console.log(`✅ [NEW] ${message.id} saved (no eligible users)`);
       return;
     }
@@ -1005,6 +1094,13 @@ async function processIncomingMessage(
     }).lean() as any;
 
     const isArchived = !!archiveState;
+
+    logWebhookNotify("new.context", {
+      messageId: message.id,
+      conversationId: conversation._id.toString(),
+      isArchived,
+      messageType: message.type || "text",
+    });
 
     const userIds = eligibleUsers.map(u => u.userId);
     const readStates = await ConversationReadState.find({
@@ -1017,6 +1113,10 @@ async function processIncomingMessage(
     );
 
     let notificationsEmitted = 0;
+    let pushAttempted = 0;
+    let pushAccepted = 0;
+    let pushNoTokens = 0;
+    let pushFailed = 0;
     const timestampMs = timestamp.getTime();
     const firstMessageTime = conversation.firstMessageTime || conversation.createdAt || timestamp;
     
@@ -1025,11 +1125,38 @@ async function processIncomingMessage(
       const lastReadMs = lastReadAt ? new Date(lastReadAt).getTime() : 0;
       const isUnread = timestampMs > lastReadMs;
 
-      if (!isUnread) continue;
-      if (!canEmit(conversation._id.toString(), user.userId)) continue;
+      if (!isUnread) {
+        logWebhookNotify("new.user-skip", {
+          messageId: message.id,
+          userId: user.userId,
+          reason: "already_read",
+          lastReadAt: lastReadAt ?? null,
+        });
+        continue;
+      }
+      if (!canEmit(conversation._id.toString(), user.userId)) {
+        logWebhookNotify("new.user-skip", {
+          messageId: message.id,
+          userId: user.userId,
+          reason: "emit_debounced",
+        });
+        continue;
+      }
       
       const eventId = `${conversation._id}:${message.id}:${user.userId}`;
       const deliveryId = `${eventId}:${Date.now()}`;
+
+      logWebhookNotify("new.socket-emit", {
+        messageId: message.id,
+        userId: user.userId,
+        role: user.role,
+        event: WHATSAPP_EVENTS.NEW_MESSAGE,
+        eventId,
+        deliveryId,
+        conversationId: conversation._id.toString(),
+        preview: displayText.substring(0, 100),
+        isArchived,
+      });
       
       emitWhatsAppEvent(WHATSAPP_EVENTS.NEW_MESSAGE, {
         deliveryId,
@@ -1086,7 +1213,17 @@ async function processIncomingMessage(
                   ? "🎵 Audio"
                   : displayText.substring(0, 100);
 
-        await sendExpoPushToEmployee({
+        logWebhookNotify("new.push-attempt", {
+          messageId: message.id,
+          userId: user.userId,
+          employeeId: String(user.userId),
+          title: senderName || senderPhone,
+          body: preview,
+          channelId: "whatsapp-messages",
+          conversationId: conversation._id.toString(),
+        });
+
+        const pushResult = await sendExpoPushToEmployee({
           employeeId: String(user.userId),
           title: senderName || senderPhone,
           body: preview,
@@ -1099,11 +1236,49 @@ async function processIncomingMessage(
           },
           channelId: "whatsapp-messages",
         });
+
+        pushAttempted += pushResult.attempted;
+        pushAccepted += pushResult.accepted;
+
+        if (pushResult.attempted === 0) {
+          pushNoTokens += 1;
+          logWebhookNotify("new.push-skip", {
+            messageId: message.id,
+            userId: user.userId,
+            reason: "no_registered_expo_tokens",
+          });
+        } else if (pushResult.errors.length > 0) {
+          pushFailed += 1;
+          logWebhookNotify("new.push-error", {
+            messageId: message.id,
+            userId: user.userId,
+            attempted: pushResult.attempted,
+            accepted: pushResult.accepted,
+            delivered: pushResult.delivered,
+            removed: pushResult.removed,
+            errors: pushResult.errors,
+          });
+        } else {
+          logWebhookNotify("new.push-queued", {
+            messageId: message.id,
+            userId: user.userId,
+            attempted: pushResult.attempted,
+            accepted: pushResult.accepted,
+            delivered: pushResult.delivered,
+            removed: pushResult.removed,
+          });
+        }
       } catch (err) {
+        pushFailed += 1;
         console.error("[push] failed", {
           conversationId: conversation._id.toString(),
           messageId: message.id,
           userId: String(user.userId),
+          error: String((err as any)?.message ?? err),
+        });
+        logWebhookNotify("new.push-exception", {
+          messageId: message.id,
+          userId: user.userId,
           error: String((err as any)?.message ?? err),
         });
       }
@@ -1112,7 +1287,20 @@ async function processIncomingMessage(
     }
 
     // Concise success log
-    console.log(`✅ [NEW] ${message.id} → ${notificationsEmitted}/${eligibleUsers.length} user(s)${mediaUrl ? ' +media' : ''}`);
+    logWebhookNotify("new.done", {
+      messageId: message.id,
+      conversationId: conversation._id.toString(),
+      socketEmitted: notificationsEmitted,
+      eligibleUsers: eligibleUsers.length,
+      pushAttempted,
+      pushAccepted,
+      pushNoTokens,
+      pushFailed,
+      hasMedia: !!mediaUrl,
+    });
+    console.log(
+      `✅ [NEW] ${message.id} → ${notificationsEmitted}/${eligibleUsers.length} socket, push attempted=${pushAttempted} accepted=${pushAccepted} noTokens=${pushNoTokens} failed=${pushFailed}${mediaUrl ? " +media" : ""}`,
+    );
     
     // ============================================================
     // UPDATE LEAD: Mark firstReply and whatsappOptIn

@@ -787,7 +787,7 @@ async function processIncomingMessage(
       { upsert: true, new: true, rawResult: true }
     ) as any;
     
-    const isNewMessage = result.lastErrorObject?.upserted !== undefined;
+    const isNewMessage = result.lastErrorObject?.updateExisting === false;
     const savedMessage = result.value;
 
     logWebhookNotify("message.saved", {

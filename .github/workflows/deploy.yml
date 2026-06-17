@@ -29,29 +29,113 @@ jobs:
 
       - name: Configure SSH
         run: |
+          set -euo pipefail
+
+          log() { echo "[ssh-setup] $*"; }
+          fail() { echo "[ssh-setup] ERROR: $*" >&2; exit 1; }
+
+          log "=== SSH setup diagnostics ==="
+
+          VPS_HOST="${{ secrets.VPS_HOST }}"
+          VPS_USER="${{ secrets.VPS_USERNAME }}"
+          VPS_KEY="${{ secrets.VPS_SSH_KEY }}"
+
+          if [ -z "${VPS_HOST}" ]; then fail "VPS_HOST secret is missing or empty"; fi
+          if [ -z "${VPS_USER}" ]; then fail "VPS_USERNAME secret is missing or empty"; fi
+          if [ -z "${VPS_KEY}" ]; then fail "VPS_SSH_KEY secret is missing or empty"; fi
+
+          log "Target host: ${VPS_HOST}"
+          log "Target user: ${VPS_USER}"
+          log "SSH port: 22"
+
           mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 700 ~/.ssh
+
+          # printf preserves PEM/OpenSSH key newlines (echo can corrupt keys).
+          printf '%s\n' "${VPS_KEY}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+          if ssh-keygen -l -f ~/.ssh/deploy_key >/tmp/key_info 2>&1; then
+            log "Deploy key loaded: $(head -1 /tmp/key_info)"
+          else
+            cat /tmp/key_info >&2
+            fail "VPS_SSH_KEY is invalid or malformed"
+          fi
+
+          log "--- DNS lookup ---"
+          getent hosts "${VPS_HOST}" 2>&1 || true
+          host "${VPS_HOST}" 2>&1 || true
+
+          log "--- TCP reachability (port 22) ---"
+          PORT_OK=false
+          if command -v nc >/dev/null 2>&1; then
+            if nc -z -w 15 "${VPS_HOST}" 22; then
+              PORT_OK=true
+              log "Port 22 is reachable from GitHub runner"
+            else
+              log "Port 22 is NOT reachable from GitHub runner (timeout/refused/filtered)"
+            fi
+          elif timeout 15 bash -c "echo > /dev/tcp/${VPS_HOST}/22" 2>/dev/null; then
+            PORT_OK=true
+            log "Port 22 is reachable from GitHub runner"
+          else
+            log "Could not verify port 22 (nc unavailable and /dev/tcp check failed)"
+          fi
+
+          if [ "${PORT_OK}" = false ]; then
+            fail "Cannot reach ${VPS_HOST}:22 — check VPS firewall, security group, and that sshd is listening"
+          fi
+
+          log "--- Host key collection (ssh-keyscan) ---"
+          if ssh-keyscan -T 15 -p 22 -H "${VPS_HOST}" >> ~/.ssh/known_hosts 2>/tmp/keyscan.err; then
+            log "ssh-keyscan succeeded"
+          else
+            log "ssh-keyscan failed (non-fatal, using StrictHostKeyChecking=no):"
+            cat /tmp/keyscan.err >&2 || true
+          fi
+
+          log "--- SSH authentication test ---"
+          if ssh -i ~/.ssh/deploy_key \
+            -p 22 \
+            -o BatchMode=yes \
+            -o ConnectTimeout=20 \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o LogLevel=INFO \
+            "${VPS_USER}@${VPS_HOST}" \
+            "echo connected; hostname; whoami; pwd"; then
+            log "SSH authentication successful"
+          else
+            fail "SSH auth failed for ${VPS_USER}@${VPS_HOST} — verify VPS_SSH_KEY is in ~/.ssh/authorized_keys on the server"
+          fi
+
+          log "=== SSH setup complete ==="
 
       - name: Fetch production env from VPS
         run: |
           set -euo pipefail
-          SSH_OPTS="-i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"
+
+          log() { echo "[fetch-env] $*"; }
+          fail() { echo "[fetch-env] ERROR: $*" >&2; exit 1; }
+
+          SSH_OPTS="-i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o ConnectTimeout=20 -o BatchMode=yes"
           REMOTE="${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}"
+
+          log "Fetching production env from ${REMOTE}"
 
           for REMOTE_ENV in \
             /var/www/adminstro/.env.production \
             /var/www/adminstro/.env.local; do
-            if scp ${SSH_OPTS} "${REMOTE}:${REMOTE_ENV}" .env.production 2>/dev/null; then
+            log "Trying ${REMOTE_ENV} ..."
+            if scp ${SSH_OPTS} "${REMOTE}:${REMOTE_ENV}" .env.production; then
               cp .env.production .env.local
-              echo "Using env from ${REMOTE_ENV}"
+              log "Using env from ${REMOTE_ENV}"
               exit 0
             fi
+            log "Not found or not readable: ${REMOTE_ENV}"
           done
 
-          echo "Could not fetch .env.production or .env.local from VPS"
-          exit 1
+          fail "Could not fetch .env.production or .env.local from VPS"
 
       - name: Install dependencies
         run: npm ci
@@ -90,12 +174,24 @@ jobs:
 
       - name: Upload release to VPS
         run: |
+          set -euo pipefail
+
+          log() { echo "[upload] $*"; }
+
           RELEASE_ID="$(date -u +%Y%m%d_%H%M%S)_${GITHUB_SHA::7}"
           echo "RELEASE_ID=${RELEASE_ID}" >> "${GITHUB_ENV}"
 
-          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+          ARCHIVE_SIZE="$(du -h release.tar.gz | cut -f1)"
+          log "Uploading release ${RELEASE_ID} (${ARCHIVE_SIZE}) to VPS ..."
+
+          scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=30 \
+            -o BatchMode=yes \
             release.tar.gz \
             "${{ secrets.VPS_USERNAME }}@${{ secrets.VPS_HOST }}:/tmp/adminstro_${RELEASE_ID}.tar.gz"
+
+          log "Upload complete: /tmp/adminstro_${RELEASE_ID}.tar.gz"
 
       - name: Activate release on VPS
         uses: appleboy/ssh-action@v1.2.0

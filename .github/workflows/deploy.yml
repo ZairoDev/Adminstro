@@ -30,7 +30,7 @@ jobs:
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
@@ -66,9 +66,8 @@ jobs:
         run: |
           rm -rf node_modules
           npm ci --omit=dev
-          # tsx must be in dependencies in package.json (not devDependencies)
-          # so it is lockfile-pinned and included by --omit=dev above.
-          # If it is still in devDependencies, move it and re-lock before merging.
+          # tsx runs socket.ts in production; it is still listed under devDependencies.
+          npm install --no-save tsx
 
       - name: Package release
         run: |
@@ -123,29 +122,17 @@ jobs:
             echo "Activating release: ${RELEASE_ID}"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-            # ── health_check ────────────────────────────────────────────────
-            # Polls until PM2 reports online AND HTTP responds with a non-5xx
-            # code. Returns 1 after max_attempts so the caller can rollback.
-            #
-            # Fix: HTTP_CODE is explicitly defaulted to "000" (a string),
-            # then tested as a string first before integer comparison to avoid
-            # arithmetic errors under set -euo pipefail when curl misbehaves.
-            # PM2 grep now matches the exact output column ("online") rather
-            # than a loose regex that could match timestamps or other fields.
             health_check() {
               local attempt=1
               local max_attempts=30   # 30 × 2s = 60s window
 
               while [ "${attempt}" -le "${max_attempts}" ]; do
-                # pm2 jlist is machine-readable JSON; parse the status field
-                # exactly rather than grepping human-readable table output.
                 APP_STATUS="$(pm2 jlist 2>/dev/null | python3 -c "import sys,json;apps=json.load(sys.stdin);m=[a for a in apps if a.get('name')=='${PM2_APP_NAME}'];print(m[0]['pm2_env']['status'] if m else 'missing')" 2>/dev/null || echo "error")"
 
                 if [ "${APP_STATUS}" = "online" ]; then
                   HTTP_CODE="$(curl -s -o /dev/null -w "%{http_code}" \
                     --max-time 5 http://localhost:3000 2>/dev/null || echo "000")"
 
-                  # String-guard first, then integer comparison — safe under pipefail.
                   if [ "${HTTP_CODE}" != "000" ] && [ "${HTTP_CODE}" -ge 200 ] && [ "${HTTP_CODE}" -lt 500 ]; then
                     echo "Health check passed (HTTP ${HTTP_CODE}) on attempt ${attempt}"
                     return 0
@@ -161,14 +148,6 @@ jobs:
               return 1
             }
 
-            # ── ensure_release_layout ────────────────────────────────────────
-            # One-time migration: converts /var/www/adminstro from a plain
-            # directory into a symlink pointing at a versioned release.
-            #
-            # Fix: the original called pm2 delete then pm2 start with no
-            # health check, guaranteeing a downtime window. This version uses
-            # pm2 reload (graceful) so existing workers keep serving until new
-            # workers are ready. delete/start is never used during migration.
             ensure_release_layout() {
               sudo mkdir -p "${RELEASES_DIR}"
 
@@ -180,8 +159,6 @@ jobs:
                 sudo chown -h jenkins:jenkins "${DEPLOY_DIR}" || true
                 sudo chown -R jenkins:jenkins "${MIGRATED}"
 
-                # Reload (not delete+start) so workers restart gracefully.
-                # Only fall back to a fresh start if the app isn't registered.
                 if pm2 describe "${PM2_APP_NAME}" >/dev/null 2>&1; then
                   pm2 reload "${PM2_APP_NAME}" --update-env
                 else
@@ -199,16 +176,8 @@ jobs:
               fi
             }
 
-            # ── copy_runtime_env ─────────────────────────────────────────────
-            # Copies .env files from the currently-live release into the new
-            # release directory.
-            #
-            # Fix: DEPLOY_DIR may already point at the new release if the
-            # symlink was swapped before this function runs. We resolve the
-            # actual previous release path via PREVIOUS_RELEASE (captured
-            # before the swap) so we always copy from the right source.
             copy_runtime_env() {
-              local source_dir="$1"   # explicit source, not inferred from symlink
+              local source_dir="$1"
               local target_dir="$2"
 
               for ENV_FILE in .env.production .env.local; do
@@ -222,8 +191,6 @@ jobs:
               fi
             }
 
-            # ── rollback_to ──────────────────────────────────────────────────
-            # Points the symlink back at the previous release and reloads PM2.
             rollback_to() {
               local previous_release="$1"
 
@@ -244,16 +211,6 @@ jobs:
               fi
             }
 
-            # ── cleanup_old_releases ─────────────────────────────────────────
-            # Removes releases older than the 5 most recent, but re-reads the
-            # live symlink at call time rather than relying on variables that
-            # may be stale after a rollback.
-            #
-            # Fix: original captured PREVIOUS_RELEASE and NEW_RELEASE in
-            # variables set before a potential rollback. After a rollback the
-            # symlink changes but the variables don't, so the guard could allow
-            # deletion of the now-live release. Reading the symlink here avoids
-            # that race.
             cleanup_old_releases() {
               local live_release
               live_release="$(readlink -f "${DEPLOY_DIR}" 2>/dev/null || echo "")"
@@ -270,7 +227,6 @@ jobs:
                 sudo rm -rf "${TARGET}"
               done
 
-              # Remove legacy artifacts from the old pipeline.
               cd /var/www
               ls -dt adminstro_rollback_* 2>/dev/null | tail -n +1 | while read -r dir; do
                 echo "Removing legacy backup ${dir}"
@@ -288,7 +244,6 @@ jobs:
               exit 1
             fi
 
-            # Resolve the previous release BEFORE touching the symlink.
             PREVIOUS_RELEASE=""
             if [ -L "${DEPLOY_DIR}" ]; then
               PREVIOUS_RELEASE="$(readlink -f "${DEPLOY_DIR}")"
@@ -301,8 +256,6 @@ jobs:
             sudo chown -R jenkins:jenkins "${NEW_RELEASE}"
             rm -f "${ARCHIVE}"
 
-            # Pass the explicit previous-release path so copy_runtime_env
-            # reads from the right directory regardless of symlink state.
             copy_runtime_env "${PREVIOUS_RELEASE}" "${NEW_RELEASE}"
 
             echo "Switching live symlink..."
@@ -326,8 +279,6 @@ jobs:
               exit 1
             fi
 
-            # Cleanup runs only after a confirmed healthy deploy, and re-reads
-            # the symlink internally so it always protects the live release.
             cleanup_old_releases
 
             echo ""

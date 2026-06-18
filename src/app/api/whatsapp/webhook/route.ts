@@ -72,6 +72,163 @@ function logWebhookNotify(
   console.log(`[webhook-notify] ${stage}`, details);
 }
 
+/** One Expo push per WhatsApp message + employee (survives Meta webhook retries). */
+const pushedForMessageUser = new Map<string, number>();
+const PUSH_IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+
+function canPushForMessage(messageId: string, userId: string): boolean {
+  const key = `${messageId}:${userId}`;
+  const now = Date.now();
+  const last = pushedForMessageUser.get(key);
+  if (last != null && now - last < PUSH_IDEMPOTENCY_TTL_MS) {
+    return false;
+  }
+  pushedForMessageUser.set(key, now);
+  if (pushedForMessageUser.size > 2000) {
+    const cutoff = now - PUSH_IDEMPOTENCY_TTL_MS;
+    for (const [k, v] of pushedForMessageUser.entries()) {
+      if (v < cutoff) pushedForMessageUser.delete(k);
+    }
+  }
+  return true;
+}
+
+function buildIncomingMessagePushPreview(messageType: string, displayText: string): string {
+  switch (messageType) {
+    case "image":
+      return "📷 Image";
+    case "document":
+      return "📄 Document";
+    case "video":
+      return "🎥 Video";
+    case "audio":
+      return "🎵 Audio";
+    default:
+      return displayText.substring(0, 100);
+  }
+}
+
+type IncomingPushStats = {
+  pushAttempted: number;
+  pushAccepted: number;
+  pushNoTokens: number;
+  pushFailed: number;
+};
+
+async function sendIncomingWhatsAppExpoPush(params: {
+  path: "new" | "duplicate";
+  messageId: string;
+  userId: string;
+  conversationId: string;
+  phoneNumberId: string;
+  senderPhone: string;
+  senderName: string;
+  messageType: string;
+  displayText: string;
+  timestamp: Date;
+}): Promise<IncomingPushStats> {
+  const stats: IncomingPushStats = {
+    pushAttempted: 0,
+    pushAccepted: 0,
+    pushNoTokens: 0,
+    pushFailed: 0,
+  };
+
+  if (!canPushForMessage(params.messageId, params.userId)) {
+    logWebhookNotify(`${params.path}.push-skip`, {
+      messageId: params.messageId,
+      userId: params.userId,
+      reason: "already_pushed_for_message",
+    });
+    return stats;
+  }
+
+  const preview = buildIncomingMessagePushPreview(params.messageType, params.displayText);
+
+  try {
+    logWebhookNotify(`${params.path}.push-attempt`, {
+      messageId: params.messageId,
+      userId: params.userId,
+      employeeId: String(params.userId),
+      title: params.senderName || params.senderPhone,
+      body: preview,
+      channelId: "whatsapp-messages",
+      conversationId: params.conversationId,
+    });
+
+    const pushResult = await sendExpoPushToEmployee({
+      employeeId: String(params.userId),
+      title: params.senderName || params.senderPhone,
+      body: preview,
+      data: {
+        conversationId: params.conversationId,
+        businessPhoneId: params.phoneNumberId,
+        senderId: params.senderPhone,
+        messageType: params.messageType,
+        messageId: params.messageId,
+        timestamp: params.timestamp.getTime(),
+      },
+      channelId: "whatsapp-messages",
+    });
+
+    stats.pushAttempted += pushResult.attempted;
+    stats.pushAccepted += pushResult.accepted;
+
+    if (pushResult.attempted === 0) {
+      stats.pushNoTokens += 1;
+      logWebhookNotify(`${params.path}.push-skip`, {
+        messageId: params.messageId,
+        userId: params.userId,
+        reason: "no_registered_expo_tokens",
+      });
+    } else if (pushResult.errors.length > 0) {
+      stats.pushFailed += 1;
+      logWebhookNotify(`${params.path}.push-error`, {
+        messageId: params.messageId,
+        userId: params.userId,
+        attempted: pushResult.attempted,
+        accepted: pushResult.accepted,
+        delivered: pushResult.delivered,
+        removed: pushResult.removed,
+        errors: pushResult.errors,
+      });
+    } else {
+      logWebhookNotify(`${params.path}.push-queued`, {
+        messageId: params.messageId,
+        userId: params.userId,
+        attempted: pushResult.attempted,
+        accepted: pushResult.accepted,
+        delivered: pushResult.delivered,
+        removed: pushResult.removed,
+      });
+    }
+  } catch (err) {
+    stats.pushFailed += 1;
+    console.error("[push] failed", {
+      conversationId: params.conversationId,
+      messageId: params.messageId,
+      userId: String(params.userId),
+      error: String((err as any)?.message ?? err),
+    });
+    logWebhookNotify(`${params.path}.push-exception`, {
+      messageId: params.messageId,
+      userId: params.userId,
+      error: String((err as any)?.message ?? err),
+    });
+  }
+
+  return stats;
+}
+
+function mergePushStats(
+  target: IncomingPushStats,
+  delta: IncomingPushStats,
+): void {
+  target.pushAttempted += delta.pushAttempted;
+  target.pushAccepted += delta.pushAccepted;
+  target.pushNoTokens += delta.pushNoTokens;
+  target.pushFailed += delta.pushFailed;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -877,6 +1034,12 @@ async function processIncomingMessage(
 
       const timestampMs = timestamp.getTime();
       let emittedCount = 0;
+      const pushStats: IncomingPushStats = {
+        pushAttempted: 0,
+        pushAccepted: 0,
+        pushNoTokens: 0,
+        pushFailed: 0,
+      };
 
       for (const user of eligibleUsers) {
         const lastReadAt = readStateMap.get(user.userId);
@@ -941,6 +1104,22 @@ async function processIncomingMessage(
           },
         });
         emittedCount += 1;
+
+        mergePushStats(
+          pushStats,
+          await sendIncomingWhatsAppExpoPush({
+            path: "duplicate",
+            messageId: message.id,
+            userId: user.userId,
+            conversationId: conversation._id.toString(),
+            phoneNumberId,
+            senderPhone,
+            senderName,
+            messageType: String(message.type || "text"),
+            displayText,
+            timestamp,
+          }),
+        );
       }
 
       // Only log if something was actually emitted
@@ -949,16 +1128,23 @@ async function processIncomingMessage(
           messageId: message.id,
           socketEmitted: emittedCount,
           eligibleUsers: eligibleUsers.length,
-          pushSent: 0,
-          note: "duplicate_path_socket_only_no_expo_push",
+          pushAttempted: pushStats.pushAttempted,
+          pushAccepted: pushStats.pushAccepted,
+          pushNoTokens: pushStats.pushNoTokens,
+          pushFailed: pushStats.pushFailed,
         });
-        console.log(`📨 [DUP-EMIT] ${message.id} → ${emittedCount} user(s)`);
+        console.log(
+          `📨 [DUP-EMIT] ${message.id} → ${emittedCount} socket, push attempted=${pushStats.pushAttempted} accepted=${pushStats.pushAccepted} noTokens=${pushStats.pushNoTokens} failed=${pushStats.pushFailed}`,
+        );
       } else {
         logWebhookNotify("duplicate.done", {
           messageId: message.id,
           socketEmitted: 0,
           eligibleUsers: eligibleUsers.length,
-          pushSent: 0,
+          pushAttempted: pushStats.pushAttempted,
+          pushAccepted: pushStats.pushAccepted,
+          pushNoTokens: pushStats.pushNoTokens,
+          pushFailed: pushStats.pushFailed,
           note: "no_users_received_socket_emit",
         });
       }
@@ -1113,10 +1299,12 @@ async function processIncomingMessage(
     );
 
     let notificationsEmitted = 0;
-    let pushAttempted = 0;
-    let pushAccepted = 0;
-    let pushNoTokens = 0;
-    let pushFailed = 0;
+    const pushStats: IncomingPushStats = {
+      pushAttempted: 0,
+      pushAccepted: 0,
+      pushNoTokens: 0,
+      pushFailed: 0,
+    };
     const timestampMs = timestamp.getTime();
     const firstMessageTime = conversation.firstMessageTime || conversation.createdAt || timestamp;
     
@@ -1199,89 +1387,21 @@ async function processIncomingMessage(
 
       notificationsEmitted += 1;
 
-      // Push notification to mobile devices (Expo Push), best-effort.
-      try {
-        const type = String(message.type || "text");
-        const preview =
-          type === "image"
-            ? "📷 Image"
-            : type === "document"
-              ? "📄 Document"
-              : type === "video"
-                ? "🎥 Video"
-                : type === "audio"
-                  ? "🎵 Audio"
-                  : displayText.substring(0, 100);
-
-        logWebhookNotify("new.push-attempt", {
+      mergePushStats(
+        pushStats,
+        await sendIncomingWhatsAppExpoPush({
+          path: "new",
           messageId: message.id,
           userId: user.userId,
-          employeeId: String(user.userId),
-          title: senderName || senderPhone,
-          body: preview,
-          channelId: "whatsapp-messages",
           conversationId: conversation._id.toString(),
-        });
-
-        const pushResult = await sendExpoPushToEmployee({
-          employeeId: String(user.userId),
-          title: senderName || senderPhone,
-          body: preview,
-          data: {
-            conversationId: conversation._id.toString(),
-            businessPhoneId: phoneNumberId,
-            senderId: senderPhone,
-            messageType: type,
-            timestamp: timestamp.getTime(),
-          },
-          channelId: "whatsapp-messages",
-        });
-
-        pushAttempted += pushResult.attempted;
-        pushAccepted += pushResult.accepted;
-
-        if (pushResult.attempted === 0) {
-          pushNoTokens += 1;
-          logWebhookNotify("new.push-skip", {
-            messageId: message.id,
-            userId: user.userId,
-            reason: "no_registered_expo_tokens",
-          });
-        } else if (pushResult.errors.length > 0) {
-          pushFailed += 1;
-          logWebhookNotify("new.push-error", {
-            messageId: message.id,
-            userId: user.userId,
-            attempted: pushResult.attempted,
-            accepted: pushResult.accepted,
-            delivered: pushResult.delivered,
-            removed: pushResult.removed,
-            errors: pushResult.errors,
-          });
-        } else {
-          logWebhookNotify("new.push-queued", {
-            messageId: message.id,
-            userId: user.userId,
-            attempted: pushResult.attempted,
-            accepted: pushResult.accepted,
-            delivered: pushResult.delivered,
-            removed: pushResult.removed,
-          });
-        }
-      } catch (err) {
-        pushFailed += 1;
-        console.error("[push] failed", {
-          conversationId: conversation._id.toString(),
-          messageId: message.id,
-          userId: String(user.userId),
-          error: String((err as any)?.message ?? err),
-        });
-        logWebhookNotify("new.push-exception", {
-          messageId: message.id,
-          userId: user.userId,
-          error: String((err as any)?.message ?? err),
-        });
-      }
+          phoneNumberId,
+          senderPhone,
+          senderName,
+          messageType: String(message.type || "text"),
+          displayText,
+          timestamp,
+        }),
+      );
       
 
     }
@@ -1292,14 +1412,14 @@ async function processIncomingMessage(
       conversationId: conversation._id.toString(),
       socketEmitted: notificationsEmitted,
       eligibleUsers: eligibleUsers.length,
-      pushAttempted,
-      pushAccepted,
-      pushNoTokens,
-      pushFailed,
+      pushAttempted: pushStats.pushAttempted,
+      pushAccepted: pushStats.pushAccepted,
+      pushNoTokens: pushStats.pushNoTokens,
+      pushFailed: pushStats.pushFailed,
       hasMedia: !!mediaUrl,
     });
     console.log(
-      `✅ [NEW] ${message.id} → ${notificationsEmitted}/${eligibleUsers.length} socket, push attempted=${pushAttempted} accepted=${pushAccepted} noTokens=${pushNoTokens} failed=${pushFailed}${mediaUrl ? " +media" : ""}`,
+      `✅ [NEW] ${message.id} → ${notificationsEmitted}/${eligibleUsers.length} socket, push attempted=${pushStats.pushAttempted} accepted=${pushStats.pushAccepted} noTokens=${pushStats.pushNoTokens} failed=${pushStats.pushFailed}${mediaUrl ? " +media" : ""}`,
     );
     
     // ============================================================

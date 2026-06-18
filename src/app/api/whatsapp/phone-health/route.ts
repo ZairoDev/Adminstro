@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { WHATSAPP_PHONE_CONFIGS, getRetargetPhoneId, getWhatsAppToken, WHATSAPP_API_BASE_URL, getMetaOnlyPhoneConfigs } from "@/lib/whatsapp/config";
-import { syncPhoneConfigsWithMeta } from "@/lib/whatsapp/phoneMetadataSync";
+import { getWhatsAppToken, WHATSAPP_API_BASE_URL } from "@/lib/whatsapp/config";
+import { getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
+import {
+  normalizeUserAreas,
+  resolveAllottedChannelPhones,
+} from "@/lib/whatsapp/resolveAllowedPhoneConfigs";
+import WhatsAppConversation from "@/models/whatsappConversation";
 
 connectDb();
 
-// Force dynamic rendering (uses request.cookies)
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-// Simple in-memory cache (6-hour TTL)
-const cache = new Map<string, { data: any; expiresAt: number; cachedAt: number }>();
-const CACHE_TTL = 6 * 60 * 60 * 1000; // 6 hours
-const STALE_THRESHOLD = 12 * 60 * 60 * 1000; // 12 hours
+const cache = new Map<
+  string,
+  { data: MetaPhoneHealth; expiresAt: number; cachedAt: number }
+>();
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const STALE_AFTER_HOURS = 12;
 
 interface MetaPhoneHealth {
   quality_rating?: "GREEN" | "YELLOW" | "RED" | "UNKNOWN";
@@ -22,254 +28,314 @@ interface MetaPhoneHealth {
   };
   code_verification_status?: "VERIFIED" | "UNVERIFIED";
   eligibility_for_api_business_global_search?: boolean;
+  verified_name?: string;
+  display_phone_number?: string;
 }
 
-interface PhoneHealthMetrics {
+export interface PhoneHealthMetrics {
   phoneNumberId: string;
+  channelId?: string;
   displayName: string;
   displayNumber: string;
+  locations: Array<{ displayName: string; locationKey: string }>;
   qualityRating?: "GREEN" | "YELLOW" | "RED" | "UNKNOWN";
   status?: "CONNECTED" | "DISCONNECTED" | "UNKNOWN";
   throughputLevel?: string;
-  healthStatus: "good" | "warning" | "danger";
-  lastSyncTime: Date | null;
+  healthStatus: "good" | "warning" | "danger" | "unknown";
+  connectionLabel: "Connected" | "Warning" | "Disconnected" | "Unknown";
+  healthPercent: number | null;
+  chatsToday: number;
   codeVerificationStatus?: string;
   eligibleForGlobalSearch?: boolean;
-  dataSourceStatus: "LIVE" | "CACHED" | "STALE";
-  cacheAge?: number; // in hours
+  dataSourceStatus: "LIVE" | "CACHED" | "STALE" | "NOT_SYNCED";
+  cacheAgeHours?: number;
+  lastSyncedAt: string | null;
 }
 
-/**
- * Fetch phone number health from Meta WhatsApp Cloud API
- */
-async function fetchMetaPhoneHealth(phoneNumberId: string): Promise<{
+export interface PhoneHealthSummary {
+  connectedCount: number;
+  totalChatsToday: number;
+  activeAgents: number;
+  avgHealthPercent: number | null;
+}
+
+function connectionLabelFromHealth(
+  healthStatus: PhoneHealthMetrics["healthStatus"],
+  status?: string,
+): PhoneHealthMetrics["connectionLabel"] {
+  if (status === "DISCONNECTED" || healthStatus === "danger") return "Disconnected";
+  if (healthStatus === "warning") return "Warning";
+  if (status === "CONNECTED" && healthStatus === "good") return "Connected";
+  if (healthStatus === "unknown") return "Unknown";
+  return status === "CONNECTED" ? "Connected" : "Warning";
+}
+
+function healthPercentFromStatus(
+  healthStatus: PhoneHealthMetrics["healthStatus"],
+): number | null {
+  switch (healthStatus) {
+    case "good":
+      return 99.8;
+    case "warning":
+      return 87;
+    case "danger":
+      return 65;
+    default:
+      return null;
+  }
+}
+
+function startOfTodayUtc(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+async function fetchActivityStats(phoneIds: string[]): Promise<{
+  chatsByPhone: Map<string, number>;
+  activeAgents: number;
+}> {
+  if (phoneIds.length === 0) {
+    return { chatsByPhone: new Map(), activeAgents: 0 };
+  }
+
+  const startOfToday = startOfTodayUtc();
+  const [byPhone, agentRows] = await Promise.all([
+    WhatsAppConversation.aggregate<{ _id: string; chatsToday: number }>([
+      {
+        $match: {
+          businessPhoneId: { $in: phoneIds },
+          status: "active",
+          source: { $ne: "internal" },
+          lastMessageTime: { $gte: startOfToday },
+        },
+      },
+      { $group: { _id: "$businessPhoneId", chatsToday: { $sum: 1 } } },
+    ]),
+    WhatsAppConversation.distinct("assignedAgent", {
+      businessPhoneId: { $in: phoneIds },
+      status: "active",
+      source: { $ne: "internal" },
+      lastMessageTime: { $gte: startOfToday },
+      assignedAgent: { $exists: true, $ne: null },
+    }),
+  ]);
+
+  const chatsByPhone = new Map(byPhone.map((row) => [row._id, row.chatsToday]));
+  return { chatsByPhone, activeAgents: agentRows.length };
+}
+
+async function fetchMetaPhoneHealth(
+  phoneNumberId: string,
+  forceLive: boolean,
+  preferredToken?: string,
+): Promise<{
   data: MetaPhoneHealth | null;
-  source: "LIVE" | "CACHED" | "STALE";
-  cacheAge?: number;
+  source: PhoneHealthMetrics["dataSourceStatus"];
+  cacheAgeHours?: number;
 }> {
   const cacheKey = `phone_health_${phoneNumberId}`;
   const cached = cache.get(cacheKey);
   const now = Date.now();
-  
-  // Return cached data if still valid
-  if (cached && cached.expiresAt > now) {
-    const cacheAge = (now - cached.cachedAt) / (1000 * 60 * 60); // hours
-    return {
-      data: cached.data,
-      source: cacheAge > 12 ? "STALE" : "CACHED",
-      cacheAge,
-    };
-  }
 
-  // If cache exists but expired, check if stale
-  if (cached && cached.cachedAt) {
-    const cacheAge = (now - cached.cachedAt) / (1000 * 60 * 60);
-    if (cacheAge > 12) {
-      // Return stale data but mark it
+  if (!forceLive && cached) {
+    const cacheAgeHours = (now - cached.cachedAt) / (1000 * 60 * 60);
+    if (cached.expiresAt > now) {
       return {
         data: cached.data,
-        source: "STALE",
-        cacheAge,
+        source: cacheAgeHours > STALE_AFTER_HOURS ? "STALE" : "CACHED",
+        cacheAgeHours,
       };
+    }
+    if (cacheAgeHours <= STALE_AFTER_HOURS) {
+      return { data: cached.data, source: "STALE", cacheAgeHours };
     }
   }
 
-  try {
-    const token = getWhatsAppToken();
-    if (!token) {
-      console.error("WhatsApp token not available");
-      // Return cached if available, even if expired
-      if (cached) {
-        const cacheAge = (now - cached.cachedAt) / (1000 * 60 * 60);
-        return {
-          data: cached.data,
-          source: "STALE",
-          cacheAge,
-        };
-      }
-      return { data: null, source: "STALE" };
-    }
+  const tokenCandidates: string[] = [];
+  const addToken = (value?: string | null) => {
+    const trimmed = value?.trim();
+    if (!trimmed || tokenCandidates.includes(trimmed)) return;
+    tokenCandidates.push(trimmed);
+  };
+  addToken(preferredToken);
+  addToken(await getOutboundTokenForPhoneId(phoneNumberId));
+  addToken(getWhatsAppToken());
 
-    // Fetch phone number health from Meta API
-    const response = await fetch(
-      `${WHATSAPP_API_BASE_URL}/${phoneNumberId}?fields=quality_rating,status,throughput,code_verification_status,eligibility_for_api_business_global_search`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error(`Meta API error for ${phoneNumberId}:`, errorData);
-      // Return cached if available
-      if (cached) {
-        const cacheAge = (now - cached.cachedAt) / (1000 * 60 * 60);
-        return {
-          data: cached.data,
-          source: "STALE",
-          cacheAge,
-        };
-      }
-      return { data: null, source: "STALE" };
-    }
-
-    const data = await response.json();
-    
-    // Cache the result
-    cache.set(cacheKey, {
-      data,
-      expiresAt: now + CACHE_TTL,
-      cachedAt: now,
-    });
-
-    return { data, source: "LIVE" };
-  } catch (error) {
-    console.error(`Error fetching Meta phone health for ${phoneNumberId}:`, error);
-    // Return cached if available
+  if (tokenCandidates.length === 0) {
     if (cached) {
-      const cacheAge = (now - cached.cachedAt) / (1000 * 60 * 60);
-      return {
-        data: cached.data,
-        source: "STALE",
-        cacheAge,
-      };
+      const cacheAgeHours = (now - cached.cachedAt) / (1000 * 60 * 60);
+      return { data: cached.data, source: "STALE", cacheAgeHours };
     }
-    return { data: null, source: "STALE" };
+    return { data: null, source: "NOT_SYNCED" };
   }
+
+  const fields =
+    "verified_name,display_phone_number,code_verification_status,quality_rating,status,throughput";
+
+  for (const token of tokenCandidates) {
+    try {
+      const response = await fetch(`${WHATSAPP_API_BASE_URL}/${phoneNumberId}?fields=${fields}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+
+      if (!response.ok) continue;
+
+      const data = (await response.json()) as MetaPhoneHealth & { error?: unknown };
+      if (data?.error) continue;
+
+      cache.set(cacheKey, {
+        data,
+        expiresAt: now + CACHE_TTL_MS,
+        cachedAt: now,
+      });
+
+      const source: PhoneHealthMetrics["dataSourceStatus"] = forceLive ? "LIVE" : "CACHED";
+      return { data, source };
+    } catch {
+      continue;
+    }
+  }
+
+  if (cached) {
+    const cacheAgeHours = (now - cached.cachedAt) / (1000 * 60 * 60);
+    return { data: cached.data, source: "STALE", cacheAgeHours };
+  }
+  return { data: null, source: "NOT_SYNCED" };
 }
 
-/**
- * Calculate health status based on Meta's official signals
- * UNKNOWN is treated as Warning (not neutral)
- */
-function calculateHealthStatus(metaData: MetaPhoneHealth | null): "good" | "warning" | "danger" {
-  if (!metaData) {
-    return "warning"; // Unknown status = warning
-  }
+function calculateHealthStatus(
+  metaData: MetaPhoneHealth | null,
+): PhoneHealthMetrics["healthStatus"] {
+  if (!metaData) return "unknown";
 
-  // Danger zone: RED quality OR DISCONNECTED status
-  if (
-    metaData.quality_rating === "RED" ||
-    metaData.status === "DISCONNECTED"
-  ) {
+  if (metaData.quality_rating === "RED" || metaData.status === "DISCONNECTED") {
     return "danger";
   }
 
-  // Warning zone: YELLOW quality, UNKNOWN quality, OR low throughput
-  // UNKNOWN is treated as warning (newly registered or under review)
   if (
     metaData.quality_rating === "YELLOW" ||
     metaData.quality_rating === "UNKNOWN" ||
     metaData.status === "UNKNOWN" ||
-    (metaData.throughput?.level && 
-     !["STANDARD", "TIER_1000", "TIER_250"].includes(metaData.throughput.level))
+    (metaData.throughput?.level &&
+      !["STANDARD", "TIER_1000", "TIER_250"].includes(metaData.throughput.level))
   ) {
     return "warning";
   }
 
-  // Good: GREEN quality, CONNECTED, and good throughput
-  if (
-    metaData.quality_rating === "GREEN" &&
-    metaData.status === "CONNECTED"
-  ) {
+  if (metaData.quality_rating === "GREEN" && metaData.status === "CONNECTED") {
     return "good";
   }
 
-  // Default to warning for unknown states
   return "warning";
 }
 
+const HEALTH_ROLES = ["SuperAdmin", "Sales-TeamLead", "Sales"] as const;
+
 export async function GET(req: NextRequest) {
   try {
+    await connectDb();
     const token = await getDataFromToken(req);
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userRole = (token as any).role || "";
-    const allowedRoles = ["SuperAdmin", "Sales-TeamLead", "Sales"];
-    
-    if (!allowedRoles.includes(userRole)) {
+    const userRole = String((token as { role?: string }).role || "");
+    if (!HEALTH_ROLES.includes(userRole as (typeof HEALTH_ROLES)[number])) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Get location-scoped phone configs based on role
-    // CRITICAL: Use getMetaOnlyPhoneConfigs to EXCLUDE internal "You" number
-    // Internal numbers should NEVER appear in Phone Health
-    const userAreas = (token as any).allotedArea || [];
-    const localPhoneConfigs = getMetaOnlyPhoneConfigs(userRole, userAreas);
-    
-    // Add retarget phone if SuperAdmin
-    const retargetPhoneId = getRetargetPhoneId();
-    if (retargetPhoneId && userRole === "SuperAdmin") {
-      localPhoneConfigs.push({
-        phoneNumberId: retargetPhoneId,
-        displayNumber: "Retarget Phone",
-        displayName: "Retarget Phone",
-        area: "all",
-        businessAccountId: "",
-      });
-    }
+    const userAreas = normalizeUserAreas(
+      (token as { allotedArea?: unknown }).allotedArea,
+    );
+    const userRentalType = (token as { rentalType?: unknown }).rentalType;
 
-    // CRITICAL: Sync with Meta API - Meta is the ONLY source of truth for phone metadata
-    // Overwrite local displayName/displayNumber with Meta values
-    const allowedPhoneConfigs = await syncPhoneConfigsWithMeta(localPhoneConfigs);
+    const phoneConfigs = await resolveAllottedChannelPhones(
+      userRole,
+      userAreas,
+      userRentalType,
+    );
 
-    // Check if manual refresh requested (SuperAdmin only)
     const searchParams = req.nextUrl.searchParams;
-    const forceRefresh = searchParams.get("refresh") === "true" && userRole === "SuperAdmin";
-    
+    const forceRefresh =
+      searchParams.get("refresh") === "true" && userRole === "SuperAdmin";
+
     if (forceRefresh) {
-      // Clear cache for all phone numbers
-      allowedPhoneConfigs.forEach((config) => {
+      phoneConfigs.forEach((config) => {
         if (config.phoneNumberId) {
           cache.delete(`phone_health_${config.phoneNumberId}`);
         }
       });
     }
 
-    // Fetch Meta-verified health data for each phone number
-    const healthMetricsResults = await Promise.all(
-      allowedPhoneConfigs.map(async (config) => {
-        const phoneNumberId = config.phoneNumberId;
-        if (!phoneNumberId) return null;
+    const phoneIds = phoneConfigs.map((c) => c.phoneNumberId).filter(Boolean);
+    const { chatsByPhone, activeAgents } = await fetchActivityStats(phoneIds);
 
-        // Fetch from Meta API (with cache metadata)
-        const { data: metaData, source, cacheAge } = await fetchMetaPhoneHealth(phoneNumberId);
+    const metrics: PhoneHealthMetrics[] = await Promise.all(
+      phoneConfigs.map(async (config) => {
+        const { data: metaData, source, cacheAgeHours } = await fetchMetaPhoneHealth(
+          config.phoneNumberId,
+          forceRefresh,
+          config.accessToken,
+        );
 
-        // Use Meta-synced displayName/displayNumber (already synced in allowedPhoneConfigs)
-        // Meta values have already overwritten local values
+        const displayName =
+          metaData?.verified_name || config.displayName || "WhatsApp line";
+        const displayNumber =
+          metaData?.display_phone_number || config.displayNumber || config.phoneNumberId;
+        const healthStatus = calculateHealthStatus(metaData);
+        const connectionLabel = connectionLabelFromHealth(healthStatus, metaData?.status);
+        const healthPercent = healthPercentFromStatus(healthStatus);
+
         return {
-          phoneNumberId,
-          displayName: config.displayName, // Already synced from Meta
-          displayNumber: config.displayNumber, // Already synced from Meta
+          phoneNumberId: config.phoneNumberId,
+          channelId: config.channelId,
+          displayName,
+          displayNumber,
+          locations: config.locations ?? [],
           qualityRating: metaData?.quality_rating,
           status: metaData?.status,
           throughputLevel: metaData?.throughput?.level,
           codeVerificationStatus: metaData?.code_verification_status,
           eligibleForGlobalSearch: metaData?.eligibility_for_api_business_global_search,
-          healthStatus: calculateHealthStatus(metaData),
-          lastSyncTime: source === "LIVE" ? new Date() : null,
+          healthStatus,
+          connectionLabel,
+          healthPercent,
+          chatsToday: chatsByPhone.get(config.phoneNumberId) ?? 0,
           dataSourceStatus: source,
-          cacheAge,
+          cacheAgeHours,
+          lastSyncedAt: source === "LIVE" ? new Date().toISOString() : null,
         };
-      })
+      }),
     );
 
-    // Filter out null entries
-    const validMetrics = healthMetricsResults.filter((m) => m !== null) as PhoneHealthMetrics[];
+    const connectedCount = metrics.filter((m) => m.connectionLabel === "Connected").length;
+    const totalChatsToday = metrics.reduce((sum, m) => sum + m.chatsToday, 0);
+    const healthValues = metrics
+      .map((m) => m.healthPercent)
+      .filter((v): v is number => v !== null);
+    const avgHealthPercent =
+      healthValues.length > 0
+        ? Math.round((healthValues.reduce((a, b) => a + b, 0) / healthValues.length) * 10) / 10
+        : null;
+
+    const summary: PhoneHealthSummary = {
+      connectedCount,
+      totalChatsToday,
+      activeAgents,
+      avgHealthPercent,
+    };
 
     return NextResponse.json({
       success: true,
-      metrics: validMetrics,
+      metrics,
+      summary,
+      cachedOnly: !forceRefresh,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal server error";
     console.error("Error fetching phone health:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

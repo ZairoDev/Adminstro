@@ -579,6 +579,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <FaWhatsapp size={18} />,
     },
     {
+      path: "/dashboard/whatsapp-analytics",
+      label: "WhatsApp Analytics",
+      Icon: <FaWhatsapp size={18} />,
+    },
+    {
       path: "/dashboard/website-leads",
       label: "Website Leads",
       Icon: <Globe size={18} />,
@@ -1109,6 +1114,11 @@ const dashboardManagementRoutes = [
     path: "/dashboard",
     label: "Dashboard",
     Icon: <LayoutDashboard size={18} />,
+  },
+  {
+    path: "/dashboard/whatsapp-analytics",
+    label: "WhatsApp Analytics",
+    Icon: <FaWhatsapp size={18} />,
   },
 ];
 const leadManagementRoutes = [

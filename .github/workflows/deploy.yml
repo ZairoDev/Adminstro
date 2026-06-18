@@ -227,7 +227,8 @@ jobs:
 
                 if [ "${APP_STATUS}" = "online" ]; then
                   HTTP_CODE="$(curl -s -o /dev/null -w "%{http_code}" \
-                    --max-time 5 http://localhost:3000 2>/dev/null || echo "000")"
+                    --max-time 5 http://localhost:3000 2>/dev/null || true)"
+                  HTTP_CODE="${HTTP_CODE:-000}"
 
                   if [ "${HTTP_CODE}" != "000" ] && [ "${HTTP_CODE}" -ge 200 ] && [ "${HTTP_CODE}" -lt 500 ]; then
                     echo "Health check passed (HTTP ${HTTP_CODE}) on attempt ${attempt}"
@@ -308,27 +309,38 @@ jobs:
             }
 
             cleanup_old_releases() {
-              local live_release
+              local live_release dir target
+
               live_release="$(readlink -f "${DEPLOY_DIR}" 2>/dev/null || echo "")"
-
               echo "Cleaning up old releases (keeping last 5, live=${live_release})..."
-              cd "${RELEASES_DIR}"
-              ls -dt */ 2>/dev/null | tail -n +6 | while read -r dir; do
-                TARGET="${RELEASES_DIR}/${dir%/}"
-                if [ "${TARGET}" = "${live_release}" ]; then
-                  echo "Skipping live release: ${TARGET}"
-                  continue
-                fi
-                echo "Removing ${TARGET}"
-                sudo rm -rf "${TARGET}"
-              done
 
-              cd /var/www
-              ls -dt adminstro_rollback_* 2>/dev/null | tail -n +1 | while read -r dir; do
-                echo "Removing legacy backup ${dir}"
-                sudo rm -rf "${dir}"
-              done
+              if [ -d "${RELEASES_DIR}" ]; then
+                cd "${RELEASES_DIR}" || { echo "WARN: cannot cd to ${RELEASES_DIR}"; return 0; }
+
+                # ls exits 2 when no matches — never fail deploy on cleanup.
+                while IFS= read -r dir; do
+                  [ -z "${dir}" ] && continue
+                  target="${RELEASES_DIR}/${dir%/}"
+                  if [ "${target}" = "${live_release}" ]; then
+                    echo "Skipping live release: ${target}"
+                    continue
+                  fi
+                  echo "Removing ${target}"
+                  sudo rm -rf "${target}" || echo "WARN: failed to remove ${target}"
+                done < <(ls -dt */ 2>/dev/null | tail -n +6 || true)
+              fi
+
+              if cd /var/www 2>/dev/null; then
+                shopt -s nullglob
+                for dir in adminstro_rollback_*/; do
+                  echo "Removing legacy backup ${dir%/}"
+                  sudo rm -rf "${dir}" || echo "WARN: failed to remove ${dir}"
+                done
+                shopt -u nullglob
+              fi
+
               sudo rm -rf /var/www/adminstro_new_build 2>/dev/null || true
+              echo "Cleanup complete"
             }
 
             # ── main ─────────────────────────────────────────────────────────
@@ -375,7 +387,7 @@ jobs:
               exit 1
             fi
 
-            cleanup_old_releases
+            cleanup_old_releases || echo "WARN: cleanup had errors (deploy is still live)"
 
             echo ""
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

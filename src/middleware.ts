@@ -32,6 +32,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/admin",
     "/dashboard",
     "/dashboard/my-reminders",
+    "/dashboard/whatsapp-analytics",
     "/spreadsheet",
     "/spreadsheet-short-term",
     /^\/dashboard\/user$/,
@@ -129,6 +130,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/",
     "/dashboard", // Dashboard access for Sales
     "/dashboard/my-reminders",
+    "/dashboard/whatsapp-analytics",
     "/spreadsheet",
     "/spreadsheet-short-term",
     "/whatsapp",
@@ -160,6 +162,7 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/",
     "/dashboard", // Dashboard access for Sales-TeamLead
     "/dashboard/my-reminders",
+    "/dashboard/whatsapp-analytics",
     "/spreadsheet",
     "/spreadsheet-short-term",
     "/whatsapp",

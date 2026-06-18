@@ -619,6 +619,14 @@ async function sendGuestQuestionsTemplate(
       lastOutgoingMessageTime: timestamp,
     });
 
+    const { recordOutgoingMessageMetrics } = await import(
+      "@/lib/whatsapp/conversationMetricsService"
+    );
+    await recordOutgoingMessageMetrics(conversation._id, timestamp, {
+      templateName: "guest_questions",
+      isTemplate: true,
+    }).catch((err) => console.warn("[metrics] outgoing automation:", err));
+
     // Emit socket event for real-time frontend updates (global)
     const emitPayload = {
       conversationId: conversation._id.toString(),
@@ -1250,6 +1258,22 @@ async function processIncomingMessage(
       return;
     }
 
+    const { recordIncomingMessageMetrics } = await import(
+      "@/lib/whatsapp/conversationMetricsService"
+    );
+    await recordIncomingMessageMetrics(conversation._id, timestamp).catch((err) =>
+      console.warn("[metrics] incoming:", err),
+    );
+
+    if (isNewMessage) {
+      const { confirmGuestInitiationOnInboundReply } = await import(
+        "@/lib/whatsapp/initiationLimitService"
+      );
+      await confirmGuestInitiationOnInboundReply(String(conversation._id)).catch((err) =>
+        console.warn("[initiation] confirm:", err),
+      );
+    }
+
     // ============================================================
     // GET ELIGIBLE USERS AND EMIT NOTIFICATIONS
     // ============================================================
@@ -1570,6 +1594,28 @@ async function processStatusUpdate(status: any) {
           lastMessageStatus: newStatus,
         });
       }
+    }
+
+    const isFirstDeliveryAck =
+      (newStatus === "delivered" || newStatus === "read") &&
+      previousStatus !== "delivered" &&
+      previousStatus !== "read";
+    if (isFirstDeliveryAck) {
+      const { recordGuestInitiationOnOutboundDelivered } = await import(
+        "@/lib/whatsapp/initiationLimitService"
+      );
+      await recordGuestInitiationOnOutboundDelivered(messageId, timestamp).catch(
+        (err) => console.warn("[initiation] delivery pending:", err),
+      );
+    }
+
+    if (newStatus === "failed") {
+      const { releaseGuestInitiationReservationOnOutboundFailed } = await import(
+        "@/lib/whatsapp/initiationLimitService"
+      );
+      await releaseGuestInitiationReservationOnOutboundFailed(messageId).catch(
+        (err) => console.warn("[initiation] release reservation:", err),
+      );
     }
 
     // STEP 9: Only emit socket event if status actually changed
@@ -2104,6 +2150,13 @@ async function processMessageEchoEvent(value: any) {
           lastMessageDirection: "outgoing",
           lastOutgoingMessageTime: timestamp,
         });
+
+        const { recordOutgoingMessageMetrics } = await import(
+          "@/lib/whatsapp/conversationMetricsService"
+        );
+        await recordOutgoingMessageMetrics(conversation._id, timestamp).catch(
+          (err) => console.warn("[metrics] echo:", err),
+        );
 
         // Emit message echo event for real-time UI sync
         emitWhatsAppEvent(WHATSAPP_EVENTS.MESSAGE_ECHO, {

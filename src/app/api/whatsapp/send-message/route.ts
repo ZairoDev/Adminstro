@@ -15,8 +15,8 @@ import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whats
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 import {
   assertCanInitiateGuestConversation,
-  guestConversationExists,
-  recordGuestInitiation,
+  guestWasPreviouslyEngaged,
+  maybeReserveGuestInitiation,
 } from "@/lib/whatsapp/initiationLimitService";
 import {
   explainOutboundSendCredentialsFailure,
@@ -536,9 +536,14 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    if (!conversation && !conversationId) {
-      const isNewGuest = !(await guestConversationExists(formattedPhone));
-      if (isNewGuest) {
+    const convType =
+      conversation?.conversationType === "owner" ? "owner" : "guest";
+
+    let shouldReserveGuestInitiation = false;
+    if (convType !== "owner") {
+      const needsInitiationGate = !(await guestWasPreviouslyEngaged(formattedPhone));
+      if (needsInitiationGate) {
+        shouldReserveGuestInitiation = true;
         const initiationCheck = await assertCanInitiateGuestConversation({
           employeeId: normalizedToken.id,
           userRole,
@@ -609,7 +614,6 @@ export async function POST(req: NextRequest) {
       }
 
       if (!conversation) {
-        const wasNewGuest = !(await guestConversationExists(formattedPhone));
         const phoneChannel = await getChannelByPhoneNumberId(phoneNumberId);
         conversation = await findOrCreateConversationWithSnapshot({
           participantPhone: formattedPhone,
@@ -619,13 +623,6 @@ export async function POST(req: NextRequest) {
           channelType: phoneChannel?.channelType,
           snapshotSource: "trusted",
         });
-        if (wasNewGuest && conversation._id) {
-          await recordGuestInitiation({
-            employeeId: normalizedToken.id,
-            guestPhone: formattedPhone,
-            conversationId: String(conversation._id),
-          });
-        }
       }
     }
 
@@ -738,6 +735,25 @@ export async function POST(req: NextRequest) {
       lastMessageStatus: "sending",
       lastOutgoingMessageTime: timestamp,
     });
+
+    const { recordOutgoingMessageMetrics } = await import(
+      "@/lib/whatsapp/conversationMetricsService"
+    );
+    await recordOutgoingMessageMetrics(conversation._id, timestamp, {
+      templateName: type === "template" ? templateName : undefined,
+      isTemplate: type === "template",
+    }).catch((err) => console.warn("[metrics] outgoing:", err));
+
+    if (shouldReserveGuestInitiation) {
+      await maybeReserveGuestInitiation({
+        employeeId: normalizedToken.id,
+        userRole,
+        guestPhone: formattedPhone,
+        conversationId: String(conversation._id),
+        conversationType: convType,
+        reservedAt: timestamp,
+      }).catch((err) => console.warn("[initiation] reserve:", err));
+    }
 
     // CRITICAL FIX: Emit socket event for real-time updates
     const convEmit = conversation.toObject ? conversation.toObject() : conversation;

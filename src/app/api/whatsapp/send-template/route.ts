@@ -25,8 +25,8 @@ import RetargetContact from "@/models/retargetContact";
 import { isTemplateAllowedForConversationRentalType } from "@/lib/whatsapp/templateClassification";
 import {
   assertCanInitiateGuestConversation,
-  guestConversationExists,
-  recordGuestInitiation,
+  guestWasPreviouslyEngaged,
+  maybeReserveGuestInitiation,
 } from "@/lib/whatsapp/initiationLimitService";
 
 connectDb();
@@ -271,9 +271,17 @@ export async function POST(req: NextRequest) {
         }),
       });
 
-    if (!conversation && !isRetarget) {
-      const isNewGuest = !(await guestConversationExists(formattedPhone));
-      if (isNewGuest) {
+    const templateNameLowerPrecheck = String(templateName || "").toLowerCase();
+    const isOwnerTemplate =
+      templateNameLowerPrecheck.includes("owners_template") ||
+      templateNameLowerPrecheck.startsWith("owner");
+    const existingConvType = conversation?.conversationType;
+
+    let shouldReserveGuestInitiation = false;
+    if (!isRetarget && !isOwnerTemplate && existingConvType !== "owner") {
+      const needsInitiationGate = !(await guestWasPreviouslyEngaged(formattedPhone));
+      if (needsInitiationGate) {
+        shouldReserveGuestInitiation = true;
         const initiationCheck = await assertCanInitiateGuestConversation({
           employeeId: normalizedToken.id,
           userRole,
@@ -329,7 +337,6 @@ export async function POST(req: NextRequest) {
     const timestamp = new Date();
 
     if (!conversation) {
-      const wasNewGuest = !(await guestConversationExists(formattedPhone));
       conversation = await findOrCreateConversationWithSnapshot({
         participantPhone: formattedPhone,
         businessPhoneId: phoneNumberId,
@@ -341,14 +348,6 @@ export async function POST(req: NextRequest) {
       const allowed = await canAccessConversationAsync(normalizedToken, convLean);
       if (!allowed) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-
-      if (!isRetarget && wasNewGuest && conversation._id) {
-        await recordGuestInitiation({
-          employeeId: normalizedToken.id,
-          guestPhone: formattedPhone,
-          conversationId: String(conversation._id),
-        });
       }
     }
 
@@ -423,6 +422,17 @@ export async function POST(req: NextRequest) {
   }
 
     await WhatsAppConversation.findByIdAndUpdate(conversation._id, conversationUpdate);
+
+    if (shouldReserveGuestInitiation && conversationType !== "owner") {
+      await maybeReserveGuestInitiation({
+        employeeId: normalizedToken.id,
+        userRole,
+        guestPhone: formattedPhone,
+        conversationId: String(conversation._id),
+        conversationType: "guest",
+        reservedAt: timestamp,
+      }).catch((err) => console.warn("[initiation] reserve:", err));
+    }
 
     // Emit socket event for real-time updates (global)
     const emitPayload = {

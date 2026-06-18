@@ -1886,6 +1886,10 @@ export default function WhatsAppChat() {
           ? (message.status as Message["status"]) || "sent"
           : undefined;
 
+      if (isIncomingMessage) {
+        setInitiationLimitRefreshKey((k) => k + 1);
+      }
+
       if (isCurrentConversation) {
         addToLRUSet(seenMessageIdsRef.current, message.messageId);
 
@@ -2163,6 +2167,10 @@ export default function WhatsAppChat() {
         updated[idx] = { ...updated[idx], lastMessageStatus: status, lastMessageId: messageId };
         return updated;
       });
+
+      if (status === "delivered" || status === "read" || status === "failed") {
+        setInitiationLimitRefreshKey((k) => k + 1);
+      }
     };
 
     const handleMessageEcho = (data: any) => {
@@ -3368,6 +3376,7 @@ export default function WhatsAppChat() {
         try {
           addToLRUSet(seenMessageIdsRef.current, response.data.messageId);
         } catch (e) {}
+        setInitiationLimitRefreshKey((k) => k + 1);
       }
     } catch (error: any) {
       setMessages((prev) =>
@@ -3536,6 +3545,7 @@ export default function WhatsAppChat() {
         } catch {
           // ignore
         }
+        setInitiationLimitRefreshKey((k) => k + 1);
 
         toast({
           title: "Template Sent",

@@ -310,6 +310,7 @@ jobs:
 
             cleanup_old_releases() {
               local live_release dir target
+              local -a old_releases legacy_backups
 
               live_release="$(readlink -f "${DEPLOY_DIR}" 2>/dev/null || echo "")"
               echo "Cleaning up old releases (keeping last 5, live=${live_release})..."
@@ -317,8 +318,10 @@ jobs:
               if [ -d "${RELEASES_DIR}" ]; then
                 cd "${RELEASES_DIR}" || { echo "WARN: cannot cd to ${RELEASES_DIR}"; return 0; }
 
-                # ls exits 2 when no matches — never fail deploy on cleanup.
-                while IFS= read -r dir; do
+                # Do NOT use "while read" here — with set -e, read returning EOF
+                # exits the entire script (not just this function).
+                mapfile -t old_releases < <(ls -dt */ 2>/dev/null | tail -n +6 || true)
+                for dir in "${old_releases[@]:-}"; do
                   [ -z "${dir}" ] && continue
                   target="${RELEASES_DIR}/${dir%/}"
                   if [ "${target}" = "${live_release}" ]; then
@@ -327,20 +330,21 @@ jobs:
                   fi
                   echo "Removing ${target}"
                   sudo rm -rf "${target}" || echo "WARN: failed to remove ${target}"
-                done < <(ls -dt */ 2>/dev/null | tail -n +6 || true)
+                done
               fi
 
               if cd /var/www 2>/dev/null; then
-                shopt -s nullglob
-                for dir in adminstro_rollback_*/; do
-                  echo "Removing legacy backup ${dir%/}"
+                mapfile -t legacy_backups < <(ls -dt adminstro_rollback_* 2>/dev/null || true)
+                for dir in "${legacy_backups[@]:-}"; do
+                  [ -z "${dir}" ] && continue
+                  echo "Removing legacy backup ${dir}"
                   sudo rm -rf "${dir}" || echo "WARN: failed to remove ${dir}"
                 done
-                shopt -u nullglob
               fi
 
               sudo rm -rf /var/www/adminstro_new_build 2>/dev/null || true
               echo "Cleanup complete"
+              return 0
             }
 
             # ── main ─────────────────────────────────────────────────────────

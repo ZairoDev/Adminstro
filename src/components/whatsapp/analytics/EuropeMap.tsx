@@ -7,7 +7,7 @@ import {
   Geography,
   Marker,
 } from "react-simple-maps";
-import type { LocationStat } from "@/app/api/analytics/whatsapp-overview/route";
+import type { LocationAnalyticsRow } from "@/lib/whatsapp/analytics/types";
 
 const GEO_URL =
   "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
@@ -100,39 +100,39 @@ interface GeographyProperties {
 
 export interface CountryAggregate {
   country: string;
-  locations: LocationStat[];
-  total: number;
-  replied: number;
-  delivered: number;
-  replyRate: number;
-  deliveryRate: number;
+  locations: LocationAnalyticsRow[];
+  outbound: number;
+  responded: number;
+  responseRate: number;
+  avgCustomerReplyMs: number;
+  visitRate: number;
+  bookingRate: number;
   ownerCount: number;
   guestCount: number;
   shortTermCount: number;
   longTermCount: number;
-  avgResponseMinutes: number;
 }
 
-function markerColor(replyRate: number): string {
-  if (replyRate >= 80) return "#22c55e";
-  if (replyRate >= 50) return "#f59e0b";
+function markerColor(responseRate: number): string {
+  if (responseRate >= 80) return "#22c55e";
+  if (responseRate >= 50) return "#f59e0b";
   return "#ef4444";
 }
 
 function countryFill(
-  replyRate: number | null,
+  responseRate: number | null,
   hovered: boolean,
 ): { fill: string; fillOpacity: number } {
-  if (replyRate === null) {
+  if (responseRate === null) {
     return { fill: hovered ? "#1f2937" : "#161b22", fillOpacity: 1 };
   }
   return {
-    fill: markerColor(replyRate),
+    fill: markerColor(responseRate),
     fillOpacity: hovered ? 0.65 : 0.38,
   };
 }
 
-function resolveCountry(stat: LocationStat): string | null {
+function resolveCountry(stat: LocationAnalyticsRow): string | null {
   const key = stat.locationKey.toLowerCase().trim();
   if (CITY_TO_COUNTRY[key]) return CITY_TO_COUNTRY[key];
 
@@ -149,7 +149,9 @@ function resolveCountry(stat: LocationStat): string | null {
   return null;
 }
 
-function aggregateByCountry(stats: LocationStat[]): Map<string, CountryAggregate> {
+function aggregateByCountry(
+  stats: LocationAnalyticsRow[],
+): Map<string, CountryAggregate> {
   const map = new Map<string, CountryAggregate>();
 
   for (const stat of stats) {
@@ -161,41 +163,54 @@ function aggregateByCountry(stats: LocationStat[]): Map<string, CountryAggregate
       map.set(country, {
         country,
         locations: [stat],
-        total: stat.total,
-        replied: stat.replied,
-        delivered: Math.round((stat.deliveryRate / 100) * stat.total),
-        replyRate: stat.replyRate,
-        deliveryRate: stat.deliveryRate,
+        outbound: stat.outbound,
+        responded: stat.responded,
+        responseRate: stat.responseRate,
+        avgCustomerReplyMs: stat.avgCustomerReplyMs,
+        visitRate: stat.visitRate,
+        bookingRate: stat.bookingRate,
         ownerCount: stat.ownerCount,
         guestCount: stat.guestCount,
         shortTermCount: stat.shortTermCount,
         longTermCount: stat.longTermCount,
-        avgResponseMinutes: stat.avgResponseMinutes,
       });
       continue;
     }
 
-    const total = existing.total + stat.total;
-    const replied = existing.replied + stat.replied;
-    const delivered =
-      existing.delivered + Math.round((stat.deliveryRate / 100) * stat.total);
-    const responseWeighted =
-      existing.avgResponseMinutes * existing.total +
-      stat.avgResponseMinutes * stat.total;
+    const outbound = existing.outbound + stat.outbound;
+    const responded = existing.responded + stat.responded;
+    const replyWeighted =
+      existing.avgCustomerReplyMs * existing.responded +
+      stat.avgCustomerReplyMs * stat.responded;
 
     map.set(country, {
       country,
       locations: [...existing.locations, stat],
-      total,
-      replied,
-      delivered,
-      replyRate: total > 0 ? Math.round((replied / total) * 100) : 0,
-      deliveryRate: total > 0 ? Math.round((delivered / total) * 100) : 0,
+      outbound,
+      responded,
+      responseRate: outbound > 0 ? Math.round((responded / outbound) * 100) : 0,
+      avgCustomerReplyMs:
+        responded > 0 ? Math.round(replyWeighted / responded) : 0,
+      visitRate:
+        responded > 0
+          ? Math.round(
+              ((existing.visitRate * existing.responded +
+                stat.visitRate * stat.responded) /
+                responded),
+            )
+          : 0,
+      bookingRate:
+        responded > 0
+          ? Math.round(
+              ((existing.bookingRate * existing.responded +
+                stat.bookingRate * stat.responded) /
+                responded),
+            )
+          : 0,
       ownerCount: existing.ownerCount + stat.ownerCount,
       guestCount: existing.guestCount + stat.guestCount,
       shortTermCount: existing.shortTermCount + stat.shortTermCount,
       longTermCount: existing.longTermCount + stat.longTermCount,
-      avgResponseMinutes: total > 0 ? Math.round(responseWeighted / total) : 0,
     });
   }
 
@@ -204,10 +219,10 @@ function aggregateByCountry(stats: LocationStat[]): Map<string, CountryAggregate
 
 type TooltipState =
   | { kind: "country"; data: CountryAggregate; x: number; y: number }
-  | { kind: "city"; data: LocationStat; x: number; y: number };
+  | { kind: "city"; data: LocationAnalyticsRow; x: number; y: number };
 
 interface EuropeMapProps {
-  locationStats: LocationStat[];
+  locationStats: LocationAnalyticsRow[];
 }
 
 export default function EuropeMap({ locationStats }: EuropeMapProps) {
@@ -216,7 +231,7 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
 
   const statsMap = useMemo(
     () =>
-      new Map<string, LocationStat>(
+      new Map<string, LocationAnalyticsRow>(
         locationStats.map((s) => [s.locationKey.toLowerCase(), s]),
       ),
     [locationStats],
@@ -276,7 +291,7 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
                   (geo.properties as GeographyProperties).name ?? "";
                 const agg = countryStatsMap.get(countryName);
                 const isHovered = hoveredCountry === countryName;
-                const rate = agg?.replyRate ?? null;
+                const rate = agg?.responseRate ?? null;
                 const { fill, fillOpacity } = countryFill(rate, isHovered);
 
                 return (
@@ -318,7 +333,7 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
 
         {markers.map(([key, city]) => {
           const stat = statsMap.get(key)!;
-          const color = markerColor(stat.replyRate);
+          const color = markerColor(stat.responseRate);
           return (
             <Marker
               key={key}
@@ -390,36 +405,43 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
               </p>
               <div className="space-y-0.5 text-gray-400">
                 <p>
-                  Reply Rate:{" "}
-                  <span
-                    className="font-medium"
-                    style={{ color: markerColor(tooltip.data.replyRate) }}
-                  >
-                    {tooltip.data.replyRate}%
-                  </span>
-                </p>
-                <p>
-                  Delivery Rate:{" "}
-                  <span className="text-white">{tooltip.data.deliveryRate}%</span>
-                </p>
-                <p>
-                  Conversations:{" "}
-                  <span className="text-white">{tooltip.data.total}</span>
-                </p>
-                <p>
-                  Owners:{" "}
-                  <span className="text-white">{tooltip.data.ownerCount}</span>
-                  {" · "}
-                  Guests:{" "}
-                  <span className="text-white">{tooltip.data.guestCount}</span>
-                </p>
-                <p>
-                  Short Term:{" "}
-                  <span className="text-white">{tooltip.data.shortTermCount}</span>
-                  {" · "}
-                  Long Term:{" "}
-                  <span className="text-white">{tooltip.data.longTermCount}</span>
-                </p>
+              Reply Rate:{" "}
+              <span
+                className="font-medium"
+                style={{ color: markerColor(tooltip.data.responseRate) }}
+              >
+                {tooltip.data.responseRate}%
+              </span>
+            </p>
+            <p>
+              Avg Customer Reply:{" "}
+              <span className="text-white">
+                {Math.round(tooltip.data.avgCustomerReplyMs / 60000)}m
+              </span>
+            </p>
+            <p>
+              Conversations:{" "}
+              <span className="text-white">{tooltip.data.outbound}</span>
+            </p>
+            <p>
+              Responded:{" "}
+              <span className="text-white">{tooltip.data.responded}</span>
+            </p>
+            <p>
+              Visit Rate:{" "}
+              <span className="text-white">{tooltip.data.visitRate}%</span>
+            </p>
+            <p>
+              Booking Rate:{" "}
+              <span className="text-white">{tooltip.data.bookingRate}%</span>
+            </p>
+            <p>
+              Owners:{" "}
+              <span className="text-white">{tooltip.data.ownerCount}</span>
+              {" · "}
+              Guests:{" "}
+              <span className="text-white">{tooltip.data.guestCount}</span>
+            </p>
                 {tooltip.data.locations.length > 1 && (
                   <p className="pt-1 text-[10px] text-gray-500">
                     {tooltip.data.locations.map((l) => l.location).join(", ")}
@@ -434,34 +456,36 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
               </p>
               <div className="space-y-0.5 text-gray-400">
                 <p>
-                  Reply Rate:{" "}
-                  <span
-                    className="font-medium"
-                    style={{ color: markerColor(tooltip.data.replyRate) }}
-                  >
-                    {tooltip.data.replyRate}%
-                  </span>
-                </p>
-                <p>
-                  Delivery Rate:{" "}
-                  <span className="text-white">{tooltip.data.deliveryRate}%</span>
-                </p>
-                <p>
-                  Owners:{" "}
-                  <span className="text-white">{tooltip.data.ownerCount}</span>
-                </p>
-                <p>
-                  Guests:{" "}
-                  <span className="text-white">{tooltip.data.guestCount}</span>
-                </p>
-                <p>
-                  Short Term:{" "}
-                  <span className="text-white">{tooltip.data.shortTermCount}</span>
-                </p>
-                <p>
-                  Long Term:{" "}
-                  <span className="text-white">{tooltip.data.longTermCount}</span>
-                </p>
+              Reply Rate:{" "}
+              <span
+                className="font-medium"
+                style={{ color: markerColor(tooltip.data.responseRate) }}
+              >
+                {tooltip.data.responseRate}%
+              </span>
+            </p>
+            <p>
+              Avg Reply:{" "}
+              <span className="text-white">
+                {Math.round(tooltip.data.avgCustomerReplyMs / 60000)}m
+              </span>
+            </p>
+            <p>
+              Owners:{" "}
+              <span className="text-white">{tooltip.data.ownerCount}</span>
+            </p>
+            <p>
+              Guests:{" "}
+              <span className="text-white">{tooltip.data.guestCount}</span>
+            </p>
+            <p>
+              Short Term:{" "}
+              <span className="text-white">{tooltip.data.shortTermCount}</span>
+            </p>
+            <p>
+              Long Term:{" "}
+              <span className="text-white">{tooltip.data.longTermCount}</span>
+            </p>
               </div>
             </>
           )}

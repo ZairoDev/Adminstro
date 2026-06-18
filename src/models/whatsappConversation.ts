@@ -50,6 +50,33 @@ export interface IWhatsAppConversation extends Document {
   lastIncomingMessageTime?: Date;
   lastOutgoingMessageTime?: Date;
 
+  /** First outbound (agent/system) message timestamp */
+  firstOutboundMessageAt?: Date;
+  /** First customer reply after outbound */
+  firstCustomerReplyAt?: Date;
+  /** First agent reply after customer's first message */
+  firstAgentReplyAt?: Date;
+  customerMessageCount?: number;
+  agentMessageCount?: number;
+  lastCustomerReplyAt?: Date;
+  lastAgentReplyAt?: Date;
+  /** 0–100 engagement score (derived) */
+  engagementScore?: number;
+  leadTemperature?: "hot" | "warm" | "cold" | "dormant";
+  /** Agent first response exceeded SLA threshold */
+  slaBreached?: boolean;
+  /** First template that opened the conversation */
+  openingTemplateName?: string;
+
+  /** Sales daily guest-initiation quota (replaces separate initiation log collection) */
+  guestInitiationAgentId?: mongoose.Types.ObjectId;
+  /** Meta accepted outbound — slot reserved until delivery or failure */
+  guestInitiationReservedAt?: Date;
+  /** First delivered outbound to a new guest — awaiting reply */
+  guestInitiationPendingAt?: Date;
+  /** Guest's first reply after guestInitiationPendingAt */
+  guestInitiationConfirmedAt?: Date;
+
   tags?: string[];
   /** CRM disposition / workflow labels (indexed for sidebar filters) */
   labels?: string[];
@@ -226,6 +253,72 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
 
     lastOutgoingMessageTime: {
       type: Date,
+    },
+
+    firstOutboundMessageAt: {
+      type: Date,
+      index: true,
+    },
+    firstCustomerReplyAt: {
+      type: Date,
+      index: true,
+    },
+    firstAgentReplyAt: {
+      type: Date,
+      index: true,
+    },
+    customerMessageCount: {
+      type: Number,
+      default: 0,
+    },
+    agentMessageCount: {
+      type: Number,
+      default: 0,
+    },
+    lastCustomerReplyAt: {
+      type: Date,
+    },
+    lastAgentReplyAt: {
+      type: Date,
+    },
+    engagementScore: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    leadTemperature: {
+      type: String,
+      enum: ["hot", "warm", "cold", "dormant"],
+      index: true,
+    },
+    slaBreached: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    openingTemplateName: {
+      type: String,
+      default: "",
+      index: true,
+    },
+
+    guestInitiationAgentId: {
+      type: Schema.Types.ObjectId,
+      ref: "Employees",
+      index: true,
+    },
+    guestInitiationReservedAt: {
+      type: Date,
+      index: true,
+    },
+    guestInitiationPendingAt: {
+      type: Date,
+      index: true,
+    },
+    guestInitiationConfirmedAt: {
+      type: Date,
+      index: true,
     },
 
     tags: {
@@ -410,6 +503,31 @@ whatsAppConversationSchema.index({
   status: 1,
   lastMessageTime: -1,
 }, { name: "crm_labels_inbox_idx" });
+
+whatsAppConversationSchema.index({
+  firstOutboundMessageAt: 1,
+  participantLocationKey: 1,
+  conversationType: 1,
+}, { name: "wa_analytics_outbound_idx" });
+
+whatsAppConversationSchema.index({
+  leadTemperature: 1,
+  status: 1,
+  lastMessageTime: -1,
+}, { name: "wa_lead_temperature_idx" });
+
+whatsAppConversationSchema.index(
+  { guestInitiationAgentId: 1, guestInitiationConfirmedAt: 1 },
+  { name: "wa_guest_initiation_confirmed_idx" },
+);
+whatsAppConversationSchema.index(
+  { guestInitiationAgentId: 1, guestInitiationPendingAt: 1 },
+  { name: "wa_guest_initiation_pending_idx" },
+);
+whatsAppConversationSchema.index(
+  { guestInitiationAgentId: 1, guestInitiationReservedAt: 1 },
+  { name: "wa_guest_initiation_reserved_idx" },
+);
 
 const WhatsAppConversation =
   mongoose.models?.WhatsAppConversation ||

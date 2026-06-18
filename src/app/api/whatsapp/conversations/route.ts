@@ -37,7 +37,6 @@ import {
 } from "@/lib/whatsapp/channelService";
 import {
   assertCanInitiateGuestConversation,
-  recordGuestInitiation,
 } from "@/lib/whatsapp/initiationLimitService";
 import { resolveLeadLinkedConversationRentalType } from "@/lib/whatsapp/rentalTypeAccess";
 import {
@@ -743,7 +742,7 @@ export async function POST(req: NextRequest) {
         )
       : false;
 
-    if (!existingSameAccount) {
+    if (!existingSameAccount && explicitType !== "owner") {
       const initiationCheck = await assertCanInitiateGuestConversation({
         employeeId: String(token.id || token._id),
         userRole,
@@ -775,14 +774,6 @@ export async function POST(req: NextRequest) {
       channelType: effectiveChannelType ?? undefined,
       snapshotSource: "trusted",
     });
-
-    if (!existingSameAccount && conversation?._id) {
-      await recordGuestInitiation({
-        employeeId: String(token.id || token._id),
-        guestPhone: normalizedPhone,
-        conversationId: String(conversation._id),
-      });
-    }
 
     return NextResponse.json({
       success: true,

@@ -9,20 +9,34 @@ import { useInitiationLimit } from "../hooks/useInitiationLimit";
 export function InitiationLimitBadge({
   className,
   refreshKey = 0,
+  pollIntervalMs = 0,
   variant = "badge",
 }: {
   className?: string;
   refreshKey?: number;
+  pollIntervalMs?: number;
   variant?: "badge" | "banner";
 }) {
-  const { status, loading } = useInitiationLimit(refreshKey);
+  const { status, loading } = useInitiationLimit(refreshKey, pollIntervalMs);
 
   if (loading || !status?.limited) return null;
 
-  const label = `${status.used} / ${status.limit} new guests today`;
+  const parts: string[] = [];
+  if (status.used > 0) {
+    parts.push(`${status.used} / ${status.limit} guests replied`);
+  } else {
+    parts.push(`${status.used} / ${status.limit} new guests today`);
+  }
+  if (status.inFlight && status.inFlight > 0) {
+    parts.push(`${status.inFlight} awaiting delivery`);
+  }
+  if (status.pending && status.pending > 0) {
+    parts.push(`${status.pending} awaiting reply`);
+  }
+  const label = parts.join(" · ");
   const remainingLabel =
     status.remaining > 0
-      ? `${status.remaining} left to contact`
+      ? `${status.remaining} new outreach slot${status.remaining === 1 ? "" : "s"} left`
       : "Daily limit reached";
 
   if (variant === "banner") {
@@ -72,7 +86,15 @@ export function InitiationLimitBadge({
         <TooltipContent>
           {status.atLimit
             ? "Daily new guest limit reached. Existing chats are unaffected."
-            : `${status.remaining} new guest conversation${status.remaining === 1 ? "" : "s"} remaining today.`}
+            : `${status.used} guest${status.used === 1 ? "" : "s"} replied today${
+                status.inFlight
+                  ? `; ${status.inFlight} awaiting Meta delivery`
+                  : ""
+              }${
+                status.pending
+                  ? `; ${status.pending} awaiting guest reply`
+                  : ""
+              }. ${status.remaining} new outreach slot${status.remaining === 1 ? "" : "s"} remaining.`}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

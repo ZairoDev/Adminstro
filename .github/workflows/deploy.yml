@@ -213,9 +213,13 @@ jobs:
             PM2_APP_NAME="adminstro"
             ARCHIVE="/tmp/adminstro_${RELEASE_ID}.tar.gz"
             NEW_RELEASE="${RELEASES_DIR}/${RELEASE_ID}"
+            RUN_USER="$(whoami)"
+            RUN_GROUP="$(id -gn)"
 
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "Activating release: ${RELEASE_ID}"
+            echo "SSH user: ${RUN_USER} (uid=$(id -u), group=${RUN_GROUP})"
+            echo "Note: script already runs as VPS_USERNAME — sudo is only for /var/www file ops"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
             health_check() {
@@ -253,8 +257,8 @@ jobs:
                 MIGRATED="${RELEASES_DIR}/migrated_$(date +%Y%m%d_%H%M%S)"
                 sudo mv "${DEPLOY_DIR}" "${MIGRATED}"
                 sudo ln -s "${MIGRATED}" "${DEPLOY_DIR}"
-                sudo chown -h jenkins:jenkins "${DEPLOY_DIR}" || true
-                sudo chown -R jenkins:jenkins "${MIGRATED}"
+                sudo chown -h "${RUN_USER}:${RUN_GROUP}" "${DEPLOY_DIR}" || true
+                sudo chown -R "${RUN_USER}:${RUN_GROUP}" "${MIGRATED}"
 
                 if pm2 describe "${PM2_APP_NAME}" >/dev/null 2>&1; then
                   pm2 reload "${PM2_APP_NAME}" --update-env
@@ -267,9 +271,9 @@ jobs:
 
               if [ ! -e "${DEPLOY_DIR}" ]; then
                 sudo mkdir -p "${RELEASES_DIR}/bootstrap"
-                sudo chown -R jenkins:jenkins "${RELEASES_DIR}/bootstrap"
+                sudo chown -R "${RUN_USER}:${RUN_GROUP}" "${RELEASES_DIR}/bootstrap"
                 sudo ln -s "${RELEASES_DIR}/bootstrap" "${DEPLOY_DIR}"
-                sudo chown -h jenkins:jenkins "${DEPLOY_DIR}" || true
+                sudo chown -h "${RUN_USER}:${RUN_GROUP}" "${DEPLOY_DIR}" || true
               fi
             }
 
@@ -294,7 +298,7 @@ jobs:
               if [ -n "${previous_release}" ] && [ -d "${previous_release}" ]; then
                 echo "Rolling back to ${previous_release}"
                 sudo ln -sfn "${previous_release}" "${DEPLOY_DIR}"
-                sudo chown -h jenkins:jenkins "${DEPLOY_DIR}" || true
+                sudo chown -h "${RUN_USER}:${RUN_GROUP}" "${DEPLOY_DIR}" || true
 
                 if pm2 describe "${PM2_APP_NAME}" >/dev/null 2>&1; then
                   pm2 reload "${PM2_APP_NAME}" --update-env
@@ -309,11 +313,14 @@ jobs:
             }
 
             cleanup_old_releases() {
+              # Cleanup must never fail a successful deploy (disable errexit here).
+              set +e
+
               local live_release dir target
               local -a old_releases legacy_backups
 
               live_release="$(readlink -f "${DEPLOY_DIR}" 2>/dev/null || echo "")"
-              echo "Cleaning up old releases (keeping last 5, live=${live_release})..."
+              echo "Cleaning up old releases as ${RUN_USER} (keeping last 5, live=${live_release})..."
 
               if [ -d "${RELEASES_DIR}" ]; then
                 cd "${RELEASES_DIR}" || { echo "WARN: cannot cd to ${RELEASES_DIR}"; return 0; }
@@ -344,6 +351,7 @@ jobs:
 
               sudo rm -rf /var/www/adminstro_new_build 2>/dev/null || true
               echo "Cleanup complete"
+              set -e
               return 0
             }
 
@@ -365,14 +373,14 @@ jobs:
             sudo rm -rf "${NEW_RELEASE}"
             sudo mkdir -p "${NEW_RELEASE}"
             sudo tar -xzf "${ARCHIVE}" -C "${NEW_RELEASE}"
-            sudo chown -R jenkins:jenkins "${NEW_RELEASE}"
+            sudo chown -R "${RUN_USER}:${RUN_GROUP}" "${NEW_RELEASE}"
             rm -f "${ARCHIVE}"
 
             copy_runtime_env "${PREVIOUS_RELEASE}" "${NEW_RELEASE}"
 
             echo "Switching live symlink..."
             sudo ln -sfn "${NEW_RELEASE}" "${DEPLOY_DIR}"
-            sudo chown -h jenkins:jenkins "${DEPLOY_DIR}" || true
+            sudo chown -h "${RUN_USER}:${RUN_GROUP}" "${DEPLOY_DIR}" || true
 
             cd "${DEPLOY_DIR}"
 

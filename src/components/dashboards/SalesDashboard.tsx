@@ -22,7 +22,6 @@ import useVisitStats from "@/hooks/(VS)/useVisitStats";
 import useMonthlyVisitStats from "@/hooks/(VS)/useMonthlyVisitStats";
 import useUnregisteredOwnerCounts from "@/hooks/(VS)/useUnregisteredOwnerCounts";
 import BoostCounts from "@/hooks/(VS)/useBoosterCounts";
-import useLeads from "@/hooks/(VS)/useLeads";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
 import { useRouter } from "next/navigation";
 
@@ -69,7 +68,6 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
 
   // Data hooks
   const {
-    loading,
     fetchVisits,
     fetchVisitsToday,
     unregisteredOwners,
@@ -100,8 +98,14 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
     loading: monthlyChartLoading,
   } = useMonthlyVisitStats(selectedCityChartMonth);
   const { unregisteredOwnerCounts } = useUnregisteredOwnerCounts();
-  const { totalBoosts, fetchBoostCounts, activeBoosts } = BoostCounts();
-  const { messageStatus, isLoading, isError, error } = useLeads({ date: undefined });
+  const {
+    totalBoosts,
+    fetchBoostCounts,
+    activeBoosts,
+    loading: boostLoading,
+    isError: boostIsError,
+    error: boostError,
+  } = BoostCounts();
 
   // Filter visit stats by accessible locations (only for restricted Sales roles)
   const filteredVisitStats = useMemo(() => {
@@ -443,9 +447,9 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
               setBoostFilters(newBoostFilters);
               fetchBoostCounts(newBoostFilters);
             }}
-            loading={loading}
-            isError={isError}
-            error={error}
+            loading={boostLoading}
+            isError={boostIsError}
+            error={boostError}
           />
         </div>
       )}

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { getLeadGenLeadsCount, getTodayLeads } from "@/actions/(VS)/queryActions";
 
@@ -12,93 +13,65 @@ interface TodaysLeadsInterface {
   createdBy: string;
 }
 
-
 interface LeadGenChartData {
   date: string;
-  [createdBy: string]: number | string; // dynamic keys for each createdBy
+  [createdBy: string]: number | string;
 }
 
+const LOCATIONS = ["athens", "thessaloniki", "chania", "milan"];
+
 const useTodayLeads = () => {
-  const [leads, setLeads] = useState<TodaysLeadsInterface[]>();
-  const [chartData1, setChartData] = useState<LeadGenChartData[]>([]);
-  const [totalLeads, setTotalLeads] = useState(0);
-  // const [average, setAverage] = useState(0);
-  const locations = ["athens", "thessaloniki", "chania", "milan"];
-  const [todayLeadStats, setTodayLeadStats] = useState<Record<string, number>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [error, setError] = useState("");
+  const [chartPeriod, setChartPeriod] = useState<"month" | "year" | "30days">(
+    "month",
+  );
 
-  // Fetch Leads
-  const fetchLeads = async () => {
-    setIsLoading(true);
-    setIsError(false);
-    setError("");
-    try {
-      const response = await getTodayLeads();
-      // const res = await getAverage();
-      // console.log("res", res.totalTarget);
-      // setAverage(res.totalTarget);
-      setLeads(response.serializedLeads);
-      setTotalLeads(response.totalLeads);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
+  const todayQuery = useQuery({
+    queryKey: ["todayLeads", null],
+    queryFn: () => getTodayLeads(),
+  });
+
+  const chartQuery = useQuery({
+    queryKey: ["todayLeads", "chart", chartPeriod],
+    queryFn: () => getLeadGenLeadsCount(chartPeriod),
+  });
+
+  const leads = todayQuery.data?.serializedLeads as TodaysLeadsInterface[] | undefined;
+  const totalLeads = todayQuery.data?.totalLeads ?? 0;
+  const chartData1 = (chartQuery.data?.chartData ?? []) as LeadGenChartData[];
+
+  const todayLeadStats = useMemo(() => {
+    if (!leads?.length) {
+      return {} as Record<string, number>;
     }
-  };
-
-  const fetchLeadsByLeadGen = async (period: "month" | "year" | "30days") => {
-    setIsLoading(true);
-    setIsError(false);
-    setError("");
-    try {
-      const response = await getLeadGenLeadsCount(period);
-
-      setChartData(response.chartData as LeadGenChartData[]);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
- 
-
-
-
-  useEffect(() => {
-    fetchLeads();
-    fetchLeadsByLeadGen("month");
-    // fetchAverage();
-  }, []);
-
-  useEffect(() => {
-    // Compute todayLeadStats from the leads data we already fetched
-    if (leads && leads.length > 0) {
-      const leadsMap: Record<string, number> = {};
-      locations.forEach((loc) => {
-        // Sum up counts for each location across all agents
-        let totalForLocation = 0;
-        leads.forEach((lead) => {
-          const locationData = lead.locations?.find(
-            (l) => l.location?.toLowerCase() === loc.toLowerCase()
-          );
-          if (locationData) {
-            totalForLocation += locationData.count;
-          }
-        });
-        leadsMap[loc] = totalForLocation;
+    const leadsMap: Record<string, number> = {};
+    LOCATIONS.forEach((loc) => {
+      let totalForLocation = 0;
+      leads.forEach((lead) => {
+        const locationData = lead.locations?.find(
+          (l) => l.location?.toLowerCase() === loc.toLowerCase(),
+        );
+        if (locationData) {
+          totalForLocation += locationData.count;
+        }
       });
-      setTodayLeadStats(leadsMap);
-    }
+      leadsMap[loc] = totalForLocation;
+    });
+    return leadsMap;
   }, [leads]);
 
-  const refetch = () => fetchLeads();
+  const isLoading = todayQuery.isLoading || chartQuery.isLoading;
+  const isError = todayQuery.isError || chartQuery.isError;
+  const error =
+    (todayQuery.error instanceof Error ? todayQuery.error.message : "") ||
+    (chartQuery.error instanceof Error ? chartQuery.error.message : "");
+
+  const fetchLeadsByLeadGen = (period: "month" | "year" | "30days") => {
+    setChartPeriod(period);
+  };
+
+  const refetchTodayLeads = () => {
+    void todayQuery.refetch();
+  };
 
   return {
     leads,
@@ -107,9 +80,9 @@ const useTodayLeads = () => {
     isLoading,
     isError,
     error,
-    refetch,
+    refetch: refetchTodayLeads,
     fetchLeadsByLeadGen,
-    chartData1
+    chartData1,
   };
 };
 

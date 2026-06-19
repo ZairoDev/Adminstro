@@ -1,5 +1,6 @@
 import { getReviews } from "@/actions/(VS)/queryActions";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 type ReviewBucket = { _id: string | null; count: number };
 
@@ -10,16 +11,28 @@ type NotReviewedBreakdownItem = {
   percent: number;
 };
 
-const useReview = () => {
-  const [reviews, setReviews] = useState<ReviewBucket[]>([]);
-  const [notReviewedBreakdown, setNotReviewedBreakdown] = useState<
-    NotReviewedBreakdownItem[]
-  >([]);
-  const [revLoading, setRevLoading] = useState(false);
-  const [revError, setRevError] = useState(false);
-  const [revErr, setRevErr] = useState("");
+type ReviewFilters = {
+  days?: string;
+  location?: string;
+  createdBy?: string;
+};
 
-  const fetchReviews = async ({
+const useReview = () => {
+  const [filters, setFilters] = useState<ReviewFilters>({ days: "this month" });
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["reviews", filters.location ?? "All", filters.days, filters.createdBy],
+    queryFn: async () => {
+      const response = await getReviews(filters);
+      return {
+        reviews: response.reviews as ReviewBucket[],
+        notReviewedBreakdown: (response.notReviewedBreakdown ??
+          []) as NotReviewedBreakdownItem[],
+      };
+    },
+  });
+
+  const fetchReviews = ({
     days,
     location,
     createdBy,
@@ -28,36 +41,25 @@ const useReview = () => {
     location?: string;
     createdBy?: string;
   }) => {
-    try {
-      setRevLoading(true);
-      setRevError(false);
-      setRevErr("");
-      const response = await getReviews({ days, location, createdBy });
-      setReviews(response.reviews);
-      setNotReviewedBreakdown(response.notReviewedBreakdown ?? []);
-    } catch (err: unknown) {
-      const error = new Error(err instanceof Error ? err.message : String(err));
-      setRevError(true);
-      setRevErr(error.message);
-    } finally {
-      setRevLoading(false);
-    }
+    setFilters((prev) => ({
+      ...prev,
+      ...(days !== undefined ? { days } : {}),
+      ...(location !== undefined ? { location } : {}),
+      ...(createdBy !== undefined ? { createdBy } : {}),
+    }));
   };
 
-  useEffect(() => {
-    void fetchReviews({ days: "this month" });
-  }, []);
-
   return {
-    reviews,
-    notReviewedBreakdown,
-    revLoading,
-    setRevLoading,
-    revError,
-    setRevError,
-    revErr,
-    setRevErr,
+    reviews: data?.reviews ?? [],
+    notReviewedBreakdown: data?.notReviewedBreakdown ?? [],
+    revLoading: isLoading,
+    setRevLoading: () => undefined,
+    revError: isError,
+    setRevError: () => undefined,
+    revErr: error instanceof Error ? error.message : "",
+    setRevErr: () => undefined,
     fetchReviews,
   };
 };
+
 export default useReview;

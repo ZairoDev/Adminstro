@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DateRange } from "react-day-picker";
 
 import { IQuery } from "@/util/type";
@@ -8,46 +8,26 @@ const useAgentLeads = (
   agentEmail: string,
   location: string,
   date: DateRange | undefined,
-  page: number
+  page: number,
 ) => {
-  // console.log("params agent & location: ", agentEmail, location, page);
-  const [leads, setLeads] = useState<IQuery[]>();
-  const [totalLeads, setTotalLeads] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [error, setError] = useState("");
+  const dateFromKey = date?.from?.toISOString() ?? null;
+  const dateToKey = date?.to?.toISOString() ?? null;
 
-  // Fetch Leads
-  const fetchLeads = async () => {
-    setIsLoading(true);
-    setIsError(false);
-    setError("");
-    try {
-      const response = await getLeadsByAgent(agentEmail, location, date, page);
-      setLeads(response.serializedLeads);
-      setTotalLeads(response.totalLeads);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchLeads();
-  }, [agentEmail, location, page]);
-
-  const refetch = () => fetchLeads();
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["agentLeads", agentEmail, location, page, dateFromKey, dateToKey],
+    queryFn: () => getLeadsByAgent(agentEmail, location, date, page),
+    enabled: Boolean(agentEmail),
+  });
 
   return {
-    leads,
-    totalLeads,
+    leads: data?.serializedLeads as IQuery[] | undefined,
+    totalLeads: data?.totalLeads ?? 0,
     isLoading,
     isError,
-    error,
-    refetch,
+    error: error instanceof Error ? error.message : "",
+    refetch: () => {
+      void refetch();
+    },
   };
 };
 

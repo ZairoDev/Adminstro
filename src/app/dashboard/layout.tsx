@@ -19,6 +19,7 @@ import axios from "@/util/axios";
 import { useRouter } from "next/navigation";
 import { MonthlyTargetGate } from "@/components/monthly-target/MonthlyTargetGate";
 import { PersonalReminderNavBell } from "@/components/reminders/PersonalReminderBanner";
+import { QueryProvider } from "@/providers/QueryProvider";
 
 export default function DashboardLayout({
   children,
@@ -99,15 +100,28 @@ export default function DashboardLayout({
   }, [socket, token, clearToken, router]);
 
   if (isOnboarding) {
-    return <main className="min-h-screen bg-background">{children}</main>;
+    return (
+      <QueryProvider>
+        <main className="min-h-screen bg-background">{children}</main>
+      </QueryProvider>
+    );
   }
   if(isTrainingAgreement) {
-    return <main className="min-h-screen bg-background">{children}</main>;
+    return (
+      <QueryProvider>
+        <main className="min-h-screen bg-background">{children}</main>
+      </QueryProvider>
+    );
   }
   if(isOfferLetter) {
-    return <main className="min-h-screen bg-background">{children}</main>;
+    return (
+      <QueryProvider>
+        <main className="min-h-screen bg-background">{children}</main>
+      </QueryProvider>
+    );
   }
   return (
+    <QueryProvider>
     <div className="flex">
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       <main
@@ -165,5 +179,6 @@ export default function DashboardLayout({
       {/* Global System Notification Toast - Visible on all pages (includes WhatsApp messages) */}
       {token && <SystemNotificationToast />}
     </div>
+    </QueryProvider>
   );
 }

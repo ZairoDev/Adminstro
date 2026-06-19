@@ -1,46 +1,36 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DateRange } from "react-day-picker";
 
 import { getDashboardData } from "@/actions/(VS)/queryActions";
 
 const useDashboardData = ({ date }: { date: DateRange | undefined }) => {
-  const [dashboardData, setDashboardData] = useState<any[]>();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [error, setError] = useState("");
+  const dateFromKey = date?.from?.toISOString() ?? null;
+  const dateToKey = date?.to?.toISOString() ?? null;
 
-  // Fetch Dashboard Data
-  const fetchDashboardData = async ({ date }: { date: DateRange | undefined }) => {
-    setIsLoading(true);
-    setIsError(false);
-    setError("");
-    try {
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["dashboardData", dateFromKey, dateToKey],
+    queryFn: async () => {
       const response = await getDashboardData({ date });
-      // console.log("dathboard data: ", response);
-      setDashboardData(response.dashboardData);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
+      return response.dashboardData;
+    },
+  });
+
+  const refetchDashboardData = () => {
+    void refetch();
   };
 
-  useEffect(() => {
-    fetchDashboardData({ date });
-  }, []);
-
-  const refetch = () => fetchDashboardData({ date });
-  const reset = () => fetchDashboardData({ date: undefined });
+  const resetDashboardData = async () => {
+    const response = await getDashboardData({ date: undefined });
+    return response.dashboardData;
+  };
 
   return {
-    dashboardData,
+    dashboardData: data,
     isLoading,
     isError,
-    error,
-    refetch,
-    reset,
+    error: error instanceof Error ? error.message : "",
+    refetch: refetchDashboardData,
+    reset: resetDashboardData,
   };
 };
 

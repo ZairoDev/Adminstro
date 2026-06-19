@@ -1,46 +1,34 @@
 import { getWebsiteLeadsCounts } from "@/actions/(VS)/queryActions";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+
+type WebsiteLeadsFilters = { days?: string };
 
 const useWebsiteLeadsCounts = () => {
-  const [loading, setLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [error, setError] = useState("");
-  const [websiteLeads, setWebsiteLeads] = useState<
-    { date: string; leads: number }[]
-  >([]);
+  const [filters, setFilters] = useState<WebsiteLeadsFilters>({
+    days: "this month",
+  });
 
-  const fetchWebsiteLeadsCounts = async ({ days }: { days?: string }) => {
-    try {
-      setLoading(true);
-      setIsError(false);
-      setError("");
-      const response = await getWebsiteLeadsCounts({ days });
-      setWebsiteLeads(response);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
+  const { data: websiteLeads = [], isLoading, isError, error } = useQuery({
+    queryKey: ["websiteLeadsCounts", filters],
+    queryFn: () => getWebsiteLeadsCounts({ days: filters.days }),
+  });
+
+  const fetchWebsiteLeadsCounts = ({ days }: { days?: string }) => {
+    setFilters((prev) => ({ ...prev, days }));
   };
 
-  useEffect(() => {
-    fetchWebsiteLeadsCounts({ days: "this month" });
-  }, []);
-
   return {
-    loading,
-    setLoading,
+    loading: isLoading,
+    setLoading: () => undefined,
     isError,
-    setIsError,
-    error,
-    setError,
+    setIsError: () => undefined,
+    error: error instanceof Error ? error.message : "",
+    setError: () => undefined,
     websiteLeads,
-    setWebsiteLeads,
+    setWebsiteLeads: () => undefined,
     fetchWebsiteLeadsCounts,
   };
 };
 
 export default useWebsiteLeadsCounts;
-

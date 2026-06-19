@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -23,21 +23,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import dayjs from "dayjs";
-import useBookingStats from "@/hooks/(VS)/useBookingStats";
+import useBookingStats, {
+  type BookingStatsFilterParams,
+} from "@/hooks/(VS)/useBookingStats";
 import { ChevronLeft, ChevronRight, MapPin, Calendar } from "lucide-react";
 
 type ChartType = "Area" | "Line" | "Bar";
 type MetricType = "totalPaid" | "count";
 
 const BookingChartImproved = () => {
-  const {
-    bookingsByDate,
-    comparisonData,
-    locationBreakdown,
-    fetchBookingStats,
-    loading,
-  } = useBookingStats();
-
   const [days, setDays] = useState<
     "12 days" | "1 year" | "last 3 years" | "this month" | "week"
   >("this month");
@@ -58,7 +52,40 @@ const BookingChartImproved = () => {
   const [monthOffset, setMonthOffset] = useState(0);
   const [yearOffset, setYearOffset] = useState(0);
 
-  // Determine grouping & fetch data
+  const bookingStatsFilters = useMemo<BookingStatsFilterParams>(
+    () => ({
+      days,
+      location,
+      comparisonMonth: isComparisonEnabled
+        ? (comparisonMonth ?? undefined)
+        : undefined,
+      comparisonYear: isComparisonEnabled
+        ? (comparisonYear ?? undefined)
+        : undefined,
+      weekOffset: days === "week" ? weekOffset : undefined,
+      monthOffset: days === "this month" ? monthOffset : undefined,
+      yearOffset: days === "1 year" ? yearOffset : undefined,
+    }),
+    [
+      days,
+      location,
+      isComparisonEnabled,
+      comparisonMonth,
+      comparisonYear,
+      weekOffset,
+      monthOffset,
+      yearOffset,
+    ],
+  );
+
+  const {
+    bookingsByDate,
+    comparisonData,
+    locationBreakdown,
+    loading,
+  } = useBookingStats(bookingStatsFilters);
+
+  // Sync grouping with selected time range
   useEffect(() => {
     if (days === "12 days" || days === "week") {
       setGrouping("daily");
@@ -69,30 +96,7 @@ const BookingChartImproved = () => {
     } else if (days === "last 3 years") {
       setGrouping("yearly");
     }
-
-    fetchBookingStats({
-      days,
-      location,
-      comparisonMonth: isComparisonEnabled
-        ? comparisonMonth ?? undefined
-        : undefined,
-      comparisonYear: isComparisonEnabled
-        ? comparisonYear ?? undefined
-        : undefined,
-      weekOffset: days === "week" ? weekOffset : undefined,
-      monthOffset: days === "this month" ? monthOffset : undefined,
-      yearOffset: days === "1 year" ? yearOffset : undefined,
-    });
-  }, [
-    days,
-    location,
-    isComparisonEnabled,
-    comparisonMonth,
-    comparisonYear,
-    weekOffset,
-    monthOffset,
-    yearOffset,
-  ]);
+  }, [days]);
 
   useEffect(() => {
     const isDarkMode = document.documentElement.classList.contains("dark");

@@ -1,62 +1,65 @@
 import { getListingCounts } from "@/actions/(VS)/queryActions";
-import { set } from "mongoose";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
-const ListingCounts = ()=>{
-  const [loading,setLoading] = useState(false);
-  const [isError,setIsError] = useState(false);
-  const [error,setError] = useState("");
-  const [totalListings, setTotalListings] = useState<
-    { date: string; total: number; shortTerm: number; longTerm: number }[]
-  >([]);
-  const [activeListings,setActiveListings] = useState(0);
-  const [inactiveListings,setInactiveListings] = useState(0);
+type ListingFilters = { days?: string };
 
-  const fetchListingCounts = async ({ days }: { days?: string }) => {
-    try {
-      setLoading(true);
-      setIsError(false);
-      setError("");
-      const response = await getListingCounts({days});
-      const transformedResponse = response.map(
-        ({ date, total, shortTerm, longTerm }) => ({
+type ListingRow = {
+  date: string;
+  total: number;
+  shortTerm: number;
+  longTerm: number;
+};
+
+const ListingCounts = () => {
+  const [filters, setFilters] = useState<ListingFilters>({ days: "this month" });
+  const [activeListings, setActiveListings] = useState(0);
+  const [inactiveListings, setInactiveListings] = useState(0);
+
+  const { data: totalListings = [], isLoading, isError, error } = useQuery({
+    queryKey: ["listingCounts", filters],
+    queryFn: async (): Promise<ListingRow[]> => {
+      const response = await getListingCounts({ days: filters.days });
+      return response.map(
+        ({
           date,
-          total: total ?? 0, // This will assign 0 if total is undefined or null
+          total,
           shortTerm,
           longTerm,
-        })
+        }: {
+          date: string;
+          total?: number;
+          shortTerm: number;
+          longTerm: number;
+        }) => ({
+          date,
+          total: total ?? 0,
+          shortTerm,
+          longTerm,
+        }),
       );
-      setTotalListings(transformedResponse);
-      // listing counts transformed
-      // setTotalListings(response.totalListings);
-      // setActiveListings(response.activeListings);
-      // setInactiveListings(response.inactiveListings);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
+    },
+  });
+
+  const fetchListingCounts = ({ days }: { days?: string }) => {
+    setFilters((prev) => ({ ...prev, days }));
   };
-  useEffect(()=>{
-    fetchListingCounts({ days: "this month" });
-  },[])
 
   return {
-    loading,
-    setLoading,
+    loading: isLoading,
+    setLoading: () => undefined,
     isError,
-    setIsError,
-    error,
-    setError,
+    setIsError: () => undefined,
+    error: error instanceof Error ? error.message : "",
+    setError: () => undefined,
     totalListings,
-    setTotalListings,
+    setTotalListings: () => undefined,
     activeListings,
     setActiveListings,
     inactiveListings,
     setInactiveListings,
     fetchListingCounts,
   };
-}
+};
+
 export default ListingCounts;

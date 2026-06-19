@@ -1,61 +1,44 @@
-import {  getLocationVisitStats } from "@/actions/(VS)/queryActions";
-import { useEffect, useRef, useState } from "react";
+import { getLocationVisitStats } from "@/actions/(VS)/queryActions";
+import { useQuery } from "@tanstack/react-query";
+import { useRef, useState } from "react";
 
 const useVisitStats = () => {
-  const [visitStats, setVisitStats] = useState<any[]>([]);
-  const [visitStatsLoading, setVisitStatsLoading] = useState(false);
-  const [visitStatsError, setVisitStatsError] = useState(false);
-  const [visitStatsErrMsg, setVisitStatsErrMsg] = useState("");
-   const [selectedVisitMonth, setSelectedVisitMonth] = useState<Date>(new Date());
-    const [directionVisit, setDirectionVisit] = useState<"left" | "right">("right");
-    
+  const [selectedVisitMonth, setSelectedVisitMonth] = useState<Date>(new Date());
+  const [directionVisit, setDirectionVisit] = useState<"left" | "right">("right");
+  const previousMonthRef = useRef<Date>(new Date());
 
-      const previousMonthRef = useRef<Date>(new Date());
+  const monthKey = `${selectedVisitMonth.getFullYear()}-${selectedVisitMonth.getMonth()}`;
 
-  const fetchVisitStats = async (month:Date) => {
-    try {
-      setVisitStatsLoading(true);
-      setVisitStatsError(false);
-      setVisitStatsErrMsg("");
-      
-      const response = await getLocationVisitStats(month);
-      setVisitStats(response.visits); // our function returns { visits }
+  const { data: visitStats = [], isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["visitStats", "All", monthKey],
+    queryFn: async () => {
+      const response = await getLocationVisitStats(selectedVisitMonth);
+      return response.visits;
+    },
+  });
 
-    } catch (err: any) {
-      const error = new Error(err);
-      setVisitStatsError(true);
-      setVisitStatsErrMsg(error.message);
-    } finally {
-      setVisitStatsLoading(false);
-    }
-  };
-
-    const handleMonthChange = (newMonth: Date) => {
-    // Determine direction based on whether we're going forward or backward
+  const handleMonthChange = (newMonth: Date) => {
     const prevTime = previousMonthRef.current.getTime();
     const newTime = newMonth.getTime();
-    
     setDirectionVisit(newTime > prevTime ? "right" : "left");
     previousMonthRef.current = newMonth;
     setSelectedVisitMonth(newMonth);
   };
 
-
-
-  useEffect(() => {
-    fetchVisitStats(selectedVisitMonth);
-  }, [selectedVisitMonth]);
+  const fetchVisitStats = (month: Date) => {
+    handleMonthChange(month);
+  };
 
   return {
     visitStats,
-    visitStatsLoading,
-    setVisitStatsLoading,
-    visitStatsError,
-    setVisitStatsError,
-    visitStatsErrMsg,
-    setVisitStatsErrMsg,
+    visitStatsLoading: isLoading,
+    setVisitStatsLoading: () => undefined,
+    visitStatsError: isError,
+    setVisitStatsError: () => undefined,
+    visitStatsErrMsg: error instanceof Error ? error.message : "",
+    setVisitStatsErrMsg: () => undefined,
     fetchVisitStats,
-     selectedVisitMonth,
+    selectedVisitMonth,
     setSelectedVisitMonth: handleMonthChange,
     directionVisit,
   };

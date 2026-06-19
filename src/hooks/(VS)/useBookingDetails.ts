@@ -1,5 +1,6 @@
 import { getAmountDetails } from "@/actions/(VS)/queryActions";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 interface BookingDetailsIn {
   totalAmount: number;
@@ -11,28 +12,22 @@ interface BookingDetailsIn {
   totalDocumentationCommission: number;
 }
 
-const BookingDetails = ()=>{
-  const [bookingDetails, setBookingDetails] = useState<BookingDetailsIn | null>(
-    null
-  );
-  const [bookingLoading,setBookingLoading] = useState(false);
-  
+const BookingDetails = () => {
+  const [filters, setFilters] = useState<{ days?: string }>({ days: "today" });
 
-  const fetchBookingDetails = async({days}:{days?:string})=>{
-    setBookingLoading(true);
-    try {
-      const response = await getAmountDetails({ days });
-      setBookingDetails(response.amountDetails[0]);
-    } catch (err: any) {
-      console.log(err);
-    } finally {
-      setBookingLoading(false);
-    }
-  }
+  const { data: bookingDetails = null, isLoading: bookingLoading } = useQuery({
+      queryKey: ["bookingDetails", filters.days],
+      queryFn: async () => {
+        const response = await getAmountDetails({ days: filters.days });
+        return (response.amountDetails[0] ?? null) as BookingDetailsIn | null;
+      },
+    });
 
-  useEffect(()=>{
-    fetchBookingDetails({days:"today"});
-  },[])
-  return {bookingDetails,bookingLoading,fetchBookingDetails};
-}
+  const fetchBookingDetails = ({ days }: { days?: string }) => {
+    setFilters((prev) => ({ ...prev, days }));
+  };
+
+  return { bookingDetails, bookingLoading, fetchBookingDetails };
+};
+
 export default BookingDetails;

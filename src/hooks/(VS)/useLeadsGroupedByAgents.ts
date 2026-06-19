@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DateRange } from "react-day-picker";
 
 import { getGroupedLeadsByAgents } from "@/actions/(VS)/queryActions";
@@ -15,40 +15,23 @@ const useLeadsGroupedByAgents = ({
   location: string;
   date: DateRange | undefined;
 }) => {
-  const [leads, setLeads] = useState<LeadsByAgent[]>();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [error, setError] = useState("");
+  const dateFromKey = date?.from?.toISOString() ?? null;
+  const dateToKey = date?.to?.toISOString() ?? null;
 
-  // Fetch Leads
-  const fetchLeads = async () => {
-    setIsLoading(true);
-    setIsError(false);
-    setError("");
-    try {
-      const response = await getGroupedLeadsByAgents({ location, date });
-      setLeads(response);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchLeads();
-  }, []);
-
-  const refetch = () => fetchLeads();
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["leadsGroupedByAgents", location, dateFromKey, dateToKey],
+    queryFn: () => getGroupedLeadsByAgents({ location, date }),
+    enabled: Boolean(location),
+  });
 
   return {
-    leads,
+    leads: data as LeadsByAgent[] | undefined,
     isLoading,
     isError,
-    error,
-    refetch,
+    error: error instanceof Error ? error.message : "",
+    refetch: () => {
+      void refetch();
+    },
   };
 };
 

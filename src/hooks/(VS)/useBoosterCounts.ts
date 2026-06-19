@@ -1,56 +1,63 @@
 import { getBoostCounts } from "@/actions/(VS)/queryActions";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+
+type BoostFilters = { days?: string };
+
+type BoostRow = {
+  date: string;
+  total: number;
+  newBoosts: number;
+  reboosts: number;
+  posted: number;
+};
 
 const BoostCounts = () => {
-  const [loading, setLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [error, setError] = useState("");
-  const [totalBoosts, setTotalBoosts] = useState<
-    { date: string; total: number; newBoosts: number; reboosts: number ,posted: number}[]
-  >([]);
+  const [filters, setFilters] = useState<BoostFilters>({ days: "this month" });
   const [activeBoosts, setActiveBoosts] = useState(0);
   const [inactiveBoosts, setInactiveBoosts] = useState(0);
 
-  const fetchBoostCounts = async ({ days }: { days?: string }) => {
-    try {
-      setLoading(true);
-      setIsError(false);
-      setError("");
-      const response = await getBoostCounts({ days });
-      const transformedResponse = response.map(
-        ({ date, total, newBoosts, reboosts ,posted}) => ({
+  const { data: totalBoosts = [], isLoading, isError, error } = useQuery({
+    queryKey: ["boostCounts", filters],
+    queryFn: async (): Promise<BoostRow[]> => {
+      const response = await getBoostCounts({ days: filters.days });
+      return response.map(
+        ({
+          date,
+          total,
+          newBoosts,
+          reboosts,
+          posted,
+        }: {
+          date: string;
+          total?: number;
+          newBoosts: number;
+          reboosts: number;
+          posted: number;
+        }) => ({
           date,
           total: total ?? 0,
           newBoosts,
           reboosts,
-          posted
-
-        })
+          posted,
+        }),
       );
-      setTotalBoosts(transformedResponse);
-      // boost counts transformed
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
+    },
+  });
+
+  const fetchBoostCounts = ({ days }: { days?: string }) => {
+    setFilters((prev) => ({ ...prev, days }));
   };
 
-  useEffect(() => {
-    fetchBoostCounts({ days: "this month" });
-  }, []);
-
   return {
-    loading,
-    setLoading,
+    loading: isLoading,
+    setLoading: () => undefined,
     isError,
-    setIsError,
-    error,
-    setError,
+    setIsError: () => undefined,
+    error: error instanceof Error ? error.message : "",
+    setError: () => undefined,
     totalBoosts,
-    setTotalBoosts,
+    setTotalBoosts: () => undefined,
     activeBoosts,
     setActiveBoosts,
     inactiveBoosts,

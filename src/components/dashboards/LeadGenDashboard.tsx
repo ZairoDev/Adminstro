@@ -19,7 +19,7 @@ import { DateRangePicker } from "@/components/DateRangePicker";
 import { LeadsCandleChart } from "@/components/charts/LeadsCandleChart";
 
 // Hooks
-import useLeads from "@/hooks/(VS)/useLeads";
+import { useAgents } from "@/hooks/shared/useAgents";
 import useTodayLeads from "@/hooks/(VS)/useTodayLead";
 import useReview from "@/hooks/(VS)/useReviews";
 import useLeadStats from "@/hooks/(VS)/useLeadStats";
@@ -137,7 +137,7 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
   }>({ days: "this month" });
 
   // Data hooks
-  const { allEmployees } = useLeads({ date: undefined });
+  const { agents: allEmployees } = useAgents();
 
   const {
     days: candleDays,

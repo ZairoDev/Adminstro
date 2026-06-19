@@ -1,15 +1,11 @@
-import { useEffect, useState } from "react";
-import { DateRange } from "react-day-picker";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 import {
   getCountryWisePropertyCount,
   getPropertyCount,
 } from "@/actions/(VS)/queryActions";
 
-interface PropertyCountInterface {
-  _id: string;
-  count: number;
-}
 interface CountryRentalStats {
   country: string;
   "Short Term": number;
@@ -24,74 +20,54 @@ interface CountryWisePropertyCount {
 }
 
 const usePropertyCount = () => {
-  const [properties, setProperties] = useState<CountryRentalStats[]>();
-  const [totalProperties, setTotalProperties] = useState(0);
-  const [countryWiseProperties, setCountryWiseProperties] = useState<
-    CountryWisePropertyCount[]
-  >([]);
-  const [countryWiseTotalProperties, setCountryWiseTotalProperties] =
-    useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [error, setError] = useState("");
+  const [countryFilter, setCountryFilter] = useState<string | null>(null);
 
-  // Fetch Leads
-  const fetchLeads = async () => {
-    setIsLoading(true);
-    setIsError(false);
-    setError("");
-    try {
+  const mainQuery = useQuery({
+    queryKey: ["propertyCount", null, null],
+    queryFn: async () => {
       const response = await getPropertyCount();
-      setProperties(response.propertyCount);
-      setTotalProperties(response.totalPropertyCount);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
+      return {
+        properties: response.propertyCount as CountryRentalStats[],
+        totalProperties: response.totalPropertyCount as number,
+      };
+    },
+  });
+
+  const countryQuery = useQuery({
+    queryKey: ["propertyCount", countryFilter, null],
+    queryFn: async () => {
+      const response = await getCountryWisePropertyCount({
+        country: countryFilter!,
+      });
+      return {
+        countryWiseProperties: response.countryWisePropertyCount as CountryWisePropertyCount[],
+        countryWiseTotalProperties: response.totalPropertyCount as number,
+      };
+    },
+    enabled: Boolean(countryFilter && countryFilter !== "All"),
+  });
+
+  const fetchCountryWiseProperties = ({ country }: { country: string }) => {
+    setCountryFilter(country);
   };
 
-  const fetchCountryWiseProperties = async ({
-    country,
-  }: {
-    country: string;
-  }) => {
-    setIsLoading(true);
-    setIsError(false);
-    setError("");
-    try {
-      const response = await getCountryWisePropertyCount({ country });
-      setCountryWiseProperties(response.countryWisePropertyCount);
-      setCountryWiseTotalProperties(response.totalPropertyCount);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchLeads();
-  }, []);
-
-  const refetch = () => fetchLeads();
-  const reset = () => fetchLeads();
+  const isLoading = mainQuery.isLoading || countryQuery.isLoading;
+  const isError = mainQuery.isError || countryQuery.isError;
+  const error =
+    (mainQuery.error instanceof Error ? mainQuery.error.message : "") ||
+    (countryQuery.error instanceof Error ? countryQuery.error.message : "");
 
   return {
-    properties,
-    totalProperties,
+    properties: mainQuery.data?.properties,
+    totalProperties: mainQuery.data?.totalProperties ?? 0,
     fetchCountryWiseProperties,
-    countryWiseProperties,
-    countryWiseTotalProperties,
+    countryWiseProperties: countryQuery.data?.countryWiseProperties ?? [],
+    countryWiseTotalProperties: countryQuery.data?.countryWiseTotalProperties ?? 0,
     isLoading,
     isError,
     error,
-    refetch,
-    reset,
+    refetch: () => mainQuery.refetch(),
+    reset: () => mainQuery.refetch(),
   };
 };
 

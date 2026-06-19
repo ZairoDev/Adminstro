@@ -1,5 +1,12 @@
-import { getNewOwnersCount, getUnregisteredOwners, getVisitsToday, getWeeksVisit, OwnersCount } from "@/actions/(VS)/queryActions";
-import { useEffect, useState } from "react"
+import {
+  getNewOwnersCount,
+  getUnregisteredOwners,
+  getVisitsToday,
+  getWeeksVisit,
+  OwnersCount,
+} from "@/actions/(VS)/queryActions";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 interface UnregisteredOwnersInterface {
   ownerName: string;
@@ -7,12 +14,17 @@ interface UnregisteredOwnersInterface {
   city: string;
 }
 
+interface NewOwnerItem {
+  ownerPhone: string;
+  ownerName: string;
+  location: string;
+  createdAt?: string;
+}
+
 interface CityData {
   city: string;
   registeredCount: number;
   unregisteredCount: number;
-
-  // extra breakdown for unregistered
   unregisteredWithImages: number;
   unregisteredWithReferenceLink: number;
   unregisteredWithBoth: number;
@@ -22,8 +34,6 @@ interface CityData {
 interface TotalsData {
   totalRegistered: number;
   totalUnregistered: number;
-
-  // extra breakdown for unregistered
   totalUnregisteredWithImages: number;
   totalUnregisteredWithReferenceLink: number;
   totalUnregisteredWithBoth: number;
@@ -34,105 +44,118 @@ export interface RegistrationData {
   byCity: CityData[];
   totals: TotalsData[];
 }
- 
 
-const WeeksVisit = ()=>{
-   const [loading,setloading] = useState(false);
-   const [isError,setIsError] = useState(false);
-   const [error,setError] = useState("");
-   const [visits,setVisits] = useState<any[]>([]);
-   const [visitsToday,setVisitsToday] = useState<any[]>([]);
-   const [unregisteredOwners,setUnregisteredOwners] = useState<UnregisteredOwnersInterface[]>([]);
-   const [newOwnersCount, setNewOwnersCount] =
-     useState<UnregisteredOwnersInterface[]>([]);
-   const [ownersCount, setOwnersCount] = useState<RegistrationData>({
-     byCity: [],
-     totals: [
-       {
-         totalRegistered: 0,
-         totalUnregistered: 0,
-         totalUnregisteredWithImages: 0,
-         totalUnregisteredWithReferenceLink: 0,
-         totalUnregisteredWithBoth: 0,
-         totalUnregisteredWithNone: 0,
-       },
-     ],
-   });
+const emptyOwnersCount: RegistrationData = {
+  byCity: [],
+  totals: [
+    {
+      totalRegistered: 0,
+      totalUnregistered: 0,
+      totalUnregisteredWithImages: 0,
+      totalUnregisteredWithReferenceLink: 0,
+      totalUnregisteredWithBoth: 0,
+      totalUnregisteredWithNone: 0,
+    },
+  ],
+};
 
+const WeeksVisit = () => {
+  const [visitsFilters, setVisitsFilters] = useState<{ days?: string }>({
+    days: "Today",
+  });
+  const [visitsTodayFilters, setVisitsTodayFilters] = useState<{ days?: string }>({
+    days: "Today",
+  });
+  const [unregisteredFilters, setUnregisteredFilters] = useState<{
+    days?: string;
+    location?: string;
+  }>({ days: "Today", location: "All" });
 
-   const fetchVisits = async({days}:{days?:string})=>{
-      try{
-         setloading(true);
-         setIsError(false);
-         setError("");
-         const response =await getWeeksVisit({days});
-         setVisits(response.visits);
-      }catch(err:any){
-         const error = new Error(err);
-         setIsError(true);
-         setError(error.message);
-      }finally{
-         setloading(false);
-      }
-   }
-   const fetchVisitsToday = async({days}:{days?:string})=>{
-      try{
-         setloading(true);
-         setIsError(false);
-         setError("");
-         const response =await getVisitsToday({days});
-         setVisitsToday(response.count);
-      }catch(err:any){
-         const error = new Error(err);
-         setIsError(true);
-         setError(error.message);
-      }finally{
-         setloading(false);
-      }
-   }
+  const visitsQuery = useQuery({
+    queryKey: ["weeksVisit", unregisteredFilters.location ?? "All", visitsFilters.days],
+    queryFn: async () => {
+      const response = await getWeeksVisit({ days: visitsFilters.days });
+      return response.visits;
+    },
+  });
 
-   const fetchUnregisteredVisits = async ({days,location}:{days?:string,location?:string}) => {
-     try {
-       setloading(true);
-       setIsError(false);
-       setError("");
-       const [response,ownersCount, responseCount] = await Promise.all([
-         getUnregisteredOwners(),
-         getNewOwnersCount({ days, location }),
-         OwnersCount(),
-       ]);
+  const visitsTodayQuery = useQuery({
+    queryKey: ["weeksVisit", "today", visitsTodayFilters.days],
+    queryFn: async () => {
+      const response = await getVisitsToday({ days: visitsTodayFilters.days });
+      return response.count;
+    },
+  });
 
-       setUnregisteredOwners(response.unregisteredOwners || []);
-      setNewOwnersCount(ownersCount.newOwnersCount ?? 0);
-       setOwnersCount(responseCount);
-     } catch (err: any) {
-       console.error(err);
-       setIsError(true);
-       setError(err instanceof Error ? err.message : String(err));
-     } finally {
-       setloading(false);
-     }
-   };
-    
-   useEffect(()=>{
-      fetchVisits({days:"Today"});
-      fetchVisitsToday({days:"Today"});
-      fetchUnregisteredVisits({days:"Today",location:"All"});
-   },[])
-   return {
-      loading,
-      setloading,
-      isError,
-      error,
-      visits,
-      fetchVisits,
-      visitsToday,
-      fetchVisitsToday,
-      unregisteredOwners,
-      fetchUnregisteredVisits
-      ,ownersCount,
-      newOwnersCount
-   }
+  const unregisteredQuery = useQuery({
+    queryKey: ["weeksVisit", "owners", unregisteredFilters],
+    queryFn: async () => {
+      const [response, ownersCount, responseCount] = await Promise.all([
+        getUnregisteredOwners(),
+        getNewOwnersCount({
+          days: unregisteredFilters.days,
+          location: unregisteredFilters.location,
+        }),
+        OwnersCount(),
+      ]);
+      return {
+        unregisteredOwners: (response.unregisteredOwners ||
+          []) as UnregisteredOwnersInterface[],
+        newOwnersCount: (ownersCount.newOwnersCount ?? []) as NewOwnerItem[],
+        ownersCount: responseCount as RegistrationData,
+      };
+    },
+  });
 
-}
+  const loading =
+    visitsQuery.isLoading ||
+    visitsTodayQuery.isLoading ||
+    unregisteredQuery.isLoading;
+  const isError =
+    visitsQuery.isError ||
+    visitsTodayQuery.isError ||
+    unregisteredQuery.isError;
+  const error =
+    (visitsQuery.error instanceof Error ? visitsQuery.error.message : "") ||
+    (visitsTodayQuery.error instanceof Error ? visitsTodayQuery.error.message : "") ||
+    (unregisteredQuery.error instanceof Error ? unregisteredQuery.error.message : "");
+
+  const fetchVisits = async ({ days }: { days?: string }) => {
+    setVisitsFilters((prev) => ({ ...prev, days }));
+  };
+
+  const fetchVisitsToday = async ({ days }: { days?: string }) => {
+    setVisitsTodayFilters((prev) => ({ ...prev, days }));
+  };
+
+  const fetchUnregisteredVisits = async ({
+    days,
+    location,
+  }: {
+    days?: string;
+    location?: string;
+  }) => {
+    setUnregisteredFilters((prev) => ({
+      ...prev,
+      ...(days !== undefined ? { days } : {}),
+      ...(location !== undefined ? { location } : {}),
+    }));
+  };
+
+  return {
+    loading,
+    setloading: () => undefined,
+    isError,
+    error,
+    visits: visitsQuery.data ?? [],
+    fetchVisits,
+    visitsToday: visitsTodayQuery.data ?? [],
+    fetchVisitsToday,
+    unregisteredOwners: unregisteredQuery.data?.unregisteredOwners ?? [],
+    fetchUnregisteredVisits,
+    ownersCount: unregisteredQuery.data?.ownersCount ?? emptyOwnersCount,
+    newOwnersCount: unregisteredQuery.data?.newOwnersCount ?? [],
+  };
+};
+
 export default WeeksVisit;

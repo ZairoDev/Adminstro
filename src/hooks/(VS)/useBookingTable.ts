@@ -4,7 +4,8 @@ import {
   getAvailableLocations,
   getWeeklyTargetStats,
 } from "@/actions/(VS)/queryActions";
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 export type PeriodData = {
   period: string;
@@ -26,60 +27,61 @@ export type TargetStatsResponse = {
   year: number;
 };
 
-export const useTargetStats = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState<TargetStatsResponse | null>(null);
-  const [locations, setLocations] = useState<string[]>([]);
+type TargetStatsFilters = {
+  viewMode?: "weekly" | "10-day";
+  location?: string;
+  month?: number;
+  year?: number;
+};
 
-  const fetchStats = async ({
+export const useTargetStats = () => {
+  const [filters, setFilters] = useState<TargetStatsFilters>({
+    viewMode: "weekly",
+    month: new Date().getMonth(),
+    year: new Date().getFullYear(),
+  });
+
+  const locationsQuery = useQuery({
+    queryKey: ["targetStats", "locations"],
+    queryFn: () => getAvailableLocations(),
+  });
+
+  const statsQuery = useQuery({
+    queryKey: [
+      "targetStats",
+      filters.viewMode,
+      filters.location ?? "all",
+      filters.month,
+      filters.year,
+    ],
+    queryFn: () =>
+      getWeeklyTargetStats({
+        viewMode: filters.viewMode ?? "weekly",
+        location: filters.location === "all" ? undefined : filters.location,
+        month: filters.month ?? new Date().getMonth(),
+        year: filters.year ?? new Date().getFullYear(),
+      }),
+  });
+
+  const fetchStats = ({
     viewMode = "weekly",
     location,
     month = new Date().getMonth(),
     year = new Date().getFullYear(),
-  }: {
-    viewMode?: "weekly" | "10-day";
-    location?: string;
-    month?: number;
-    year?: number;
-  }) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await getWeeklyTargetStats({
-        viewMode,
-        location: location === "all" ? undefined : location,
-        month,
-        year,
-      });
-      setStats(response);
-    } catch (err: any) {
-      console.error("❌ Error fetching target stats:", err);
-      setError(err.message || "Failed to fetch target stats");
-    } finally {
-      setLoading(false);
-    }
+  }: TargetStatsFilters) => {
+    setFilters({ viewMode, location, month, year });
   };
 
   const fetchLocations = async () => {
-    try {
-      const locs = await getAvailableLocations();
-      setLocations(locs);
-    } catch (err) {
-      console.error("❌ Error fetching locations:", err);
-    }
+    await locationsQuery.refetch();
   };
 
-  useEffect(() => {
-    fetchLocations();
-    fetchStats({});
-  }, []);
-
   return {
-    loading,
-    error,
-    stats,
-    locations,
+    loading: statsQuery.isLoading,
+    error: statsQuery.error instanceof Error ? statsQuery.error.message : null,
+    stats: (statsQuery.data ?? null) as TargetStatsResponse | null,
+    locations: locationsQuery.data ?? [],
     fetchStats,
+    fetchLocations,
   };
 };

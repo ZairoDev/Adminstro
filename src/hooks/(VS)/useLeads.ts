@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { DateRange } from "react-day-picker";
 
 import {
@@ -9,8 +10,6 @@ import {
   getLeadsGroupCount,
   getRejectedLeadGroup,
 } from "@/actions/(VS)/queryActions";
-import { daysToWeeks } from "date-fns";
-import { EmployeeInterface } from "@/util/type";
 
 interface GroupedLeads {
   leadsByAgent: {
@@ -38,7 +37,6 @@ interface LeadsGroupCount {
   count: number;
 }
 
-// Updated type to match API response
 interface CityData {
   [city: string]: number;
 }
@@ -52,178 +50,155 @@ interface MessageStatusData {
   Visit: CityData;
 }
 
+type LeadStatusFilters = {
+  days?: string;
+  location?: string;
+  createdBy?: string;
+};
+
+type LocationLeadsFilters = {
+  days?: string;
+  createdBy?: string;
+  typeOfProperty?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+const defaultStatusFilters: LeadStatusFilters = {
+  days: "this month",
+  location: "All",
+  createdBy: "All",
+};
+
 const useLeads = ({ date }: { date: DateRange | undefined }) => {
-  const [leads, setLeads] = useState<GroupedLeads>();
-  const [leadsGroupCount, setLeadsGroupCount] = useState<LeadsGroupCount[]>([]);
-  const [rejectedLeadGroups, setRejectedLeadGroups] = useState<
-    RejectedLeadGroup[]
-  >([]);
-  const [locationLeads, setLocationLeads] = useState<locationLeadsIn[]>([]);
-  const [allEmployees, setAllEmployees] = useState<string[]>([]);
-  const [average, setAverage] = useState(0);
-  // Fixed type to match actual API response
-  const [messageStatus, setMessageStatus] = useState<MessageStatusData | null>(null);
+  const queryClient = useQueryClient();
+  const [leadStatusFilters, setLeadStatusFilters] =
+    useState<LeadStatusFilters>(defaultStatusFilters);
+  const [locationLeadsFilters, setLocationLeadsFilters] =
+    useState<LocationLeadsFilters>({ days: "this month" });
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [error, setError] = useState("");
+  const dateFromKey = date?.from?.toISOString() ?? null;
+  const dateToKey = date?.to?.toISOString() ?? null;
 
-  // Fetch Leads
-  const fetchLeads = async ({ date }: { date: DateRange | undefined }) => {
-    setIsLoading(true);
-    setIsError(false);
-    setError("");
-    try {
-      const response = await getGroupedLeads({ date });
-      setLeads(response);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const groupedQuery = useQuery({
+    queryKey: ["leads", "grouped", dateFromKey, dateToKey],
+    queryFn: () => getGroupedLeads({ date }),
+  });
 
-  const fetchLeadByLocation = async ({
-    days,
-    createdBy,
-    typeOfProperty,
-    dateFrom,
-    dateTo,
-  }: {
-    days?: string;
-    createdBy?: string;
-    typeOfProperty?: string;
-    dateFrom?: string;
-    dateTo?: string;
-  }) => {
-    setIsLoading(true);
-    setIsError(false);
-    setError("");
-    try {
-      const response: locationLeadsIn[] = await getLeadsByLocation({
-        days,
-        createdBy,
-        typeOfProperty,
-        dateFrom,
-        dateTo,
-      });
-      setLocationLeads(response);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  const fetchAllEmployees = async() => {
-    try {
-      const response = await getAllAgent();
-      setAllEmployees(response);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    }
-  }
-
-  const fetchLeadStatus = async ({
-    days,
-    location,
-    createdBy,
-  }: {
-    days?: string;
-    location?: string;
-    createdBy?: string;
-  }) => {
-    try {
-      const response = await getLeadsGroupCount({ days, location, createdBy });
-      setLeadsGroupCount(response.leadsGroupCount);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    }
-  };
-
-  const fetchRejectedLeadGroup = async ({
-    days,
-    location,
-    createdBy
-  }: {
-    days?: string;
-    location?: string;
-    createdBy?: string;
-  }) => {
-    try {
-      const response = await getRejectedLeadGroup({ days, location, createdBy });
-      setRejectedLeadGroups(response.rejectedLeadGroup);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    }
-  };
-
-  const fetchAverage = async () => {
-    setIsLoading(true);
-    setIsError(false);
-    setError("");
-    try {
+  const averageQuery = useQuery({
+    queryKey: ["leads", "average"],
+    queryFn: async () => {
       const response = await getAverage();
-      setAverage(response.totalTarget);
-    } catch (err: any) {
-      const error = new Error(err);
-      setIsError(true);
-      setError(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      return response.totalTarget as number;
+    },
+  });
 
-  const fetchMessageStatus = async () => {
-    try {
+  const groupCountQuery = useQuery({
+    queryKey: [
+      "leads",
+      leadStatusFilters.location ?? "All",
+      leadStatusFilters.days ?? "this month",
+      leadStatusFilters.createdBy ?? "All",
+    ],
+    queryFn: async () => {
+      const response = await getLeadsGroupCount(leadStatusFilters);
+      return response.leadsGroupCount as LeadsGroupCount[];
+    },
+  });
+
+  const rejectedQuery = useQuery({
+    queryKey: [
+      "leads",
+      "rejected",
+      leadStatusFilters.location ?? "All",
+      leadStatusFilters.days ?? "this month",
+      leadStatusFilters.createdBy ?? "All",
+    ],
+    queryFn: async () => {
+      const response = await getRejectedLeadGroup(leadStatusFilters);
+      return response.rejectedLeadGroup as RejectedLeadGroup[];
+    },
+  });
+
+  const employeesQuery = useQuery({
+    queryKey: ["agents"],
+    queryFn: () => getAllAgent() as Promise<string[]>,
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const locationLeadsQuery = useQuery({
+    queryKey: ["leads", "byLocation", locationLeadsFilters],
+    queryFn: () =>
+      getLeadsByLocation(locationLeadsFilters) as Promise<locationLeadsIn[]>,
+  });
+
+  const messageStatusQuery = useQuery({
+    queryKey: ["leads", "messageStatus"],
+    queryFn: async () => {
       const res = await fetch("/api/leads/getStatusCount");
       if (!res.ok) throw new Error("Failed to fetch message status");
       const data = await res.json();
-      setMessageStatus(data.statusSummary);
-    } catch (error: any) {
-      console.error("Error fetching message status:", error.message);
-    }
+      return data.statusSummary as MessageStatusData;
+    },
+    retry: false,
+  });
+
+  const isLoading = groupedQuery.isLoading || averageQuery.isLoading;
+  const isError =
+    groupedQuery.isError ||
+    averageQuery.isError ||
+    groupCountQuery.isError ||
+    rejectedQuery.isError;
+  const error =
+    (groupedQuery.error instanceof Error ? groupedQuery.error.message : "") ||
+    (averageQuery.error instanceof Error ? averageQuery.error.message : "") ||
+    (groupCountQuery.error instanceof Error ? groupCountQuery.error.message : "") ||
+    (rejectedQuery.error instanceof Error ? rejectedQuery.error.message : "");
+
+  const fetchLeadByLocation = async (filters: LocationLeadsFilters) => {
+    setLocationLeadsFilters((prev) => ({ ...prev, ...filters }));
   };
 
-  useEffect(() => {
-    fetchLeads({ date });
-    fetchAverage();
-    fetchLeadStatus({days:"this month"});
-    fetchAllEmployees();
-    fetchMessageStatus();
-    fetchLeadByLocation({ days: "this month" });
-    fetchRejectedLeadGroup({days:"this month"});
-  }, []);
+  const fetchLeadStatus = async (filters: LeadStatusFilters) => {
+    setLeadStatusFilters((prev) => ({ ...prev, ...filters }));
+  };
 
-  const refetch = () => fetchLeads({ date });
-  const reset = () => fetchLeads({ date: undefined });
+  const fetchRejectedLeadGroup = async (filters: LeadStatusFilters) => {
+    setLeadStatusFilters((prev) => ({ ...prev, ...filters }));
+  };
+
+  const fetchMessageStatus = async () => {
+    await messageStatusQuery.refetch();
+  };
+
+  const refetchLeads = () => {
+    void groupedQuery.refetch();
+  };
+
+  const reset = async () => {
+    const response = await getGroupedLeads({ date: undefined });
+    queryClient.setQueryData(
+      ["leads", "grouped", dateFromKey, dateToKey],
+      response,
+    );
+  };
 
   return {
-    leads,
-    locationLeads,
+    leads: groupedQuery.data as GroupedLeads | undefined,
+    locationLeads: locationLeadsQuery.data ?? [],
     fetchLeadByLocation,
-    leadsGroupCount,
+    leadsGroupCount: groupCountQuery.data ?? [],
     fetchLeadStatus,
-    average,
-    allEmployees,
-    rejectedLeadGroups,
+    average: averageQuery.data ?? 0,
+    allEmployees: employeesQuery.data ?? [],
+    rejectedLeadGroups: rejectedQuery.data ?? [],
     fetchRejectedLeadGroup,
-    messageStatus, 
-    fetchMessageStatus, 
+    messageStatus: messageStatusQuery.data ?? null,
+    fetchMessageStatus,
     isLoading,
     isError,
     error,
-    refetch,
+    refetch: refetchLeads,
     reset,
   };
 };

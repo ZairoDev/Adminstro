@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import {
   getLeadsCandleAnalytics,
@@ -14,39 +15,45 @@ export type LeadsCandleFilters = {
   dateTo?: string;
 };
 
+const defaultFilters: LeadsCandleFilters = {
+  days: "this month",
+  createdBy: "All",
+  location: "All",
+  typeOfProperty: "All",
+};
+
 export function useLeadsCandleAnalytics(initialFilters?: LeadsCandleFilters) {
   const [filters, setFilters] = useState<LeadsCandleFilters>(
-    initialFilters ?? { days: "this month", createdBy: "All", location: "All", typeOfProperty: "All" },
+    initialFilters ?? defaultFilters,
   );
-  const [days, setDays] = useState<LeadsCandleDay[]>([]);
-  const [locations, setLocations] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [error, setError] = useState("");
+
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: [
+      "leadsCandleAnalytics",
+      filters.location ?? "All",
+      filters.days ?? null,
+      filters.createdBy ?? "All",
+      filters.typeOfProperty ?? "All",
+      filters.dateFrom ?? null,
+      filters.dateTo ?? null,
+    ],
+    queryFn: async () => {
+      const res = await getLeadsCandleAnalytics(filters);
+      return {
+        days: (Array.isArray(res.days) ? res.days : []) as LeadsCandleDay[],
+        locations: (Array.isArray(res.locations) ? res.locations : []) as string[],
+      };
+    },
+  });
+
+  const days = data?.days ?? [];
+  const locations = data?.locations ?? [];
 
   const refetch = async (next?: LeadsCandleFilters) => {
-    const f = next ?? filters;
-    setLoading(true);
-    setIsError(false);
-    setError("");
-    try {
-      const res = await getLeadsCandleAnalytics(f);
-      setDays(Array.isArray(res.days) ? res.days : []);
-      setLocations(Array.isArray(res.locations) ? res.locations : []);
-    } catch (e: unknown) {
-      setIsError(true);
-      setError(e instanceof Error ? e.message : "Failed to load analytics");
-      setDays([]);
-      setLocations([]);
-    } finally {
-      setLoading(false);
+    if (next) {
+      setFilters(next);
     }
   };
-
-  useEffect(() => {
-    void refetch(filters);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const total = useMemo(
     () => days.reduce((acc, d) => acc + (d.total || 0), 0),
@@ -59,10 +66,9 @@ export function useLeadsCandleAnalytics(initialFilters?: LeadsCandleFilters) {
     days,
     locations,
     total,
-    loading,
+    loading: isLoading,
     isError,
-    error,
+    error: error instanceof Error ? error.message : "",
     refetch,
   };
 }
-

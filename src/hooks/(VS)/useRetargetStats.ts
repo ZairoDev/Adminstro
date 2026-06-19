@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getRetargetStats } from "@/actions/(VS)/queryActions";
 
 interface RetargetCounts {
@@ -25,48 +26,37 @@ interface RetargetStatsFilters {
 }
 
 const useRetargetStats = () => {
-  const [counts, setCounts] = useState<RetargetStats | null>(null);
-  const [histogram, setHistogram] = useState<HistogramData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [error, setError] = useState("");
+  const [filters, setFilters] = useState<RetargetStatsFilters>({
+    days: "this month",
+    location: "All",
+  });
 
-  const fetchRetargetStats = async (filters: RetargetStatsFilters = {}) => {
-    setLoading(true);
-    setIsError(false);
-    setError("");
-
-    try {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ["retargetStats", filters.days, filters.location],
+    queryFn: async () => {
       const result = await getRetargetStats({
         days: filters.days || "this month",
         location: filters.location || "All",
       });
+      return {
+        counts: result.counts as RetargetStats,
+        histogram: result.histogram as HistogramData[],
+      };
+    },
+  });
 
-      setCounts(result.counts);
-      setHistogram(result.histogram);
-    } catch (err: any) {
-      setIsError(true);
-      setError(err.message || "Failed to fetch retarget stats");
-      console.error("Error fetching retarget stats:", err);
-    } finally {
-      setLoading(false);
-    }
+  const fetchRetargetStats = (nextFilters: RetargetStatsFilters = {}) => {
+    setFilters((prev) => ({ ...prev, ...nextFilters }));
   };
 
-  // Initial fetch with default filters
-  useEffect(() => {
-    fetchRetargetStats({ days: "this month", location: "All" });
-  }, []);
-
   return {
-    counts,
-    histogram,
-    loading,
+    counts: data?.counts ?? null,
+    histogram: data?.histogram ?? [],
+    loading: isLoading,
     isError,
-    error,
+    error: error instanceof Error ? error.message : "",
     fetchRetargetStats,
   };
 };
 
 export default useRetargetStats;
-

@@ -203,7 +203,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
           command_timeout: 10m
-          script_stop: true
+          script_stop: false
           envs: RELEASE_ID
           script: |
             set -euo pipefail
@@ -313,46 +313,33 @@ jobs:
             }
 
             cleanup_old_releases() {
-              # Cleanup must never fail a successful deploy (disable errexit here).
-              set +e
-
-              local live_release dir target
-              local -a old_releases legacy_backups
+              local live_release idx target dir
 
               live_release="$(readlink -f "${DEPLOY_DIR}" 2>/dev/null || echo "")"
               echo "Cleaning up old releases as ${RUN_USER} (keeping last 5, live=${live_release})..."
 
-              if [ -d "${RELEASES_DIR}" ]; then
-                cd "${RELEASES_DIR}" || { echo "WARN: cannot cd to ${RELEASES_DIR}"; return 0; }
+              idx=0
+              for dir in $(ls -1dt "${RELEASES_DIR}"/*/ 2>/dev/null || true); do
+                [ -d "${dir}" ] || continue
+                idx=$((idx + 1))
+                [ "${idx}" -le 5 ] && continue
+                target="${dir%/}"
+                if [ "${target}" = "${live_release}" ]; then
+                  echo "Skipping live release: ${target}"
+                  continue
+                fi
+                echo "Removing ${target}"
+                sudo rm -rf "${target}" || echo "WARN: failed to remove ${target}"
+              done
 
-                # Do NOT use "while read" here — with set -e, read returning EOF
-                # exits the entire script (not just this function).
-                mapfile -t old_releases < <(ls -dt */ 2>/dev/null | tail -n +6 || true)
-                for dir in "${old_releases[@]:-}"; do
-                  [ -z "${dir}" ] && continue
-                  target="${RELEASES_DIR}/${dir%/}"
-                  if [ "${target}" = "${live_release}" ]; then
-                    echo "Skipping live release: ${target}"
-                    continue
-                  fi
-                  echo "Removing ${target}"
-                  sudo rm -rf "${target}" || echo "WARN: failed to remove ${target}"
-                done
-              fi
-
-              if cd /var/www 2>/dev/null; then
-                mapfile -t legacy_backups < <(ls -dt adminstro_rollback_* 2>/dev/null || true)
-                for dir in "${legacy_backups[@]:-}"; do
-                  [ -z "${dir}" ] && continue
-                  echo "Removing legacy backup ${dir}"
-                  sudo rm -rf "${dir}" || echo "WARN: failed to remove ${dir}"
-                done
-              fi
+              for dir in $(ls -1dt /var/www/adminstro_rollback_* 2>/dev/null || true); do
+                [ -e "${dir}" ] || continue
+                echo "Removing legacy backup ${dir}"
+                sudo rm -rf "${dir}" || echo "WARN: failed to remove ${dir}"
+              done
 
               sudo rm -rf /var/www/adminstro_new_build 2>/dev/null || true
               echo "Cleanup complete"
-              set -e
-              return 0
             }
 
             # ── main ─────────────────────────────────────────────────────────
@@ -399,7 +386,14 @@ jobs:
               exit 1
             fi
 
-            cleanup_old_releases || echo "WARN: cleanup had errors (deploy is still live)"
+            # Disable errexit for cleanup — deploy already succeeded at this point.
+            set +e
+            cleanup_old_releases
+            CLEANUP_RC=$?
+            set -euo pipefail
+            if [ "${CLEANUP_RC}" -ne 0 ]; then
+              echo "WARN: cleanup exited with ${CLEANUP_RC} (deploy is still live)"
+            fi
 
             echo ""
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -407,4 +401,5 @@ jobs:
             echo "Release: ${RELEASE_ID}"
             echo "Time: $(date)"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            pm2 list
+            pm2 list || true
+            exit 0

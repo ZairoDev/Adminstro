@@ -508,6 +508,9 @@ const employeeSchema = new Schema<IEmployee>(
   { timestamps: true },
 );
 
+employeeSchema.index({ location: 1, isActive: 1 });
+employeeSchema.index({ role: 1, isActive: 1 });
+
 const Employees =
   mongoose.models?.Employees ||
   mongoose.model<IEmployee>("Employees", employeeSchema);

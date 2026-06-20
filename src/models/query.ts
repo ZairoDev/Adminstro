@@ -286,6 +286,12 @@ const querySchema = new Schema(
   { timestamps: true }
 );
 
+querySchema.index({ createdAt: -1, location: 1 });
+querySchema.index({ location: 1, leadStatus: 1, createdAt: -1 });
+querySchema.index({ createdBy: 1, createdAt: -1 });
+querySchema.index({ location: 1, messageStatus: 1 });
+querySchema.index({ typeOfProperty: 1, location: 1, createdAt: -1 });
+
 const Query = models.Query || model("Query", querySchema);
 export default Query;
 

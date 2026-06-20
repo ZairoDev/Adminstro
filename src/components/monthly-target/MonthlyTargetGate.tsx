@@ -62,11 +62,16 @@ export function MonthlyTargetGate({ children }: MonthlyTargetGateProps) {
 
   useEffect(() => {
     if (!token) return;
+    if (!requiresMonthlyTargets) {
+      setStatus("allowed");
+      return;
+    }
     checkTarget();
-  }, [token, checkTarget]);
+  }, [token, requiresMonthlyTargets, checkTarget]);
 
-  // Re-run when the calendar month changes
+  // Re-run when the calendar month changes (team leads only)
   useEffect(() => {
+    if (!requiresMonthlyTargets) return;
     const intervalId = setInterval(() => {
       const now = new Date();
       const month = now.getMonth() + 1;
@@ -78,7 +83,7 @@ export function MonthlyTargetGate({ children }: MonthlyTargetGateProps) {
       }
     }, 60_000);
     return () => clearInterval(intervalId);
-  }, [currentMonth, currentYear, checkTarget]);
+  }, [currentMonth, currentYear, checkTarget, requiresMonthlyTargets]);
 
   if (status === "loading") {
     return (

@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { BarChart3, Loader2 } from "lucide-react";
-import { MonthSelector } from "@/components/MonthSelector/page";
+import { MonthSelector } from "@/components/MonthSelector";
 
 import {
   Card,

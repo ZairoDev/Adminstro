@@ -1,58 +1,45 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { Bell, ChevronDown, ChevronUp, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import axios from "@/util/axios";
 import {
-  PersonalReminderItem,
   formatReminderDateTime,
 } from "./types";
 import { reminderTheme } from "./reminderTheme";
 import { cn } from "@/lib/utils";
+import { usePersonalReminders } from "@/hooks/shared/usePersonalReminders";
 
 interface PersonalReminderBannerProps {
   onDismissAll?: () => void;
 }
 
 export function PersonalReminderBanner({ onDismissAll }: PersonalReminderBannerProps) {
-  const [reminders, setReminders] = useState<PersonalReminderItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { reminders, isLoading } = usePersonalReminders();
   const [expanded, setExpanded] = useState(false);
   const [hidden, setHidden] = useState(false);
   const toastShownRef = React.useRef(false);
 
-  const fetchDue = useCallback(async () => {
-    try {
-      const res = await axios.get("/api/personal-reminders/due");
-      const list: PersonalReminderItem[] = res.data?.reminders ?? [];
-      setReminders(list);
-
-      if (list.length > 0 && !toastShownRef.current) {
-        toastShownRef.current = true;
-        const next = list[0];
-        toast.message(next.title || "Reminder due", {
-          description: formatReminderDateTime(next.scheduledAt),
-          action: {
-            label: "Open",
-            onClick: () => {
-              window.location.href = "/dashboard/my-reminders";
-            },
-          },
-        });
-      }
-    } catch {
-      setReminders([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchDue();
-  }, [fetchDue]);
+    if (isLoading || reminders.length === 0 || toastShownRef.current) return;
+
+    toastShownRef.current = true;
+    const next = reminders[0];
+    toast.message(next.title || "Reminder due", {
+      description: formatReminderDateTime(next.scheduledAt),
+      action: {
+        label: "Open",
+        onClick: () => {
+          window.location.href = "/dashboard/my-reminders";
+        },
+      },
+    });
+  }, [isLoading, reminders]);
 
   const dismissAll = async () => {
     await Promise.all(
@@ -60,12 +47,17 @@ export function PersonalReminderBanner({ onDismissAll }: PersonalReminderBannerP
         axios.post(`/api/personal-reminders/${r._id}/dismiss`).catch(() => null),
       ),
     );
-    setReminders([]);
+    queryClient.setQueryData(["personalReminders"], {
+      reminders: [],
+      count: 0,
+      overdueCount: 0,
+      dueTodayCount: 0,
+    });
     setHidden(true);
     onDismissAll?.();
   };
 
-  if (loading || hidden || reminders.length === 0) return null;
+  if (isLoading || hidden || reminders.length === 0) return null;
 
   const summary =
     reminders.length === 1
@@ -144,29 +136,15 @@ export function PersonalReminderBanner({ onDismissAll }: PersonalReminderBannerP
 }
 
 export function PersonalReminderNavBell() {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await axios.get("/api/personal-reminders/due");
-        setCount(res.data?.count ?? 0);
-      } catch {
-        setCount(0);
-      }
-    };
-    load();
-    const interval = setInterval(load, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const { dueCount } = usePersonalReminders();
 
   return (
     <Button variant="outline" size="sm" className="relative" asChild>
-      <Link href="/dashboard/my-reminders" aria-label={`My reminders${count > 0 ? `, ${count} due` : ""}`}>
+      <Link href="/dashboard/my-reminders" aria-label={`My reminders${dueCount > 0 ? `, ${dueCount} due` : ""}`}>
         My Reminders
-        {count > 0 && (
+        {dueCount > 0 && (
           <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white">
-            {count > 99 ? "99+" : count}
+            {dueCount > 99 ? "99+" : dueCount}
           </span>
         )}
       </Link>

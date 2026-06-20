@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import type { DateRange } from "react-day-picker";
 import { Loader2, RotateCw, Users, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,23 +11,36 @@ import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
 import { ReviewPieChart } from "@/components/charts/ReviewPieChart";
 import { ChartAreaMultiple } from "@/components/CustomMultilineChart";
 import { StatsCard } from "@/components/leadCountCard/page";
-import { MonthSelector } from "@/components/MonthSelector/page";
-import { AnimatedStatsWrapper } from "@/components/AnimatedWrapper/page";
+import { MonthSelector } from "@/components/MonthSelector";
+import { AnimatedStatsWrapper } from "@/components/AnimatedWrapper";
 import { WebsiteLeadsLineChart } from "@/components/charts/WebsiteLeadsLineChart";
 import ActiveEmployeeList from "@/components/VS/dashboard/active-employee-list";
 import LocationCard from "@/components/reusableCard";
 import { DateRangePicker } from "@/components/DateRangePicker";
-import { LeadsCandleChart } from "@/components/charts/LeadsCandleChart";
+import { DashboardSectionSkeleton } from "@/components/ui/DashboardSectionSkeleton";
+
+const LeadsCandleChart = dynamic(
+  () =>
+    import("@/components/charts/LeadsCandleChart").then((m) => ({
+      default: m.LeadsCandleChart,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <DashboardSectionSkeleton label="Loading leads chart..." height="h-80" />
+    ),
+  },
+);
 
 // Hooks
 import { useAgents } from "@/hooks/shared/useAgents";
-import useTodayLeads from "@/hooks/(VS)/useTodayLead";
-import useReview from "@/hooks/(VS)/useReviews";
-import useLeadStats from "@/hooks/(VS)/useLeadStats";
-import useWebsiteLeadsCounts from "@/hooks/(VS)/useWebsiteLeadsCounts";
+import useTodayLeads from "@/features/leadgen/hooks/useTodayLeads";
+import useReview from "@/features/leadgen/hooks/useReview";
+import useLeadStats from "@/features/leadgen/hooks/useLeadStats";
+import useWebsiteLeadsCounts from "@/features/leadgen/hooks/useWebsiteLeadsCounts";
 import SalesCard from "@/hooks/(VS)/useSalesCard";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
-import { useLeadsCandleAnalytics } from "@/hooks/(VS)/useLeadsCandleAnalytics";
+import { useLeadsCandleAnalytics } from "@/features/leadgen/hooks/useLeadsCandleAnalytics";
 
 interface LeadStats {
   location: string;
@@ -43,7 +57,7 @@ interface LeadGenDashboardProps {
   className?: string;
 }
 
-export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
+export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
   const { isAdmin, canAccess, accessibleLocations, isLeadGen, role, isSales } = useDashboardAccess();
   
   // LeadGen team (including LeadGen-TeamLead) can see all charts
@@ -563,6 +577,4 @@ export function LeadGenDashboard({ className }: LeadGenDashboardProps) {
     </div>
   );
 }
-
-export default LeadGenDashboard;
 

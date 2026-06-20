@@ -59,7 +59,7 @@ const emptyOwnersCount: RegistrationData = {
   ],
 };
 
-const WeeksVisit = () => {
+const useWeeksVisit = () => {
   const [visitsFilters, setVisitsFilters] = useState<{ days?: string }>({
     days: "Today",
   });
@@ -72,7 +72,7 @@ const WeeksVisit = () => {
   }>({ days: "Today", location: "All" });
 
   const visitsQuery = useQuery({
-    queryKey: ["weeksVisit", unregisteredFilters.location ?? "All", visitsFilters.days],
+    queryKey: ["weeksVisit", "series", visitsFilters.days ?? "Today"],
     queryFn: async () => {
       const response = await getWeeksVisit({ days: visitsFilters.days });
       return response.visits;
@@ -80,7 +80,7 @@ const WeeksVisit = () => {
   });
 
   const visitsTodayQuery = useQuery({
-    queryKey: ["weeksVisit", "today", visitsTodayFilters.days],
+    queryKey: ["weeksVisit", "today", visitsTodayFilters.days ?? "Today"],
     queryFn: async () => {
       const response = await getVisitsToday({ days: visitsTodayFilters.days });
       return response.count;
@@ -158,4 +158,4 @@ const WeeksVisit = () => {
   };
 };
 
-export default WeeksVisit;
+export default useWeeksVisit;

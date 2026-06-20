@@ -1,7 +1,5 @@
-export { LeadGenDashboard } from "./LeadGenDashboard";
-export { SalesDashboard } from "./SalesDashboard";
-export { AdminDashboard } from "./AdminDashboard";
-export { AdvertDashboard } from "./AdvertDashboard";
+export { AdminDashboard } from "@/features/admin";
+export { LeadGenDashboard } from "@/features/leadgen";
+export { SalesDashboard } from "@/features/sales";
+export { AdvertDashboard } from "@/features/advert";
 export { AccessDenied, RoleGate, LocationGate } from "./AccessDenied";
-// LoggedInEmployeesList moved to VS variant; removed unused export.
-

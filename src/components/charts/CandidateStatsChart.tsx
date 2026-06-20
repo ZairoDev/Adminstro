@@ -31,8 +31,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
-import { MonthSelector } from "@/components/MonthSelector/page";
-import { CandidateCountData, CandidateSummary } from "@/hooks/(VS)/useCandidateCounts";
+import { MonthSelector } from "@/components/MonthSelector";
+import { CandidateCountData, CandidateSummary } from "@/features/admin/hooks/useCandidateCounts";
 
 interface CandidateChartProps {
   data: CandidateCountData[];

@@ -46,5 +46,10 @@ const visitSchema: Schema = new Schema<VisitValidationSchema>({
 },
 { timestamps: true });
 
+visitSchema.index({ createdAt: -1, location: 1 });
+visitSchema.index({ location: 1, createdAt: -1 });
+visitSchema.index({ createdBy: 1, createdAt: -1 });
+visitSchema.index({ schedule: 1, location: 1 });
+
 const Visits = mongoose.models?.visits || mongoose.model("visits", visitSchema);
 export default Visits;

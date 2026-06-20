@@ -14,7 +14,7 @@ import { MonthlyPerformanceTarget } from "@/models/monthlyPerformanceTarget";
 import { normalizeCityKey, toDisplayCity } from "@/lib/city-normalizer";
 import Bookings from "@/models/booking";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
-import { RegistrationData } from "@/hooks/(VS)/useWeeksVisit";
+import { RegistrationData } from "@/features/sales/hooks/useWeeksVisit";
 import { startOfDay, endOfDay, subDays, subMonths } from "date-fns";
 import { Boosters } from "@/models/propertyBooster";
 import { PipelineStage } from "mongoose";

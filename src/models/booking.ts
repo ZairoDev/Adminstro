@@ -263,6 +263,12 @@ bookingSchema.pre("save", async function (next) {
   next();
 });
 
+bookingSchema.index({ "travellerPayment.history.date": -1 });
+bookingSchema.index({ lead: 1, "travellerPayment.history.date": -1 });
+bookingSchema.index({
+  "travellerPayment.history.status": 1,
+  "travellerPayment.history.date": -1,
+});
 
 /* ------------------------- MODEL EXPORT ------------------------- */
 const Bookings =

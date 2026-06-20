@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageSquare, Clock, ExternalLink, Loader2, Circle } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
@@ -40,17 +41,20 @@ interface NotificationItem {
   assignedAgent?: string;
 }
 
+interface WhatsAppSummary {
+  expiringCount: number;
+  unreadCount: number;
+  topItems: NotificationItem[];
+}
+
+const emptySummary: WhatsAppSummary = {
+  expiringCount: 0,
+  unreadCount: 0,
+  topItems: [],
+};
+
 export function WhatsAppNotifications() {
-  const [summary, setSummary] = useState<{
-    expiringCount: number;
-    unreadCount: number;
-    topItems: NotificationItem[];
-  }>({
-    expiringCount: 0,
-    unreadCount: 0,
-    topItems: [],
-  });
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
@@ -69,40 +73,19 @@ export function WhatsAppNotifications() {
     setIsMounted(true);
   }, []);
 
-  const fetchNotifications = useCallback(async () => {
-    if (!hasAccess) {
-      return;
-    }
-
-    try {
-      setLoading(true);
+  const { data: summary = emptySummary, isLoading: loading, refetch } = useQuery({
+    queryKey: ["whatsappSummary"],
+    queryFn: async (): Promise<WhatsAppSummary> => {
       const response = await axios.get("/api/whatsapp/notifications/summary");
       if (response.data.success) {
-        const summaryData = response.data.summary || {
-          expiringCount: 0,
-          unreadCount: 0,
-          topItems: [],
-        };
-        setSummary(summaryData);
-      } else {
-        console.error("❌ [NAVBAR WA] API returned success=false");
+        return response.data.summary || emptySummary;
       }
-    } catch (err: any) {
-      console.error("❌ [NAVBAR WA] Error fetching:", err.message || err);
-      setSummary({
-        expiringCount: 0,
-        unreadCount: 0,
-        topItems: [],
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [hasAccess]);
-
-  useEffect(() => {
-    if (!isMounted || !hasAccess) return;
-    fetchNotifications();
-  }, [isMounted, hasAccess, fetchNotifications]);
+      return emptySummary;
+    },
+    staleTime: 60 * 1000,
+    refetchInterval: 2 * 60 * 1000,
+    enabled: isMounted && hasAccess,
+  });
 
   useEffect(() => {
     if (!socket || !hasAccess) {
@@ -133,13 +116,14 @@ export function WhatsAppNotifications() {
         }
 
         
-        setSummary(prev => {
-          const existingIndex = prev.topItems.findIndex(item => item._id === data.conversationId);
+        queryClient.setQueryData<WhatsAppSummary>(["whatsappSummary"], (prev) => {
+          const current = prev ?? emptySummary;
+          const existingIndex = current.topItems.findIndex(item => item._id === data.conversationId);
           
           if (existingIndex >= 0) {
-            const existing = prev.topItems[existingIndex];
+            const existing = current.topItems[existingIndex];
             if (existing.type === "unread") {
-              const newItems = [...prev.topItems];
+              const newItems = [...current.topItems];
               newItems[existingIndex] = {
                 ...existing,
                 unreadCount: (existing.unreadCount || 0) + 1,
@@ -148,12 +132,12 @@ export function WhatsAppNotifications() {
               };
               
               return {
-                ...prev,
-                unreadCount: prev.unreadCount + 1,
+                ...current,
+                unreadCount: current.unreadCount + 1,
                 topItems: newItems
               };
             } else {
-              const newItems = [...prev.topItems];
+              const newItems = [...current.topItems];
               newItems[existingIndex] = {
                 ...existing,
                 type: "unread" as const,
@@ -163,8 +147,8 @@ export function WhatsAppNotifications() {
               };
               
               return {
-                ...prev,
-                unreadCount: prev.unreadCount + 1,
+                ...current,
+                unreadCount: current.unreadCount + 1,
                 topItems: newItems
               };
             }
@@ -182,9 +166,9 @@ export function WhatsAppNotifications() {
             };
             
             return {
-              ...prev,
-              unreadCount: prev.unreadCount + 1,
-              topItems: [...prev.topItems, newItem]
+              ...current,
+              unreadCount: current.unreadCount + 1,
+              topItems: [...current.topItems, newItem]
             };
           }
         });
@@ -192,15 +176,22 @@ export function WhatsAppNotifications() {
     };
 
     const handleConversationUpdate = () => {
-      fetchNotifications();
+      void refetch();
     };
 
     const handleMessageRead = (data: {conversationId: string}) => {
-      setSummary(prev => ({
-        ...prev,
-        unreadCount: Math.max(0, prev.unreadCount - (prev.topItems.find(i => i._id === data.conversationId)?.unreadCount || 0)),
-        topItems: prev.topItems.filter(item => item._id !== data.conversationId)
-      }));
+      queryClient.setQueryData<WhatsAppSummary>(["whatsappSummary"], (prev) => {
+        const current = prev ?? emptySummary;
+        const readItem = current.topItems.find((i) => i._id === data.conversationId);
+        return {
+          ...current,
+          unreadCount: Math.max(
+            0,
+            current.unreadCount - (readItem?.unreadCount || 0),
+          ),
+          topItems: current.topItems.filter((item) => item._id !== data.conversationId),
+        };
+      });
     };
 
     socket.on("whatsapp-new-message", handleNewMessage);
@@ -212,7 +203,7 @@ export function WhatsAppNotifications() {
       socket.off("whatsapp-conversation-update", handleConversationUpdate);
       socket.off("whatsapp-messages-read", handleMessageRead);
     };
-  }, [socket, hasAccess, fetchNotifications, token]);
+  }, [socket, hasAccess, refetch, queryClient, token]);
 
   const totalCount = summary.expiringCount + summary.unreadCount;
 
@@ -247,7 +238,7 @@ export function WhatsAppNotifications() {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
       setIsOpen(open);
-      if (open) fetchNotifications();
+      if (open) void refetch();
     }}>
       <DialogTrigger asChild>
         <Button

@@ -72,4 +72,6 @@ const propertyBoosterSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+propertyBoosterSchema.index({ createdAt: -1 });
+
 export const Boosters = models.PropertyBooster || model("PropertyBooster", propertyBoosterSchema);

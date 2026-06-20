@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, ReactNode } from "react";
+import dynamic from "next/dynamic";
 import axios from "@/util/axios";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +13,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
-import { MoleculeVisualization } from "@/components/molecule_visual";
+import { DashboardSectionSkeleton } from "@/components/ui/DashboardSectionSkeleton";
 import { ReusableLineChart } from "@/components/charts/VisitsLineChart";
 import { BoostMultiLineChart } from "@/components/charts/BoostMultiLineChart";
 import {
@@ -27,12 +28,25 @@ import {
 import { ChartConfig } from "@/components/ui/chart";
 
 // Hooks
-import WeeksVisit from "@/hooks/(VS)/useWeeksVisit";
-import useUnregisteredOwnerCounts from "@/hooks/(VS)/useUnregisteredOwnerCounts";
-import BoostCounts from "@/hooks/(VS)/useBoosterCounts";
-import ListingCounts from "@/hooks/(VS)/useListingCounts";
+import useWeeksVisit from "@/features/sales/hooks/useWeeksVisit";
+import useUnregisteredOwnerCounts from "@/hooks/shared/useUnregisteredOwnerCounts";
+import BoostCounts from "@/hooks/shared/useBoosterCounts";
+import ListingCounts from "@/hooks/shared/useListingCounts";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
 import { useRouter } from "next/navigation";
+
+const MoleculeVisualization = dynamic(
+  () =>
+    import("@/components/molecule_visual").then((m) => ({
+      default: m.MoleculeVisualization,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <DashboardSectionSkeleton label="Loading owner network..." height="h-96" />
+    ),
+  },
+);
 
 const chartConfig = {
   listings: {
@@ -49,7 +63,7 @@ interface AdvertDashboardProps {
   className?: string;
 }
 
-export function AdvertDashboard({ className }: AdvertDashboardProps) {
+export default function AdvertDashboard({ className }: AdvertDashboardProps) {
   const router = useRouter();
   const { canAccess, role } = useDashboardAccess();
 
@@ -74,7 +88,7 @@ export function AdvertDashboard({ className }: AdvertDashboardProps) {
     fetchUnregisteredVisits,
     ownersCount,
     newOwnersCount,
-  } = WeeksVisit();
+  } = useWeeksVisit();
 
   const { unregisteredOwnerCounts } = useUnregisteredOwnerCounts();
   const { totalBoosts, fetchBoostCounts } = BoostCounts();
@@ -383,6 +397,4 @@ export function AdvertDashboard({ className }: AdvertDashboardProps) {
     </div>
   );
 }
-
-export default AdvertDashboard;
 

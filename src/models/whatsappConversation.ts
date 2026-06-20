@@ -39,7 +39,11 @@ export interface IWhatsAppConversation extends Document {
 
   unreadCount: number;
 
-  status: "active" | "archived" | "blocked";
+  status: "active" | "archived" | "blocked" | "merged";
+
+  /** Set when status is merged — points to the surviving conversation */
+  mergedInto?: mongoose.Types.ObjectId;
+  mergedAt?: Date;
 
   lastCustomerMessageAt?: Date;
   /** Per business line — Meta 24h window is scoped to each phone number. */
@@ -121,6 +125,9 @@ export interface IWhatsAppConversation extends Document {
   rentalType?: "Short Term" | "Long Term" | "General";
   businessPortfolioId?: string;
   wabaId?: string;
+
+  /** Conversation identity schema version (2 = phone + whatsappChannelId) */
+  identityVersion?: number;
 
   metadata?: Map<string, any>;
 }
@@ -224,9 +231,18 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
 
     status: {
       type: String,
-      enum: ["active", "archived", "blocked"],
+      enum: ["active", "archived", "blocked", "merged"],
       default: "active",
       index: true,
+    },
+
+    mergedInto: {
+      type: Schema.Types.ObjectId,
+      ref: "WhatsAppConversation",
+    },
+
+    mergedAt: {
+      type: Date,
     },
 
     lastCustomerMessageAt: {
@@ -448,6 +464,11 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
       default: undefined,
     },
 
+    identityVersion: {
+      type: Number,
+      default: 2,
+    },
+
     metadata: {
       type: Map,
       of: Schema.Types.Mixed,
@@ -456,10 +477,16 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
   { timestamps: true }
 );
 
-// One conversation per participant per business phone
+// Runtime line lookup (non-unique — businessPhoneId is mutable)
+whatsAppConversationSchema.index({
+  participantPhone: 1,
+  businessPhoneId: 1,
+});
+
+// Permanent identity: one conversation per participant per business channel
 whatsAppConversationSchema.index(
-  { participantPhone: 1, businessPhoneId: 1 },
-  { unique: true }
+  { participantPhone: 1, whatsappChannelId: 1 },
+  { unique: true, sparse: true, name: "identity_v2" },
 );
 
 // Index for fetching conversations by agent

@@ -13,6 +13,7 @@ import ConversationReadState from "@/models/conversationReadState";
 import ConversationArchiveState from "@/models/conversationArchiveState";
 import Employee from "@/models/employee";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
 import { resolveLocationFromLeadPhone } from "@/lib/whatsapp/locationAccess";
 import { isLocationAllowedForPhone } from "@/lib/whatsapp/phoneAreaConfigService";
 import { getWhatsAppErrorInfo } from "@/lib/whatsapp/errorHandler";
@@ -666,8 +667,7 @@ async function processIncomingMessage(
       from: message?.from ? String(message.from).replace(/\d(?=\d{4})/g, "x") : null,
       type: message?.type || null,
     });
-    let senderPhone = message.from;
-    senderPhone = senderPhone.replace(/\D/g, "");
+    const senderPhone = normalizePhone(String(message.from ?? ""));
     if (senderPhone.length < 7 || senderPhone.length > 15) {
       console.error("❌ Invalid phone number length:", senderPhone);
       return;
@@ -675,19 +675,19 @@ async function processIncomingMessage(
     const senderName = contact?.profile?.name || senderPhone;
     const timestamp = new Date(parseInt(message.timestamp) * 1000);
 
-    // Minimal entry log - detailed logs only on success/failure
-
     // Validate required fields
     if (!senderPhone || !phoneNumberId) {
       console.error("❌ Missing required fields - senderPhone:", senderPhone, "phoneNumberId:", phoneNumberId);
       return;
     }
 
-    const inboundChannel = await getActiveChannelByPhoneNumberId(String(phoneNumberId));
-    if (!inboundChannel) {
-      console.warn("⚠️ [webhook] phone_number_id not registered as active WhatsappChannel", {
+    const channel = await getActiveChannelByPhoneNumberId(String(phoneNumberId));
+    if (!channel) {
+      console.error(
+        "[webhook] unresolved phoneNumberId — no channel found:",
         phoneNumberId,
-      });
+      );
+      return;
     }
 
     // Inbound webhooks never filter on legacy WHATSAPP_PHONE_CONFIGS — any Meta line is accepted.
@@ -710,8 +710,11 @@ async function processIncomingMessage(
     // (phoneNumberId only — race-condition safe against admin remaps).
     const conversation = await findOrCreateConversationWithSnapshot({
       participantPhone: senderPhone,
+      whatsappChannelId: channel.channelId,
       businessPhoneId: phoneNumberId,
       participantName: senderName,
+      channelType: channel.channelType,
+      rentalType: channel.rentalType,
       ...(leadLocation ? { participantLocation: leadLocation } : {}),
       snapshotSource: leadLocation ? "trusted" : "untrusted",
       isInboundWebhook: true,
@@ -1794,7 +1797,7 @@ async function processCallEvent(value: any) {
       ) {
         const direction = String(call.direction || "").toUpperCase();
         if (direction === "USER_INITIATED") {
-          const callerDigits = String(call.from ?? "").replace(/\D/g, "");
+          const callerDigits = normalizePhone(String(call.from ?? ""));
           if (!callerDigits) continue;
           if (!phoneNumberId) {
             console.error("[webhook] USER_INITIATED call: missing phone_number_id on webhook value", {
@@ -1803,13 +1806,29 @@ async function processCallEvent(value: any) {
             continue;
           }
 
+          const callChannel = await getActiveChannelByPhoneNumberId(String(phoneNumberId));
+          if (!callChannel) {
+            console.error(
+              "[webhook] unresolved phoneNumberId — no channel found:",
+              phoneNumberId,
+            );
+            continue;
+          }
+
           const contactName = (value.contacts?.[0]?.profile?.name as string | undefined)?.trim() || "";
 
           type ConvLean = { _id: unknown; participantName?: string; businessPhoneId?: string } | null;
           let existing: ConvLean = (await WhatsAppConversation.findOne({
-            businessPhoneId: String(phoneNumberId),
-            $or: [{ participantPhone: callerDigits }, { participantPhone: `+${callerDigits}` }],
+            participantPhone: callerDigits,
+            whatsappChannelId: callChannel.channelId,
           }).lean()) as ConvLean;
+
+          if (!existing?._id) {
+            existing = (await WhatsAppConversation.findOne({
+              participantPhone: callerDigits,
+              businessPhoneId: String(phoneNumberId),
+            }).lean()) as ConvLean;
+          }
 
           if (!existing?._id) {
             const rawCallerLocation = await resolveLocationFromLeadPhone(callerDigits);
@@ -1820,7 +1839,10 @@ async function processCallEvent(value: any) {
                 : null;
             const created = await findOrCreateConversationWithSnapshot({
               participantPhone: callerDigits,
+              whatsappChannelId: callChannel.channelId,
               businessPhoneId: String(phoneNumberId),
+              channelType: callChannel.channelType,
+              rentalType: callChannel.rentalType,
               ...(contactName ? { participantName: contactName } : {}),
               ...(callerLeadLocation ? { participantLocation: callerLeadLocation } : {}),
               snapshotSource: callerLeadLocation ? "trusted" : "untrusted",
@@ -2033,23 +2055,29 @@ async function processMessageEchoEvent(value: any) {
     const messages = value.messages || [];
 
     for (const message of messages) {
-        // E.164 normalization: only digits, 7-15 digits, no leading zero
-        let recipientPhone = message.to;
-        recipientPhone = recipientPhone.replace(/\D/g, "");
-        if (!/^[1-9][0-9]{6,14}$/.test(recipientPhone)) {
-          console.error("❌ Invalid recipient phone (not E.164):", recipientPhone);
-          return;
-        }
+      const recipientPhone = normalizePhone(String(message.to ?? ""));
+      if (!/^[1-9][0-9]{6,14}$/.test(recipientPhone)) {
+        console.error("❌ Invalid recipient phone (not E.164):", recipientPhone);
+        return;
+      }
       const timestamp = message.timestamp ? new Date(parseInt(message.timestamp) * 1000) : new Date();
 
+      const echoChannel = await getActiveChannelByPhoneNumberId(String(phoneNumberId));
+      if (!echoChannel) {
+        console.error(
+          "[webhook] unresolved phoneNumberId — no channel found:",
+          phoneNumberId,
+        );
+        return;
+      }
 
-      // Find or create conversation using snapshot-safe helper.
-      // CRITICAL: Message echoes are "untrusted" - they must NEVER overwrite snapshot fields.
-      // isInboundWebhook: true — channel resolved by phoneNumberId only.
       const conversation = await findOrCreateConversationWithSnapshot({
         participantPhone: recipientPhone,
+        whatsappChannelId: echoChannel.channelId,
         businessPhoneId: phoneNumberId,
         participantName: recipientPhone,
+        channelType: echoChannel.channelType,
+        rentalType: echoChannel.rentalType,
         snapshotSource: "untrusted",
         isInboundWebhook: true,
       }) as any;

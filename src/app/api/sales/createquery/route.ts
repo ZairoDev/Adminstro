@@ -14,6 +14,8 @@ import {
 } from "@/lib/whatsapp/config";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
+import { getActiveChannelByPhoneNumberId } from "@/lib/whatsapp/channelService";
 import { sanitizeLeadDocumentsForSave } from "@/util/leadDocuments";
 
 connectDb();
@@ -46,11 +48,8 @@ async function sendGuestGreetingTemplate(
       return;
     }
 
-    // Format phone number (remove spaces, dashes, and ensure no leading +)
-    let formattedPhone = phoneNo.replace(/[\s\-]/g, "");
-    if (formattedPhone.startsWith("+")) {
-      formattedPhone = formattedPhone.substring(1);
-    }
+    // Format phone number (canonical digits for conversation identity)
+    const formattedPhone = normalizePhone(phoneNo);
 
 
 
@@ -102,21 +101,29 @@ async function sendGuestGreetingTemplate(
       const templateText = `Hello ${leadName},\nMy team informed me that you are looking for an apartment for rent in ${location}.\nPlease let me know if you'd like help with available options.`;
 
       // Get or create conversation using snapshot-safe helper
-      // Lead auto-message is a "trusted" source - can set snapshot fields including location
+      const channel = await getActiveChannelByPhoneNumberId(phoneNumberId);
+      if (!channel) {
+        console.error("❌ No active WhatsApp channel for phoneNumberId:", phoneNumberId);
+        return;
+      }
+
       const isNewConversation = !(await WhatsAppConversation.findOne({
         participantPhone: formattedPhone,
-        businessPhoneId: phoneNumberId,
+        whatsappChannelId: channel.channelId,
       }));
 
       const conversation = await findOrCreateConversationWithSnapshot({
         participantPhone: formattedPhone,
+        whatsappChannelId: channel.channelId,
         businessPhoneId: phoneNumberId,
         participantName: leadName || formattedPhone,
-        participantLocation: location, // Capture location at conversation creation
+        participantLocation: location,
         conversationType: "guest",
         participantProfilePic: profilePicture,
+        channelType: channel.channelType,
+        rentalType: channel.rentalType,
         snapshotSource: "trusted",
-      }) as any; // Cast to any to access Mongoose document properties like _id
+      }) as any;
 
       // Emit new conversation event if this was a new conversation
       if (isNewConversation) {

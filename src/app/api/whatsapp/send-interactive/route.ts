@@ -8,7 +8,8 @@ import { WHATSAPP_API_BASE_URL } from "@/lib/whatsapp/config";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { isSalesWhatsAppRole } from "@/lib/whatsapp/config";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
-import { getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
+import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
+import { getChannelByPhoneNumberId, getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
 import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 import { buildWhatsAppRoomPayload } from "@/lib/whatsapp/socketPayload";
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const formattedPhone = String(to).replace(/[\s\-\+]/g, "");
+    const formattedPhone = normalizePhone(String(to ?? ""));
 
     const interactive: Record<string, unknown> = {
       type,
@@ -159,14 +160,22 @@ export async function POST(req: NextRequest) {
     const timestamp = new Date();
 
     if (!conversation) {
+      const phoneChannel = await getChannelByPhoneNumberId(phoneNumberId);
+      if (!phoneChannel) {
+        return NextResponse.json(
+          { error: "No WhatsApp channel configured for this phone line" },
+          { status: 400 },
+        );
+      }
       conversation = await findOrCreateConversationWithSnapshot({
         participantPhone: formattedPhone,
+        whatsappChannelId: phoneChannel.channelId,
         businessPhoneId: phoneNumberId,
         participantName: formattedPhone,
         participantLocation: convForToken?.participantLocation,
         conversationType: convForToken?.conversationType,
-        rentalType: convForToken?.rentalType,
-        channelType: convForToken?.channelType,
+        rentalType: phoneChannel.rentalType,
+        channelType: phoneChannel.channelType,
         snapshotSource: "trusted",
       });
     }

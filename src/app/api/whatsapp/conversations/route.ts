@@ -8,6 +8,7 @@ import WhatsAppConversation from "@/models/whatsappConversation";
 import Employee from "@/models/employee";
 import Query from "@/models/query";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
 import {
   getAllowedPhoneIds,
   getDefaultPhoneId,
@@ -34,6 +35,7 @@ import {
 import {
   inferChannelTypeFromConversation,
   resolveWhatsappChannel,
+  getChannelByPhoneNumberId,
 } from "@/lib/whatsapp/channelService";
 import {
   assertCanInitiateGuestConversation,
@@ -549,7 +551,7 @@ export async function POST(req: NextRequest) {
       );
     }
     // E.164 validation: only digits, 7-15 digits, no leading zero
-    const normalizedPhone = participantPhone.replace(/\D/g, "");
+    const normalizedPhone = normalizePhone(participantPhone);
     if (!/^[1-9][0-9]{6,14}$/.test(normalizedPhone)) {
       return NextResponse.json(
         { error: "Phone number must be in E.164 format (country code + number, 7-15 digits, no leading zero)." },
@@ -667,6 +669,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let resolvedWhatsappChannelId: string | null =
+      channelFromRouting?.channelId ?? null;
+    if (!resolvedWhatsappChannelId) {
+      const byPhone = await getChannelByPhoneNumberId(selectedPhoneId);
+      resolvedWhatsappChannelId = byPhone?.channelId ?? null;
+    }
+
+    if (!resolvedWhatsappChannelId) {
+      return NextResponse.json(
+        {
+          error: "No WhatsApp channel configured for the selected phone line",
+          code: "CHANNEL_NOT_FOUND",
+        },
+        { status: 400 },
+      );
+    }
+
     // Prevent Sales from hijacking an existing retarget row on this same
     // WhatsApp account before Advert hands it over. Scoped by business phone
     // so a retarget on another line does not block creating an owner here.
@@ -725,18 +744,14 @@ export async function POST(req: NextRequest) {
     // redundant record.
     const existingSameAccount = await WhatsAppConversation.findOne({
       participantPhone: normalizedPhone,
-      businessPhoneId: selectedPhoneId,
-    }).lean() as any;
+      whatsappChannelId: resolvedWhatsappChannelId,
+    }).lean() as Record<string, unknown> | null;
 
-    // Also detect the same phone living under a DIFFERENT WhatsApp account,
-    // purely so the UI can surface an informational warning. We do NOT
-    // return that conversation here because it belongs to a different
-    // account - contacts are strictly scoped per account.
     const existsInOtherAccount = !existingSameAccount
       ? Boolean(
           await WhatsAppConversation.exists({
             participantPhone: normalizedPhone,
-            businessPhoneId: { $ne: selectedPhoneId },
+            whatsappChannelId: { $ne: resolvedWhatsappChannelId },
             source: { $ne: "internal" },
           })
         )
@@ -764,6 +779,7 @@ export async function POST(req: NextRequest) {
     // This path is considered a trusted creation flow (manual / lead).
     const conversation = await findOrCreateConversationWithSnapshot({
       participantPhone: normalizedPhone,
+      whatsappChannelId: resolvedWhatsappChannelId,
       businessPhoneId: selectedPhoneId,
       participantName,
       participantLocation: resolvedLocation || undefined,

@@ -9,6 +9,7 @@ import {
   INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
 import crypto from "crypto";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
@@ -394,7 +395,7 @@ export async function POST(req: NextRequest) {
         : String(to || "");
 
     // E.164 validation: only digits, 7-15 digits, no leading zero
-    const formattedPhone = rawRecipient.replace(/\D/g, "");
+    const formattedPhone = normalizePhone(rawRecipient);
     if (!/^[1-9][0-9]{6,14}$/.test(formattedPhone)) {
       return NextResponse.json(
         { error: "Phone number must be in E.164 format (country code + number, 7-15 digits, no leading zero)." },
@@ -615,12 +616,19 @@ export async function POST(req: NextRequest) {
 
       if (!conversation) {
         const phoneChannel = await getChannelByPhoneNumberId(phoneNumberId);
+        if (!phoneChannel) {
+          return NextResponse.json(
+            { error: "No WhatsApp channel configured for this phone line" },
+            { status: 400 },
+          );
+        }
         conversation = await findOrCreateConversationWithSnapshot({
           participantPhone: formattedPhone,
+          whatsappChannelId: phoneChannel.channelId,
           businessPhoneId: phoneNumberId,
           participantName: formattedPhone,
-          rentalType: phoneChannel?.rentalType,
-          channelType: phoneChannel?.channelType,
+          rentalType: phoneChannel.rentalType,
+          channelType: phoneChannel.channelType,
           snapshotSource: "trusted",
         });
       }

@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { Loader2, RefreshCcw } from "lucide-react";
+import Link from "next/link";
+import { Loader2, RefreshCcw, GitMerge } from "lucide-react";
 import axios from "@/util/axios";
 import {
   Card,
@@ -406,6 +407,26 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
       {/* SuperAdmin Only Sections */}
       {isSuperAdmin && (
         <>
+          <Card className="my-4 overflow-hidden border-amber-200 dark:border-amber-900/50">
+            <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20">
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <GitMerge className="h-5 w-5" />
+                WhatsApp conversation merge
+              </CardTitle>
+              <CardDescription>
+                Scan for duplicate customer threads on the same channel, preview
+                what will be merged, then consolidate message history safely.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6">
+              <Button asChild variant="outline">
+                <Link href="/dashboard/admin/merge-conversations">
+                  Open merge tool
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* Booking Statistics */}
           {canAccess("bookingChart") && (
             <div className="my-2 bg-white dark:bg-stone-950 rounded-xl border">

@@ -10,12 +10,13 @@ import {
   INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
 import crypto from "crypto";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
 import { isSalesWhatsAppRole } from "@/lib/whatsapp/config";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
-import { getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
+import { getChannelByPhoneNumberId, getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
 import fs from "fs/promises";
 import os from "os";
 import path from "path";
@@ -333,7 +334,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Format phone number
-    const formattedPhone = to.replace(/[\s\-\+]/g, "");
+    const formattedPhone = normalizePhone(String(to ?? ""));
 
     // Build media payload
     const mediaPayload: MediaPayload & { voice?: boolean } = {};
@@ -411,12 +412,20 @@ export async function POST(req: NextRequest) {
       }
 
       if (!conversation) {
-        // Use helper to find or create with proper snapshot semantics
-        // User-initiated media sending is "trusted" - can backfill empty snapshot fields
+        const phoneChannel = await getChannelByPhoneNumberId(phoneNumberId);
+        if (!phoneChannel) {
+          return NextResponse.json(
+            { error: "No WhatsApp channel configured for this phone line" },
+            { status: 400 },
+          );
+        }
         conversation = await findOrCreateConversationWithSnapshot({
           participantPhone: formattedPhone,
+          whatsappChannelId: phoneChannel.channelId,
           businessPhoneId: phoneNumberId,
-          participantName: formattedPhone, // Default name for new conversations
+          participantName: formattedPhone,
+          channelType: phoneChannel.channelType,
+          rentalType: phoneChannel.rentalType,
           snapshotSource: "trusted",
         });
       }

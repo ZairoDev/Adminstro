@@ -11,11 +11,13 @@ import {
   isSalesWhatsAppRole,
 } from "@/lib/whatsapp/config";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 import {
   explainOutboundSendCredentialsFailure,
+  getChannelByPhoneNumberId,
   getOutboundTokenForPhoneId,
   resolveOutboundSendCredentials,
   toOutboundTokenConversation,
@@ -99,7 +101,7 @@ export async function POST(req: NextRequest) {
     const userRole = normalizedToken.role || "";
     const userAreas = normalizedToken.allotedArea;
 
-    const formattedPhone = recipientPhone.replace(/\D/g, "");
+    const formattedPhone = normalizePhone(recipientPhone);
     if (!/^[1-9][0-9]{6,14}$/.test(formattedPhone)) {
       return NextResponse.json(
         { error: "Phone number must be in E.164 format (country code + number, 7-15 digits, no leading zero)." },
@@ -337,10 +339,20 @@ export async function POST(req: NextRequest) {
     const timestamp = new Date();
 
     if (!conversation) {
+      const phoneChannel = await getChannelByPhoneNumberId(phoneNumberId);
+      if (!phoneChannel) {
+        return NextResponse.json(
+          { error: "No WhatsApp channel configured for this phone line" },
+          { status: 400 },
+        );
+      }
       conversation = await findOrCreateConversationWithSnapshot({
         participantPhone: formattedPhone,
+        whatsappChannelId: phoneChannel.channelId,
         businessPhoneId: phoneNumberId,
         participantName: formattedPhone,
+        channelType: phoneChannel.channelType,
+        rentalType: phoneChannel.rentalType,
         snapshotSource: isRetarget ? "untrusted" : "trusted",
       });
 

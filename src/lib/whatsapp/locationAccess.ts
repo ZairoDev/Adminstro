@@ -537,12 +537,7 @@ export async function resolveLocationFromLeadPhone(
 
   try {
     const lead = await Query.findOne({
-      $or: [
-        { phone: digits },
-        { phone: `+${digits}` },
-        { whatsappNumber: digits },
-        { whatsappNumber: `+${digits}` },
-      ],
+      $or: [{ phoneNo: digits }, { phoneNo: `+${digits}` }],
       location: { $exists: true, $nin: [null, ""] },
     })
       .select("location")

@@ -9,7 +9,7 @@ const querySchema = new Schema(
     isViewed: {
       type: Boolean,
       default: false,
-    },
+    },6
     duration: {
       type: String,
       require: [true, "Duration is Required"],

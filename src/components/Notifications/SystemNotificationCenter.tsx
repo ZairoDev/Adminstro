@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,53 +41,50 @@ interface Notification {
   isRead: boolean;
 }
 
+interface SystemNotificationsData {
+  notifications: Notification[];
+  unreadCount: number;
+}
+
 export function SystemNotificationCenter() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [severityFilter, setSeverityFilter] = useState<"all" | "critical" | "warning" | "info">("all");
   const { token } = useAuthStore();
   const { socket } = useSocket();
 
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["systemNotifications"],
+    queryFn: async (): Promise<SystemNotificationsData> => {
+      const response = await axios.get("/api/notifications");
+      if (response.data.success) {
+        return {
+          notifications: response.data.notifications || [],
+          unreadCount: response.data.unreadCount || 0,
+        };
+      }
+      return { notifications: [], unreadCount: 0 };
+    },
+    staleTime: 60 * 1000,
+    refetchInterval: 3 * 60 * 1000,
+    enabled: isMounted && Boolean(token),
+  });
+
+  const notifications = data?.notifications ?? [];
+  const unreadCount = data?.unreadCount ?? 0;
+  const loading = isLoading;
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  const fetchNotifications = useCallback(async () => {
-    if (!token) return;
-
-    try {
-      setLoading(true);
-      const response = await axios.get("/api/notifications");
-      if (response.data.success) {
-        setNotifications(response.data.notifications || []);
-        setUnreadCount(response.data.unreadCount || 0);
-      }
-    } catch (error: any) {
-      console.error("Error fetching notifications:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    if (!isMounted || !token) return;
-
-    fetchNotifications();
-    // Refresh every 5 minutes
-    const interval = setInterval(fetchNotifications, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [isMounted, token, fetchNotifications]);
 
   // Listen for real-time notifications
   useEffect(() => {
     if (!socket || !token) return;
 
     const handleSystemNotification = () => {
-      // Refresh notifications when new one arrives
-      fetchNotifications();
+      void refetch();
     };
 
     socket.on("system-notification", handleSystemNotification);
@@ -94,18 +92,27 @@ export function SystemNotificationCenter() {
     return () => {
       socket.off("system-notification", handleSystemNotification);
     };
-  }, [socket, token, fetchNotifications]);
+  }, [socket, token, refetch]);
 
   const markAsRead = async (notificationId: string) => {
     try {
       await axios.post("/api/notifications/read", { notificationId });
-      // Update local state
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n._id === notificationId ? { ...n, isRead: true } : n
-        )
+      queryClient.setQueryData<SystemNotificationsData>(
+        ["systemNotifications"],
+        (prev) => {
+          if (!prev) return prev;
+          const target = prev.notifications.find((n) => n._id === notificationId);
+          return {
+            notifications: prev.notifications.map((n) =>
+              n._id === notificationId ? { ...n, isRead: true } : n,
+            ),
+            unreadCount:
+              target && !target.isRead
+                ? Math.max(0, prev.unreadCount - 1)
+                : prev.unreadCount,
+          };
+        },
       );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error("Error marking notification as read:", error);
     }
@@ -116,32 +123,43 @@ export function SystemNotificationCenter() {
       const unreadNotifications = notifications.filter((n) => !n.isRead);
       await Promise.all(
         unreadNotifications.map((n) =>
-          axios.post("/api/notifications/read", { notificationId: n._id })
-        )
+          axios.post("/api/notifications/read", { notificationId: n._id }),
+        ),
       );
-      // Update local state
-      setNotifications((prev) =>
-        prev.map((n) => ({ ...n, isRead: true }))
+      queryClient.setQueryData<SystemNotificationsData>(
+        ["systemNotifications"],
+        (prev) =>
+          prev
+            ? {
+                notifications: prev.notifications.map((n) => ({ ...n, isRead: true })),
+                unreadCount: 0,
+              }
+            : prev,
       );
-      setUnreadCount(0);
     } catch (error) {
       console.error("Error marking all as read:", error);
     }
   };
 
   const handleDismiss = async (notificationId: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent marking as read when clicking dismiss
-    
+    e.stopPropagation();
+
     try {
-      // Mark as read (which will hide it from user's view)
       await axios.post("/api/notifications/read", { notificationId });
-      // Remove from local state
-      setNotifications((prev) => prev.filter((n) => n._id !== notificationId));
-      // Update unread count if it was unread
-      const dismissed = notifications.find((n) => n._id === notificationId);
-      if (dismissed && !dismissed.isRead) {
-        setUnreadCount((prev) => Math.max(0, prev - 1));
-      }
+      queryClient.setQueryData<SystemNotificationsData>(
+        ["systemNotifications"],
+        (prev) => {
+          if (!prev) return prev;
+          const dismissed = prev.notifications.find((n) => n._id === notificationId);
+          return {
+            notifications: prev.notifications.filter((n) => n._id !== notificationId),
+            unreadCount:
+              dismissed && !dismissed.isRead
+                ? Math.max(0, prev.unreadCount - 1)
+                : prev.unreadCount,
+          };
+        },
+      );
     } catch (error) {
       console.error("Error dismissing notification:", error);
     }
@@ -177,7 +195,7 @@ export function SystemNotificationCenter() {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
       setIsOpen(open);
-      if (open) fetchNotifications();
+      if (open) void refetch();
     }}>
       <DialogTrigger asChild>
         <Button variant="ghost" className="relative">

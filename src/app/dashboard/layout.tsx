@@ -47,6 +47,7 @@ export default function DashboardLayout({
   useEffect(() => {
     const syncTokenRentalType = async () => {
       if (!token?.id) return;
+      if (token.rentalType !== undefined && token.rentalType !== null) return;
       try {
         const res = await axios.get("/api/user/getloggedinuser");
         const user = res.data?.user as { rentalType?: string | null } | undefined;

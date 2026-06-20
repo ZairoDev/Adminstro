@@ -1,5 +1,6 @@
 import axios from "@/util/axios";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { BellDot, ExternalLink, LucideLoader2, Clock, CalendarDays } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -16,45 +17,37 @@ import { Separator } from "../ui/separator";
 import { Badge } from "../ui/badge";
 import Link from "next/link";
 
+interface SalesRemindersData {
+  reminders: IQuery[];
+  count: number;
+}
+
 export function Notifications() {
-  const [fourDaysReminders, setFourDaysReminders] = useState<IQuery[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [reminderCount, setReminderCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["salesReminders"],
+    queryFn: async (): Promise<SalesRemindersData> => {
+      const response = await axios.get("/api/sales/reminders/getThreeDaysReminders");
+      const reminders: IQuery[] = response.data.allReminders || [];
+      return {
+        reminders,
+        count: response.data.count || reminders.length || 0,
+      };
+    },
+    staleTime: 3 * 60 * 1000,
+    enabled: isMounted,
+  });
+
+  const fourDaysReminders = data?.reminders ?? [];
+  const reminderCount = data?.count ?? 0;
+  const loading = isLoading;
 
   // Ensure client-only rendering to prevent hydration mismatch
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  const fetchReminders = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(
-        "/api/sales/reminders/getThreeDaysReminders"
-      );
-      const reminders = response.data.allReminders || [];
-      setFourDaysReminders(reminders);
-      setReminderCount(response.data.count || reminders.length || 0);
-    } catch (err: any) {
-      console.log("err: ", err);
-      setFourDaysReminders([]);
-      setReminderCount(0);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Fetch reminder count on component mount and every 5 minutes
-  useEffect(() => {
-    fetchReminders();
-    
-    // Refresh every 5 minutes to keep count updated
-    const interval = setInterval(fetchReminders, 5 * 60 * 1000);
-    
-    return () => clearInterval(interval);
-  }, [fetchReminders]);
 
   // Helper to get reminder date from either reminder field (new) or reason field (old)
   const getReminderDate = (query: IQuery): Date | null => {
@@ -135,7 +128,7 @@ export function Notifications() {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
       setIsOpen(open);
-      if (open) fetchReminders();
+      if (open) void refetch();
     }}>
       <DialogTrigger asChild>
         <Button

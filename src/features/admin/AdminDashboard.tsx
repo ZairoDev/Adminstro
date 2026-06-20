@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Loader2, RefreshCcw } from "lucide-react";
 import axios from "@/util/axios";
 import {
@@ -23,7 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
 import { PropertyCountHistogram } from "@/components/charts/PropertyCountHistogram";
-import BookingChartImproved from "@/components/BookingChart";
+import { DashboardSectionSkeleton } from "@/components/ui/DashboardSectionSkeleton";
 import WeeklyTargetDashboard from "@/components/BookingTable";
 import LoggedInEmployeesList from "@/components/VS/dashboard/logged-in-employees";
 import RecentEmployeeSessions from "@/components/mini/RecentEmployeeSessions";
@@ -40,9 +41,9 @@ import {
 import { ChartConfig } from "@/components/ui/chart";
 
 // Hooks
-import usePropertyCount from "@/hooks/(VS)/usePropertyCount";
-import useCandidateCounts from "@/hooks/(VS)/useCandidateCounts";
-import ListingCounts from "@/hooks/(VS)/useListingCounts";
+import usePropertyCount from "@/features/admin/hooks/usePropertyCount";
+import useCandidateCounts from "@/features/admin/hooks/useCandidateCounts";
+import ListingCounts from "@/hooks/shared/useListingCounts";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthStore } from "@/AuthStore";
@@ -51,7 +52,17 @@ import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastN
 // Types
 import { UserInterface } from "@/util/type";
 import { employeeRoles } from "@/constants/employeeRoles";
-import { OwnerStageChart } from "../charts/OwnerStageChart";
+import { OwnerStageChart } from "@/components/charts/OwnerStageChart";
+
+const BookingChartImproved = dynamic(
+  () => import("@/components/BookingChart"),
+  {
+    ssr: false,
+    loading: () => (
+      <DashboardSectionSkeleton label="Loading revenue chart..." height="h-80" />
+    ),
+  },
+);
 
 const chartConfig = {
   listings: {
@@ -68,7 +79,7 @@ interface AdminDashboardProps {
   className?: string;
 }
 
-export function AdminDashboard({ className }: AdminDashboardProps) {
+export default function AdminDashboard({ className }: AdminDashboardProps) {
   const { isAdmin, canAccess, role } = useDashboardAccess();
   const { token } = useAuthStore();
   const { toast } = useToast();
@@ -628,6 +639,4 @@ export function AdminDashboard({ className }: AdminDashboardProps) {
     </div>
   );
 }
-
-export default AdminDashboard;
 

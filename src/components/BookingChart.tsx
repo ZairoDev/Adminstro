@@ -25,7 +25,7 @@ import {
 import dayjs from "dayjs";
 import useBookingStats, {
   type BookingStatsFilterParams,
-} from "@/hooks/(VS)/useBookingStats";
+} from "@/hooks/shared/useBookingStats";
 import { ChevronLeft, ChevronRight, MapPin, Calendar } from "lucide-react";
 
 type ChartType = "Area" | "Line" | "Bar";

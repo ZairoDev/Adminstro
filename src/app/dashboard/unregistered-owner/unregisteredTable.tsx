@@ -1,6 +1,6 @@
 "use client";
 
-import WeeksVisit from "@/hooks/(VS)/useWeeksVisit";
+import useWeeksVisit from "@/features/sales/hooks/useWeeksVisit";
 import { List, AutoSizer } from "react-virtualized";
 
 interface UnregisteredOwnersInterface {
@@ -9,7 +9,7 @@ interface UnregisteredOwnersInterface {
 }
 
 export default function UnregisteredOwnersTable() {
-  const { loading, unregisteredOwners = [] } = WeeksVisit();
+  const { loading, unregisteredOwners = [] } = useWeeksVisit();
 
   if (loading) {
     return (

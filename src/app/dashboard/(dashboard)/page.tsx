@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import dynamic from "next/dynamic";
 import { DateRange } from "react-day-picker";
 import { DashboardSectionSkeleton } from "@/components/ui/DashboardSectionSkeleton";
 import { CelebrationView } from "@/components/CelebrationView";
 import { CelebrationNotification } from "@/components/CelebrationNotification";
 import { PersonalReminderBanner } from "@/components/reminders/PersonalReminderBanner";
-import { getTodaysEvents, TodaysEvents } from "@/util/getTodaysEvents";
+import { TodaysEvents } from "@/util/getTodaysEvents";
 import { toast } from "sonner";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
 import { Button } from "@/components/ui/button";
@@ -26,24 +27,38 @@ import { useAuthStore } from "@/AuthStore";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
 import { getRandomQuote } from "@/util/getRandomQuote";
 
-// Dashboard Components
-import { 
-  LeadGenDashboard, 
-  SalesDashboard, 
+import {
   AdminDashboard,
-  AdvertDashboard,
-} from "@/components/dashboards";
+  LeadGenDashboard,
+  SalesDashboard,
+} from "@/components/dashboard/lazyDashboards";
+import { SuperAdminTabDashboard } from "@/components/dashboard/SuperAdminTabDashboard";
+import { TwoTabDashboard } from "@/components/dashboard/TwoTabDashboard";
+
+const AdvertDashboard = dynamic(
+  () => import("@/features/advert/AdvertDashboard"),
+  {
+    ssr: false,
+    loading: () => (
+      <DashboardSectionSkeleton label="Loading advert dashboard..." height="h-96" />
+    ),
+  },
+);
 
 // Charts
 import { LeadCountPieChart } from "@/components/charts/LeadsCountPieChart";
 import { VisitsCreatedByMultiLineChart } from "@/components/charts/VisitsCreatedByMultiLineChart";
 
 // Hooks
-import useLeads from "@/hooks/(VS)/useLeads";
+import useSalesByAgentSection from "@/hooks/(VS)/useSalesByAgentSection";
+import {
+  emptyCelebrations,
+  useCelebrations,
+} from "@/hooks/shared/useCelebrations";
+import { useVisitsCreatedByStats } from "@/hooks/shared/useVisitsCreatedByStats";
 
 // Components
 import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastNotificationForm";
-import axios from "@/util/axios";
 
 const Dashboard = () => {
   const { token } = useAuthStore();
@@ -80,48 +95,33 @@ const Dashboard = () => {
   const [visitsCreatedByFilters, setVisitsCreatedByFilters] = useState<{
     days?: string;
   }>({ days: "this month" });
-  const [visitsCreatedByCreators, setVisitsCreatedByCreators] = useState<string[]>([]);
-  const [visitsCreatedBySeries, setVisitsCreatedBySeries] = useState<
-    Array<{ date: string } & Record<string, number | string>>
-  >([]);
-  const [visitsLoading, setVisitsLoading] = useState(true);
-  const [visitsCreatedByError, setVisitsCreatedByError] = useState<string>("");
 
-  const fetchVisitsCreatedByStats = async (filters: { days?: string }) => {
-    setVisitsLoading(true);
-    setVisitsCreatedByError("");
-    try {
-      const res = await axios.get("/api/visits/stats/created-by", {
-        params: { days: filters.days || "12 days" },
-      });
-      if (res.data?.success) {
-        setVisitsCreatedByCreators(res.data.creators || []);
-        setVisitsCreatedBySeries(res.data.data || []);
-      } else {
-        setVisitsCreatedByCreators([]);
-        setVisitsCreatedBySeries([]);
-        setVisitsCreatedByError("Failed to load visit stats");
-      }
-    } catch (e: any) {
-      setVisitsCreatedByCreators([]);
-      setVisitsCreatedBySeries([]);
-      setVisitsCreatedByError(e?.response?.data?.error || "Failed to load visit stats");
-    } finally {
-      setVisitsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!token?.id) {
-      setVisitsLoading(false);
-      return;
-    }
-    fetchVisitsCreatedByStats(visitsCreatedByFilters);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token?.id, visitsCreatedByFilters.days]);
+  const showAdminDashboard = isAdmin || role === "HR";
+  const showLeadGenDashboard = isLeadGen || isAdmin || role === "LeadGen-TeamLead";
+  const showSalesDashboard = isSales || isAdmin || role === "Sales-TeamLead";
+  const showAdvertDashboard = role === "Advert";
+  const showSalesByAgentSection =
+    showSalesDashboard && !showAdvertDashboard && canAccess("salesByAgent");
 
   const {
-    leads,
+    data: visitsCreatedByData,
+    isLoading: visitsLoading,
+    isError: visitsCreatedByIsError,
+    error: visitsCreatedByQueryError,
+  } = useVisitsCreatedByStats(
+    visitsCreatedByFilters,
+    Boolean(token?.id) && showAdminDashboard && !showAdvertDashboard,
+  );
+
+  const visitsCreatedByCreators = visitsCreatedByData?.creators ?? [];
+  const visitsCreatedBySeries = visitsCreatedByData?.data ?? [];
+  const visitsCreatedByError = visitsCreatedByIsError
+    ? visitsCreatedByQueryError instanceof Error
+      ? visitsCreatedByQueryError.message
+      : "Failed to load visit stats"
+    : "";
+
+  const {
     leadsGroupCount,
     fetchLeadStatus,
     allEmployees,
@@ -131,11 +131,7 @@ const Dashboard = () => {
     isLoading: isLeadLoading,
     isError,
     error,
-    refetch,
-    reset,
-  } = useLeads({
-    date,
-  });
+  } = useSalesByAgentSection(showSalesByAgentSection);
 
   const emp = allEmployees.length;
   const averagedata = (average / 30).toFixed(0);
@@ -146,44 +142,44 @@ const Dashboard = () => {
     0
   );
 
-  // Celebration state (for quote flip UI - current user's events)
-  const [todaysEvents, setTodaysEvents] = useState<TodaysEvents>({
-    birthdays: [],
-    anniversaries: [],
-    hasEvents: false,
-  });
+  // Celebration flip-card dismissal (quote flip UI)
   const [isCelebrationDismissed, setIsCelebrationDismissed] = useState(false);
-  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
-
-  // Centralized celebrations state (for notifications - all employees)
-  const [centralizedCelebrations, setCentralizedCelebrations] = useState<{
-    birthdays: Array<{
-      employeeId: string;
-      firstName: string;
-      fullName: string;
-      eventType: "birthday" | "anniversary";
-    }>;
-    anniversaries: Array<{
-      employeeId: string;
-      firstName: string;
-      fullName: string;
-      eventType: "birthday" | "anniversary";
-      years?: number;
-    }>;
-    hasEvents: boolean;
-    totalCount: number;
-  }>({
-    birthdays: [],  
-    anniversaries: [],
-    hasEvents: false,
-    totalCount: 0,
-  });
   const [isNotificationDismissed, setIsNotificationDismissed] = useState(false);
-  const [isLoadingCelebrations, setIsLoadingCelebrations] = useState(true);
+  const celebrationToastShownRef = useRef(false);
 
+  const {
+    data: centralizedCelebrations = emptyCelebrations,
+    isLoading: isLoadingCelebrations,
+  } = useCelebrations(Boolean(token?.id));
 
+  useEffect(() => {
+    if (isLoadingCelebrations) return;
 
-  // Get random quote for current user (must be before early returns)
+    const dismissedKey = `celebration_dismissed_${new Date().toDateString()}`;
+    setIsCelebrationDismissed(sessionStorage.getItem(dismissedKey) === "true");
+
+    const todayKey = new Date().toDateString();
+    const seenKey = `celebrations_seen_${todayKey}`;
+    const wasSeen = sessionStorage.getItem(seenKey) === "true";
+    setIsNotificationDismissed(wasSeen);
+
+    if (!centralizedCelebrations.hasEvents || wasSeen || celebrationToastShownRef.current) return;
+
+    celebrationToastShownRef.current = true;
+    const data = centralizedCelebrations;
+    if (data.birthdays.length === 1 && data.anniversaries.length === 0) {
+      toast.success(`🎉 Today is ${data.birthdays[0].firstName}'s birthday!`);
+    } else if (data.anniversaries.length === 1 && data.birthdays.length === 0) {
+      toast.success(
+        `👏 Today is ${data.anniversaries[0].firstName}'s ${data.anniversaries[0].years}-year work anniversary!`,
+      );
+    } else {
+      toast.success(
+        `🎉 ${data.totalCount} celebration${data.totalCount !== 1 ? "s" : ""} today!`,
+      );
+    }
+  }, [isLoadingCelebrations, centralizedCelebrations]);
+
   const displayQuote = useMemo(() => {
     if (!token?.name) return "Welcome to your dashboard!";
   
@@ -191,158 +187,36 @@ const Dashboard = () => {
     return getRandomQuote(firstName);
   }, [token?.name]);
 
-  // Fetch centralized celebrations from API (for notifications)
-  const fetchCentralizedCelebrations = async () => {
-    if (!token?.id) {
-      setIsLoadingCelebrations(false);
-      return;
-    }
+  const flipCardEvents = useMemo((): TodaysEvents => {
+    const birthdays = centralizedCelebrations.birthdays.map((b) => ({
+      employeeId: b.employeeId,
+      firstName: b.firstName,
+      fullName: b.fullName,
+      isCurrentUser: b.employeeId === token?.id,
+    }));
+    const anniversaries = centralizedCelebrations.anniversaries.map((a) => ({
+      employeeId: a.employeeId,
+      firstName: a.firstName,
+      fullName: a.fullName,
+      years: a.years ?? 0,
+      isCurrentUser: a.employeeId === token?.id,
+    }));
 
-    try {
-      setIsLoadingCelebrations(true);
-      const response = await fetch("/api/celebrations/today");
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch celebrations");
-      }
-
-      const data = await response.json();
-      setCentralizedCelebrations(data);
-
-      // Check if notification was dismissed today
-      const todayKey = new Date().toDateString();
-      const seenKey = `celebrations_seen_${todayKey}`;
-      const wasSeen = sessionStorage.getItem(seenKey) === "true";
-      setIsNotificationDismissed(wasSeen);
-
-      // Show toast notification if there are events and not seen yet
-      if (data.hasEvents && !wasSeen) {
-        if (data.birthdays.length === 1 && data.anniversaries.length === 0) {
-          toast.success(`🎉 Today is ${data.birthdays[0].firstName}'s birthday!`);
-        } else if (data.anniversaries.length === 1 && data.birthdays.length === 0) {
-          toast.success(`👏 Today is ${data.anniversaries[0].firstName}'s ${data.anniversaries[0].years}-year work anniversary!`);
-        } else {
-          toast.success(`🎉 ${data.totalCount} celebration${data.totalCount !== 1 ? "s" : ""} today!`);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching centralized celebrations:", error);
-      setCentralizedCelebrations({
-        birthdays: [],
-        anniversaries: [],
-        hasEvents: false,
-        totalCount: 0,
+    const sortEvents = <T extends { isCurrentUser: boolean; firstName: string }>(
+      events: T[],
+    ): T[] =>
+      [...events].sort((a, b) => {
+        if (a.isCurrentUser && !b.isCurrentUser) return -1;
+        if (!a.isCurrentUser && b.isCurrentUser) return 1;
+        return a.firstName.localeCompare(b.firstName);
       });
-    } finally {
-      setIsLoadingCelebrations(false);
-    }
-  };
 
-  // Fetch centralized celebrations on mount and setup refresh
-  useEffect(() => {
-    fetchCentralizedCelebrations();
-
-    // Refresh every 10 minutes
-    const intervalId = setInterval(() => {
-      fetchCentralizedCelebrations();
-    }, 10 * 60 * 1000); // 10 minutes
-
-    // Refresh on tab focus
-    const handleFocus = () => {
-      fetchCentralizedCelebrations();
+    return {
+      birthdays: sortEvents(birthdays),
+      anniversaries: sortEvents(anniversaries),
+      hasEvents: centralizedCelebrations.hasEvents,
     };
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, [token?.id]);
-
-
-
-
-  const canFetchEmployeeDirectory = [
-    "SuperAdmin",
-    "HR",
-    "Admin",
-    "Developer",
-    "LeadGen-TeamLead",
-    "Sales-TeamLead",
-    "HAdmin",
-  ].includes(String(token?.role ?? ""));
-
-  // Fetch employees and detect today's events (for quote flip UI)
-  useEffect(() => {
-    const fetchEvents = async () => {
-      if (!token?.id) {
-        setIsLoadingEvents(false);
-        return;
-      }
-
-      if (!canFetchEmployeeDirectory) {
-        setTodaysEvents({ birthdays: [], anniversaries: [], hasEvents: false });
-        setIsLoadingEvents(false);
-        return;
-      }
-
-      try {
-        setIsLoadingEvents(true);
-        const allEmployeesList: any[] = [];
-        const fetchedEmployeeIds = new Set<string>();
-
-        // Fetch multiple pages of employees
-        for (let page = 1; page <= 10; page++) {
-          try {
-            const response = await fetch(`/api/employee/getAllEmployee?currentPage=${page}`);
-            if (!response.ok) break;
-
-            const data = await response.json();
-            if (data.allEmployees && Array.isArray(data.allEmployees)) {
-              // Filter only active employees with valid data
-              const activeEmployees = data.allEmployees.filter(
-                (emp: any) =>
-                  emp.isActive !== false &&
-                  emp._id &&
-                  emp.name &&
-                  emp.name.trim() !== ""
-              );
-
-              activeEmployees.forEach((emp: any) => {
-                if (!fetchedEmployeeIds.has(emp._id)) {
-                  allEmployeesList.push(emp);
-                  fetchedEmployeeIds.add(emp._id);
-                }
-              });
-
-              if (data.allEmployees.length < 10) break;
-            } else {
-              break;
-            }
-          } catch (fetchError) {
-            console.log("Could not fetch employees page", page, fetchError);
-            break;
-          }
-        }
-
-        // Detect today's events
-        const events = getTodaysEvents(allEmployeesList, token.id);
-        setTodaysEvents(events);
-
-        // Check if celebration was dismissed in this session
-        const dismissedKey = `celebration_dismissed_${new Date().toDateString()}`;
-        const wasDismissed = sessionStorage.getItem(dismissedKey) === "true";
-        setIsCelebrationDismissed(wasDismissed);
-      } catch (error) {
-        console.error("Error fetching events:", error);
-        setTodaysEvents({ birthdays: [], anniversaries: [], hasEvents: false });
-      } finally {
-        setIsLoadingEvents(false);
-      }
-    };
-
-    fetchEvents();
-  }, [token?.id, canFetchEmployeeDirectory]);
+  }, [centralizedCelebrations, token?.id]);
 
   // Handle celebration dismissal (quote flip UI)
   const handleDismissCelebration = () => {
@@ -361,49 +235,25 @@ const Dashboard = () => {
 
   // Handle view details - show celebration view
   const handleViewCelebrationDetails = () => {
-    // Convert centralized celebrations to TodaysEvents format for CelebrationView
-    const eventsForView: TodaysEvents = {
-      birthdays: centralizedCelebrations.birthdays.map((b) => ({
-        employeeId: b.employeeId,
-        firstName: b.firstName,
-        fullName: b.fullName,
-        isCurrentUser: b.employeeId === token?.id,
-      })),
-      anniversaries: centralizedCelebrations.anniversaries.map((a) => ({
-        employeeId: a.employeeId,
-        firstName: a.firstName,
-        fullName: a.fullName,
-        years: a.years || 0,
-        isCurrentUser: a.employeeId === token?.id,
-      })),
-      hasEvents: centralizedCelebrations.hasEvents,
-    };
-    setTodaysEvents(eventsForView);
     setIsCelebrationDismissed(false);
-    // Scroll to celebration view
     setTimeout(() => {
       const quoteSection = document.querySelector('[data-celebration-section]');
       quoteSection?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 100);
   };
 
-  // Determine if celebration should be shown
   const showCelebration =
-    !isLoadingEvents &&
+    !isLoadingCelebrations &&
     !isCelebrationDismissed &&
-    todaysEvents.hasEvents;
+    flipCardEvents.hasEvents;
   
-  // Determine which dashboards to show based on role
-  const showAdminDashboard = isAdmin || role === "HR";
-  const showLeadGenDashboard = isLeadGen || isAdmin || role === "LeadGen-TeamLead";
-  const showSalesDashboard = isSales || isAdmin || role === "Sales-TeamLead";
-  const showAdvertDashboard = role === "Advert";
+  // Determine which dashboards to show based on role (show* vars defined above with hooks)
 
   // Check if user is a team lead or has no location restriction
   const hasFullLocationAccess = isAdmin || isTeamLead || !hasLocationRestriction;
 
   return (
-    <div className="container mx-auto p-4 md:p-6">
+    <div className=" w-full p-4 md:p-6">
       {/* Centralized Celebration Notification Banner */}
       {!isLoadingCelebrations &&
         !isNotificationDismissed &&
@@ -458,8 +308,8 @@ const Dashboard = () => {
           >
             {showCelebration ? (
               <CelebrationView
-                birthdays={todaysEvents.birthdays}
-                anniversaries={todaysEvents.anniversaries}
+                birthdays={flipCardEvents.birthdays}
+                anniversaries={flipCardEvents.anniversaries}
                 onDismiss={handleDismissCelebration}
               />
             ) : (
@@ -473,11 +323,39 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Admin Dashboard (HR, SuperAdmin) */}
-      {showAdminDashboard && <AdminDashboard />}
+      {/* SuperAdmin: tab interface — only active tab mounts */}
+      {role === "SuperAdmin" && <SuperAdminTabDashboard />}
 
-      {/* Lead Generation Dashboard */}
-      {showLeadGenDashboard && <LeadGenDashboard />}
+      {/* Sales-TeamLead: Sales + Lead Gen tabs */}
+      {role === "Sales-TeamLead" && (
+        <TwoTabDashboard
+          tabs={[
+            { key: "sales", label: "Sales", dashboard: "sales" },
+            { key: "leadgen", label: "Lead Gen", dashboard: "leadgen" },
+          ]}
+          defaultTab="sales"
+        />
+      )}
+
+      {/* LeadGen-TeamLead: Lead Gen + Admin tabs */}
+      {role === "LeadGen-TeamLead" && (
+        <TwoTabDashboard
+          tabs={[
+            { key: "leadgen", label: "Lead Gen", dashboard: "leadgen" },
+            { key: "admin", label: "Admin", dashboard: "admin" },
+          ]}
+          defaultTab="leadgen"
+        />
+      )}
+
+      {/* Single-role paths (non-tab roles) */}
+      {showAdminDashboard &&
+        role !== "SuperAdmin" &&
+        role !== "LeadGen-TeamLead" && <AdminDashboard />}
+
+      {showLeadGenDashboard &&
+        role !== "SuperAdmin" &&
+        role !== "Sales-TeamLead" && <LeadGenDashboard />}
 
       {/* Advert Dashboard - Only for Advert role */}
       {showAdvertDashboard && <AdvertDashboard />}
@@ -485,9 +363,7 @@ const Dashboard = () => {
 
 
       {/* Sales by Agent Section - Only for Sales team (not for LeadGen or Advert) */}
-      {showSalesDashboard &&
-        !showAdvertDashboard &&
-        canAccess("salesByAgent") && (
+      {showSalesByAgentSection && (
           <>
             {isLeadLoading ? (
               <DashboardSectionSkeleton
@@ -685,8 +561,11 @@ const Dashboard = () => {
           </>
         )}
 
-      {/* Sales Dashboard - For Sales, Sales-TeamLead (not for Advert, they have their own) */}
-      {showSalesDashboard && !showAdvertDashboard && <SalesDashboard />}
+      {/* Sales Dashboard - For Sales (not TeamLead tabs, not SuperAdmin, not Advert) */}
+      {showSalesDashboard &&
+        !showAdvertDashboard &&
+        role !== "SuperAdmin" &&
+        role !== "Sales-TeamLead" && <SalesDashboard />}
 
       {/* Visits Created By (date-wise) */}
       {showAdminDashboard && !showAdvertDashboard && (

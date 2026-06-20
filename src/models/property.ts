@@ -216,6 +216,9 @@ const PropertySchema: Schema = new Schema<PropertySchema>(
   { timestamps: true }
 );
 
+PropertySchema.index({ country: 1, rentalType: 1 });
+PropertySchema.index({ createdAt: -1, rentalType: 1 });
+
 // Property Model Export
 export const Properties =
   mongoose.models.Property ||

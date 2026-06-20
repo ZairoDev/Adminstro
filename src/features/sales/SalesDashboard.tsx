@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useState, useMemo, ReactNode, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { BarChart3, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
 import { VisitStatsCard } from "@/components/visitCountCard/page";
 import { CityVisitsChart } from "@/components/charts/VisitsHorizontalChart";
-import { MonthSelector } from "@/components/MonthSelector/page";
-import { AnimatedStatsWrapper } from "@/components/AnimatedWrapper/page";
-import { MoleculeVisualization } from "@/components/molecule_visual";
+import { MonthSelector } from "@/components/MonthSelector";
+import { AnimatedStatsWrapper } from "@/components/AnimatedWrapper";
+import { DashboardSectionSkeleton } from "@/components/ui/DashboardSectionSkeleton";
 import { ReusableLineChart } from "@/components/charts/VisitsLineChart";
 import { BoostMultiLineChart } from "@/components/charts/BoostMultiLineChart";
 // import CityStatsCharts from "@/components/charts/DonutMessageStatus";
@@ -17,13 +18,26 @@ import WeeklyTargetDashboard from "@/components/BookingTable";
 import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastNotificationForm";
 
 // Hooks
-import WeeksVisit from "@/hooks/(VS)/useWeeksVisit";
-import useVisitStats from "@/hooks/(VS)/useVisitStats";
-import useMonthlyVisitStats from "@/hooks/(VS)/useMonthlyVisitStats";
-import useUnregisteredOwnerCounts from "@/hooks/(VS)/useUnregisteredOwnerCounts";
-import BoostCounts from "@/hooks/(VS)/useBoosterCounts";
+import useWeeksVisit from "@/features/sales/hooks/useWeeksVisit";
+import useVisitStats from "@/features/sales/hooks/useVisitStats";
+import useMonthlyVisitStats from "@/features/sales/hooks/useMonthlyVisitStats";
+import useUnregisteredOwnerCounts from "@/hooks/shared/useUnregisteredOwnerCounts";
+import BoostCounts from "@/hooks/shared/useBoosterCounts";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
 import { useRouter } from "next/navigation";
+
+const MoleculeVisualization = dynamic(
+  () =>
+    import("@/components/molecule_visual").then((m) => ({
+      default: m.MoleculeVisualization,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <DashboardSectionSkeleton label="Loading owner network..." height="h-96" />
+    ),
+  },
+);
 
 interface VisitStats {
   location: string;
@@ -40,7 +54,7 @@ interface SalesDashboardProps {
   className?: string;
 }
 
-export function SalesDashboard({ className }: SalesDashboardProps) {
+export default function SalesDashboard({ className }: SalesDashboardProps) {
   const router = useRouter();
   const { 
     isAdmin, 
@@ -74,7 +88,7 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
     fetchUnregisteredVisits,
     ownersCount,
     newOwnersCount,
-  } = WeeksVisit();
+  } = useWeeksVisit();
 
   const {
     visitStats,
@@ -456,5 +470,3 @@ export function SalesDashboard({ className }: SalesDashboardProps) {
     </div>
   );
 }
-
-export default SalesDashboard;

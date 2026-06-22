@@ -10,6 +10,7 @@ import {
   getTodayLeads,
   getWebsiteLeadsCounts,
 } from "@/actions/(VS)/queryActions";
+import { toDateKey } from "@/lib/date/dayKey";
 import type { QueryClient } from "@tanstack/react-query";
 
 export type DashboardTabKey = "admin" | "leadgen" | "sales";
@@ -88,7 +89,9 @@ export function prefetchDashboardTab(
       });
       break;
     case "leadgen":
-      prefetchIfMissing(["todayLeads", null], () => getTodayLeads());
+      prefetchIfMissing(["todayLeads", toDateKey(new Date())], () =>
+        getTodayLeads(toDateKey(new Date())),
+      );
       prefetchIfMissing(["leadStats", "All", monthKey], async () => {
         const response = await getLocationLeadStats(new Date());
         return response.visits;

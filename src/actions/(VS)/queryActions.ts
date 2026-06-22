@@ -21,6 +21,7 @@ import { PipelineStage } from "mongoose";
 import WebsiteLeads from "@/models/websiteLeads";
 import Users from "@/models/user";
 import HolidayUsers from "@/models/holidayUsers";
+import { getDayBounds } from "@/lib/date/dayKey";
 
 connectDb();
 
@@ -971,20 +972,15 @@ export const getLeadGenLeadsCount = async (
   return { chartData };
 };
 
-export const getTodayLeads = async () => {
-  const now = new Date();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
+export const getTodayLeads = async (dateKey?: string) => {
+  const { start, end } = getDayBounds(dateKey);
 
-  const endOfDay = new Date(now);
-  endOfDay.setHours(23, 59, 59, 999);
-
-  const pipeline = [
+  const pipeline: PipelineStage[] = [
     {
       $match: {
         createdAt: {
-          $gte: startOfDay,
-          $lte: endOfDay,
+          $gte: start,
+          $lte: end,
         },
       },
     },
@@ -1010,9 +1006,20 @@ export const getTodayLeads = async () => {
       },
     },
     {
+      $lookup: {
+        from: "employees",
+        localField: "_id",
+        foreignField: "email",
+        as: "employeeInfo",
+      },
+    },
+    {
       $project: {
         _id: 0,
         agent: "$_id",
+        createdBy: {
+          $ifNull: [{ $arrayElemAt: ["$employeeInfo.name", 0] }, "$_id"],
+        },
         total: 1,
         locations: 1,
       },
@@ -1020,20 +1027,12 @@ export const getTodayLeads = async () => {
   ];
 
   const todayLeads = await Query.aggregate(pipeline);
-
-  const leadsByAgentName = await Promise.all(
-    todayLeads.map(async (lead) => {
-      const employee = await Employees.findOne({ email: lead.agent });
-      return {
-        ...lead,
-        createdBy: employee?.name,
-      };
-    })
+  const totalLeads = todayLeads.reduce(
+    (acc, lead) => acc + (lead.total as number),
+    0,
   );
 
-  const totalLeads = todayLeads.reduce((acc, lead) => acc + lead.total, 0);
-
-  return { serializedLeads: leadsByAgentName, totalLeads };
+  return { serializedLeads: todayLeads, totalLeads };
 };
 
 export const getAverage = async () => {

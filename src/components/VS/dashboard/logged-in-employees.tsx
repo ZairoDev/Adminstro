@@ -155,7 +155,7 @@ const LoggedInEmployeesList = () => {
               <p className="text-sm">No employees online</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[500px] overflow-y-auto">
               {employees.map((employee) => {
                 const currentEmployeeId = authToken?.id ?? null;
                 const isSelf = Boolean(

@@ -54,6 +54,8 @@ import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastN
 import { UserInterface } from "@/util/type";
 import { employeeRoles } from "@/constants/employeeRoles";
 import { OwnerStageChart } from "@/components/charts/OwnerStageChart";
+import { DailyLeadsActiveEmployeesSection } from "@/components/dashboard/DailyLeadsActiveEmployeesSection";
+import { VisitsCreatedBySection } from "@/components/dashboard/VisitsCreatedBySection";
 
 const BookingChartImproved = dynamic(
   () => import("@/components/BookingChart"),
@@ -282,7 +284,15 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
 
   return (
     <div className={className}>
-      {/* Broadcast Notification Form - SuperAdmin/HR only */}
+      {/* Daily leads overview — shared with Lead Gen dashboard */}
+      {(isSuperAdmin || isHR || canAccess("leadGenOverview")) && (
+        <section className="my-8 space-y-6 rounded-xl border p-6 dark:bg-stone-950">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            👥 Daily Lead Generation Activity
+          </h2>
+          <DailyLeadsActiveEmployeesSection />
+        </section>
+      )}
 
       {/* HR & Admin Section - Logged In Employees + Candidate Stats */}
       {(isSuperAdmin || isHR) && canAccess("loggedInEmployees") && (
@@ -403,6 +413,8 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
           </div>
         </div>
       )}
+
+      <VisitsCreatedBySection />
 
       {/* SuperAdmin Only Sections */}
       {isSuperAdmin && (
@@ -656,7 +668,6 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
           )}
         </>
       )}
-
     </div>
   );
 }

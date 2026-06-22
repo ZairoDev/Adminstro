@@ -25,6 +25,7 @@ import useUnregisteredOwnerCounts from "@/hooks/shared/useUnregisteredOwnerCount
 import BoostCounts from "@/hooks/shared/useBoosterCounts";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
 import { useRouter } from "next/navigation";
+import { SalesByAgentSection } from "@/components/dashboard/SalesByAgentSection";
 
 const MoleculeVisualization = dynamic(
   () =>
@@ -467,6 +468,8 @@ export default function SalesDashboard({ className }: SalesDashboardProps) {
           />
         </div>
       )}
+
+      <SalesByAgentSection />
     </div>
   );
 }

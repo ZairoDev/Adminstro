@@ -3,21 +3,18 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import type { DateRange } from "react-day-picker";
-import { Loader2, RotateCw, Users, TrendingUp, TrendingDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
-import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
 import { ReviewPieChart } from "@/components/charts/ReviewPieChart";
 import { ChartAreaMultiple } from "@/components/CustomMultilineChart";
 import { StatsCard } from "@/components/leadCountCard/page";
 import { MonthSelector } from "@/components/MonthSelector";
 import { AnimatedStatsWrapper } from "@/components/AnimatedWrapper";
 import { WebsiteLeadsLineChart } from "@/components/charts/WebsiteLeadsLineChart";
-import ActiveEmployeeList from "@/components/VS/dashboard/active-employee-list";
-import LocationCard from "@/components/reusableCard";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { DashboardSectionSkeleton } from "@/components/ui/DashboardSectionSkeleton";
+import { DailyLeadsActiveEmployeesSection } from "@/components/dashboard/DailyLeadsActiveEmployeesSection";
+import { SalesByAgentSection } from "@/components/dashboard/SalesByAgentSection";
 
 const LeadsCandleChart = dynamic(
   () =>
@@ -38,7 +35,6 @@ import useTodayLeads from "@/features/leadgen/hooks/useTodayLeads";
 import useReview from "@/features/leadgen/hooks/useReview";
 import useLeadStats from "@/features/leadgen/hooks/useLeadStats";
 import useWebsiteLeadsCounts from "@/features/leadgen/hooks/useWebsiteLeadsCounts";
-import SalesCard from "@/hooks/(VS)/useSalesCard";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
 import { useLeadsCandleAnalytics } from "@/features/leadgen/hooks/useLeadsCandleAnalytics";
 
@@ -187,10 +183,6 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
   );
 
   const {
-    leads: todayLeads,
-    totalLeads: totalTodayLeads,
-    refetch: refetchTodayLeads,
-    isLoading: isLoadingTodayLeads,
     fetchLeadsByLeadGen,
     chartData1,
   } = useTodayLeads();
@@ -213,21 +205,10 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
     error: websiteLeadsErrorMsg,
   } = useWebsiteLeadsCounts();
 
-  const { salesCardData } = SalesCard();
-
   const monthKey = useMemo(
     () => `${selectedMonth.getFullYear()}-${selectedMonth.getMonth()}`,
-    [selectedMonth]
+    [selectedMonth],
   );
-
-  const todaysLeadChartData = todayLeads?.map((lead) => {
-    const label = lead.createdBy;
-    const categories = lead.locations.map((location) => ({
-      field: location.location,
-      count: location.count,
-    }));
-    return { label, categories };
-  });
 
   // Filter lead stats by accessible locations for non-admin users
   const filteredLeadStats = useMemo(() => {
@@ -304,65 +285,7 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
       <section className="space-y-6 p-6 my-4 dark:bg-stone-950 rounded-xl border">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">👥 Daily Lead Generation Activity</h1>
 
-        {/* Daily Leads by Agent & Active Employees */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                📋 Today&apos;s Leads - {totalTodayLeads}
-              </h2>
-              <Button size={"sm"} onClick={refetchTodayLeads}>
-                <RotateCw
-                  className={`${isLoadingTodayLeads ? "animate-spin" : ""}`}
-                />
-              </Button>
-            </div>
-            <CustomStackBarChart
-              heading={`Today Leads - ${totalTodayLeads}`}
-              subHeading="Leads by Agent"
-              chartData={todaysLeadChartData ? todaysLeadChartData : []}
-            />
-          </div>
-
-          {/* Active Employees */}
-          <div className="border rounded-md h-full flex flex-col gap-2 dark:bg-stone-950">
-            <h3 className="text-xl font-semibold p-3 border-b text-gray-800 dark:text-gray-200">
-              🟢 Active Employees
-            </h3>
-            <ActiveEmployeeList />
-            {/* Fresh Leads Card - For LeadGen Team */}
-            {canViewAllCharts && (
-              <div className="border shadow-md p-4">
-                <LocationCard
-                  title="✨ Fresh Leads Summary"
-                  stats={[
-                    {
-                      icon: Users,
-                      value: salesCardData?.todayCount ?? 0,
-                      label: "Today",
-                      color: "text-blue-600",
-                    },
-                    {
-                      icon: TrendingUp,
-                      value: `${salesCardData?.percentageChange}%`,
-                      label: "Change",
-                      color:
-                        salesCardData && salesCardData.percentageChange >= 0
-                          ? "text-green-600"
-                          : "text-red-600",
-                    },
-                    {
-                      icon: TrendingDown,
-                      value: salesCardData?.yesterdayCount ?? 0,
-                      label: "Yesterday",
-                      color: "text-gray-500",
-                    },
-                  ]}
-                />
-              </div>
-            )}
-          </div>
-        </div>
+        <DailyLeadsActiveEmployeesSection showFreshLeadsSummary={canViewAllCharts} />
 
         {/* Leads by location — full width */}
         {canViewAllCharts && canAccess("leadsByLocation") && (
@@ -574,6 +497,8 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
           </div>
         )}
       </section>
+
+      <SalesByAgentSection />
     </div>
   );
 }

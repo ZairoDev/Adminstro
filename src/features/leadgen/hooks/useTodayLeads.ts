@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { getLeadGenLeadsCount, getTodayLeads } from "@/actions/(VS)/queryActions";
+import { toDateKey } from "@/lib/date/dayKey";
 
 interface TodaysLeadsInterface {
   locations: {
@@ -25,9 +26,11 @@ const useTodayLeads = () => {
     "month",
   );
 
+  const todayKey = toDateKey(new Date());
+
   const todayQuery = useQuery({
-    queryKey: ["todayLeads", null],
-    queryFn: () => getTodayLeads(),
+    queryKey: ["todayLeads", todayKey],
+    queryFn: () => getTodayLeads(todayKey),
   });
 
   const chartQuery = useQuery({

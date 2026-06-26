@@ -70,6 +70,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Verify the caller can access each source conversation (IDOR prevention)
+    const sourceConversationIds = [
+      ...new Set(originalMessages.map((m: any) => String(m.conversationId))),
+    ];
+    const sourceConversations = await WhatsAppConversation.find({
+      _id: { $in: sourceConversationIds },
+    }).lean() as Array<Record<string, unknown>>;
+
+    const sourceConvMap = new Map(
+      sourceConversations.map((c) => [String(c._id), c]),
+    );
+
+    for (const sourceId of sourceConversationIds) {
+      const sourceConv = sourceConvMap.get(sourceId);
+      if (!sourceConv) {
+        return NextResponse.json(
+          { error: "Source conversation not found" },
+          { status: 404 },
+        );
+      }
+      const canReadSource = await canAccessConversationAsync(normalizedToken, sourceConv);
+      if (!canReadSource) {
+        return NextResponse.json(
+          { error: "Forbidden: cannot forward from this conversation" },
+          { status: 403 },
+        );
+      }
+    }
+
     // Fetch target conversations — send from each target's frozen business line
     const targetConversations = await WhatsAppConversation.find({
       _id: { $in: conversationIds },

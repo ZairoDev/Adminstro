@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -34,6 +35,8 @@ import type { Template, Message } from "../types";
 import { TemplateDialog } from "./TemplateDialog";
 import { cn } from "@/lib/utils";
 import axios from "@/util/axios";
+import { deferUntilIdle } from "../lib/deferUntilIdle";
+import { useConversationPreferences, conversationPreferencesQueryKey } from "../hooks/useConversationPreferences";
 import { getMessageDisplayText, getTemplateBodySnippet } from "../utils";
 import {
   filterTemplatesBySearchQuery,
@@ -131,18 +134,38 @@ export const MessageComposer = memo(function MessageComposer({
   onSendMediaWithCaptions,
 }: MessageComposerProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showTemplateSuggestions, setShowTemplateSuggestions] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
-  const [preferredLanguageCode, setPreferredLanguageCode] = useState<string | null>(
-    null,
-  );
   const [pickerLanguageCode, setPickerLanguageCode] = useState("el");
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [loadTranslationPreferences, setLoadTranslationPreferences] = useState(false);
   const [translating, setTranslating] = useState(false);
+
+  const { data: preferencesLanguageCode } = useConversationPreferences(
+    selectedConversation?._id,
+    {
+      preferredLanguageCodeOnConversation:
+        selectedConversation?.preferredLanguageCode,
+      loadDeferred: loadTranslationPreferences || showLanguagePicker,
+    },
+  );
+
+  const preferredLanguageCode =
+    selectedConversation?.preferredLanguageCode?.trim() ||
+    preferencesLanguageCode ||
+    null;
+
+  useEffect(() => {
+    if (preferredLanguageCode) {
+      setPickerLanguageCode(preferredLanguageCode);
+    }
+  }, [preferredLanguageCode]);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const addMoreInputRef = useRef<HTMLInputElement>(null);
@@ -218,46 +241,34 @@ export const MessageComposer = memo(function MessageComposer({
     textarea.style.height = `${newHeight}px`;
   }, [newMessage]);
 
-  // Load saved translation language for this conversation
+  // Defer translation preferences until idle or user opens the language picker (Category C).
   useEffect(() => {
     const conversationId = selectedConversation?._id;
-    if (!conversationId) {
-      setPreferredLanguageCode(null);
-      setShowLanguagePicker(false);
-      return;
-    }
+    setLoadTranslationPreferences(false);
 
-    const fromConversation = selectedConversation.preferredLanguageCode?.trim();
-    if (fromConversation) {
-      setPreferredLanguageCode(fromConversation);
-      setPickerLanguageCode(fromConversation);
-      return;
-    }
+    if (!conversationId) return;
+    if (selectedConversation.preferredLanguageCode?.trim()) return;
 
-    let cancelled = false;
-    axios
-      .get(`/api/whatsapp/conversations/${conversationId}/preferences`)
-      .then((res) => {
-        if (cancelled) return;
-        const code = res.data?.preferredLanguageCode?.trim();
-        if (code) {
-          setPreferredLanguageCode(code);
-          setPickerLanguageCode(code);
-        } else {
-          setPreferredLanguageCode(null);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setPreferredLanguageCode(null);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    return deferUntilIdle(() => setLoadTranslationPreferences(true), {
+      timeoutMs: 5000,
+      fallbackMs: 3000,
+    });
   }, [
     selectedConversation?._id,
     selectedConversation?.preferredLanguageCode,
   ]);
+
+  useEffect(() => {
+    if (showLanguagePicker) {
+      setLoadTranslationPreferences(true);
+    }
+  }, [showLanguagePicker]);
+
+  useEffect(() => {
+    if (!selectedConversation?._id) {
+      setShowLanguagePicker(false);
+    }
+  }, [selectedConversation?._id]);
 
   // Close language picker on outside click
   useEffect(() => {
@@ -285,9 +296,12 @@ export const MessageComposer = memo(function MessageComposer({
           preferredLanguage: lang?.name || code,
         },
       );
-      setPreferredLanguageCode(code);
+      queryClient.setQueryData(
+        conversationPreferencesQueryKey(selectedConversation._id),
+        code,
+      );
     },
-    [selectedConversation?._id],
+    [queryClient, selectedConversation?._id],
   );
 
   const runTranslation = useCallback(
@@ -617,8 +631,8 @@ export const MessageComposer = memo(function MessageComposer({
     <div
       ref={dropZoneRef}
       className={cn(
-        "flex-shrink-0 bg-[#f0f2f5] dark:bg-[#202c33] relative",
-        isDragging && "ring-2 ring-inset ring-[#25d366]"
+        "flex-shrink-0 bg-transparent relative",
+        isDragging && "ring-2 ring-inset ring-[#25d366]",
       )}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
@@ -765,15 +779,14 @@ export const MessageComposer = memo(function MessageComposer({
         </div>
       )}
 
-      {/* Main composer area - Responsive with safe area padding */}
-      <div className={cn(
-        "flex items-end gap-1.5",
-        // Mobile: Safe area padding at bottom, tighter horizontal padding
-        "px-2 py-2 pb-[max(8px,env(safe-area-inset-bottom))]",
-        // Desktop: More padding
-        "md:px-4 md:py-2 md:pb-2 md:gap-2"
-      )}>
-        {/* Template dialog (hidden trigger) */}
+      {/* Main composer area - WhatsApp capsule input bar */}
+      <div
+        className={cn(
+          "flex items-center",
+          "px-3 py-2 pb-[max(8px,env(safe-area-inset-bottom))]",
+          "md:px-4 md:py-3 md:pb-3",
+        )}
+      >
         <TemplateDialog
           open={showTemplateDialog}
           onOpenChange={onTemplateDialogChange}
@@ -791,7 +804,6 @@ export const MessageComposer = memo(function MessageComposer({
           templatesChannelScoped={templatesChannelScoped}
         />
 
-        {/* Hidden file inputs - shows preview before sending */}
         <input
           type="file"
           ref={fileInputRef}
@@ -822,65 +834,44 @@ export const MessageComposer = memo(function MessageComposer({
           onChange={handleFileSelect}
         />
 
-        {/* Emoji picker - Hidden on mobile (accessed via keyboard) */}
-        <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled={!canSendFreeForm}
-              className={cn(
-                "rounded-full text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#374045] flex-shrink-0",
-                // Hidden on mobile, shown on tablet+
-                "hidden md:flex",
-                "md:h-10 md:w-10"
-              )}
+        <div
+          className={cn(
+            "flex flex-1 items-center min-w-0",
+            "rounded-full",
+            "bg-white dark:bg-[#2a3942]",
+            "border border-[#e9edef] dark:border-transparent",
+            "shadow-sm dark:shadow-none",
+            "px-1 md:px-1.5",
+            "min-h-[48px]",
+          )}
+        >
+          {/* Attachment (+) */}
+          <Popover open={showAttachmentMenu} onOpenChange={setShowAttachmentMenu}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                disabled={uploadingMedia || !canSendFreeForm}
+                className={cn(
+                  "flex-shrink-0 flex items-center justify-center rounded-full transition-transform",
+                  "h-9 w-9 text-[#54656f] dark:text-[#aebac1]",
+                  "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
+                  "disabled:opacity-40 disabled:pointer-events-none",
+                  showAttachmentMenu && "rotate-45",
+                )}
+                aria-label="Attach"
+              >
+                {uploadingMedia ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Plus className="h-5 w-5" strokeWidth={1.75} />
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              className={cn("w-auto p-2", "md:w-auto")}
+              side="top"
+              align="start"
             >
-              <Smile className="h-6 w-6" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0 border-0" side="top" align="start">
-            <Picker
-              data={data}
-              onEmojiSelect={handleEmojiSelect}
-              theme="auto"
-              previewPosition="none"
-              skinTonePosition="none"
-            />
-          </PopoverContent>
-        </Popover>
-
-        {/* Attachment menu - Mobile-optimized */}
-        <Popover open={showAttachmentMenu} onOpenChange={setShowAttachmentMenu}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled={uploadingMedia || !canSendFreeForm}
-              className={cn(
-                "rounded-full text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#374045] flex-shrink-0 transition-transform",
-                showAttachmentMenu && "rotate-45",
-                // Mobile: Larger touch target
-                "h-11 w-11 min-h-[44px] min-w-[44px]",
-                "md:h-10 md:w-10 md:min-h-0 md:min-w-0"
-              )}
-            >
-              {uploadingMedia ? (
-                <Loader2 className="h-6 w-6 animate-spin" />
-              ) : (
-                <Plus className="h-6 w-6" />
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent 
-            className={cn(
-              "w-auto p-2",
-              // Mobile: Bottom sheet style
-              "md:w-auto"
-            )} 
-            side="top" 
-            align="start"
-          >
             <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => {
@@ -999,8 +990,36 @@ export const MessageComposer = memo(function MessageComposer({
           </PopoverContent>
         </Popover>
 
-        {/* Message input - Responsive */}
-        <div className="flex-1 relative">
+          {/* Emoji */}
+          <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                disabled={!canSendFreeForm}
+                className={cn(
+                  "flex-shrink-0 flex items-center justify-center rounded-full",
+                  "h-9 w-9 text-[#54656f] dark:text-[#aebac1]",
+                  "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
+                  "disabled:opacity-40 disabled:pointer-events-none",
+                )}
+                aria-label="Emoji"
+              >
+                <Smile className="h-5 w-5" strokeWidth={1.75} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 border-0" side="top" align="start">
+              <Picker
+                data={data}
+                onEmojiSelect={handleEmojiSelect}
+                theme="auto"
+                previewPosition="none"
+                skinTonePosition="none"
+              />
+            </PopoverContent>
+          </Popover>
+
+          {/* Message input */}
+          <div className="flex-1 relative min-w-0 flex items-center">
           {isTemplateOnlyMode && showTemplateSuggestions && (
             <div
               className="absolute bottom-full left-0 right-0 mb-1 z-50 max-h-[240px] overflow-y-auto rounded-lg border border-[#e9edef] dark:border-[#374045] bg-white dark:bg-[#2a3942] shadow-lg"
@@ -1076,49 +1095,47 @@ export const MessageComposer = memo(function MessageComposer({
             disabled={!canSendFreeForm && !isTemplateOnlyMode}
             rows={1}
             className={cn(
-              "w-full bg-white dark:bg-[#2a3942] rounded-lg",
+              "w-full bg-transparent rounded-none",
               "text-[#111b21] dark:text-[#e9edef]",
-              "placeholder:text-[#8696a0] resize-none",
-              "border-0 outline-none focus-visible:ring-0",
+              "placeholder:text-[#8696a0] dark:placeholder:text-[#8696a0]",
+              "caret-[#00a884] resize-none",
+              "border-0 outline-none focus-visible:ring-0 shadow-none",
               "scrollbar-thin scrollbar-thumb-[#c5c6c8] dark:scrollbar-thumb-[#374045]",
-              // Mobile: Larger text and padding for touch
-              "px-3 py-3 text-[16px] min-h-[44px] max-h-[120px]",
-              // Desktop: Slightly smaller
-              "md:px-3 md:py-2.5 md:text-[15px] md:min-h-[42px] md:max-h-[150px]"
+              "px-1 py-2 text-[15px] leading-[22px] min-h-[22px] max-h-[120px]",
+              "md:max-h-[150px]",
             )}
           />
-        </div>
+          </div>
 
-        {canTranslate && (
-          <div ref={translatePickerRef} className="relative flex-shrink-0">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={handleTranslateClick}
-              disabled={translating}
-              className={cn(
-                "rounded-full text-[#008069] dark:text-[#00a884] hover:bg-[#e9edef] dark:hover:bg-[#374045]",
-                "h-11 w-11 min-h-[44px] min-w-[44px]",
-                "md:h-10 md:w-10 md:min-h-0 md:min-w-0",
-              )}
-              aria-label="Translate message"
-              title={
-                preferredLanguageCode
-                  ? `Translate to ${
-                      SUPPORTED_TRANSLATION_LANGUAGES.find(
-                        (l) => l.code === preferredLanguageCode,
-                      )?.name || preferredLanguageCode
-                    }`
-                  : "Translate message"
-              }
-            >
-              {translating ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Languages className="h-5 w-5" />
-              )}
-            </Button>
+          {canTranslate && (
+            <div ref={translatePickerRef} className="relative flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleTranslateClick}
+                disabled={translating}
+                className={cn(
+                  "flex items-center justify-center rounded-full",
+                  "h-9 w-9 text-[#008069] dark:text-[#00a884]",
+                  "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
+                  "disabled:opacity-40",
+                )}
+                aria-label="Translate message"
+                title={
+                  preferredLanguageCode
+                    ? `Translate to ${
+                        SUPPORTED_TRANSLATION_LANGUAGES.find(
+                          (l) => l.code === preferredLanguageCode,
+                        )?.name || preferredLanguageCode
+                      }`
+                    : "Translate message"
+                }
+              >
+                {translating ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Languages className="h-5 w-5" strokeWidth={1.75} />
+                )}
+              </button>
 
             {showLanguagePicker && (
               <div
@@ -1173,53 +1190,61 @@ export const MessageComposer = memo(function MessageComposer({
                 </Button>
               </div>
             )}
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* Send / template button */}
-        {isTemplateOnlyMode ? (
-          <Button
-            type="button"
-            onClick={() => onTemplateDialogChange(true)}
-            className={cn(
-              "rounded-full bg-[#25d366] hover:bg-[#1da851] flex-shrink-0 p-0",
-              "h-11 w-11 min-h-[44px] min-w-[44px]",
-              "md:h-10 md:w-10 md:min-h-0 md:min-w-0",
-            )}
-            aria-label="Open templates"
-          >
-            <LayoutTemplate className="h-5 w-5 text-white" />
-          </Button>
-        ) : newMessage.trim() ? (
-          <Button
-            onClick={onSendMessage}
-            disabled={!newMessage.trim() || sendingMessage || uploadingMedia || !canSendFreeForm}
-            className={cn(
-              "rounded-full bg-[#25d366] hover:bg-[#1da851] flex-shrink-0 p-0",
-              "h-11 w-11 min-h-[44px] min-w-[44px]",
-              "md:h-10 md:w-10 md:min-h-0 md:min-w-0",
-            )}
-          >
-            {sendingMessage ? (
-              <Loader2 className="h-5 w-5 animate-spin text-white" />
-            ) : (
-              <Send className="h-5 w-5 text-white" />
-            )}
-          </Button>
-        ) : (
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={!canSendFreeForm}
-            className={cn(
-              "rounded-full text-[#54656f] dark:text-[#8696a0] hover:bg-[#e9edef] dark:hover:bg-[#374045] flex-shrink-0",
-              "h-11 w-11 min-h-[44px] min-w-[44px]",
-              "md:h-10 md:w-10 md:min-h-0 md:min-w-0",
-            )}
-          >
-            <Mic className="h-6 w-6" />
-          </Button>
-        )}
+          {/* Send / mic / template */}
+          {isTemplateOnlyMode ? (
+            <button
+              type="button"
+              onClick={() => onTemplateDialogChange(true)}
+              className={cn(
+                "flex-shrink-0 flex items-center justify-center rounded-full",
+                "h-9 w-9 bg-[#00a884] hover:bg-[#008069] text-white",
+              )}
+              aria-label="Open templates"
+            >
+              <LayoutTemplate className="h-5 w-5" />
+            </button>
+          ) : newMessage.trim() ? (
+            <button
+              type="button"
+              onClick={onSendMessage}
+              disabled={
+                !newMessage.trim() ||
+                sendingMessage ||
+                uploadingMedia ||
+                !canSendFreeForm
+              }
+              className={cn(
+                "flex-shrink-0 flex items-center justify-center rounded-full",
+                "h-9 w-9 bg-[#00a884] hover:bg-[#008069] text-white",
+                "disabled:opacity-40 disabled:pointer-events-none",
+              )}
+              aria-label="Send message"
+            >
+              {sendingMessage ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Send className="h-5 w-5" />
+              )}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={!canSendFreeForm}
+              className={cn(
+                "flex-shrink-0 flex items-center justify-center rounded-full",
+                "h-9 w-9 text-[#54656f] dark:text-[#aebac1]",
+                "hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
+                "disabled:opacity-40 disabled:pointer-events-none",
+              )}
+              aria-label="Voice message"
+            >
+              <Mic className="h-5 w-5" strokeWidth={1.75} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

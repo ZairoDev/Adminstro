@@ -9,15 +9,13 @@ import { useInitiationLimit } from "../hooks/useInitiationLimit";
 export function InitiationLimitBadge({
   className,
   refreshKey = 0,
-  pollIntervalMs = 0,
   variant = "badge",
 }: {
   className?: string;
   refreshKey?: number;
-  pollIntervalMs?: number;
   variant?: "badge" | "banner";
 }) {
-  const { status, loading } = useInitiationLimit(refreshKey, pollIntervalMs);
+  const { status, loading } = useInitiationLimit(refreshKey);
 
   if (loading || !status?.limited) return null;
 

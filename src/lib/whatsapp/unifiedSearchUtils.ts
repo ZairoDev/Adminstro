@@ -169,13 +169,23 @@ export function extractMessageSnippet(
 // HIGHLIGHTING
 // ============================================================================
 
+function escapeHtml(raw: string): string {
+  return raw
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export function highlightSearchTerm(text: string, searchTerm: string): string {
-  if (!text || !searchTerm) return text || '';
-  
-  const escapedTerm = escapeRegex(searchTerm);
+  if (!text || !searchTerm) return escapeHtml(text || '');
+
+  const safeText = escapeHtml(text);
+  const escapedTerm = escapeRegex(escapeHtml(searchTerm));
   const regex = new RegExp(`(${escapedTerm})`, 'gi');
-  
-  return text.replace(regex, '<mark>$1</mark>');
+
+  return safeText.replace(regex, '<mark>$1</mark>');
 }
 
 // ============================================================================

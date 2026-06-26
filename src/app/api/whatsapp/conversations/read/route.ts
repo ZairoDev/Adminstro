@@ -7,87 +7,86 @@ import WhatsAppMessage from "@/models/whatsappMessage";
 import { emitWhatsAppEvent } from "@/lib/pusher";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken, type WhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { loadConversationReaders } from "@/lib/whatsapp/conversationReaders";
 
 connectDb();
 
 /**
  * POST /api/whatsapp/conversations/read
  * Mark a conversation as read for the current user
- * 
+ *
  * Body:
  * - conversationId: string (required)
  */
 export async function POST(req: NextRequest) {
   try {
-    let token: any;
+    let token: WhatsAppToken | null;
     try {
-      token = await getDataFromToken(req);
-    } catch (err: any) {
-      const status = err?.status ?? 401;
-      const code = err?.code ?? "AUTH_FAILED";
+      token = (await getDataFromToken(req)) as WhatsAppToken;
+    } catch (err: unknown) {
+      const authErr = err as { status?: number; code?: string };
+      const status = authErr?.status ?? 401;
+      const code = authErr?.code ?? "AUTH_FAILED";
       return NextResponse.json({ code }, { status });
     }
 
-    const userId = (token as any).id || (token as any)._id;
-    
+    const userId = token.id || token._id;
+
     if (!userId) {
       console.error("❌ [MARK READ] No userId found in token");
       return NextResponse.json(
         { error: "User ID not found in token" },
-        { status: 400 }
+        { status: 400 },
       );
     }
-    
+
     const body = await req.json();
-    const { conversationId } = body;
+    const { conversationId } = body as { conversationId?: string };
 
     if (!conversationId) {
       console.error("❌ [MARK READ] conversationId is required");
       return NextResponse.json(
         { error: "conversationId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
-    
 
-
-    // Verify conversation exists
     const conversation = await WhatsAppConversation.findById(conversationId);
     if (!conversation) {
       return NextResponse.json(
         { error: "Conversation not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // Enforce access rules
     const allowed = await canAccessConversationAsync(
-      normalizeWhatsAppToken(token as WhatsAppToken),
+      normalizeWhatsAppToken(token),
       conversation.toObject ? conversation.toObject() : conversation,
     );
     if (!allowed) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Get the latest message in this conversation to mark as read
-    const latestMessage = await WhatsAppMessage.findOne({
+    const latestMessage = (await WhatsAppMessage.findOne({
       conversationId: conversation._id,
       direction: "incoming",
     })
       .sort({ timestamp: -1 })
-      .lean() as any;
+      .lean()) as { messageId?: string } | null;
 
-    const lastReadMessageId = latestMessage?.messageId || conversation.lastMessageId || "";
+    const lastReadMessageId =
+      latestMessage?.messageId || conversation.lastMessageId || "";
     const lastReadAt = new Date();
 
-    const existingReadState = await ConversationReadState.findOne({
+    const existingReadState = (await ConversationReadState.findOne({
       conversationId: conversation._id,
       userId,
     })
       .select("lastReadMessageId lastReadAt")
-      .lean() as { lastReadMessageId?: string; lastReadAt?: Date } | null;
+      .lean()) as { lastReadMessageId?: string; lastReadAt?: Date } | null;
 
-    // Idempotent: skip DB write and realtime fan-out when already marked at this message.
+    const readers = await loadConversationReaders(conversation._id);
+
     if (
       existingReadState?.lastReadMessageId &&
       existingReadState.lastReadMessageId === lastReadMessageId
@@ -98,49 +97,52 @@ export async function POST(req: NextRequest) {
         conversationId: conversation._id.toString(),
         lastReadMessageId: existingReadState.lastReadMessageId,
         lastReadAt: existingReadState.lastReadAt,
+        readers,
       });
     }
 
-    // Upsert read state for this user and conversation
     const readState = await ConversationReadState.findOneAndUpdate(
       {
         conversationId: conversation._id,
-        userId: userId,
+        userId,
       },
       {
         conversationId: conversation._id,
-        userId: userId,
-        lastReadMessageId: lastReadMessageId,
-        lastReadAt: lastReadAt,
+        userId,
+        lastReadMessageId,
+        lastReadAt,
       },
       {
         upsert: true,
         new: true,
-      }
+      },
     );
 
-    if (readState) {
-
-    } else {
+    if (!readState) {
       console.error(`❌ [MARK READ] Failed to create/update ConversationReadState`);
     }
 
+    const readersAfterWrite = await loadConversationReaders(conversation._id);
+
     emitWhatsAppEvent("whatsapp-conversation-read", {
       conversationId: conversation._id.toString(),
-      userId: userId,
-      lastReadMessageId: lastReadMessageId,
-      lastReadAt: lastReadAt,
+      userId,
+      lastReadMessageId,
+      lastReadAt,
     });
 
     try {
-      const io = (global as any).io;
+      const io = (global as { io?: { to: (room: string) => { emit: (event: string, data: unknown) => void } } }).io;
       if (io) {
-        io.to(`conversation-${conversation._id.toString()}`).emit("whatsapp-conversation-read", {
-          conversationId: conversation._id.toString(),
-          userId,
-          lastReadMessageId,
-          lastReadAt,
-        });
+        io.to(`conversation-${conversation._id.toString()}`).emit(
+          "whatsapp-conversation-read",
+          {
+            conversationId: conversation._id.toString(),
+            userId,
+            lastReadMessageId,
+            lastReadAt,
+          },
+        );
         io.to(`user-${userId}`).emit("whatsapp-messages-read", {
           conversationId: conversation._id.toString(),
         });
@@ -152,14 +154,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       conversationId: conversation._id.toString(),
-      lastReadMessageId: lastReadMessageId,
-      lastReadAt: lastReadAt,
+      lastReadMessageId,
+      lastReadAt,
+      readers: readersAfterWrite,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
     console.error("❌ [ERROR] Error marking conversation as read:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -426,7 +426,7 @@ export default function WhatsAppAnalyticsDashboard() {
 
         {/* Line Health — moved from Sales dashboard */}
         <div className="space-y-3">
-          <InitiationLimitBadge pollIntervalMs={30_000} />
+          <InitiationLimitBadge />
           <PhoneNumberHealth />
         </div>
 

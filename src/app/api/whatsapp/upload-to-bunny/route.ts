@@ -15,14 +15,23 @@ export const runtime = 'nodejs';
 // Increase max duration for large file uploads (default is 10s, max is 300s)
 export const maxDuration = 3000;
 
+const BUNNY_UPLOAD_ALLOWED_ROLES = [
+  "SuperAdmin", "Sales", "Sales-TeamLead", "Advert", "Developer",
+] as const;
+
 export async function POST(req: NextRequest) {
   try {
-    const token = await getDataFromToken(req) as any;
+    const token = await getDataFromToken(req) as { role?: string } | null;
     if (!token) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
+    }
+
+    const userRole = token.role || "";
+    if (!(BUNNY_UPLOAD_ALLOWED_ROLES as readonly string[]).includes(userRole)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const formData = await req.formData();

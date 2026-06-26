@@ -2,13 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import ConversationArchiveState from "@/models/conversationArchiveState";
-import ConversationReadState from "@/models/conversationReadState";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import WhatsAppMessage from "@/models/whatsappMessage";
 import { WHATSAPP_EVENTS } from "@/lib/pusher";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { buildConversationVisibilityFilterAsync } from "@/lib/whatsapp/locationAccess";
 import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
+import {
+  collectUnreadCountTargets,
+  enrichArchivedConversationsWithUnread,
+  loadReadStatesForUser,
+  batchComputeUnreadCounts,
+  sumArchivedUnreadMessages,
+  type ArchivedUnreadMinimal,
+  type InboxConversationLean,
+} from "@/lib/whatsapp/conversationsListEnrichment";
 import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
 import {
   applyPhoneMaskToConversation,
@@ -85,6 +92,7 @@ export async function POST(req: NextRequest) {
       WHATSAPP_EVENTS.CONVERSATION_UPDATE,
       conversation,
       {
+        type: "archive",
         conversationId: conversationId.toString(),
         isArchived: true,
         archivedAt: archiveState.archivedAt,
@@ -172,6 +180,7 @@ export async function DELETE(req: NextRequest) {
       WHATSAPP_EVENTS.CONVERSATION_UPDATE,
       conversation,
       {
+        type: "archive",
         conversationId: conversationId.toString(),
         isArchived: false,
         unarchivedAt: archiveState?.unarchivedAt || new Date(),
@@ -202,7 +211,7 @@ export async function DELETE(req: NextRequest) {
 }
 
 /**
- * Get all globally archived conversations with unread counts
+ * Get globally archived conversations with unread counts
  */
 export async function GET(req: NextRequest) {
   try {
@@ -212,114 +221,162 @@ export async function GET(req: NextRequest) {
     }
 
     const userId = token.id || token._id;
+    const { searchParams } = new URL(req.url);
+    const idsOnly = searchParams.get("idsOnly") === "true";
 
-    // Get all globally archived conversation IDs (no userId filter - global)
     const archivedStates = await ConversationArchiveState.find({
       isArchived: true,
     })
       .select("conversationId archivedAt archivedBy")
-
       .lean();
 
     const archivedConversationIds = archivedStates.map(
-      (state: any) => state.conversationId
+      (state) =>
+        (state as unknown as { conversationId: mongoose.Types.ObjectId })
+          .conversationId,
     );
+
+    const normalizedToken = normalizeWhatsAppToken(token);
+    const visibilityFilter = await buildConversationVisibilityFilterAsync(normalizedToken);
+
+    if (idsOnly) {
+      if (archivedConversationIds.length === 0) {
+        return NextResponse.json({
+          success: true,
+          archivedIds: [],
+          archivedUnreadMessageCount: 0,
+        });
+      }
+
+      const visibleMinimal = (await WhatsAppConversation.find({
+        $and: [{ _id: { $in: archivedConversationIds } }, visibilityFilter],
+      })
+        .select("_id lastMessageId lastMessageDirection")
+        .lean()) as ArchivedUnreadMinimal[];
+
+      const archivedIds = visibleMinimal.map((conv) => conv._id.toString());
+      const readStateMap = await loadReadStatesForUser(
+        visibleMinimal.map((conv) => conv._id),
+        userId,
+      );
+      const unreadTargets = collectUnreadCountTargets(
+        visibleMinimal as InboxConversationLean[],
+        readStateMap,
+      );
+      const unreadCountByConversationId =
+        await batchComputeUnreadCounts(unreadTargets);
+      const archivedUnreadMessageCount = sumArchivedUnreadMessages(
+        visibleMinimal,
+        unreadCountByConversationId,
+      );
+
+      return NextResponse.json({
+        success: true,
+        archivedIds,
+        archivedUnreadMessageCount,
+      });
+    }
+
+    const limit = parseInt(searchParams.get("limit") || "25", 10);
+    const cursor = searchParams.get("cursor");
 
     if (archivedConversationIds.length === 0) {
       return NextResponse.json({
         success: true,
         conversations: [],
+        phoneMaskRules: await resolveMaskRulesForToken(token),
         count: 0,
+        pagination: {
+          limit,
+          hasMore: false,
+          nextCursor: null,
+        },
       });
     }
 
-    const normalizedToken = normalizeWhatsAppToken(token);
-    const visibilityFilter = await buildConversationVisibilityFilterAsync(normalizedToken);
+    const archiveQuery: Record<string, unknown> = {
+      $and: [{ _id: { $in: archivedConversationIds } }, visibilityFilter],
+    };
 
-    // Get archived conversations the user is allowed to see
-    const conversations = await WhatsAppConversation.find({
-      $and: [
-        { _id: { $in: archivedConversationIds } },
-        visibilityFilter,
-      ],
-    })
-      .sort({ lastMessageTime: -1 })
-      .lean();
-
-    // Preload per-user read state for these conversations (per-employee unread tracking)
-    const conversationIds = conversations.map((c: any) => c._id);
-    const readStates = await ConversationReadState.find({
-      conversationId: { $in: conversationIds },
-      userId: userId,
-    })
-      .select("conversationId lastReadMessageId lastReadAt")
-      .lean();
-
-    const readStateMap = new Map<string, any>();
-    for (const rs of readStates) {
-      readStateMap.set(String(rs.conversationId), rs);
+    if (cursor) {
+      const cursorDate = new Date(cursor);
+      if (!Number.isNaN(cursorDate.getTime())) {
+        archiveQuery.$and = [
+          ...(archiveQuery.$and as Record<string, unknown>[]),
+          { lastMessageTime: { $lt: cursorDate } },
+        ];
+      }
     }
 
-    // Create a map of archive info
+    const [totalCount, conversationsRaw] = await Promise.all([
+      WhatsAppConversation.countDocuments({
+        $and: [{ _id: { $in: archivedConversationIds } }, visibilityFilter],
+      }),
+      WhatsAppConversation.find(archiveQuery)
+        .sort({ lastMessageTime: -1 })
+        .limit(limit + 1)
+        .lean(),
+    ]);
+
+    const hasMore = conversationsRaw.length > limit;
+    const pageConversations = (
+      hasMore ? conversationsRaw.slice(0, limit) : conversationsRaw
+    ) as InboxConversationLean[];
+
+    const nextCursor =
+      pageConversations.length > 0
+        ? (
+            pageConversations[pageConversations.length - 1] as {
+              lastMessageTime?: Date;
+            }
+          ).lastMessageTime?.toISOString() ?? null
+        : null;
+
     const archiveInfoMap = new Map<string, { archivedAt: Date; archivedBy?: string }>();
-    archivedStates.forEach((state: any) => {
-      archiveInfoMap.set(String(state.conversationId), {
-        archivedAt: state.archivedAt,
-        archivedBy: state.archivedBy?.toString(),
+    archivedStates.forEach((state) => {
+      const row = state as unknown as {
+        conversationId: mongoose.Types.ObjectId;
+        archivedAt?: Date;
+        archivedBy?: mongoose.Types.ObjectId;
+      };
+      archiveInfoMap.set(String(row.conversationId), {
+        archivedAt: row.archivedAt as Date,
+        archivedBy: row.archivedBy?.toString(),
       });
     });
 
-    // Add archive info and calculate unread counts for each conversation
-    const conversationsWithArchiveInfo = await Promise.all(
-      conversations.map(async (conv: any) => {
-        const archiveInfo = archiveInfoMap.get(String(conv._id));
-        
-        // Calculate per-employee unread count (same logic as main conversations endpoint)
-        let unreadCount = 0;
-        const readState = readStateMap.get(String(conv._id));
-
-        // Only client (incoming) messages can make a conversation unread
-        if (conv.lastMessageDirection === "incoming" && conv.lastMessageId) {
-          const lastReadMessageId = readState?.lastReadMessageId;
-
-          // If no read state exists, or the last message differs from lastReadMessageId,
-          // this conversation is unread for this employee
-          if (!lastReadMessageId || lastReadMessageId !== conv.lastMessageId) {
-            const msgQuery: any = {
-              conversationId: conv._id,
-              direction: "incoming",
-            };
-
-            // If we have a lastReadAt timestamp, only count messages after that
-            if (readState?.lastReadAt) {
-              msgQuery.timestamp = { $gt: readState.lastReadAt };
-            }
-
-            unreadCount = await WhatsAppMessage.countDocuments(msgQuery);
-          }
-        }
-
-        return {
-          ...conv,
-          unreadCount, // Add calculated unread count
-          archivedAt: archiveInfo?.archivedAt,
-          archivedBy: archiveInfo?.archivedBy,
-          isArchivedByUser: true, // All conversations in this endpoint are archived
-        };
-      })
+    const conversationsWithUnread = await enrichArchivedConversationsWithUnread(
+      pageConversations,
+      userId,
     );
+
+    const conversationsWithArchiveInfo = conversationsWithUnread.map((conv) => {
+      const archiveInfo = archiveInfoMap.get(String(conv._id));
+      return {
+        ...conv,
+        archivedAt: archiveInfo?.archivedAt,
+        archivedBy: archiveInfo?.archivedBy,
+        isArchivedByUser: true,
+      };
+    });
 
     const userRole = String(token.role || "");
     const phoneMaskRules = await resolveMaskRulesForToken(token);
-    const maskedConversations = conversationsWithArchiveInfo.map((conv: Record<string, unknown>) =>
-      applyPhoneMaskToConversation(conv, phoneMaskRules, userRole),
+    const maskedConversations = conversationsWithArchiveInfo.map(
+      (conv: Record<string, unknown>) =>
+        applyPhoneMaskToConversation(conv, phoneMaskRules, userRole),
     );
 
     return NextResponse.json({
       success: true,
       conversations: maskedConversations,
       phoneMaskRules,
-      count: maskedConversations.length,
+      count: totalCount,
+      pagination: {
+        limit,
+        hasMore,
+        nextCursor,
+      },
     });
   } catch (error: any) {
     console.error("Get archived conversations error:", error);

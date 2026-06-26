@@ -147,12 +147,19 @@ export function getDispositionActionConfig(
   return WHATSAPP_DISPOSITION_ACTIONS.find((a) => a.action === action);
 }
 
+export function isUnreadInboxLabelFilter(
+  labelFilter: string | null | undefined,
+): boolean {
+  return labelFilter?.trim().toLowerCase() === "unread";
+}
+
 export function resolveLabelFilterMongo(
   labelFilter: string | null | undefined,
 ): Record<string, unknown> | null {
   const raw = labelFilter?.trim().toLowerCase();
   if (!raw || raw === "all") return null;
-  if (raw === "unread") return { unreadCount: { $gt: 0 } };
+  // Unread is per-employee — resolved in inboxUnreadQuery, not on conversation docs.
+  if (raw === "unread") return null;
   if (raw === "owners") return { conversationType: "owner" };
   if (raw === "guests") return { conversationType: "guest" };
 

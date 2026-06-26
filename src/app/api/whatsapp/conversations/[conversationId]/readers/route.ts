@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import ConversationReadState from "@/models/conversationReadState";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import Employee from "@/models/employee";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken, type WhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { loadConversationReaders } from "@/lib/whatsapp/conversationReaders";
 
 connectDb();
 
@@ -15,7 +14,7 @@ connectDb();
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { conversationId: string } }
+  { params }: { params: { conversationId: string } },
 ) {
   try {
     const token = await getDataFromToken(req);
@@ -28,7 +27,7 @@ export async function GET(
     if (!conversationId) {
       return NextResponse.json(
         { error: "conversationId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -46,29 +45,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const readStates = (await ConversationReadState.find({
-      conversationId,
-    })
-      .populate({ path: "userId", model: Employee, select: "name profilePic" })
-      .sort({ lastReadAt: -1 })
-      .lean()) as Array<{
-      userId?: { _id?: unknown; name?: string; profilePic?: string };
-      lastReadAt?: Date;
-      lastReadMessageId?: string;
-    }>;
-
-    const readers = readStates
-      .filter((rs) => rs.userId)
-      .map((rs) => {
-        const user = rs.userId;
-        return {
-          userId: user?._id?.toString(),
-          name: user?.name || "Unknown",
-          avatar: user?.profilePic || null,
-          lastReadAt: rs.lastReadAt,
-          lastReadMessageId: rs.lastReadMessageId,
-        };
-      });
+    const readers = await loadConversationReaders(conversationId);
 
     return NextResponse.json({
       success: true,

@@ -11,6 +11,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { useAuthStore } from "@/AuthStore";
 import { useRouter } from "next/navigation";
 import { getAllowedPhoneIds } from "@/lib/whatsapp/config";
+import { useArchivedConversationIds } from "@/hooks/shared/useArchivedConversationIds";
 import axios from "@/util/axios";
 import { cn } from "@/lib/utils";
 import {
@@ -197,9 +198,14 @@ export function SystemNotificationToast({
     return window.location.pathname.startsWith("/whatsapp");
   }, []);
 
-  // Handler refs (prevent re-attachment by keeping stable references)
   const handleSystemNotificationRef = useRef<((data: any) => void) | null>(null);
   const handleWhatsAppMessageRef = useRef<((data: RawWhatsAppMessage) => void) | null>(null);
+  const handleDismissRef = useRef<(notificationId: string) => void>(() => {});
+  const dismissedRef = useRef(dismissed);
+  dismissedRef.current = dismissed;
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
+  const syncedArchivedIdsKeyRef = useRef<string | null>(null);
 
   // User context
   const userId = token?.id;
@@ -216,6 +222,10 @@ export function SystemNotificationToast({
     token?.role === "SuperAdmin" ||
     token?.role === "Sales-TeamLead" ||
     token?.role === "Sales";
+
+  const archivedIdsFromQuery = useArchivedConversationIds(
+    hasWhatsAppAccess && !!token,
+  );
 
   // WhatsApp mute state
   const getMutedWhatsAppConversations = useCallback((): Set<string> => {
@@ -332,26 +342,12 @@ export function SystemNotificationToast({
     });
   }, []);
 
-  // Update visible notifications from queue engine
-  const updateVisibleNotifications = useCallback(() => {
-    const now = Date.now();
-    
-    // FIX 7: Soft rate-limit UI updates
-    if (now - lastUiUpdateRef.current < UI_UPDATE_THROTTLE_MS) {
-      // Buffer the update instead of executing immediately
-      uiUpdateBufferRef.current.push(() => {
-        updateVisibleNotificationsInternal();
-      });
-      return;
-    }
-    
-    lastUiUpdateRef.current = now;
-    updateVisibleNotificationsInternal();
-    flushUiUpdateBuffer(); // Flush any buffered updates
-  }, [dismissed, muted, visibleNotifications, flushUiUpdateBuffer]);
+  const visibleNotificationsRef = useRef<UnifiedNotification[]>([]);
+  visibleNotificationsRef.current = visibleNotifications;
 
   const updateVisibleNotificationsInternal = useCallback(() => {
     const now = Date.now();
+    const currentVisibleList = visibleNotificationsRef.current;
 
     // Auto-dismiss notifications that have been inactive (only side effect before comparing)
     const currentVisible = queueEngineRef.current.getVisible();
@@ -360,16 +356,19 @@ export function SystemNotificationToast({
       const lastInteraction = lastInteractionRef.current.get(notificationId) || notification.timestamp.getTime();
       const inactiveTime = now - lastInteraction;
       if (inactiveTime >= INACTIVITY_DISMISS_MS && !notification.isCritical) {
-        handleDismiss(notificationId);
+        handleDismissRef.current(notificationId);
       }
     });
 
-    const visible = queueEngineRef.current.updateVisible(dismissed, muted);
+    const visible = queueEngineRef.current.updateVisible(
+      dismissedRef.current,
+      mutedRef.current,
+    );
 
     // Skip re-processing and state update when nothing changed
     const same =
-      visible.length === visibleNotifications.length &&
-      visible.every((n, i) => n.id === visibleNotifications[i]?.id);
+      visible.length === currentVisibleList.length &&
+      visible.every((n, i) => n.id === currentVisibleList[i]?.id);
     if (same) return;
 
     // Initialize interaction time for new notifications
@@ -381,7 +380,7 @@ export function SystemNotificationToast({
 
     const updated = new Set<string>();
     visible.forEach((n) => {
-      const existing = visibleNotifications.find(
+      const existing = currentVisibleList.find(
         (existing) => existing.id === n.id || existing.groupKey === n.groupKey
       );
       if (existing) {
@@ -416,7 +415,25 @@ export function SystemNotificationToast({
     visible.forEach((n) => {
       loggerRef.current.log(n.id, n.source, "rendered");
     });
-  }, [dismissed, muted, visibleNotifications]);
+  }, []);
+
+  // Update visible notifications from queue engine
+  const updateVisibleNotifications = useCallback(() => {
+    const now = Date.now();
+    
+    // FIX 7: Soft rate-limit UI updates
+    if (now - lastUiUpdateRef.current < UI_UPDATE_THROTTLE_MS) {
+      // Buffer the update instead of executing immediately
+      uiUpdateBufferRef.current.push(() => {
+        updateVisibleNotificationsInternal();
+      });
+      return;
+    }
+    
+    lastUiUpdateRef.current = now;
+    updateVisibleNotificationsInternal();
+    flushUiUpdateBuffer(); // Flush any buffered updates
+  }, [flushUiUpdateBuffer, updateVisibleNotificationsInternal]);
 
   const clearConversationNotifications = useCallback(
     (conversationId: string) => {
@@ -523,37 +540,24 @@ export function SystemNotificationToast({
     getMutedWhatsAppConversations,
   ]);
 
-  // Fetch archived conversations to keep archive filter accurate
-  // Only fetch once on mount or when access/token changes, not on every render
+  // Sync archived IDs from shared React Query cache (same fetch as inbox list).
   useEffect(() => {
-    if (!hasWhatsAppAccess || !token) return;
-    const fetchArchived = async () => {
-      try {
-        const res = await axios.get("/api/whatsapp/conversations/archive");
-        const ids =
-          res.data?.conversations?.map(
-            (conv: any) => conv._id || conv.conversationId
-          ) || [];
-        archivedConversationIdsRef.current = new Set(
-          ids.filter(Boolean) as string[]
-        );
-        // Clear notifications for archived conversations
-        archivedConversationIdsRef.current.forEach((id) =>
-          clearConversationNotifications(id)
-        );
-        if (typeof window !== "undefined") {
-          localStorage.setItem(
-            "whatsapp_archived_conversations",
-            JSON.stringify(Array.from(archivedConversationIdsRef.current))
-          );
-        }
-      } catch (err) {
-        console.error("Failed to fetch archived conversations for notifications", err);
-      }
-    };
-    fetchArchived();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasWhatsAppAccess, token]); // Removed clearConversationNotifications - it's stable enough via ref
+    if (!archivedIdsFromQuery.isFetched) return;
+    const ids = archivedIdsFromQuery.archivedIds.filter(Boolean);
+    const idsKey = ids.join("|");
+    if (syncedArchivedIdsKeyRef.current === idsKey) return;
+    syncedArchivedIdsKeyRef.current = idsKey;
+
+    archivedConversationIdsRef.current = new Set(ids);
+    ids.forEach((id) => clearConversationNotifications(id));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("whatsapp_archived_conversations", JSON.stringify(ids));
+    }
+  }, [
+    archivedIdsFromQuery.isFetched,
+    archivedIdsFromQuery.archivedIds,
+    clearConversationNotifications,
+  ]);
 
   // Request browser notification permission only after a user gesture
   useEffect(() => {
@@ -1334,6 +1338,7 @@ export function SystemNotificationToast({
     },
     [visibleNotifications, updateVisibleNotifications]
   );
+  handleDismissRef.current = handleDismiss;
 
   const handleMute = useCallback(
     (notificationId: string) => {

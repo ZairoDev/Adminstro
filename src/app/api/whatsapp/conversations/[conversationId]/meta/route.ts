@@ -218,7 +218,9 @@ export async function POST(
     const shouldEmitConversationUpdate =
       Boolean(update.participantLocationKey) ||
       Boolean(update.conversationType) ||
-      Boolean(update.businessPhoneId);
+      Boolean(update.businessPhoneId) ||
+      Boolean(update.participantName) ||
+      Boolean(update.participantProfilePic);
 
     if (shouldEmitConversationUpdate && updated) {
       try {
@@ -226,9 +228,16 @@ export async function POST(
           WHATSAPP_EVENTS.CONVERSATION_UPDATE,
           updated as Record<string, unknown>,
           {
+            type: "meta",
             conversationId,
             businessPhoneId: (updated as { businessPhoneId?: string }).businessPhoneId,
             updates: {
+              ...(update.participantName
+                ? { participantName: update.participantName }
+                : {}),
+              ...(update.participantProfilePic
+                ? { participantProfilePic: update.participantProfilePic }
+                : {}),
               ...(update.participantLocation
                 ? { participantLocation: update.participantLocation }
                 : {}),

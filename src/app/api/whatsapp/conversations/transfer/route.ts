@@ -8,6 +8,8 @@ import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { stampConversationChannelFromPhone } from "@/lib/whatsapp/channelService";
 import { canUserAccessPhoneId } from "@/lib/whatsapp/phoneAreaConfigService";
 import { getUserAreasFromToken } from "@/lib/whatsapp/locationAccess";
+import { WHATSAPP_EVENTS } from "@/lib/pusher";
+import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
 import mongoose from "mongoose";
 
 connectDb();
@@ -223,6 +225,25 @@ export async function POST(req: NextRequest) {
         }
       );
       messagesTransferred = updateResult.modifiedCount;
+    }
+
+    const finalConversation = await WhatsAppConversation.findById(finalConversationId).lean();
+    if (finalConversation) {
+      try {
+        await emitWhatsAppEventToEligibleUsers(
+          WHATSAPP_EVENTS.CONVERSATION_UPDATE,
+          finalConversation as Record<string, unknown>,
+          {
+            type: "transfer",
+            conversationId: finalConversationId.toString(),
+            sourceConversationId: conversationId,
+            businessPhoneId: targetPhoneId,
+            merged: Boolean(existingTargetConversation),
+          },
+        );
+      } catch {
+        // non-critical
+      }
     }
 
     return NextResponse.json({

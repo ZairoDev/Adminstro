@@ -22,7 +22,20 @@ import {
   Play,
   ArrowDown,
 } from "lucide-react";
-import { useMemo, useState, useEffect, useRef, useCallback, memo, TouchEvent, forwardRef, useImperativeHandle } from "react";
+import {
+  useMemo,
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+  memo,
+  TouchEvent,
+  forwardRef,
+  useImperativeHandle,
+  type ReactNode,
+} from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { AlertTriangle, CheckCheck, Clock } from "lucide-react";
 import {
   Tooltip,
@@ -50,6 +63,10 @@ import {
   isTranslatableMessage,
   type MessageTranslationEntry,
 } from "@/lib/translate/messageTranslate";
+import {
+  deriveGroupedMessages,
+  type GroupedItem,
+} from "../lib/messageGrouping";
 
 // ReadMoreText component for messages longer than 30 words
 const ReadMoreText = memo(function ReadMoreText({
@@ -119,6 +136,7 @@ const ReadMoreText = memo(function ReadMoreText({
 });
 
 interface MessageListProps {
+  conversationId?: string | null;
   messages: Message[];
   messagesLoading: boolean;
   messageSearchQuery: string;
@@ -226,6 +244,54 @@ function isSameDay(date1: Date, date2: Date): boolean {
   d1.setHours(0, 0, 0, 0);
   d2.setHours(0, 0, 0, 0);
   return d1.getTime() === d2.getTime();
+}
+
+const VIRTUALIZATION_THRESHOLD = 30;
+
+function getGroupedItemKey(item: GroupedItem, index: number): string {
+  if (item.type === "imageGroup") {
+    const id = item.images[0]?._id || item.images[0]?.messageId;
+    return `img-group-${id ?? index}`;
+  }
+  const msgId = item.message._id || item.message.messageId;
+  return `msg-${msgId ?? index}`;
+}
+
+function estimateGroupedItemSize(item: GroupedItem | undefined): number {
+  if (!item) return 72;
+  if (item.type === "imageGroup") return 280;
+  const dateExtra = item.date ? 36 : 0;
+  const msg = item.message;
+  if (msg.mediaUrl) return 260 + dateExtra;
+  if (msg.type === "template") return 130 + dateExtra;
+  const displayText = getMessageDisplayText(msg);
+  const contentLength = displayText.length;
+  const bodyHeight = Math.max(60, Math.min(200, 60 + contentLength * 0.4));
+  return bodyHeight + dateExtra;
+}
+
+function findGroupedIndexForMessageId(
+  items: GroupedItem[],
+  messageId: string,
+): number {
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (item.type === "message") {
+      if (
+        item.message.messageId === messageId ||
+        item.message._id === messageId
+      ) {
+        return i;
+      }
+    } else if (
+      item.images.some(
+        (img) => img.messageId === messageId || img._id === messageId,
+      )
+    ) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 // Common reactions
@@ -416,6 +482,58 @@ const ImageGroup = memo(function ImageGroup({
   );
 });
 
+type MessageBubbleProps = {
+  message: Message;
+  isFirstInGroup: boolean;
+  isLastInGroup: boolean;
+  selectMode: boolean;
+  isSelected: boolean;
+  onSelect: () => void;
+  onForward?: () => void;
+  onReply?: () => void;
+  onReact?: (emoji: string) => void;
+  onCopy: () => void;
+  onDownload?: () => void;
+  onImageClick?: () => void;
+  onVideoClick?: (url: string) => void;
+  onScrollToMessage?: (messageId: string) => void;
+  translationEntry?: MessageTranslationEntry;
+  translationLoading?: boolean;
+  onTranslateToggle?: () => void;
+  isHighlighted?: boolean;
+  isMounted: boolean;
+  isMobile?: boolean;
+  searchQuery?: string;
+};
+
+function areMessageBubblePropsEqual(
+  prev: MessageBubbleProps,
+  next: MessageBubbleProps,
+): boolean {
+  if (prev.isFirstInGroup !== next.isFirstInGroup) return false;
+  if (prev.isLastInGroup !== next.isLastInGroup) return false;
+  if (prev.selectMode !== next.selectMode) return false;
+  if (prev.isSelected !== next.isSelected) return false;
+  if (prev.isHighlighted !== next.isHighlighted) return false;
+  if (prev.isMounted !== next.isMounted) return false;
+  if (prev.isMobile !== next.isMobile) return false;
+  if (prev.searchQuery !== next.searchQuery) return false;
+  if (prev.translationLoading !== next.translationLoading) return false;
+  if (prev.translationEntry !== next.translationEntry) return false;
+  if (prev.message !== next.message) {
+    const pm = prev.message;
+    const nm = next.message;
+    if ((pm.messageId || pm._id) !== (nm.messageId || nm._id)) return false;
+    if (pm.status !== nm.status) return false;
+    if (pm.type !== nm.type) return false;
+    if (pm.mediaUrl !== nm.mediaUrl) return false;
+    if (pm.direction !== nm.direction) return false;
+    if (JSON.stringify(pm.reactions) !== JSON.stringify(nm.reactions)) return false;
+    if (JSON.stringify(pm.content) !== JSON.stringify(nm.content)) return false;
+  }
+  return true;
+}
+
 // Single message bubble component
 const MessageBubble = memo(function MessageBubble({
   message,
@@ -439,29 +557,7 @@ const MessageBubble = memo(function MessageBubble({
   isMounted,
   isMobile = false,
   searchQuery = "",
-}: {
-  message: Message;
-  isFirstInGroup: boolean;
-  isLastInGroup: boolean;
-  selectMode: boolean;
-  isSelected: boolean;
-  onSelect: () => void;
-  onForward?: () => void;
-  onReply?: () => void;
-  onReact?: (emoji: string) => void;
-  onCopy: () => void;
-  onDownload?: () => void;
-  onImageClick?: () => void;
-  onVideoClick?: (url: string) => void;
-  onScrollToMessage?: (messageId: string) => void;
-  translationEntry?: MessageTranslationEntry;
-  translationLoading?: boolean;
-  onTranslateToggle?: () => void;
-  isHighlighted?: boolean;
-  isMounted: boolean;
-  isMobile?: boolean;
-  searchQuery?: string;
-}) {
+}: MessageBubbleProps) {
   const isOutgoing = message.direction === "outgoing";
   const isMediaType = ["image", "video", "audio", "document", "sticker"].includes(message.type);
   const translatableText = getTranslatableMessageText(message);
@@ -1146,9 +1242,10 @@ const MessageBubble = memo(function MessageBubble({
       )}
     </div>
   );
-});
+}, areMessageBubblePropsEqual);
 
 export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => void }, MessageListProps>(({
+  conversationId,
   messages,
   messagesLoading,
   messageSearchQuery,
@@ -1179,21 +1276,114 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [isPullingToRefresh, setIsPullingToRefresh] = useState(false);
   const pullStartYRef = useRef<number | null>(null);
+  const prevGroupedCountRef = useRef(0);
+  const anchorScrollHeightRef = useRef(0);
+  const pendingScrollAnchorRef = useRef(false);
+  const groupedMessagesSourceRef = useRef<Message[]>([]);
+  const groupedMessagesCacheRef = useRef<GroupedItem[]>([]);
+  const prevMessageCountRef = useRef(messages.length);
+  const hasScrolledInitiallyRef = useRef(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  const scrollToMessage = useCallback((messageId: string) => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    const el = container.querySelector(`[data-message-id="${messageId}"]`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      setHighlightedMessageId(messageId);
-      setTimeout(() => setHighlightedMessageId(null), 2000);
-    }
-  }, []);
+  // Reset thread-local UI when switching conversations (replaces key={conversationId} remount).
+  useEffect(() => {
+    groupedMessagesSourceRef.current = [];
+    groupedMessagesCacheRef.current = [];
+    setSelectMode(false);
+    setSelectedMessageIds(new Set());
+    setSelectedImageUrl(null);
+    setCurrentImageIndex(0);
+    setSelectedVideoUrl(null);
+    setShowNewMessagesButton(false);
+    setIsNearBottom(true);
+    setHighlightedMessageId(null);
+    setIsPullingToRefresh(false);
+    pullStartYRef.current = null;
+    prevGroupedCountRef.current = 0;
+    anchorScrollHeightRef.current = 0;
+    pendingScrollAnchorRef.current = false;
+    prevMessageCountRef.current = 0;
+    hasScrolledInitiallyRef.current = false;
+  }, [conversationId]);
+
+  // Filter messages by search
+  const filteredMessages = useMemo(
+    () =>
+      messages.filter((msg) => {
+        if (!messageSearchQuery) return true;
+        const displayText = getMessageDisplayText(msg);
+        return displayText.toLowerCase().includes(messageSearchQuery.toLowerCase());
+      }),
+    [messages, messageSearchQuery],
+  );
+
+  // Group messages with image clustering (incremental when structure unchanged).
+  const groupedMessages = useMemo(() => {
+    const result = deriveGroupedMessages(
+      filteredMessages,
+      isMounted,
+      groupedMessagesSourceRef.current,
+      groupedMessagesCacheRef.current,
+    );
+    groupedMessagesSourceRef.current = filteredMessages;
+    groupedMessagesCacheRef.current = result;
+    return result;
+  }, [filteredMessages, isMounted]);
+
+  const useVirtualization = groupedMessages.length >= VIRTUALIZATION_THRESHOLD;
+
+  const rowVirtualizer = useVirtualizer({
+    count: groupedMessages.length,
+    getScrollElement: () => scrollContainerRef.current,
+    estimateSize: (index) => estimateGroupedItemSize(groupedMessages[index]),
+    overscan: 5,
+    getItemKey: (index) => getGroupedItemKey(groupedMessages[index], index),
+  });
+
+  const scrollToBottom = useCallback(
+    (behavior: ScrollBehavior = "smooth") => {
+      if (useVirtualization && groupedMessages.length > 0) {
+        rowVirtualizer.scrollToIndex(groupedMessages.length - 1, {
+          align: "end",
+          behavior,
+        });
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior });
+      }
+      setShowNewMessagesButton(false);
+    },
+    [useVirtualization, groupedMessages.length, rowVirtualizer, messagesEndRef],
+  );
+
+  const scrollToMessage = useCallback(
+    (messageId: string) => {
+      if (useVirtualization) {
+        const index = findGroupedIndexForMessageId(groupedMessages, messageId);
+        if (index !== -1) {
+          rowVirtualizer.scrollToIndex(index, {
+            behavior: "smooth",
+            align: "center",
+          });
+          setHighlightedMessageId(messageId);
+          setTimeout(() => setHighlightedMessageId(null), 2000);
+        }
+        return;
+      }
+
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const el = container.querySelector(`[data-message-id="${messageId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightedMessageId(messageId);
+        setTimeout(() => setHighlightedMessageId(null), 2000);
+      }
+    },
+    [useVirtualization, groupedMessages, rowVirtualizer],
+  );
 
   useImperativeHandle(ref, () => ({ scrollToMessage }), [scrollToMessage]);
 
@@ -1218,6 +1408,15 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
     return messages.filter((m) => (m.type === "image" || m.type === "sticker") && m.mediaUrl);
   }, [messages]);
 
+  const beginLoadOlderScrollAnchor = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (el) {
+      anchorScrollHeightRef.current = el.scrollHeight;
+      pendingScrollAnchorRef.current = true;
+      prevGroupedCountRef.current = groupedMessages.length;
+    }
+  }, [groupedMessages.length]);
+
   // Handle scroll
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
@@ -1231,9 +1430,15 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
     if (nearBottom) setShowNewMessagesButton(false);
 
     if (scrollTop < 50 && hasMoreMessages && !loadingOlderMessages && onLoadOlderMessages) {
+      beginLoadOlderScrollAnchor();
       onLoadOlderMessages();
     }
-  }, [hasMoreMessages, loadingOlderMessages, onLoadOlderMessages]);
+  }, [
+    hasMoreMessages,
+    loadingOlderMessages,
+    onLoadOlderMessages,
+    beginLoadOlderScrollAnchor,
+  ]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -1243,185 +1448,85 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
   }, [handleScroll]);
 
   // Track previous message count and initial load
-  const prevMessageCountRef = useRef(messages.length);
-  const hasScrolledInitiallyRef = useRef(false);
-  
+
   // Initial scroll to bottom when messages first load
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (messages.length > 0 && !hasScrolledInitiallyRef.current && !messagesLoading) {
-      // First time messages loaded - scroll to bottom instantly
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+      if (useVirtualization && groupedMessages.length > 0) {
+        rowVirtualizer.scrollToIndex(groupedMessages.length - 1, {
+          align: "end",
+          behavior: "auto",
+        });
         hasScrolledInitiallyRef.current = true;
-      }, 50);
+      } else {
+        const timer = setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+          hasScrolledInitiallyRef.current = true;
+        }, 50);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [messages.length, messagesLoading, messagesEndRef]);
-  
+  }, [
+    messages.length,
+    messagesLoading,
+    messagesEndRef,
+    useVirtualization,
+    groupedMessages.length,
+    rowVirtualizer,
+  ]);
+
   // Reset scroll flag when conversation changes (messages become empty)
   useEffect(() => {
     if (messages.length === 0) {
       hasScrolledInitiallyRef.current = false;
+      prevGroupedCountRef.current = 0;
+      prevMessageCountRef.current = 0;
     }
   }, [messages.length]);
-  
+
+  // Preserve scroll position when older messages are prepended
+  useLayoutEffect(() => {
+    if (!pendingScrollAnchorRef.current) return;
+    if (groupedMessages.length <= prevGroupedCountRef.current) return;
+
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    if (useVirtualization) {
+      const addedCount = groupedMessages.length - prevGroupedCountRef.current;
+      rowVirtualizer.scrollToIndex(addedCount, { align: "start", behavior: "auto" });
+    } else {
+      const delta = el.scrollHeight - anchorScrollHeightRef.current;
+      if (delta > 0) {
+        el.scrollTop += delta;
+      }
+    }
+
+    pendingScrollAnchorRef.current = false;
+    prevGroupedCountRef.current = groupedMessages.length;
+  }, [groupedMessages.length, useVirtualization, rowVirtualizer]);
+
   // Handle new messages arriving (after initial load)
   useEffect(() => {
     const hasNewMessages = messages.length > prevMessageCountRef.current;
-    const isPrependingOld = messages.length > prevMessageCountRef.current && 
-                            prevMessageCountRef.current > 0 &&
-                            !isNearBottom;
-    
+    const isPrependingOld =
+      messages.length > prevMessageCountRef.current &&
+      prevMessageCountRef.current > 0 &&
+      !isNearBottom;
+
     prevMessageCountRef.current = messages.length;
-    
-    // Only auto-scroll if:
-    // 1. There are new messages (not prepending old messages)
-    // 2. User is already near bottom
-    // 3. Initial scroll has already happened
+
     if (hasNewMessages && isNearBottom && hasScrolledInitiallyRef.current && !isPrependingOld) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    } else if (hasNewMessages && !isNearBottom && hasScrolledInitiallyRef.current && !isPrependingOld) {
-      // Show "new messages" button if user scrolled up
+      scrollToBottom("smooth");
+    } else if (
+      hasNewMessages &&
+      !isNearBottom &&
+      hasScrolledInitiallyRef.current &&
+      !isPrependingOld
+    ) {
       setShowNewMessagesButton(true);
     }
-  }, [messages.length, isNearBottom, messagesEndRef]);
-
-  // Filter messages by search
-  const filteredMessages = useMemo(
-    () =>
-      messages.filter((msg) => {
-        if (!messageSearchQuery) return true;
-        const displayText = getMessageDisplayText(msg);
-        return displayText.toLowerCase().includes(messageSearchQuery.toLowerCase());
-      }),
-    [messages, messageSearchQuery]
-  );
-
-  // Group messages with image clustering
-  type GroupedItem =
-    | { type: "message"; date?: string; message: Message; isFirstInGroup: boolean; isLastInGroup: boolean }
-    | { type: "imageGroup"; date?: string; images: Message[] };
-
-  const groupedMessages = useMemo(() => {
-    if (!isMounted) return filteredMessages.map((m) => ({ type: "message" as const, date: undefined, message: m, isFirstInGroup: true, isLastInGroup: true }));
-
-    const result: GroupedItem[] = [];
-    let lastDate: string | undefined;
-    let currentImageGroup: Message[] = [];
-    let imageGroupDirection: "incoming" | "outgoing" | null = null;
-    let imageGroupFrom: string | null = null;
-
-    const flushImageGroup = (showDate?: string) => {
-      if (currentImageGroup.length >= 2) {
-        result.push({ type: "imageGroup", date: showDate, images: [...currentImageGroup] });
-      } else if (currentImageGroup.length === 1) {
-        // Single image - render as regular message
-        result.push({
-          type: "message",
-          date: showDate,
-          message: currentImageGroup[0],
-          isFirstInGroup: true,
-          isLastInGroup: true,
-        });
-      }
-      currentImageGroup = [];
-      imageGroupDirection = null;
-      imageGroupFrom = null;
-    };
-
-    filteredMessages.forEach((message, idx) => {
-      const messageDate = new Date(message.timestamp);
-      const prevMessage = idx > 0 ? filteredMessages[idx - 1] : null;
-      const nextMessage = idx < filteredMessages.length - 1 ? filteredMessages[idx + 1] : null;
-
-      // Date separator check
-      const showDate = !lastDate || !isSameDay(messageDate, new Date(filteredMessages[idx - 1]?.timestamp));
-      if (showDate) {
-        // Flush any pending image group before date change
-        if (currentImageGroup.length > 0) {
-          flushImageGroup();
-        }
-        lastDate = formatDateSeparator(messageDate);
-      }
-
-      const isImage = (message.type === "image" || message.type === "sticker") && message.mediaUrl;
-      const hasCaption = isImage && typeof message.content === "object" && message.content?.caption && message.content.caption.trim();
-
-      // Check if we should continue current image group
-      const shouldContinueGroup =
-        isImage &&
-        !hasCaption &&
-        currentImageGroup.length > 0 &&
-        message.direction === imageGroupDirection &&
-        message.from === imageGroupFrom &&
-        // Within 2 minutes of the first image in group
-        Math.abs(new Date(message.timestamp).getTime() - new Date(currentImageGroup[0].timestamp).getTime()) < 2 * 60 * 1000;
-
-      if (shouldContinueGroup) {
-        currentImageGroup.push(message);
-        } else {
-          // Flush current group
-          flushImageGroup(showDate ? lastDate : undefined);
-
-        if (isImage && !hasCaption) {
-          // Start new image group (only for images without captions)
-          currentImageGroup = [message];
-          imageGroupDirection = message.direction;
-          imageGroupFrom = message.from;
-        } else if (isImage && hasCaption) {
-          // Image with caption - render as regular message
-          const isFirstInGroup =
-            !prevMessage ||
-            prevMessage.direction !== message.direction ||
-            prevMessage.from !== message.from ||
-            Math.abs(new Date(message.timestamp).getTime() - new Date(prevMessage.timestamp).getTime()) > 60000 ||
-            showDate;
-
-          const isLastInGroup =
-            !nextMessage ||
-            nextMessage.direction !== message.direction ||
-            nextMessage.from !== message.from ||
-            Math.abs(new Date(nextMessage.timestamp).getTime() - new Date(message.timestamp).getTime()) > 60000 ||
-            (nextMessage && !isSameDay(new Date(nextMessage.timestamp), messageDate));
-
-          result.push({
-            type: "message",
-            date: showDate ? lastDate : undefined,
-            message,
-            isFirstInGroup,
-            isLastInGroup,
-          });
-        } else {
-          // Regular message
-          const isFirstInGroup =
-            !prevMessage ||
-            prevMessage.direction !== message.direction ||
-            prevMessage.from !== message.from ||
-            Math.abs(new Date(message.timestamp).getTime() - new Date(prevMessage.timestamp).getTime()) > 60000 ||
-            showDate;
-
-          const isLastInGroup =
-            !nextMessage ||
-            nextMessage.direction !== message.direction ||
-            nextMessage.from !== message.from ||
-            Math.abs(new Date(nextMessage.timestamp).getTime() - new Date(message.timestamp).getTime()) > 60000 ||
-            (nextMessage && !isSameDay(new Date(nextMessage.timestamp), messageDate));
-
-          result.push({
-            type: "message",
-            date: showDate ? lastDate : undefined,
-            message,
-            isFirstInGroup,
-            isLastInGroup,
-          });
-        }
-      }
-    });
-
-    // Flush remaining image group
-    flushImageGroup();
-
-    return result;
-  }, [filteredMessages, isMounted]);
+  }, [messages.length, isNearBottom, scrollToBottom]);
 
   // Handlers
   const handleCopy = useCallback((message: Message) => {
@@ -1463,12 +1568,7 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
     }
   }, [selectedMessageIds, onForwardMessages]);
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    setShowNewMessagesButton(false);
-  }, [messagesEndRef]);
-
-  const handleImageClick = useCallback((url: string, groupIndex?: number) => {
+  const handleImageClick = useCallback((url: string, _groupIndex?: number) => {
     setSelectedImageUrl(url);
     const idx = imageMessages.findIndex((m) => m.mediaUrl === url);
     setCurrentImageIndex(idx >= 0 ? idx : 0);
@@ -1508,12 +1608,213 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
     if (!isMobile) return;
     
     if (isPullingToRefresh && hasMoreMessages && onLoadOlderMessages && !loadingOlderMessages) {
+      beginLoadOlderScrollAnchor();
       onLoadOlderMessages();
     }
     
     pullStartYRef.current = null;
     setIsPullingToRefresh(false);
-  }, [isMobile, isPullingToRefresh, hasMoreMessages, onLoadOlderMessages, loadingOlderMessages]);
+  }, [isMobile, isPullingToRefresh, hasMoreMessages, onLoadOlderMessages, loadingOlderMessages, beginLoadOlderScrollAnchor]);
+
+  const renderGroupedItem = useCallback(
+    (item: GroupedItem, idx: number): ReactNode => {
+      if (item.type === "imageGroup") {
+        return (
+          <>
+            {item.date && (
+              <div className="flex justify-center py-2">
+                <div className="bg-white dark:bg-[#202c33] rounded-lg px-3 py-1 shadow-sm">
+                  <span className="text-[12.5px] text-[#54656f] dark:text-[#8696a0] font-medium">
+                    {item.date}
+                  </span>
+                </div>
+              </div>
+            )}
+            <ImageGroup
+              images={item.images}
+              isOutgoing={item.images[0].direction === "outgoing"}
+              onImageClick={handleImageClick}
+              onForward={
+                onForwardMessages
+                  ? (ids) => {
+                      setSelectMode(true);
+                      setSelectedMessageIds(new Set(ids));
+                    }
+                  : undefined
+              }
+              selectMode={selectMode}
+              selectedIds={selectedMessageIds}
+              onSelect={handleSelect}
+              isMounted={isMounted}
+            />
+          </>
+        );
+      }
+
+      const msgId = item.message._id || item.message.messageId;
+      return (
+        <>
+          {item.date && (
+            <div className="flex justify-center py-2">
+              <div className="bg-white dark:bg-[#202c33] rounded-lg px-3 py-1 shadow-sm">
+                <span className="text-[12.5px] text-[#54656f] dark:text-[#8696a0] font-medium">
+                  {item.date}
+                </span>
+              </div>
+            </div>
+          )}
+          <MessageBubble
+            message={item.message}
+            isFirstInGroup={item.isFirstInGroup}
+            isLastInGroup={item.isLastInGroup}
+            selectMode={selectMode}
+            isSelected={selectedMessageIds.has(msgId)}
+            onSelect={() => handleSelect(msgId)}
+            onForward={
+              onForwardMessages
+                ? () => {
+                    setSelectMode(true);
+                    setSelectedMessageIds(new Set([msgId]));
+                  }
+                : undefined
+            }
+            onReply={onReplyMessage ? () => onReplyMessage(item.message) : undefined}
+            onReact={
+              onReactMessage ? (emoji) => onReactMessage(item.message, emoji) : undefined
+            }
+            onCopy={() => handleCopy(item.message)}
+            onDownload={
+              item.message.mediaUrl ? () => handleDownload(item.message) : undefined
+            }
+            onImageClick={
+              (item.message.type === "image" || item.message.type === "sticker") &&
+              item.message.mediaUrl
+                ? () => handleImageClick(item.message.mediaUrl!)
+                : undefined
+            }
+            onVideoClick={
+              item.message.type === "video" && item.message.mediaUrl
+                ? (url) => setSelectedVideoUrl(url)
+                : undefined
+            }
+            onScrollToMessage={handleScrollToMessage}
+            isHighlighted={highlightedMessageId === item.message.messageId}
+            isMounted={isMounted}
+            isMobile={isMobile}
+            searchQuery={messageSearchQuery}
+            translationEntry={getEntry(msgId)}
+            translationLoading={isLoading(msgId)}
+            onTranslateToggle={
+              isTranslatableMessage(item.message)
+                ? () => {
+                    const text = getTranslatableMessageText(item.message);
+                    if (!text) return;
+                    void toggleTranslation(msgId, text).catch((err: unknown) => {
+                      const description =
+                        axios.isAxiosError(err) &&
+                        typeof err.response?.data?.error === "string"
+                          ? err.response.data.error
+                          : "Could not translate message";
+                      toast({
+                        title: "Translation failed",
+                        description,
+                        variant: "destructive",
+                      });
+                    });
+                  }
+                : undefined
+            }
+          />
+        </>
+      );
+    },
+    [
+      handleImageClick,
+      onForwardMessages,
+      selectMode,
+      selectedMessageIds,
+      handleSelect,
+      isMounted,
+      onReplyMessage,
+      onReactMessage,
+      handleCopy,
+      handleDownload,
+      handleScrollToMessage,
+      highlightedMessageId,
+      isMobile,
+      messageSearchQuery,
+      getEntry,
+      isLoading,
+      toggleTranslation,
+      toast,
+    ],
+  );
+
+  const renderMessageListContent = () => {
+    if (messagesLoading) {
+      return (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-[#25d366]" />
+        </div>
+      );
+    }
+
+    if (filteredMessages.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-center py-20">
+          <div className="bg-white dark:bg-[#202c33] rounded-lg p-6 shadow-sm">
+            <p className="text-[17px] text-[#111b21] dark:text-[#e9edef] mb-1">
+              {selectedConversationActive ? "No messages yet" : "Select a conversation"}
+            </p>
+            <p className="text-[14px] text-[#667781] dark:text-[#8696a0]">
+              Send a message to start chatting
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (useVirtualization) {
+      return (
+        <div
+          style={{
+            height: rowVirtualizer.getTotalSize(),
+            position: "relative",
+            width: "100%",
+          }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+            const item = groupedMessages[virtualItem.index];
+            return (
+              <div
+                key={virtualItem.key}
+                data-index={virtualItem.index}
+                ref={rowVirtualizer.measureElement}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualItem.start}px)`,
+                }}
+              >
+                {renderGroupedItem(item, virtualItem.index)}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {groupedMessages.map((item, idx) => (
+          <div key={getGroupedItemKey(item, idx)}>{renderGroupedItem(item, idx)}</div>
+        ))}
+        <div ref={messagesEndRef} />
+      </>
+    );
+  };
 
   return (
     <div className="relative flex-1 flex flex-col overflow-x-hidden min-h-0 bg-transparent">
@@ -1535,23 +1836,26 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
         ref={scrollContainerRef} 
         className={cn(
           "flex-1 min-h-0 overflow-y-auto overflow-x-hidden py-2",
-          // Enable smooth scrolling and momentum on mobile
           isMobile && "scroll-smooth overscroll-contain",
-          // Performance optimization for mobile
           isMobile && "will-change-scroll"
         )}
-        style={{ WebkitOverflowScrolling: 'touch' }}
+        style={{
+          WebkitOverflowScrolling: "touch",
+          ...(useVirtualization ? { contain: "strict" } : {}),
+        }}
         onTouchStart={handlePullTouchStart}
         onTouchMove={handlePullTouchMove}
         onTouchEnd={handlePullTouchEnd}
       >
-        {/* Load older messages button */}
         {hasMoreMessages && onLoadOlderMessages && (
           <div className="flex justify-center py-3">
             <Button
               variant="ghost"
               size="sm"
-              onClick={onLoadOlderMessages}
+              onClick={() => {
+                beginLoadOlderScrollAnchor();
+                onLoadOlderMessages();
+              }}
               disabled={loadingOlderMessages}
               className="bg-white dark:bg-[#202c33] text-[#008069] dark:text-[#00a884] rounded-full px-4 shadow-sm"
             >
@@ -1561,138 +1865,13 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
           </div>
         )}
 
-        {/* Loading state */}
-        {messagesLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-[#25d366]" />
-          </div>
-        ) : filteredMessages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center py-20">
-            <div className="bg-white dark:bg-[#202c33] rounded-lg p-6 shadow-sm">
-              <p className="text-[17px] text-[#111b21] dark:text-[#e9edef] mb-1">
-                {selectedConversationActive ? "No messages yet" : "Select a conversation"}
-              </p>
-              <p className="text-[14px] text-[#667781] dark:text-[#8696a0]">
-                Send a message to start chatting
-              </p>
-            </div>
-          </div>
-        ) : (
-          groupedMessages.map((item, idx) => {
-            if (item.type === "imageGroup") {
-              return (
-                <div key={`img-group-${idx}`}>
-                  {item.date && (
-                    <div className="flex justify-center py-2">
-                      <div className="bg-white dark:bg-[#202c33] rounded-lg px-3 py-1 shadow-sm">
-                        <span className="text-[12.5px] text-[#54656f] dark:text-[#8696a0] font-medium">
-                          {item.date}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  <ImageGroup
-                    images={item.images}
-                    isOutgoing={item.images[0].direction === "outgoing"}
-                    onImageClick={handleImageClick}
-                    onForward={
-                      onForwardMessages
-                        ? (ids) => {
-                            setSelectMode(true);
-                            setSelectedMessageIds(new Set(ids));
-                          }
-                        : undefined
-                    }
-                    selectMode={selectMode}
-                    selectedIds={selectedMessageIds}
-                    onSelect={handleSelect}
-                    isMounted={isMounted}
-                  />
-                </div>
-              );
-            }
-
-            const msgId = item.message._id || item.message.messageId;
-            return (
-              <div key={`${msgId}-${idx}`}>
-                {item.date && (
-                  <div className="flex justify-center py-2">
-                    <div className="bg-white dark:bg-[#202c33] rounded-lg px-3 py-1 shadow-sm">
-                      <span className="text-[12.5px] text-[#54656f] dark:text-[#8696a0] font-medium">
-                        {item.date}
-                      </span>
-                    </div>
-                  </div>
-                )}
-                <MessageBubble
-                  message={item.message}
-                  isFirstInGroup={item.isFirstInGroup}
-                  isLastInGroup={item.isLastInGroup}
-                  selectMode={selectMode}
-                  isSelected={selectedMessageIds.has(msgId)}
-                  onSelect={() => handleSelect(msgId)}
-                  onForward={
-                    onForwardMessages
-                      ? () => {
-                          setSelectMode(true);
-                          setSelectedMessageIds(new Set([msgId]));
-                        }
-                      : undefined
-                  }
-                  onReply={onReplyMessage ? () => onReplyMessage(item.message) : undefined}
-                  onReact={onReactMessage ? (emoji) => onReactMessage(item.message, emoji) : undefined}
-                  onCopy={() => handleCopy(item.message)}
-                  onDownload={item.message.mediaUrl ? () => handleDownload(item.message) : undefined}
-                  onImageClick={
-                    (item.message.type === "image" || item.message.type === "sticker") && item.message.mediaUrl
-                      ? () => handleImageClick(item.message.mediaUrl!)
-                      : undefined
-                  }
-                  onVideoClick={
-                    item.message.type === "video" && item.message.mediaUrl
-                      ? (url) => setSelectedVideoUrl(url)
-                      : undefined
-                  }
-                  onScrollToMessage={handleScrollToMessage}
-                  isHighlighted={highlightedMessageId === item.message.messageId}
-                  isMounted={isMounted}
-                  isMobile={isMobile}
-                  searchQuery={messageSearchQuery}
-                  translationEntry={getEntry(msgId)}
-                  translationLoading={isLoading(msgId)}
-                  onTranslateToggle={
-                    isTranslatableMessage(item.message)
-                      ? () => {
-                          const text = getTranslatableMessageText(item.message);
-                          if (!text) return;
-                          void toggleTranslation(msgId, text).catch((err: unknown) => {
-                            const description =
-                              axios.isAxiosError(err) &&
-                              typeof err.response?.data?.error === "string"
-                                ? err.response.data.error
-                                : "Could not translate message";
-                            toast({
-                              title: "Translation failed",
-                              description,
-                              variant: "destructive",
-                            });
-                          });
-                        }
-                      : undefined
-                  }
-                />
-              </div>
-            );
-          })
-        )}
-
-        <div ref={messagesEndRef} />
+        {renderMessageListContent()}
       </div>
 
       {/* New messages button - repositioned for mobile */}
       {showNewMessagesButton && (
         <button
-          onClick={scrollToBottom}
+          onClick={() => scrollToBottom("smooth")}
           className={cn(
             "absolute z-20 bg-white dark:bg-[#202c33] text-[#008069] dark:text-[#00a884] rounded-full shadow-lg flex items-center gap-1 hover:bg-[#f0f2f5] dark:hover:bg-[#2a3942] active:scale-95 transition-all",
             // Mobile: centered at bottom, larger touch target

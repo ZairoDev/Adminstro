@@ -10,6 +10,8 @@ import {
   removeLabelFromConversation,
   setConversationLabels,
 } from "@/lib/whatsapp/conversationLabelService";
+import { WHATSAPP_EVENTS } from "@/lib/pusher";
+import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +99,24 @@ export async function PATCH(
       if (parsed.data.remove) {
         labels = await removeLabelFromConversation(params.conversationId, parsed.data.remove);
       }
+    }
+
+    try {
+      const convForEmit = await WhatsAppConversation.findById(params.conversationId).lean();
+      if (convForEmit) {
+        await emitWhatsAppEventToEligibleUsers(
+          WHATSAPP_EVENTS.CONVERSATION_UPDATE,
+          convForEmit as Record<string, unknown>,
+          {
+            type: "label",
+            conversationId: params.conversationId,
+            labels,
+            businessPhoneId: (convForEmit as { businessPhoneId?: string }).businessPhoneId,
+          },
+        );
+      }
+    } catch {
+      // non-critical
     }
 
     return NextResponse.json({ success: true, labels });

@@ -140,3 +140,49 @@ export interface Template {
   components: any[];
 }
 
+export interface ConversationsListFilters {
+  search: string;
+  labelFilter: string;
+  adminQueue: boolean;
+  locationFilter?: string;
+  retargetOnly: boolean;
+  enabled: boolean;
+}
+
+export interface WhatsAppConversationsListPage {
+  success: boolean;
+  conversations: Conversation[];
+  pagination: {
+    limit: number;
+    hasMore: boolean;
+    nextCursor: string | null;
+  };
+  counts?: {
+    totalCount: number;
+    ownerCount: number;
+    guestCount: number;
+    unreadCount?: number;
+  };
+  archivedCount?: number;
+  phoneMaskRules?: {
+    maskOwnerPhones: boolean;
+    maskGuestPhones: boolean;
+  };
+}
+
+export interface WhatsAppMessagesListPage {
+  success: boolean;
+  messages: Message[];
+  pagination: {
+    limit: number;
+    hasMore: boolean;
+    nextCursor: {
+      messageId: string;
+      timestamp: string;
+    } | null;
+  };
+}
+
+/** @deprecated Use WhatsAppConversationsListPage */
+export type ConversationListResponse = WhatsAppConversationsListPage;
+

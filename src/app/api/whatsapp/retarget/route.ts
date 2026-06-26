@@ -49,11 +49,18 @@ function deriveRetargetState(lead: any): "pending" | "retargeted" | "blocked" {
  * - Leads retargeted within 24h
  * - Leads at max retarget count (3)
  */
+const RETARGET_ALLOWED_ROLES = ["SuperAdmin", "Sales", "Advert"] as const;
+
 export async function POST(req: NextRequest) {
   try {
     const token = await getDataFromToken(req);
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userRole = (token as { role?: string }).role || "";
+    if (!(RETARGET_ALLOWED_ROLES as readonly string[]).includes(userRole)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await req.json();

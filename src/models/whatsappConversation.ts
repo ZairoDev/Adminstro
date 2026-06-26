@@ -525,6 +525,12 @@ whatsAppConversationSchema.index({
   lastMessageTime: -1,
 }, { name: "channel_lookup_idx" });
 
+// Inbox location + recency (SuperAdmin location filter)
+whatsAppConversationSchema.index(
+  { lastMessageTime: -1, participantLocationKey: 1 },
+  { name: "wa_inbox_location_recency_idx" },
+);
+
 whatsAppConversationSchema.index({
   labels: 1,
   status: 1,
@@ -554,6 +560,12 @@ whatsAppConversationSchema.index(
 whatsAppConversationSchema.index(
   { guestInitiationAgentId: 1, guestInitiationReservedAt: 1 },
   { name: "wa_guest_initiation_reserved_idx" },
+);
+
+// Notification bell: expiring 24h window scans by customer message time + agent scope
+whatsAppConversationSchema.index(
+  { lastCustomerMessageAt: 1, assignedAgent: 1 },
+  { name: "wa_expiring_window_agent_idx" },
 );
 
 const WhatsAppConversation =

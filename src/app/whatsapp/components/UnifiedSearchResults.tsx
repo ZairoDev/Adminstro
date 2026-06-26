@@ -7,6 +7,16 @@ import {
   type WhatsAppPhoneMaskRules,
 } from "@/lib/whatsapp/phoneMask";
 
+/**
+ * Strip every HTML tag except the safe <mark> element used for highlighting.
+ * This prevents XSS when server-generated highlight strings are rendered via
+ * dangerouslySetInnerHTML.
+ */
+function sanitizeHighlight(html: string): string {
+  // Keep <mark> and </mark>; strip everything else
+  return html.replace(/<(?!\/?mark\b)[^>]*>/gi, "");
+}
+
 interface UnifiedSearchResultsProps {
   results: { conversations: any[] } | null;
   loading: boolean;
@@ -178,7 +188,7 @@ function ContactResultItem({
           {nameWithHighlight ? (
             <h3
               className="font-normal text-[17px] text-[#111b21] dark:text-[#e9edef] truncate [&_mark]:bg-[#d9fdd3] dark:[&_mark]:bg-[#025144] [&_mark]:rounded [&_mark]:px-0.5"
-              dangerouslySetInnerHTML={{ __html: matches.nameMatchedText }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHighlight(matches.nameMatchedText) }}
             />
           ) : (
             <h3 className="font-normal text-[17px] text-[#111b21] dark:text-[#e9edef] truncate">
@@ -259,7 +269,7 @@ function MessageResultItem({
           {snippetHtml && typeof snippetHtml === "string" && snippetHtml.includes("<mark>") ? (
             <p
               className="text-[14px] text-[#667781] dark:text-[#8696a0] line-clamp-2 [&_mark]:bg-[#d9fdd3] dark:[&_mark]:bg-[#025144] [&_mark]:rounded [&_mark]:px-0.5"
-              dangerouslySetInnerHTML={{ __html: snippetHtml }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHighlight(snippetHtml) }}
             />
           ) : (
             <p className="text-[14px] text-[#667781] dark:text-[#8696a0] line-clamp-2">

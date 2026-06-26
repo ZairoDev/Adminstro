@@ -51,10 +51,13 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
+import type { ConversationReader } from "@/lib/whatsapp/conversationReaders";
 
 interface ChatHeaderProps {
   conversation: Conversation;
   callPermissions: { canMakeCalls: boolean };
+  callPermsFetched?: boolean;
+  onFetchCallPermissions?: () => void;
   callingAudio: boolean;
   onAudioCall: () => void;
   onRefreshTemplates: () => void;
@@ -65,6 +68,9 @@ interface ChatHeaderProps {
   messageSearchQuery: string;
   onMessageSearchChange: (value: string) => void;
   toastCopy: () => void;
+  readers?: ConversationReader[];
+  skipReadersFetch?: boolean;
+  onReadersChange?: (readers: ConversationReader[]) => void;
   readersRefreshToken?: number;
   currentUserId?: string | null;
   onBack?: () => void;
@@ -88,16 +94,13 @@ interface ChatHeaderProps {
   crmPanelOpen?: boolean;
 }
 
-interface Reader {
-  userId: string;
-  name: string;
-  avatar: string | null;
-  lastReadAt: Date;
-}
+interface Reader extends ConversationReader {}
 
 export const ChatHeader = memo(function ChatHeader({
   conversation,
   callPermissions,
+  callPermsFetched = false,
+  onFetchCallPermissions,
   callingAudio,
   onAudioCall,
   onRefreshTemplates,
@@ -108,7 +111,10 @@ export const ChatHeader = memo(function ChatHeader({
   messageSearchQuery,
   onMessageSearchChange,
   toastCopy,
-  readersRefreshToken,
+  readers: readersProp = [],
+  skipReadersFetch = false,
+  onReadersChange,
+  readersRefreshToken = 0,
   currentUserId,
   onBack,
   isMobile = false,
@@ -128,7 +134,7 @@ export const ChatHeader = memo(function ChatHeader({
   crmPanelOpen = false,
 }: ChatHeaderProps) {
   const [isMounted, setIsMounted] = useState(false);
-  const [readers, setReaders] = useState<Reader[]>([]);
+  const readers = readersProp;
   const [settingLocation, setSettingLocation] = useState(false);
   const [locationInput, setLocationInput] = useState("");
   const [assignableLocations, setAssignableLocations] = useState<
@@ -140,6 +146,12 @@ export const ChatHeader = memo(function ChatHeader({
     (conversation as { businessPhoneId?: string }).businessPhoneId ||
     currentPhoneId ||
     "";
+  const showCallButton =
+    Boolean(getConversationBusinessPhoneId(conversation)) &&
+    (!callPermsFetched || callPermissions.canMakeCalls);
+  const prefetchCallPermissions = () => {
+    onFetchCallPermissions?.();
+  };
   const canAssignLocation = canAssignWhatsAppParticipantLocation({
     role: userRole,
     email: userEmail,
@@ -173,32 +185,6 @@ export const ChatHeader = memo(function ChatHeader({
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  const conversationId = conversation?._id;
-  useEffect(() => {
-    if (!conversationId) return;
-    let isCancelled = false;
-
-    const fetchReaders = async () => {
-      try {
-        const response = await axios.get(
-          `/api/whatsapp/conversations/${conversationId}/readers`,
-        );
-        if (!isCancelled && response.data.success) {
-          setReaders(response.data.readers || []);
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          console.error("Error fetching readers:", error);
-        }
-      }
-    };
-
-    void fetchReaders();
-    return () => {
-      isCancelled = true;
-    };
-  }, [conversationId, readersRefreshToken]);
 
   const outboundPhoneId = getConversationBusinessPhoneId(conversation);
   const remaining = useMemo(
@@ -265,10 +251,10 @@ export const ChatHeader = memo(function ChatHeader({
         : phone;
 
   return (
-    <div className="flex flex-col bg-[#f0f2f5] dark:bg-[#202c33] border-b border-[#e9edef] dark:border-[#222d34]">
+    <div className="flex flex-col bg-[#f0f2f5] dark:bg-[#06090a] border-b border-[#e9edef] dark:border-[#222d34]">
       <div
         className={cn(
-          "flex items-center gap-2 bg-[#f0f2f5] dark:bg-[#202c33]",
+          "flex items-center gap-2 bg-[#f0f2f5] dark:bg-[#06090a]",
           "h-[60px] px-2 md:px-4",
         )}
       >
@@ -514,11 +500,13 @@ export const ChatHeader = memo(function ChatHeader({
             </Button>
           )}
 
-          {callPermissions.canMakeCalls && (
+          {showCallButton && (
             <Button
               variant="ghost"
               size="icon"
               onClick={onAudioCall}
+              onMouseEnter={prefetchCallPermissions}
+              onFocus={prefetchCallPermissions}
               disabled={callingAudio}
               className={cn(
                 "text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full",
@@ -580,8 +568,13 @@ export const ChatHeader = memo(function ChatHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              {callPermissions.canMakeCalls && (
-                <DropdownMenuItem onClick={onAudioCall} className="md:hidden">
+              {showCallButton && (
+                <DropdownMenuItem
+                  onClick={onAudioCall}
+                  onMouseEnter={prefetchCallPermissions}
+                  onFocus={prefetchCallPermissions}
+                  className="md:hidden"
+                >
                   <Phone className="h-4 w-4 mr-3" />
                   Voice call
                 </DropdownMenuItem>

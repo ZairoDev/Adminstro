@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppMessage from "@/models/whatsappMessage";
-import ConversationReadState from "@/models/conversationReadState";
-import ConversationArchiveState from "@/models/conversationArchiveState";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import Employee from "@/models/employee";
-import Query from "@/models/query";
 import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
 import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
 import {
@@ -14,7 +9,6 @@ import {
   getDefaultPhoneId,
   getRetargetPhoneId,
   FULL_ACCESS_ROLES,
-  INTERNAL_YOU_PHONE_ID,
 } from "@/lib/whatsapp/config";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import {
@@ -49,9 +43,40 @@ import {
   getGuestOutboundStatsByConversationIds,
   mergeGuestOutboundStats,
 } from "@/lib/whatsapp/guestOutboundStats";
+import {
+  enrichInboxConversationPage,
+  applyLeadProfilePicsToInboxPage,
+  fetchInboxConversationPage,
+  aggregateInboxConversationCounts,
+  loadGlobalArchivedConversationIds,
+  scheduleConversationTypeUpdates,
+  EMPTY_INBOX_CONVERSATION_COUNTS,
+  type InboxConversationLean,
+} from "@/lib/whatsapp/conversationsListEnrichment";
+import {
+  fetchUnreadInboxConversationPage,
+  aggregateUnreadInboxConversationCount,
+} from "@/lib/whatsapp/inboxUnreadQuery";
+import { buildInboxUnreadBadgeMongoQuery } from "@/lib/whatsapp/inboxUnreadBadgeQuery";
+import { isUnreadInboxLabelFilter } from "@/lib/whatsapp/crmLabels";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
+
+/** Cap wait time for non-critical enrichments (profile pics, guest stats). */
+const ENRICHMENT_TIMEOUT_MS = 800;
+
+async function runWithOptionalTimeout(
+  task: Promise<void>,
+  timeoutMs: number,
+): Promise<void> {
+  await Promise.race([
+    task,
+    new Promise<void>((resolve) => {
+      setTimeout(resolve, timeoutMs);
+    }),
+  ]);
+}
 
 connectDb();
 
@@ -138,21 +163,10 @@ export async function GET(req: NextRequest) {
     const userId = token.id || token._id;
 
     // =========================================================
-    // Get global archive states (shared across all users)
+    // Global archive IDs only (isArchived=true — indexed, not full table scan)
     // =========================================================
-    const archiveStates = await ConversationArchiveState.find({})
-      .select("conversationId isArchived archivedAt archivedBy")
-      .lean();
-
-    const archiveStateMap = new Map<string, any>();
-    const archivedConversationIds: mongoose.Types.ObjectId[] = [];
-    
-    for (const state of archiveStates) {
-      archiveStateMap.set(String(state.conversationId), state);
-      if (state.isArchived) {
-        archivedConversationIds.push(state.conversationId);
-      }
-    }
+    const { archivedConversationIds, archivedCount } =
+      await loadGlobalArchivedConversationIds();
 
     const inboxParams = parseInboxListParams(searchParams);
     inboxParams.status = status;
@@ -174,12 +188,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const visibilityQuery = await buildInboxListQueryAsync(normalizedToken, inboxParams);
+    const visibilityQuery = await buildInboxListQueryAsync(
+      normalizedToken,
+      inboxParams,
+    );
     if (visibilityQuery._id === null) {
       return NextResponse.json({
         success: true,
         conversations: [],
         archivedCount: 0,
+        counts: EMPTY_INBOX_CONVERSATION_COUNTS,
         pagination: { limit: 25, hasMore: false, nextCursor: null },
       });
     }
@@ -195,6 +213,7 @@ export async function GET(req: NextRequest) {
           success: true,
           conversations: [],
           archivedCount: 0,
+          counts: EMPTY_INBOX_CONVERSATION_COUNTS,
           pagination: { limit, hasMore: false, nextCursor: null },
         });
       }
@@ -224,287 +243,124 @@ export async function GET(req: NextRequest) {
       query.lastMessageTime = { $lt: cursorDate };
     }
 
-    // Always sort by lastMessageTime descending (latest activity first)
-    const conversations = await WhatsAppConversation.find(query)
-      .sort({ lastMessageTime: -1 })
-      .limit(limit + 1) // Fetch one extra to determine if there are more
-      .lean();
+    const unreadInboxFilter = isUnreadInboxLabelFilter(inboxParams.labelFilter);
+    const includeUnread = searchParams.get("includeUnread") === "true";
 
-    // Check if there are more conversations
-    const hasMore = conversations.length > limit;
-    const conversationsToReturn = hasMore ? conversations.slice(0, limit) : conversations;
+    const unreadCountPromise = includeUnread
+      ? (async () => {
+          const unreadCountQuery = await buildInboxUnreadBadgeMongoQuery(
+            normalizedToken,
+            inboxParams,
+            archivedConversationIds,
+            { archivedOnly, includeArchived },
+          );
+          if (!unreadCountQuery) return 0;
+          return aggregateUnreadInboxConversationCount(
+            unreadCountQuery,
+            userId,
+          );
+        })()
+      : Promise.resolve(null);
 
-    // Get the cursor for next page (last message time of the last conversation)
-    const nextCursor = conversationsToReturn.length > 0
-      ? conversationsToReturn[conversationsToReturn.length - 1].lastMessageTime?.toISOString()
-      : null;
+    const [conversationsRaw, tabCounts, unreadCountResult] = await Promise.all([
+      unreadInboxFilter
+        ? fetchUnreadInboxConversationPage(query, userId, limit)
+        : fetchInboxConversationPage(query, limit),
+      aggregateInboxConversationCounts(visibilityQuery),
+      unreadCountPromise,
+    ]);
 
-    // Preload per-user read state for these conversations (per-employee unread tracking)
-    const conversationIds = conversationsToReturn.map((c: any) => c._id);
-    const readStates = await ConversationReadState.find({
-      conversationId: { $in: conversationIds },
-      userId: userId,
-    })
-      .select("conversationId lastReadMessageId lastReadAt")
-      .lean();
+    const counts = {
+      ...tabCounts,
+      ...(unreadCountResult !== null ? { unreadCount: unreadCountResult } : {}),
+    };
 
-    const readStateMap = new Map<string, any>();
-    for (const rs of readStates) {
-      readStateMap.set(String(rs.conversationId), rs);
+    const hasMore = conversationsRaw.length > limit;
+    const conversationsPage = (
+      hasMore ? conversationsRaw.slice(0, limit) : conversationsRaw
+    ) as InboxConversationLean[];
+
+    const nextCursor =
+      conversationsPage.length > 0
+        ? (
+            conversationsPage[conversationsPage.length - 1].lastMessageTime as
+              | Date
+              | undefined
+          )?.toISOString() ?? null
+        : null;
+
+    const { enriched: enrichedPage, typeUpdates } =
+      await enrichInboxConversationPage(conversationsPage, userId);
+
+    scheduleConversationTypeUpdates(typeUpdates);
+
+    const includeProfilePics = searchParams.get("profilePics") !== "false";
+    const includeGuestStats = searchParams.get("guestStats") !== "false";
+
+    let conversationsResult = unreadInboxFilter
+      ? enrichedPage.filter((conv) => (conv.unreadCount || 0) > 0)
+      : enrichedPage;
+
+    if (process.env.NODE_ENV === "development" && conversationsResult[0]) {
+      console.log(
+        "[whatsapp/conversations] enriched fields:",
+        Object.keys(conversationsResult[0]),
+      );
     }
 
-    // Populate lastMessageStatus, determine conversation type, and compute per-user unreadCount
-    const conversationsWithStatus = await Promise.all(
-      conversationsToReturn.map(async (conv: any) => {
-        if (conv.lastMessageDirection === "outgoing" && conv.lastMessageId) {
-          const lastMessage = await WhatsAppMessage.findOne({
-            messageId: conv.lastMessageId,
-          })
-            .select("status")
-            .lean();
-          
-          if (lastMessage && typeof lastMessage === "object" && "status" in lastMessage) {
-            conv.lastMessageStatus = (lastMessage as any).status;
-          }
-        }
-        
-        // Use stored conversationType when set (migration, manual meta, create flows).
-        // Only infer from first template when missing.
-        let conversationType: "owner" | "guest" =
-          conv.conversationType === "owner" || conv.conversationType === "guest"
-            ? conv.conversationType
-            : "guest";
-
-        if (conv.conversationType !== "owner" && conv.conversationType !== "guest") {
-          const firstTemplateMessage = await WhatsAppMessage.findOne({
-            conversationId: conv._id,
-            direction: "outgoing",
-            type: "template",
-            templateName: { $exists: true, $ne: null },
-          })
-            .sort({ timestamp: 1 })
-            .select("templateName")
-            .lean() as { templateName?: string } | null;
-
-          if (firstTemplateMessage?.templateName) {
-            const templateName = String(firstTemplateMessage.templateName).toLowerCase();
-            conversationType =
-              templateName.includes("owners_template") || templateName.startsWith("owner")
-                ? "owner"
-                : "guest";
-          }
-
-          if (conv.conversationType !== conversationType) {
-            await WhatsAppConversation.findByIdAndUpdate(
-              conv._id,
-              { conversationType },
-              { new: false },
-            );
-          }
-        }
-
-        conv.conversationType = conversationType;
-
-        // ---- Per-employee unread logic (WhatsApp-style) ----
-        // Default to zero; we'll compute based on read state and incoming messages.
-        let unreadCount = 0;
-        const readState = readStateMap.get(String(conv._id));
-
-        // Only client (incoming) messages can make a conversation unread.
-        if (conv.lastMessageDirection === "incoming" && conv.lastMessageId) {
-          const lastReadMessageId = readState?.lastReadMessageId;
-
-          // If no read state exists, or the last message differs from lastReadMessageId,
-          // this conversation is unread for this employee.
-          if (!lastReadMessageId || lastReadMessageId !== conv.lastMessageId) {
-            const msgQuery: any = {
-              conversationId: conv._id,
-              direction: "incoming",
-            };
-
-            // If we have a lastReadAt timestamp, only count messages after that.
-            if (readState?.lastReadAt) {
-              msgQuery.timestamp = { $gt: readState.lastReadAt };
-            }
-
-            unreadCount = await WhatsAppMessage.countDocuments(msgQuery);
-          }
-        }
-
-        // Override stored unreadCount with per-employee value
-        conv.unreadCount = unreadCount;
-
-        // Add global archive state
-        const archiveState = archiveStateMap.get(String(conv._id));
-        conv.isArchivedByUser = archiveState?.isArchived || false; // Keep field name for backward compatibility
-        conv.archivedAt = archiveState?.archivedAt || null;
-        conv.archivedBy = archiveState?.archivedBy?.toString() || null; // Track who archived
-
-        // Flag internal conversations
-        conv.isInternal = conv.source === "internal";
-
-        return conv;
-      })
-    );
-
-    // Enrich participantProfilePic from leads (Query) when available (non-fatal)
-    try {
-      const participantPhones = [...new Set(conversationsWithStatus
-        .filter((c: any) => c.participantPhone && c.source !== "internal")
-        .map((c: any) => c.participantPhone.replace(/\D/g, "")))];
-      if (participantPhones.length > 0) {
-        const leads = await Query.find({
-          phoneNo: { $in: participantPhones },
-          profilePicture: { $exists: true, $ne: "" },
-        })
-          .select("phoneNo profilePicture")
-          .lean();
-        const phoneToProfilePic = new Map<string, string>();
-        for (const lead of leads as any[]) {
-          const normalized = String(lead.phoneNo || "").replace(/\D/g, "");
-          if (normalized && lead.profilePicture) phoneToProfilePic.set(normalized, lead.profilePicture);
-        }
-        for (const conv of conversationsWithStatus as any[]) {
-          if (conv.source === "internal") continue;
-          const normalized = (conv.participantPhone || "").replace(/\D/g, "");
-          const pic = phoneToProfilePic.get(normalized);
-          if (pic) conv.participantProfilePic = pic;
-        }
-      }
-    } catch (enrichErr) {
-      console.warn("Lead profile picture enrichment failed:", enrichErr);
-    }
-
-    const guestIdsForStats = conversationsWithStatus
+    const guestIdsForStats = conversationsResult
       .filter(
-        (c: { conversationType?: string; source?: string }) =>
+        (c) =>
           c.conversationType === "guest" && c.source !== "internal",
       )
-      .map((c: { _id: mongoose.Types.ObjectId }) => c._id);
-    let conversationsWithGuestStats = conversationsWithStatus;
-    try {
-      const guestStatsMap = await getGuestOutboundStatsByConversationIds(guestIdsForStats);
-      conversationsWithGuestStats = mergeGuestOutboundStats(
-        conversationsWithStatus,
-        guestStatsMap,
+      .map((c) => c._id);
+
+    const nonCriticalTasks: Promise<void>[] = [];
+
+    if (includeProfilePics) {
+      nonCriticalTasks.push(
+        applyLeadProfilePicsToInboxPage(conversationsResult).catch((err) => {
+          console.warn("Lead profile picture enrichment failed:", err);
+        }),
       );
-    } catch (statsErr) {
-      console.warn("Guest outbound stats aggregation failed:", statsErr);
     }
 
-    // =========================================================
-    // Get or create "You" conversation (WhatsApp-style Message Yourself)
-    // =========================================================
-    let youConversation: any = null;
-    try {
-      // Get user's phone number from employee record
-      const employee = await Employee.findById(userId).select("phone name").lean() as any;
-      if (employee && employee.phone) {
-        const userPhone = employee.phone.replace(/\D/g, ""); // Normalize phone
-        
-        // Find or create "You" conversation
-        youConversation = await WhatsAppConversation.findOne({
-          participantPhone: userPhone,
-          source: "internal",
-          businessPhoneId: INTERNAL_YOU_PHONE_ID,
-        }).lean();
-
-        if (!youConversation) {
-          // Create the "You" conversation
-          const newYouConv = await WhatsAppConversation.create({
-            participantPhone: userPhone,
-            participantName: employee.name || "You",
-            businessPhoneId: INTERNAL_YOU_PHONE_ID,
-            source: "internal",
-            status: "active",
-            unreadCount: 0,
-            lastMessageTime: new Date(),
-          });
-          youConversation = newYouConv.toObject();
-        }
-
-        // Check if "You" conversation is globally archived
-        const youArchiveState = await ConversationArchiveState.findOne({
-          conversationId: youConversation._id,
-          isArchived: true,
-        }).lean();
-
-        // Only include "You" conversation if not globally archived and not in archived-only view
-        if (!archivedOnly && !youArchiveState) {
-          // Drop any stale internal rows (e.g. before source filter) so "You" appears once
-          const youId = youConversation._id?.toString();
-          for (let i = conversationsWithGuestStats.length - 1; i >= 0; i--) {
-            const row = conversationsWithGuestStats[i] as {
-              _id?: { toString?: () => string };
-              source?: string;
-              businessPhoneId?: string;
-            };
-            if (
-              row.source === "internal" ||
-              row.businessPhoneId === INTERNAL_YOU_PHONE_ID ||
-              (youId && row._id?.toString?.() === youId)
-            ) {
-              conversationsWithGuestStats.splice(i, 1);
-            }
-          }
-          // Get read state for "You" conversation
-          const youReadState = await ConversationReadState.findOne({
-            conversationId: youConversation._id,
-            userId: new mongoose.Types.ObjectId(userId),
-          }).lean();
-
-          // Get last message for "You" conversation to set proper lastMessageTime
-          const lastMessage = await WhatsAppMessage.findOne({
-            conversationId: youConversation._id,
+    if (includeGuestStats && guestIdsForStats.length > 0) {
+      nonCriticalTasks.push(
+        getGuestOutboundStatsByConversationIds(guestIdsForStats)
+          .then((guestStatsMap) => {
+            conversationsResult = mergeGuestOutboundStats(
+              conversationsResult,
+              guestStatsMap,
+            ) as InboxConversationLean[];
           })
-            .sort({ timestamp: -1 })
-            .select("timestamp content type")
-            .lean() as any;
-
-          // Calculate unread count (should always be 0 for "You" since messages are outgoing)
-          youConversation.unreadCount = 0;
-          youConversation.isArchivedByUser = false;
-          youConversation.isInternal = true;
-          youConversation.participantName = "You"; // Always show as "You"
-          
-          // Set last message info if exists
-          if (lastMessage) {
-            youConversation.lastMessageTime = lastMessage.timestamp;
-            const messageContent = lastMessage.content;
-            youConversation.lastMessageContent = 
-              typeof messageContent === "string"
-                ? messageContent
-                : (messageContent?.text || messageContent?.caption || `${lastMessage.type} message`);
-            youConversation.lastMessageDirection = "outgoing";
-            youConversation.lastMessageStatus = undefined; // No status for internal
-          }
-
-          // Add to conversations list (at the top, like WhatsApp)
-          conversationsWithGuestStats.unshift(youConversation);
-        }
-      }
-    } catch (error) {
-      console.error("Error getting/creating 'You' conversation:", error);
-      // Continue without "You" conversation if there's an error
+          .catch((statsErr) => {
+            console.warn("Guest outbound stats aggregation failed:", statsErr);
+          }),
+      );
     }
 
-    // NOTE: Phone configs are now loaded independently via /api/whatsapp/phone-configs
-    // This endpoint only returns conversations - clean separation of concerns
-    // Phone configs are source of truth, conversations consume them
+    const phoneMaskRulesPromise = resolveMaskRulesForToken(token);
 
-    // Count archived conversations for badge display
-    const archivedCount = archivedConversationIds.length;
+    if (nonCriticalTasks.length > 0) {
+      await runWithOptionalTimeout(
+        Promise.all(nonCriticalTasks).then(() => undefined),
+        ENRICHMENT_TIMEOUT_MS,
+      );
+    }
 
-    const phoneMaskRules = await resolveMaskRulesForToken(token);
-    const maskedConversations = conversationsWithGuestStats.map((conv: Record<string, unknown>) =>
-      applyPhoneMaskToConversation(conv, phoneMaskRules, userRole),
+    const phoneMaskRules = await phoneMaskRulesPromise;
+    const maskedConversations = conversationsResult.map(
+      (conv: Record<string, unknown>) =>
+        applyPhoneMaskToConversation(conv, phoneMaskRules, userRole),
     );
 
     return NextResponse.json({
       success: true,
       conversations: maskedConversations,
       phoneMaskRules,
-      archivedCount, // Number of archived conversations for this user
+      archivedCount,
+      counts,
       pagination: {
         limit,
         hasMore,

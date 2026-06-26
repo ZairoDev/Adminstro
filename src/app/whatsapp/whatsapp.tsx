@@ -1,7 +1,8 @@
-﻿"use client";
-import { useState, useEffect, useRef, useCallback, startTransition } from "react";
+"use client";
+import { useState, useEffect, useRef, useCallback, useMemo, startTransition, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
-import { type WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
+import dynamic from "next/dynamic";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/AuthStore";
@@ -12,6 +13,13 @@ import { useToast } from "@/hooks/use-toast";
 import { MessageSquare, ArrowLeft } from "lucide-react";
 import type { Message, Conversation, Template } from "./types";
 import { useMobileView, type MobileView } from "./hooks/useMobileView";
+import {
+  repositionConversationAfterUpdate,
+  insertConversationAtCorrectPosition,
+  patchConversationInList,
+  buildMessagesQueryKey,
+} from "./lib/whatsappQueryCache";
+import { buildWhatsAppInboxUrl } from "./lib/whatsappInboxUrl";
 import { cn } from "@/lib/utils";
 import {
   buildTemplateComponents,
@@ -19,37 +27,16 @@ import {
   getTemplatePreviewText,
   getConversationTemplateContext,
   getConversationBusinessPhoneId,
+  resolveTemplatesCacheKey,
 } from "./utils";
 import {
-  FULL_ACCESS_ROLES,
-  getRetargetPhoneId,
   isWhatsAppAccessRole,
 } from "@/lib/whatsapp/config";
-import { ConversationSidebar } from "./components/ConversationSidebar";
-import { ChatHeader } from "./components/ChatHeader";
-import { MessageList } from "./components/MessageList";
-import { MessageComposer } from "./components/MessageComposer";
-import { AddGuestModal } from "./components/AddGuestModal";
-import { useInitiationLimit } from "./hooks/useInitiationLimit";
-import { InitiationLimitBadge } from "./components/InitiationLimitBadge";
-import { CrmQuickActionsBar } from "./components/CrmQuickActionsBar";
-import { DispositionDialog } from "./components/DispositionDialog";
-import { SetVisitDialog } from "./components/SetVisitDialog";
-import { ReminderDialog } from "./components/ReminderDialog";
-import {
-  canUseInboxLocationFilter,
-  getInboxLocationFilterOptionsForUser,
-} from "@/lib/whatsapp/participantLocationPrivileges";
-import { SUPERADMIN_DEFAULT_INBOX_LOCATION } from "@/lib/whatsapp/locationConstants";
-import { ForwardDialog } from "./components/ForwardDialog";
-import { LeadTransferDialog } from "./components/LeadTransferDialog";
-import { CrmPanel } from "./components/CrmPanel";
+import { ConversationSidebarContainer, type ConversationSidebarContainerProps } from "./containers/ConversationSidebarContainer";
+import { MessageThreadContainer, type MessageThreadContainerProps, type SendActions } from "./containers/MessageThreadContainer";
 import { getWhatsAppNotificationController } from "@/lib/notifications/whatsappNotificationController";
 import { collectMetaGraphErrorText } from "@/lib/whatsapp/metaGraphError";
 import {
-  applyPhoneMaskToConversation,
-  getWhatsAppPhoneMaskFromToken,
-  maskConversationsForViewer,
   shouldMaskConversationPhone,
   type WhatsAppPhoneMaskRules,
 } from "@/lib/whatsapp/phoneMask";
@@ -80,17 +67,58 @@ import {
   type IceGatheredCandidate,
 } from "@/lib/whatsapp/calling";
 import {
-  showDesktopNotification,
   requestDesktopNotificationPermission,
   getDesktopNotificationPermission,
   isDesktopNotificationSupported,
 } from "@/lib/whatsapp/browserDesktopNotify";
 import { usePeerConnectionStats } from "./hooks/usePeerConnectionStats";
-import { WhatsAppCallOverlay } from "./components/calling/WhatsAppCallOverlay";
+import { WhatsAppProviders } from "./context/WhatsAppProviders";
+import {
+  useConversationListState,
+  useConversationListActionsRef,
+} from "./context/ConversationListContext";
+import {
+  useActiveThreadState,
+  useActiveThreadActionsRef,
+} from "./context/ActiveThreadContext";
+import { useWhatsAppUIState } from "./context/WhatsAppUIContext";
+import { useSocketHandlers } from "./modules/useSocketHandlers";
+import {
+  addToLRUSet,
+  simpleHashUtf8,
+  type PendingIncomingCallInvite,
+} from "./modules/socketUtils";
+
+const WhatsAppCallOverlay = dynamic(
+  () =>
+    import("./components/calling/WhatsAppCallOverlay").then((m) => ({
+      default: m.WhatsAppCallOverlay,
+    })),
+  { ssr: false, loading: () => null },
+);
+
+const ForwardDialog = dynamic(
+  () => import("./components/ForwardDialog").then((m) => ({ default: m.ForwardDialog })),
+  { ssr: false, loading: () => null },
+);
+
+const LeadTransferDialog = dynamic(
+  () =>
+    import("./components/LeadTransferDialog").then((m) => ({
+      default: m.LeadTransferDialog,
+    })),
+  { ssr: false, loading: () => null },
+);
+
+const AddGuestModal = dynamic(
+  () => import("./components/AddGuestModal").then((m) => ({ default: m.AddGuestModal })),
+  { ssr: false, loading: () => null },
+);
+
 
 /**
  * `/api/whatsapp/call` returns Zod `issues`, or `{ error, data }` (Meta body in `data`).
- * Axios only logs "400"; the real reason is in `response.data` â€” use this for toasts.
+ * Axios only logs "400"; the real reason is in `response.data` ? use this for toasts.
  */
 function formatWhatsAppCallApiError(error: unknown): string {
   if (typeof error !== "object" || error === null) return String(error);
@@ -114,39 +142,6 @@ function formatWhatsAppCallApiError(error: unknown): string {
   }
   return ax.message || "Request failed";
 }
-
-function simpleHashUtf8(s: string): string {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0).toString(16);
-}
-
-/** Webhook / socket call status â†’ remote leg ended; close local UI + PC. */
-function isRemoteCallTerminalStatus(status: string): boolean {
-  const s = status.trim().toLowerCase();
-  return (
-    s === "busy" ||
-    s === "rejected" ||
-    s === "declined" ||
-    s === "missed" ||
-    s === "failed" ||
-    s === "terminated" ||
-    s === "completed" ||
-    s === "ended" ||
-    s === "disconnect"
-  );
-}
-
-type PendingIncomingCallInvite = {
-  callId: string;
-  conversationId: string;
-  phoneNumberId: string;
-  offerSdp: string;
-  contactLabel: string;
-};
 
 type IceServersFetchResult = {
   servers: RTCIceServer[];
@@ -212,8 +207,8 @@ function snapshotIceGathered(pc: RTCPeerConnection): IceGatheredCandidate[] {
  * `iceGatheringState === "complete"` event arrived slightly after our cutoff.
  *
  * Listens to both:
- *   - `icegatheringstatechange` â†’ "complete"  (standard)
- *   - `icecandidate` â†’ null candidate          (Chrome trickle-ICE end signal)
+ *   - `icegatheringstatechange` ? "complete"  (standard)
+ *   - `icecandidate` ? null candidate          (Chrome trickle-ICE end signal)
  */
 function awaitIceGatheringOrTimeout(pc: RTCPeerConnection, timeoutMs: number): Promise<void> {
   return new Promise<void>((resolve) => {
@@ -244,7 +239,7 @@ function awaitIceGatheringOrTimeout(pc: RTCPeerConnection, timeoutMs: number): P
 
     const timer = window.setTimeout(() => {
       const count = (pc.localDescription?.sdp?.match(/^a=candidate:/gm) ?? []).length;
-      console.warn(`[ice] gathering timeout after ${timeoutMs}ms; ${count} raw candidate(s) in SDP so far â€” continuing anyway`);
+      console.warn(`[ice] gathering timeout after ${timeoutMs}ms; ${count} raw candidate(s) in SDP so far ? continuing anyway`);
       finish("timeout");
     }, timeoutMs);
 
@@ -289,10 +284,19 @@ async function attachLocalAudioOrRecvOnly(
 }
 
 export default function WhatsAppChat() {
+  return (
+    <WhatsAppProviders>
+      <WhatsAppChatInner />
+    </WhatsAppProviders>
+  );
+}
+
+function WhatsAppChatInner() {
   const { token } = useAuthStore();
   const { socket, isConnected } = useSocket();
   const router = useRouter();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -300,17 +304,23 @@ export default function WhatsAppChat() {
   const audioInputRef = useRef<HTMLInputElement>(null);
   const seenEventIdsRef = useRef<Set<string>>(new Set());
   const seenMessageIdsRef = useRef<Set<string>>(new Set());
+
+  // Stable ref that MessageThreadContainer calls to reach shell's send handlers.
+  // Updated every render (after all handlers are defined) so closures are always fresh.
+  const sendActionsRef = useRef<SendActions>({
+    sendMessage: async () => {},
+    sendTemplateMessage: async () => {},
+    handleFileUpload: async () => {},
+    handleSendMediaWithCaptions: async () => {},
+  });
   const messagesFetchGenRef = useRef(0);
   const lastSoundPlayedRef = useRef<number>(0);
-  const handleWhatsAppMessageRef = useRef<((data: any) => void) | null>(null);
-  
-  const addToLRUSet = (set: Set<string>, value: string, maxSize = 500) => {
-    if (set.size >= maxSize) {
-      const first = set.values().next().value;
-      if (first) set.delete(first);
-    }
-    set.add(value);
-  };
+  const handleWhatsAppMessageRef = useRef<((data: unknown) => void) | null>(null);
+  const [clientMounted, setClientMounted] = useState(false);
+
+  useEffect(() => {
+    setClientMounted(true);
+  }, []);
 
   const playNotificationSound = useCallback(() => {
     const now = Date.now();
@@ -337,146 +347,246 @@ export default function WhatsAppChat() {
     safeAreaInsets,
   } = useMobileView();
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [allowedPhoneConfigs, setAllowedPhoneConfigs] = useState<WhatsAppPhoneConfig[]>([]);
+  const listActionsRef = useConversationListActionsRef();
+  const threadActionsRef = useActiveThreadActionsRef();
 
-  const sortConversations = (convs: Conversation[]) => {
-    return convs.sort((a, b) => {
-      const aIsInternal = a.isInternal || a.source === "internal";
-      const bIsInternal = b.isInternal || b.source === "internal";
-      if (aIsInternal && !bIsInternal) return -1;
-      if (!aIsInternal && bIsInternal) return 1;
-      return new Date(b.lastMessageTime || 0).getTime() - new Date(a.lastMessageTime || 0).getTime();
-    });
-  };
-  const isInitialLoadRef = useRef(true); // Track if this is the first load
-  const [selectedConversation, setSelectedConversation] =
-    useState<Conversation | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  
-  // Infinite scroll state for conversations
-  const [conversationsCursor, setConversationsCursor] = useState<string | null>(null);
-  const [hasMoreConversations, setHasMoreConversations] = useState(true);
-  const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
-  
-  // Progressive message loading state
-  const [messagesCursor, setMessagesCursor] = useState<{ messageId: string; timestamp: string } | null>(null);
-  const [hasMoreMessages, setHasMoreMessages] = useState(false);
-  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
-  
-  // Conversation counts from database
-  const [conversationCounts, setConversationCounts] = useState({
-    totalCount: 0,
-    ownerCount: 0,
-    guestCount: 0,
-  });
+  const {
+    conversations,
+    loading,
+    hasMoreConversations,
+    loadingMoreConversations,
+    conversationCounts,
+    totalUnreadCount,
+    searchQuery,
+    setSearchQuery,
+    labelFilter,
+    setLabelFilter,
+    adminQueue,
+    adminLocationFilter,
+    adminLocationOptions,
+    sidebarTabHint,
+    setSidebarTabHint,
+    showingArchived,
+    archivedConversations,
+    archivedCount,
+    archivedUnreadCount,
+    archivedPrefetchUnreadTotal,
+    archivedHasMore,
+    loadingMoreArchived,
+    archivedLoading,
+    phoneMaskRules,
+    initiationLimitRefreshKey,
+    newCountryCode,
+    setNewCountryCode,
+    newPhoneNumber,
+    setNewPhoneNumber,
+  } = useConversationListState();
 
-  // Archive functionality (WhatsApp-style per-user archive)
-  const [archivedCount, setArchivedCount] = useState(0);
-  const [archivedUnreadCount, setArchivedUnreadCount] = useState(0);
-  const [showingArchived, setShowingArchived] = useState(false);
-  const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([]);
+  const {
+    selectedConversation,
+    messages,
+    messagesLoading,
+    hasMoreMessages,
+    loadingOlderMessages,
+    templates,
+    templatesLoading,
+    templatesChannelScoped,
+    readersRefreshToken,
+    allowedPhoneConfigs,
+    phoneConfigsReady,
+    newMessage,
+    setNewMessage,
+    replyToMessage,
+    setReplyToMessage,
+    sendingMessage,
+    setSendingMessage,
+    uploadingMedia,
+    setUploadingMedia,
+    selectedTemplate,
+    setSelectedTemplate,
+    templateParams,
+    setTemplateParams,
+    showMessageSearch,
+    setShowMessageSearch,
+    messageSearchQuery,
+    setMessageSearchQuery,
+    pendingScrollToMessageId,
+    setPendingScrollToMessageId,
+  } = useActiveThreadState();
 
-  // Admin Queue: show conversations without a location key (full-access roles only)
-  const [adminQueue, setAdminQueue] = useState(false);
-  /** SuperAdmin: filter inbox by participant city ("all" = no filter) */
-  const [adminLocationFilter, setAdminLocationFilter] = useState(() => {
-    if (typeof window === "undefined") return "all";
-    const params = new URLSearchParams(window.location.search);
-    const fromUrl = params.get("locationFilter");
-    if (fromUrl) return fromUrl;
-    if (params.get("adminQueue") === "true") return "all";
-    try {
-      const stored = JSON.parse(localStorage.getItem("token") || "null") as {
-        role?: string;
-      } | null;
-      if (stored?.role === "SuperAdmin") {
-        return SUPERADMIN_DEFAULT_INBOX_LOCATION;
-      }
-    } catch {
-      /* ignore malformed token */
-    }
-    return "all";
-  });
-  const inboxLocationFilterInitializedRef = useRef(false);
-  const [adminLocationOptions, setAdminLocationOptions] = useState<string[]>([]);
-  /** After Add Owner/Guest, switch sidebar tab so the new chat is not hidden by tab filter */
-  const [sidebarTabHint, setSidebarTabHint] = useState<"all" | "owners" | "guests" | null>(null);
-  const [labelFilter, setLabelFilter] = useState("all");
-  const [initiationLimitRefreshKey, setInitiationLimitRefreshKey] = useState(0);
-  const { status: initiationLimitStatus } = useInitiationLimit(initiationLimitRefreshKey);
-  const guestInitiationAtLimit = initiationLimitStatus?.atLimit ?? false;
-  const [showDispositionDialog, setShowDispositionDialog] = useState(false);
-  const [showVisitDialog, setShowVisitDialog] = useState(false);
-  const [showReminderDialog, setShowReminderDialog] = useState(false);
+  const {
+    showDispositionDialog,
+    setShowDispositionDialog,
+    showVisitDialog,
+    setShowVisitDialog,
+    showReminderDialog,
+    setShowReminderDialog,
+    showCrmPanel,
+    setShowCrmPanel,
+    showAddContactModal,
+    setShowAddContactModal,
+    addContactType,
+    setAddContactType,
+    showForwardDialog,
+    setShowForwardDialog,
+    messagesToForward,
+    setMessagesToForward,
+    forwardingMessages,
+    setForwardingMessages,
+    showTransferDialog,
+    setShowTransferDialog,
+    transferringLead,
+    setTransferringLead,
+    showTemplateDialog,
+    setShowTemplateDialog,
+    desktopNotifyBannerDismissed,
+    setDesktopNotifyBannerDismissed,
+  } = useWhatsAppUIState();
 
-  const [showCrmPanel, setShowCrmPanel] = useState(false);
+  const conversationsFiltersRef = listActionsRef.current.conversationsFiltersRef;
+  const refetchConversationsListRef = listActionsRef.current.refetchConversationsListRef;
+  const archivedConversationIdsRef = listActionsRef.current.archivedConversationIdsRef;
+  const selectedConversationRef = threadActionsRef.current.selectedConversationRef;
+  const markConversationAsReadRef = threadActionsRef.current.markConversationAsReadRef;
 
-  // Total unread messages count (socket-based, real-time)
-  const [totalUnreadCount, setTotalUnreadCount] = useState(0);
+  const patchConversationsList = useCallback(
+    (mutator: (list: Conversation[]) => Conversation[]) => {
+      listActionsRef.current.patchConversationsList(mutator);
+    },
+    [listActionsRef],
+  );
 
-  const [desktopNotifyBannerDismissed, setDesktopNotifyBannerDismissed] = useState(() => {
-    if (typeof window === "undefined") return true;
-    try {
-      return localStorage.getItem("whatsapp_desktop_notify_dismissed") === "1";
-    } catch {
-      return false;
-    }
-  });
-  
-  // Add Guest Modal state
-  const [showAddContactModal, setShowAddContactModal] = useState(false);
-  const [addContactType, setAddContactType] = useState<"owner" | "guest">("owner");
+  const mutateActiveMessages = useCallback(
+    (mutator: (messages: Message[]) => Message[]) => {
+      threadActionsRef.current.mutateActiveMessages(mutator);
+    },
+    [threadActionsRef],
+  );
 
-  const [phoneMaskRules, setPhoneMaskRules] = useState<WhatsAppPhoneMaskRules>({
-    maskOwnerPhones: false,
-    maskGuestPhones: false,
-  });
+  const refetchConversationsList = useCallback(
+    () => listActionsRef.current.refetchConversationsList(),
+    [listActionsRef],
+  );
+
+  const fetchNextConversationsPage = useCallback(() => {
+    listActionsRef.current.fetchNextConversationsPage();
+  }, [listActionsRef]);
+
+  const maskConversationForViewer = useCallback(
+    (conv: Conversation) => listActionsRef.current.maskConversationForViewer(conv),
+    [listActionsRef],
+  );
+
+  const maskConversationListForViewer = useCallback(
+    (list: Conversation[]) => listActionsRef.current.maskConversationListForViewer(list),
+    [listActionsRef],
+  );
+
+  const syncArchivedStorage = useCallback(
+    (ids: string[]) => listActionsRef.current.syncArchivedStorage(ids),
+    [listActionsRef],
+  );
+
+  const handleUpdateConversation = useCallback(
+    (conversationId: string, patch: Partial<Conversation>) => {
+      threadActionsRef.current.handleUpdateConversation(conversationId, patch);
+    },
+    [threadActionsRef],
+  );
+
+  const handleCrmLabelsUpdated = useCallback(
+    (labels: string[]) => threadActionsRef.current.handleCrmLabelsUpdated(labels),
+    [threadActionsRef],
+  );
+
+  const selectConversation = useCallback(
+    (conversation: Conversation | null) => {
+      threadActionsRef.current.selectConversation(conversation);
+    },
+    [threadActionsRef],
+  );
+
+  const loadOlderMessages = useCallback(() => {
+    threadActionsRef.current.loadOlderMessages();
+  }, [threadActionsRef]);
+
+  const markConversationAsRead = useCallback(
+    (conversationId: string, opts?: { lastMessageId?: string }) =>
+      threadActionsRef.current.markConversationAsRead(conversationId, opts),
+    [threadActionsRef],
+  );
+
+  const archiveConversation = useCallback(
+    (conversationId: string) => listActionsRef.current.archiveConversation(conversationId),
+    [listActionsRef],
+  );
+
+  const unarchiveConversation = useCallback(
+    (conversationId: string) => listActionsRef.current.unarchiveConversation(conversationId),
+    [listActionsRef],
+  );
+
+  const toggleArchiveView = useCallback(() => {
+    listActionsRef.current.toggleArchiveView();
+  }, [listActionsRef]);
+
+  const fetchArchivedConversations = useCallback(
+    (opts?: { silent?: boolean; loadMore?: boolean }) =>
+      listActionsRef.current.fetchArchivedConversations(opts),
+    [listActionsRef],
+  );
+
+  const handleAdminQueueChange = useCallback(
+    (value: boolean) => listActionsRef.current.handleAdminQueueChange(value),
+    [listActionsRef],
+  );
+
+  const handleAdminLocationFilterChange = useCallback(
+    (value: string) => listActionsRef.current.handleAdminLocationFilterChange(value),
+    [listActionsRef],
+  );
+
+  const setAdminQueue = useCallback(
+    (value: boolean) => listActionsRef.current.setAdminQueue(value),
+    [listActionsRef],
+  );
+
+  const patchArchivedConversations = useCallback(
+    (mutator: (list: Conversation[]) => Conversation[]) => {
+      listActionsRef.current.patchArchivedConversations(mutator);
+    },
+    [listActionsRef],
+  );
+
+  const adjustArchivedUnreadCount = useCallback(
+    (delta: number) => listActionsRef.current.adjustArchivedUnreadCount(delta),
+    [listActionsRef],
+  );
+
+  const setSelectedConversation = useCallback(
+    (value: SetStateAction<Conversation | null>) => {
+      threadActionsRef.current.setSelectedConversation(value);
+    },
+    [threadActionsRef],
+  );
+
+  const templatesCacheKey = useMemo(
+    () => resolveTemplatesCacheKey(selectedConversation, allowedPhoneConfigs),
+    [selectedConversation, allowedPhoneConfigs],
+  );
+
   const phoneMaskRulesRef = useRef(phoneMaskRules);
   const viewerRoleRef = useRef(token?.role || "");
 
-  const maskConversationForViewer = useCallback((conv: Conversation): Conversation => {
-    return applyPhoneMaskToConversation(
-      conv,
-      phoneMaskRulesRef.current,
-      viewerRoleRef.current,
-    );
-  }, []);
+  useEffect(() => {
+    phoneMaskRulesRef.current = phoneMaskRules;
+  }, [phoneMaskRules]);
 
-  const maskConversationListForViewer = useCallback((list: Conversation[]): Conversation[] => {
-    return maskConversationsForViewer(
-      list,
-      phoneMaskRulesRef.current,
-      viewerRoleRef.current,
-    );
-  }, []);
-  
-  // Forward Dialog state
-  const [showForwardDialog, setShowForwardDialog] = useState(false);
-  const [messagesToForward, setMessagesToForward] = useState<string[]>([]);
-  const [forwardingMessages, setForwardingMessages] = useState(false);
-  
-  // Lead Transfer Dialog state
-  const [showTransferDialog, setShowTransferDialog] = useState(false);
-  const [transferringLead, setTransferringLead] = useState(false);
-  const [newMessage, setNewMessage] = useState("");
-  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null);
-  const [newCountryCode, setNewCountryCode] = useState("91"); // Default to India
-  const [newPhoneNumber, setNewPhoneNumber] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [pendingScrollToMessageId, setPendingScrollToMessageId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [messagesLoading, setMessagesLoading] = useState(false);
-  const [sendingMessage, setSendingMessage] = useState(false);
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [templatesLoading, setTemplatesLoading] = useState(false);
-  const [templatesChannelScoped, setTemplatesChannelScoped] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
-  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
+  useEffect(() => {
+    viewerRoleRef.current = token?.role || "";
+  }, [token?.role]);
 
-  // Media upload state
-  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const isInitialLoadRef = useRef(true);
 
   // Call state
   const [callingAudio, setCallingAudio] = useState(false);
@@ -490,6 +600,9 @@ export default function WhatsAppChat() {
   const [callPermissions, setCallPermissions] = useState({
     canMakeCalls: false,
   });
+  const [callPermsFetched, setCallPermsFetched] = useState(false);
+  const callPermissionsRef = useRef(callPermissions);
+  const callPermsFetchInFlightRef = useRef(false);
   const [outboundCallUi, setOutboundCallUi] = useState<OutboundCallUiState | null>(null);
   const [pendingIncomingInvite, setPendingIncomingInvite] = useState<PendingIncomingCallInvite | null>(null);
   const pendingIncomingInviteRef = useRef<PendingIncomingCallInvite | null>(null);
@@ -507,7 +620,7 @@ export default function WhatsAppChat() {
   const relayConfiguredRef = useRef(false);
   const [lastAnswerSdpPreview, setLastAnswerSdpPreview] = useState<string | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
-  /** Single MediaStream for all remote audio tracks â€” avoids replace races / duplicate playback. */
+  /** Single MediaStream for all remote audio tracks ? avoids replace races / duplicate playback. */
   const remotePlaybackStreamRef = useRef<MediaStream | null>(null);
   const pendingOutboundCallRef = useRef<{ conversationId: string } | null>(null);
   const callSoundRef = useRef<OutboundCallSoundController | null>(null);
@@ -532,141 +645,26 @@ export default function WhatsAppChat() {
    */
   const suppressPrematureInboundIceCleanupRef = useRef(false);
 
-  // Search in messages
-  const [showMessageSearch, setShowMessageSearch] = useState(false);
-  const [messageSearchQuery, setMessageSearchQuery] = useState("");
-
-  
-  // Cross-tab helpers for notification filtering
-  const syncArchivedStorage = useCallback((ids: string[]) => {
-    if (typeof window === "undefined") return;
-    try {
-      localStorage.setItem(
-        "whatsapp_archived_conversations",
-        JSON.stringify(ids)
-      );
-    } catch (err) {
-      console.error("Failed to sync archived conversations to storage", err);
-    }
-  }, []);
-
-  const updateLocalLastReadAt = useCallback((conversationId: string) => {
-    if (typeof window === "undefined" || !conversationId) return;
-    try {
-      const raw = localStorage.getItem("whatsapp_last_read_at");
-      const map = raw ? JSON.parse(raw) : {};
-      map[conversationId] = new Date().toISOString();
-      localStorage.setItem("whatsapp_last_read_at", JSON.stringify(map));
-    } catch (err) {
-      console.error("Failed to persist last read state locally", err);
-    }
-  }, []);
-
-  const markReadInFlightRef = useRef(new Set<string>());
-  const lastMarkedReadMessageRef = useRef<Record<string, string>>({});
-  const markConversationAsReadRef = useRef<
-    (conversationId: string, opts?: { lastMessageId?: string }) => Promise<void>
-  >(async () => {});
-
-  const markConversationAsRead = useCallback(
-    async (conversationId: string, opts?: { lastMessageId?: string }) => {
-      if (!conversationId || markReadInFlightRef.current.has(conversationId)) return;
-
-      const messageId = opts?.lastMessageId?.trim() || "";
-      if (
-        messageId &&
-        lastMarkedReadMessageRef.current[conversationId] === messageId
-      ) {
-        return;
-      }
-
-      markReadInFlightRef.current.add(conversationId);
-      try {
-        const response = await axios.post("/api/whatsapp/conversations/read", {
-          conversationId,
-        });
-        if (response.data?.skipped) return;
-
-        const markedId = response.data?.lastReadMessageId;
-        if (markedId) {
-          lastMarkedReadMessageRef.current[conversationId] = String(markedId);
-        } else if (messageId) {
-          lastMarkedReadMessageRef.current[conversationId] = messageId;
-        }
-
-        updateLocalLastReadAt(conversationId);
-        setConversations((prev) => {
-          const updated = prev.map((c) =>
-            c._id === conversationId ? { ...c, unreadCount: 0 } : c,
-          );
-          setTotalUnreadCount(
-            updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0),
-          );
-          return updated;
-        });
-        setArchivedConversations((prev) =>
-          prev.map((c) => (c._id === conversationId ? { ...c, unreadCount: 0 } : c)),
-        );
-      } catch {
-        // Non-blocking — read state will reconcile on next inbox fetch
-      } finally {
-        markReadInFlightRef.current.delete(conversationId);
-      }
-    },
-    [updateLocalLastReadAt],
-  );
-
-  useEffect(() => {
-    markConversationAsReadRef.current = markConversationAsRead;
-  }, [markConversationAsRead]);
-
-  const persistActiveConversation = useCallback(
-    (conversationId?: string | null) => {
-      if (typeof window === "undefined") return;
-      if (conversationId) {
-        localStorage.setItem(
-          "whatsapp_active_conversation",
-          JSON.stringify({
-            conversationId,
-            updatedAt: Date.now(),
-          })
-        );
-      } else {
-        localStorage.removeItem("whatsapp_active_conversation");
-      }
-    },
-    []
-  );
-
-
-  // Readers refresh token (bumps when we receive a real-time read event)
-  const [readersRefreshToken, setReadersRefreshToken] = useState(0);
-
-  // Ref to track selected conversation for socket events (avoids stale closure)
-  const selectedConversationRef = useRef<Conversation | null>(null);
   const selectedPhoneIdRef = useRef<string | null>(null);
   selectedPhoneIdRef.current = getConversationBusinessPhoneId(selectedConversation) ?? null;
   const allowedPhoneIdsRef = useRef<string[]>([]);
-  /** Stable channel IDs the user can access — used for dual-room socket subscriptions. */
   const allowedChannelIdsRef = useRef<string[]>([]);
 
-  const handleUpdateConversation = useCallback((conversationId: string, patch: Partial<Conversation>) => {
-    setConversations((prev) => prev.map((c) => (c._id === conversationId ? { ...c, ...patch } : c)));
-    setArchivedConversations((prev) =>
-      prev.map((c) => (c._id === conversationId ? { ...c, ...patch } : c)),
-    );
-    setSelectedConversation((prev) => (prev && prev._id === conversationId ? { ...prev, ...patch } : prev));
-  }, []);
+  useEffect(() => {
+    allowedPhoneIdsRef.current = allowedPhoneConfigs
+      .filter((c) => c.phoneNumberId && !c.isInternal)
+      .map((c) => c.phoneNumberId);
 
-  const handleCrmLabelsUpdated = useCallback(
-    (labels: string[]) => {
-      if (selectedConversationRef.current) {
-        handleUpdateConversation(selectedConversationRef.current._id, { labels });
-      }
-      setInitiationLimitRefreshKey((k) => k + 1);
-    },
-    [handleUpdateConversation],
-  );
+    allowedChannelIdsRef.current = allowedPhoneConfigs
+      .filter((c) => c.channelId && !c.isInternal)
+      .map((c) => c.channelId as string);
+  }, [allowedPhoneConfigs]);
+
+  const convUpdateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fetchArchivedConversationsRef = useRef<
+    (opts?: { silent?: boolean; loadMore?: boolean }) => Promise<void>
+  >(async () => {});
+  fetchArchivedConversationsRef.current = fetchArchivedConversations;
 
   const handleConversationTypeChange = useCallback(
     async (conversationId: string, conversationType: "owner" | "guest") => {
@@ -706,20 +704,6 @@ export default function WhatsAppChat() {
     },
     [handleUpdateConversation, toast],
   );
-
-  const archivedConversationIdsRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    archivedConversationIdsRef.current = new Set(archivedConversations.map((c) => c._id));
-  }, [archivedConversations]);
-
-  // Keep ref in sync with state
-  useEffect(() => {
-    selectedConversationRef.current = selectedConversation;
-    persistActiveConversation(selectedConversation?._id);
-    return () => {
-      persistActiveConversation(null);
-    };
-  }, [selectedConversation, persistActiveConversation]);
 
   const cleanupOutboundCallResources = useCallback(() => {
     suppressPrematureInboundIceCleanupRef.current = false;
@@ -846,7 +830,7 @@ export default function WhatsAppChat() {
           if (!suppressPrematureInboundIceCleanupRef.current) {
             cleanupOutboundCallResources();
           } else {
-            console.warn("[call] PC closed during inbound ICE gather â€” suppress is ON, skipping cleanup");
+            console.warn("[call] PC closed during inbound ICE gather ? suppress is ON, skipping cleanup");
           }
           return;
         }
@@ -854,7 +838,7 @@ export default function WhatsAppChat() {
           setOutboundCallUi((prev) => (prev ? { ...prev, phase: "failed" } : prev));
           if (suppressPrematureInboundIceCleanupRef.current) {
             console.warn(
-              "[call] connectionState failed during inbound answer prep â€” waiting for Meta accept; not closing PC yet",
+              "[call] connectionState failed during inbound answer prep ? waiting for Meta accept; not closing PC yet",
             );
             return;
           }
@@ -902,7 +886,7 @@ export default function WhatsAppChat() {
           setOutboundCallUi((prev) => (prev ? { ...prev, phase: "failed" } : prev));
           if (suppressPrematureInboundIceCleanupRef.current) {
             console.warn(
-              "[call] ICE failed during inbound answer prep â€” waiting for Meta accept; not closing PC yet",
+              "[call] ICE failed during inbound answer prep ? waiting for Meta accept; not closing PC yet",
             );
             return;
           }
@@ -1059,7 +1043,7 @@ export default function WhatsAppChat() {
       });
       if (pc.signalingState === "closed" || pc.connectionState === "closed") {
         throw new Error(
-          `[inbound] RTCPeerConnection closed during ICE gathering â€” ` +
+          `[inbound] RTCPeerConnection closed during ICE gathering ? ` +
             `signalingState=${pc.signalingState} connectionState=${pc.connectionState} ` +
             `iceConnectionState=${pc.iceConnectionState}. ` +
             `Possible causes: premature cleanup, TURN auth rejected, or browser closed PC.`,
@@ -1150,7 +1134,7 @@ export default function WhatsAppChat() {
       suppressPrematureInboundIceCleanupRef.current = false;
 
       setActiveCallId(inv.callId);
-      // Do NOT play the outbound ring here â€” the call is already live from the
+      // Do NOT play the outbound ring here ? the call is already live from the
       // customer's side. Playing a ring tone through speakers while the mic is
       // open feeds it back to the customer (the "ting" noise). Instead wait for
       // `ontrack` to fire which plays the connect chime quietly.
@@ -1166,7 +1150,7 @@ export default function WhatsAppChat() {
         try {
           pc.restartIce();
         } catch {
-          /* ignore â€” best-effort */
+          /* ignore ? best-effort */
         }
       }
 
@@ -1175,7 +1159,7 @@ export default function WhatsAppChat() {
       );
       toast({
         title: "Call answered",
-        description: "Connecting audio with the customerâ€¦",
+        description: "Connecting audio with the customer?",
       });
     } catch (error: unknown) {
       cleanupOutboundCallResources();
@@ -1264,6 +1248,14 @@ export default function WhatsAppChat() {
     if (callStats) statsSnapshotRef.current = callStats as unknown as Record<string, unknown>;
   }, [callStats]);
 
+  // Cleanup all WebRTC resources on unmount (navigation, page close, HMR).
+  useEffect(() => {
+    return () => {
+      cleanupOutboundCallResources();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     const fn = () => {
       const el = remoteAudioRef.current;
@@ -1321,7 +1313,7 @@ export default function WhatsAppChat() {
         return `${m}:${s.toString().padStart(2, "0")}`;
       })();
 
-  /** RTP / outbound media watchdog â€” Meta drops calls when packetsSent stays ~0. */
+  /** RTP / outbound media watchdog ? Meta drops calls when packetsSent stays ~0. */
   useEffect(() => {
     if (!outboundCallUi || outboundCallUi.phase !== "connected") return;
     const pc = peerRef.current;
@@ -1343,7 +1335,7 @@ export default function WhatsAppChat() {
           toast({
             title: "No outbound RTP (audio)",
             description:
-              "packetsSent is still 0 â€” Meta may disconnect (~20s). Check mic, mute, and console [call-media:periodic] logs.",
+              "packetsSent is still 0 ? Meta may disconnect (~20s). Check mic, mute, and console [call-media:periodic] logs.",
             variant: "destructive",
             duration: 14_000,
           });
@@ -1360,7 +1352,7 @@ export default function WhatsAppChat() {
   useEffect(() => {
     const notificationController = getWhatsAppNotificationController();
 
-    console.log("ðŸ”§ Initializing notification controller");
+    console.log("?? Initializing notification controller");
 
     const hasWhatsAppAccess = isWhatsAppAccessRole(token?.role || "");
 
@@ -1446,7 +1438,7 @@ export default function WhatsAppChat() {
         return window.location.pathname.startsWith("/whatsapp");
       },
       onInApp: () => {
-        // Toast handled by SystemNotificationToast — do not re-enter socket handler
+        // Toast handled by SystemNotificationToast ? do not re-enter socket handler
       },
       onBrowser: (raw) => {
         try {
@@ -1493,185 +1485,47 @@ export default function WhatsAppChat() {
 
 
 
-  // Check call permissions on mount
   useEffect(() => {
-    const checkCallPermissions = async () => {
-      try {
-        const response = await axios.get("/api/whatsapp/call");
-        if (response.data.success) {
-          setCallPermissions({
-            canMakeCalls: response.data.canMakeCalls,
-          });
-        }
-      } catch (error) {
-        console.error("Failed to check call permissions:", error);
+    callPermissionsRef.current = callPermissions;
+  }, [callPermissions]);
+
+  const fetchCallPermissions = useCallback(async (): Promise<boolean> => {
+    if (callPermsFetched) {
+      return callPermissionsRef.current.canMakeCalls;
+    }
+    if (callPermsFetchInFlightRef.current) {
+      return callPermissionsRef.current.canMakeCalls;
+    }
+    callPermsFetchInFlightRef.current = true;
+    try {
+      const response = await axios.get("/api/whatsapp/call");
+      if (response.data.success) {
+        const next = { canMakeCalls: Boolean(response.data.canMakeCalls) };
+        setCallPermissions(next);
+        callPermissionsRef.current = next;
+        setCallPermsFetched(true);
+        return next.canMakeCalls;
       }
-    };
-    checkCallPermissions();
-  }, []);
+    } catch (error) {
+      console.error("Failed to check call permissions:", error);
+    } finally {
+      callPermsFetchInFlightRef.current = false;
+    }
+    setCallPermsFetched(true);
+    return false;
+  }, [callPermsFetched]);
 
   const searchParams = useSearchParams();
   const isRetargetOnly = searchParams?.get("retargetOnly") === "1";
   const retargetOnlyRef = useRef(isRetargetOnly);
   retargetOnlyRef.current = isRetargetOnly;
+  const legacyPhoneIdStrippedRef = useRef(false);
 
-  const fetchPhoneConfigs = async () => {
-    try {
-      const response = await axios.get("/api/whatsapp/phone-configs");
-      if (response.data.success) {
-        const phoneConfigs = response.data.phoneConfigs || [];
-        setAllowedPhoneConfigs(phoneConfigs);
-        allowedPhoneIdsRef.current = phoneConfigs
-          .filter((c: WhatsAppPhoneConfig) => c.phoneNumberId && !c.isInternal)
-          .map((c: WhatsAppPhoneConfig) => c.phoneNumberId);
-
-        // Collect channel IDs for dual-room socket subscriptions.
-        allowedChannelIdsRef.current = phoneConfigs
-          .filter((c: WhatsAppPhoneConfig) => (c as any).channelId && !c.isInternal)
-          .map((c: WhatsAppPhoneConfig) => (c as any).channelId as string);
-      }
-    } catch (error: any) {
-      console.error("Error fetching phone configs:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load phone numbers",
-        variant: "destructive",
-      });
-    }
-  };
-
-  useEffect(() => {
-    fetchPhoneConfigs();
-  }, [searchParams]);
-
-  // Load templates from the selected conversation's WABA (short-term vs long-term portfolios).
-  useEffect(() => {
-    fetchTemplates(selectedConversation?._id ?? null);
-  }, [selectedConversation?._id]);
-
-  useEffect(() => {
-    const fromUrl = searchParams?.get("locationFilter");
-    if (fromUrl) {
-      setAdminLocationFilter(fromUrl);
-      inboxLocationFilterInitializedRef.current = true;
-      return;
-    }
-
-    if (!token || inboxLocationFilterInitializedRef.current) return;
-
-    const adminQueueFromUrl = searchParams?.get("adminQueue") === "true";
-    if (token.role === "SuperAdmin" && !adminQueueFromUrl) {
-      setAdminLocationFilter(SUPERADMIN_DEFAULT_INBOX_LOCATION);
-    }
-
-    inboxLocationFilterInitializedRef.current = true;
-  }, [token, searchParams]);
-
-  useEffect(() => {
-    if (!token) return;
-    const privilegeUser = {
-      role: token.role,
-      email: token.email,
-      allotedArea: token.allotedArea,
-    };
-
-    if (token.role === "SuperAdmin") {
-      let cancelled = false;
-      axios
-        .get("/api/monthlyTargets/getLocations")
-        .then((res) => {
-          if (cancelled) return;
-          const raw = res.data?.locations;
-          const cities: string[] = Array.isArray(raw)
-            ? raw
-                .map((item: unknown) =>
-                  typeof item === "string" ? item : String((item as { city?: string })?.city ?? ""),
-                )
-                .filter(Boolean)
-            : [];
-          setAdminLocationOptions([...new Set(cities)].sort((a, b) => a.localeCompare(b)));
-        })
-        .catch(() => {
-          if (!cancelled) setAdminLocationOptions([]);
-        });
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    if (canUseInboxLocationFilter(privilegeUser)) {
-      setAdminLocationOptions(getInboxLocationFilterOptionsForUser(privilegeUser));
-    } else {
-      setAdminLocationOptions([]);
-    }
-  }, [token?.role, token?.email, token?.allotedArea]);
-
-  const syncWhatsAppUrlParams = useCallback(
-    (patch: { locationFilter?: string; adminQueue?: boolean }) => {
-      const next = new URLSearchParams();
-      const retargetOnlyFlag = searchParams?.get("retargetOnly");
-      const conv =
-        searchParams?.get("conversation") || searchParams?.get("conversationId");
-      if (retargetOnlyFlag) next.set("retargetOnly", retargetOnlyFlag);
-      if (conv) next.set("conversation", conv);
-
-      const queue = patch.adminQueue ?? adminQueue;
-      const locFilter = patch.locationFilter ?? adminLocationFilter;
-
-      if (queue) {
-        next.set("adminQueue", "true");
-      } else if (locFilter && locFilter !== "all") {
-        next.set("locationFilter", locFilter);
-      }
-
-      const qs = next.toString();
-      router.replace(qs ? `/whatsapp?${qs}` : "/whatsapp", { scroll: false });
-    },
-    [adminQueue, adminLocationFilter, router, searchParams],
-  );
-
-  const handleAdminLocationFilterChange = useCallback(
-    (value: string) => {
-      setAdminLocationFilter(value);
-      if (value !== "all") {
-        setAdminQueue(false);
-      }
-      syncWhatsAppUrlParams({ locationFilter: value, adminQueue: false });
-    },
-    [syncWhatsAppUrlParams],
-  );
-
-  // Persist SuperAdmin default (Athens) in the URL when no explicit filter was linked.
-  useEffect(() => {
-    if (!token || token.role !== "SuperAdmin") return;
-    if (searchParams?.get("locationFilter")) return;
-    if (searchParams?.get("adminQueue") === "true") return;
-    if (adminLocationFilter !== SUPERADMIN_DEFAULT_INBOX_LOCATION) return;
-    if (!inboxLocationFilterInitializedRef.current) return;
-
-    syncWhatsAppUrlParams({
-      locationFilter: SUPERADMIN_DEFAULT_INBOX_LOCATION,
-      adminQueue: false,
-    });
-  }, [
-    token,
-    adminLocationFilter,
-    searchParams,
-    syncWhatsAppUrlParams,
-  ]);
-
-  const handleAdminQueueChange = useCallback(
-    (value: boolean) => {
-      setAdminQueue(value);
-      syncWhatsAppUrlParams({ adminQueue: value });
-    },
-    [syncWhatsAppUrlParams],
-  );
-
-  // Legacy links used ?phoneId= — strip it; inbox is unified (location + visibility, not phone tabs).
+  // Legacy links used ?phoneId= ? strip it; inbox is unified (location + visibility, not phone tabs).
   useEffect(() => {
     const phoneIdParam = searchParams?.get("phoneId");
-    if (!phoneIdParam) return;
+    if (!phoneIdParam || legacyPhoneIdStrippedRef.current) return;
+    legacyPhoneIdStrippedRef.current = true;
     const conv =
       searchParams?.get("conversation") || searchParams?.get("conversationId");
     const retargetOnlyFlag = searchParams?.get("retargetOnly");
@@ -1684,7 +1538,7 @@ export default function WhatsAppChat() {
     if (retargetOnlyFlag) next.set("retargetOnly", retargetOnlyFlag);
     if (conv) next.set("conversation", conv);
     const inboxLocationFilter = searchParams?.get("locationFilter");
-    if (inboxLocationFilter && inboxLocationFilter !== "all") {
+    if (inboxLocationFilter) {
       next.set("locationFilter", inboxLocationFilter);
     }
     if (searchParams?.get("adminQueue") === "true") {
@@ -1699,1333 +1553,61 @@ export default function WhatsAppChat() {
     router.replace(qs ? `/whatsapp?${qs}` : "/whatsapp", { scroll: false });
   }, [searchParams, router]);
 
-  // CRITICAL: Refetch conversations when phone filter, search, or adminQueue changes
-  // Database is source of truth - always query backend, never filter client-side
-  useEffect(() => {
-    if (!token) return;
-    const timeoutId = setTimeout(() => {
-      fetchConversations(true);
-    }, searchQuery.trim() ? 300 : 0);
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery, token, adminQueue, adminLocationFilter, labelFilter]);
-
-  // Prefetch archived conversations so the "Archived" row can show unread count without opening archive
-  useEffect(() => {
-    if (token) {
-      fetchArchivedConversations({ silent: true });
-    }
-  }, [token]);
-
-  useEffect(() => {
-    phoneMaskRulesRef.current = phoneMaskRules;
-  }, [phoneMaskRules]);
-
-  useEffect(() => {
-    viewerRoleRef.current = token?.role || "";
-  }, [token?.role]);
-
-  useEffect(() => {
-    const fromToken = getWhatsAppPhoneMaskFromToken(token);
-    setPhoneMaskRules(fromToken);
-    phoneMaskRulesRef.current = fromToken;
-
-    const userId = token?.id || (token as { _id?: string })?._id;
-    if (!userId) return;
-    let cancelled = false;
-    axios
-      .get("/api/employee/whatsapp-phone-mask", { params: { employeeId: String(userId) } })
-      .then((res) => {
-        if (!cancelled && res.data?.whatsappPhoneMask) {
-          const rules = res.data.whatsappPhoneMask as WhatsAppPhoneMaskRules;
-          setPhoneMaskRules(rules);
-          phoneMaskRulesRef.current = rules;
-          setConversations((prev) => maskConversationsForViewer(prev, rules, viewerRoleRef.current));
-          setArchivedConversations((prev) =>
-            maskConversationsForViewer(prev, rules, viewerRoleRef.current),
-          );
-          setSelectedConversation((prev) =>
-            prev ? applyPhoneMaskToConversation(prev, rules, viewerRoleRef.current) : prev,
-          );
-        }
-      })
-      .catch(() => {
-        /* keep token defaults */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [token?.id, (token as { _id?: string })?._id, token?.whatsappPhoneMask]);
-
   const canManagePhoneMask =
     token?.role === "HR" || token?.role === "SuperAdmin";
 
-  // Socket.io event listeners
-  // CRITICAL: This is the SINGLE canonical place where whatsapp-new-message listener is registered.
-  // All other components should NOT register their own listeners to avoid duplicate processing.
-  useEffect(() => {
-    if (!socket) return;
-
-    // Dev-only safeguard: Count listener registrations
-    if (process.env.NODE_ENV === "development") {
-      console.count("[WHATSAPP] Registering whatsapp-new-message handler");
-    }
-
-    const currentUserId = token?.id || (token as any)?._id;
-    socket.emit("join-whatsapp-room", currentUserId?.toString());
-
-    const joinAllAllowedPhones = () => {
-      for (const id of allowedPhoneIdsRef.current) {
-        if (id) socket.emit("join-whatsapp-phone", id);
-      }
-    };
-    joinAllAllowedPhones();
-
-    let previousUnifiedPhones = new Set(allowedPhoneIdsRef.current);
-    const phoneWatcher = setInterval(() => {
-      const currentSet = new Set(allowedPhoneIdsRef.current);
-      for (const id of previousUnifiedPhones) {
-        if (!currentSet.has(id)) socket.emit("leave-whatsapp-phone", id);
-      }
-      for (const id of currentSet) {
-        if (!previousUnifiedPhones.has(id)) socket.emit("join-whatsapp-phone", id);
-      }
-      previousUnifiedPhones = currentSet;
-    }, 500);
-
-    // Dual-room: also join stable channel rooms so events survive number migrations.
-    const joinAllChannelRooms = () => {
-      for (const id of allowedChannelIdsRef.current) {
-        if (id) socket.emit("join-whatsapp-channel", id);
-      }
-    };
-    joinAllChannelRooms();
-
-    let previousChannelIds = new Set(allowedChannelIdsRef.current);
-    const channelWatcher = setInterval(() => {
-      const currentSet = new Set(allowedChannelIdsRef.current);
-      for (const id of previousChannelIds) {
-        if (!currentSet.has(id)) socket.emit("leave-whatsapp-channel", id);
-      }
-      for (const id of currentSet) {
-        if (!previousChannelIds.has(id)) socket.emit("join-whatsapp-channel", id);
-      }
-      previousChannelIds = currentSet;
-    }, 500);
-
-    const role = token?.role || "";
-    const isFullAccessRole = (FULL_ACCESS_ROLES as readonly string[]).includes(role);
-    const retargetPhoneId = getRetargetPhoneId();
-    if ((role === "Advert" || role === "SuperAdmin") && retargetPhoneId) {
-      socket.emit("join-whatsapp-retarget", retargetPhoneId);
-    }
-
-    // Stable handler function - prevents re-attachment on re-render
-    const handleWhatsAppMessage = (data: any) => {
-      const currentUserId = token?.id || (token as any)?._id;
-
-      // Strong per-tab deduplication: ensure each eventId is processed at most once.
-      // This protects the chat UI from any backend retries or duplicate socket emits.
-      if (data.eventId) {
-        if (seenEventIdsRef.current.has(data.eventId)) {
-          return;
-        }
-        addToLRUSet(seenEventIdsRef.current, data.eventId);
-      }
-
-      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
-        return;
-      }
-
-      const currentPhoneId = selectedPhoneIdRef.current;
-      const currentConversation = selectedConversationRef.current;
-      const isForCurrentConversation = currentConversation?._id === data.conversationId;
-      if (
-        !isFullAccessRole &&
-        data.businessPhoneId &&
-        allowedPhoneIdsRef.current.length > 0 &&
-        !allowedPhoneIdsRef.current.includes(data.businessPhoneId) &&
-        !isForCurrentConversation
-      ) {
-        return;
-      }
-
-      // In retargetOnly mode, ignore messages from non-retarget conversations
-      if (retargetOnlyRef.current && !data.isRetarget) {
-        return;
-      }
-
-      const { conversationId, message } = data;
-
-      if (!conversationId || !message) {
-        return;
-      }
-
-      if (message.messageId && seenMessageIdsRef.current.has(message.messageId)) {
-        return;
-      }
-
-      try {
-        handleWhatsAppMessageRef.current = handleWhatsAppMessage;
-      } catch {
-        // ignore
-      }
-
-      const displayText =
-        data.lastMessagePreview != null && data.lastMessagePreview !== ""
-          ? data.lastMessagePreview
-          : typeof message.content === "string"
-            ? message.content
-            : message.content?.text ||
-              message.content?.caption ||
-              `${message.type} message`;
-
-      const isCurrentConversation = currentConversation?._id === conversationId;
-      const isIncomingMessage = message.direction === "incoming";
-      const outgoingStatus =
-        message.direction === "outgoing"
-          ? (message.status as Message["status"]) || "sent"
-          : undefined;
-
-      if (isIncomingMessage) {
-        setInitiationLimitRefreshKey((k) => k + 1);
-      }
-
-      if (isCurrentConversation) {
-        addToLRUSet(seenMessageIdsRef.current, message.messageId);
-
-        setMessages((prev) => {
-          if (message.type === "reaction" && message.reactedToMessageId) {
-            return prev.map((msg) => {
-              if (msg.messageId === message.reactedToMessageId) {
-                const existingReactions = msg.reactions || [];
-                const reactionEmoji =
-                  message.reactionEmoji ||
-                  message.content?.text?.replace("Reacted: ", "") ||
-                  "👍";
-                const hasReaction = existingReactions.some(
-                  (r) =>
-                    r.emoji === reactionEmoji && r.direction === message.direction,
-                );
-                if (!hasReaction) {
-                  return {
-                    ...msg,
-                    reactions: [
-                      ...existingReactions,
-                      { emoji: reactionEmoji, direction: message.direction },
-                    ],
-                  };
-                }
-              }
-              return msg;
-            });
-          }
-
-          const exists = prev.find((m) => m.messageId === message.messageId);
-          if (exists) return prev;
-
-          if (message.direction === "outgoing") {
-            const tempIdx = prev.findIndex(
-              (m) =>
-                typeof m.messageId === "string" &&
-                m.messageId.startsWith("temp-") &&
-                (m.status === "sending" || m.status === "sent") &&
-                m.type === message.type &&
-                m.direction === "outgoing",
-            );
-            if (tempIdx !== -1) {
-              return prev.map((m, i) =>
-                i === tempIdx
-                  ? {
-                      ...m,
-                      _id: message._id || message.id || m._id,
-                      messageId: message.messageId,
-                      content: message.content ?? m.content,
-                      mediaUrl: message.mediaUrl ?? m.mediaUrl,
-                      timestamp: new Date(message.timestamp),
-                      status: message.status || "sent",
-                    }
-                  : m,
-              );
-            }
-          }
-
-          return [
-            ...prev,
-            {
-              _id: message._id || message.id,
-              messageId: message.messageId,
-              from: message.from,
-              to: message.to,
-              type: message.type,
-              content: message.content,
-              mediaUrl: message.mediaUrl,
-              timestamp: new Date(message.timestamp),
-              status: message.status,
-              direction: message.direction,
-              reactions: message.reactions || [],
-              replyToMessageId: message.replyToMessageId,
-              replyContext: message.replyContext,
-            },
-          ];
-        });
-
-        if (message.direction === "incoming") {
-          void markConversationAsReadRef.current(conversationId, {
-            lastMessageId: message.messageId,
-          });
-        }
-      }
-
-      requestAnimationFrame(() => {
-        setConversations((prev) => {
-          const updated = prev.map((conv) => {
-            if (conv._id === conversationId) {
-              const newUnreadCount =
-                isIncomingMessage && !isCurrentConversation
-                  ? (conv.unreadCount || 0) + 1
-                  : isCurrentConversation
-                    ? 0
-                    : conv.unreadCount || 0;
-
-              return {
-                ...conv,
-                lastMessageContent: displayText,
-                lastMessageTime: message.timestamp,
-                lastMessageDirection: message.direction,
-                lastMessageId: message.messageId,
-                lastMessageStatus: outgoingStatus,
-                unreadCount: newUnreadCount,
-                ...(isIncomingMessage
-                  ? {
-                      lastCustomerMessageAt: new Date(message.timestamp),
-                      ...(data.businessPhoneId
-                        ? {
-                            lastCustomerMessageAtByPhone: {
-                              ...(conv.lastCustomerMessageAtByPhone ?? {}),
-                              [String(data.businessPhoneId)]: new Date(
-                                message.timestamp,
-                              ).toISOString(),
-                            },
-                          }
-                        : {}),
-                    }
-                  : {}),
-              };
-            }
-            return conv;
-          });
-
-          const newTotalUnread = updated.reduce(
-            (sum, conv) => sum + (conv.unreadCount || 0),
-            0,
-          );
-          setTotalUnreadCount(newTotalUnread);
-
-          return sortConversations(updated);
-        });
-
-        setArchivedConversations((prev) => {
-          const updated = prev.map((conv) => {
-            if (conv._id === conversationId) {
-              const prevUnreadCount = conv.unreadCount || 0;
-              const newUnreadCount =
-                isIncomingMessage && !isCurrentConversation
-                  ? prevUnreadCount + 1
-                  : prevUnreadCount;
-              if (
-                isIncomingMessage &&
-                !isCurrentConversation &&
-                prevUnreadCount === 0
-              ) {
-                setArchivedUnreadCount((c) => c + 1);
-              }
-              return {
-                ...conv,
-                lastMessageContent: displayText,
-                lastMessageTime: message.timestamp,
-                lastMessageDirection: message.direction,
-                lastMessageId: message.messageId,
-                lastMessageStatus: outgoingStatus,
-                unreadCount: newUnreadCount,
-              };
-            }
-            return conv;
-          });
-
-          return sortConversations(updated);
-        });
-
-        if (isCurrentConversation) {
-          setSelectedConversation((prev) => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              lastMessageTime: message.timestamp,
-              lastMessageId: message.messageId,
-              lastMessageStatus: outgoingStatus,
-              ...(isIncomingMessage
-                ? {
-                    lastCustomerMessageAt: new Date(message.timestamp),
-                    ...(data.businessPhoneId
-                      ? {
-                          lastCustomerMessageAtByPhone: {
-                            ...(prev.lastCustomerMessageAtByPhone ?? {}),
-                            [String(data.businessPhoneId)]: new Date(
-                              message.timestamp,
-                            ).toISOString(),
-                          },
-                        }
-                      : {}),
-                  }
-                : {}),
-            };
-          });
-        }
-      });
-
-      const internalLike =
-        message.isInternal === true ||
-        message.source === "internal" ||
-        (typeof message.messageId === "string" &&
-          message.messageId.startsWith("internal_"));
-      if (message.direction === "incoming" && !internalLike) {
-        playNotificationSound();
-      }
-
-      getWhatsAppNotificationController().process(data);
-    };
-
-    socket.on("whatsapp-new-message", handleWhatsAppMessage);
-
-    return () => {
-      socket.off("whatsapp-new-message", handleWhatsAppMessage);
-      clearInterval(phoneWatcher);
-      clearInterval(channelWatcher);
-      if (retargetPhoneId) {
-        socket.emit("leave-whatsapp-retarget", retargetPhoneId);
-      }
-    };
-  }, [socket, token, playNotificationSound]);
-
-  // Socket.io event listeners - other events (new conversations, status updates, etc.)
-  useEffect(() => {
-    if (!socket) return;
-
-    const currentUserId = token?.id || (token as { _id?: string })?._id;
-    const isFullAccessRole = (FULL_ACCESS_ROLES as readonly string[]).includes(
-      token?.role || "",
-    );
-
-    // Handle new conversations
-    const handleNewConversation = (data: any) => {
-      const { conversation } = data;
-      setConversations((prev) => {
-        const exists = prev.find((c) => c._id === conversation.id);
-        if (exists) return prev;
-        const newConversation = maskConversationForViewer({
-          _id: conversation.id,
-          participantPhone: conversation.participantPhone,
-          participantName: conversation.participantName,
-          unreadCount: conversation.unreadCount || 0,
-          lastMessageTime: conversation.lastMessageTime,
-          conversationType: conversation.conversationType,
-          status: "active",
-        } as Conversation);
-        const updated = [newConversation, ...prev];
-        const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
-        setTotalUnreadCount(newTotalUnread);
-        return updated;
-      });
-      toast({
-        title: "New conversation",
-        description: `${conversation.participantName} started a chat`,
-      });
-      playNotificationSound();
-    };
-
-    const handleMessageStatus = (data: any) => {
-      const { conversationId, messageId, status } = data;
-      const currentConversation = selectedConversationRef.current;
-      if (currentConversation?._id === conversationId) {
-        setMessages((prev) => {
-          const idx = prev.findIndex((msg) => msg.messageId === messageId);
-          if (idx === -1 || prev[idx].status === status) return prev;
-          const updated = [...prev];
-          updated[idx] = { ...updated[idx], status };
-          return updated;
-        });
-      }
-      
-      setConversations((prev) => {
-        const idx = prev.findIndex(
-          (conv) =>
-            conv._id === conversationId &&
-            (conv.lastMessageId === messageId || !conv.lastMessageId),
-        );
-        if (idx === -1 || prev[idx].lastMessageStatus === status) return prev;
-        const updated = [...prev];
-        updated[idx] = { ...updated[idx], lastMessageStatus: status, lastMessageId: messageId };
-        return updated;
-      });
-
-      if (status === "delivered" || status === "read" || status === "failed") {
-        setInitiationLimitRefreshKey((k) => k + 1);
-      }
-    };
-
-    const handleMessageEcho = (data: any) => {
-      const { conversationId, message } = data;
-      const currentConversation = selectedConversationRef.current;
-
-      if (seenMessageIdsRef.current.has(message.messageId)) return;
-      addToLRUSet(seenMessageIdsRef.current, message.messageId);
-
-      const displayText = typeof message.content === "string" 
-        ? message.content 
-        : message.content?.text || message.content?.caption || `${message.type} message`;
-
-      setConversations((prev) => {
-        const updated = prev.map((conv) => {
-          if (conv._id === conversationId) {
-            return {
-              ...conv,
-              lastMessageContent: displayText,
-              lastMessageTime: message.timestamp,
-              lastMessageDirection: message.direction,
-              lastMessageId: message.messageId || message.id,
-              lastMessageStatus:
-                message.direction === "outgoing"
-                  ? (message.status as Message["status"]) || "sent"
-                  : undefined,
-            };
-          }
-          return conv;
-        });
-        return sortConversations(updated);
-      });
-
-      if (currentConversation?._id === conversationId) {
-        setMessages((prev) => {
-          const exists = prev.find((m) => m.messageId === message.messageId);
-          if (exists) return prev;
-          return [
-            ...prev,
-            {
-              _id: message._id || message.id,
-              messageId: message.messageId,
-              from: message.from,
-              to: message.to,
-              type: message.type,
-              content: message.content,
-              mediaUrl: message.mediaUrl,
-              timestamp: new Date(message.timestamp),
-              status: message.status,
-              direction: message.direction,
-              isEcho: true,
-            },
-          ];
-        });
-      }
-    };
-
-    // Register all socket listeners
-    socket.on("whatsapp-new-conversation", handleNewConversation);
-    socket.on("whatsapp-message-status", handleMessageStatus);
-    socket.on("whatsapp-message-echo", handleMessageEcho);
-    socket.on("whatsapp-incoming-call", (data: any) => {
-      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
-        return;
-      }
-      const name = data.callerInfo?.profile?.name || data.from || "Caller";
-      const callIdStr = data.callId != null ? String(data.callId) : "";
-      toast({
-        title: "ðŸ“ž Incoming Call",
-        description: `${name} is calling...`,
-        duration: 10000,
-      });
-      playNotificationSound();
-      showDesktopNotification({
-        title: "Incoming WhatsApp call",
-        body: `${name} is calling`,
-        tag: callIdStr ? `wa-incoming-${callIdStr}` : "wa-incoming-call",
-        requireInteraction: true,
-      });
-    });
-
-    socket.on("whatsapp-call-incoming-offer", (data: Record<string, unknown>) => {
-      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
-        return;
-      }
-      const phoneId = data.businessPhoneId != null ? String(data.businessPhoneId) : "";
-      const selectedPid = selectedPhoneIdRef.current;
-      if (
-        !isFullAccessRole &&
-        phoneId &&
-        allowedPhoneIdsRef.current.length > 0 &&
-        !allowedPhoneIdsRef.current.includes(phoneId)
-      ) {
-        return;
-      }
-
-      const callId = typeof data.callId === "string" ? data.callId.trim() : "";
-      const sdp = typeof data.sdp === "string" ? data.sdp : "";
-      if (!callId || !sdp.trim()) return;
-
-      const resolvedPhoneId =
-        phoneId.trim() || (selectedPhoneIdRef.current != null ? String(selectedPhoneIdRef.current).trim() : "");
-      if (!resolvedPhoneId) {
-        toast({
-          title: "Incoming WhatsApp call",
-          description: "Could not determine which business line this call is for. Select the correct WhatsApp number in the sidebar.",
-          variant: "destructive",
-          duration: 10_000,
-        });
-        playNotificationSound();
-        return;
-      }
-
-      const conversationId =
-        data.conversationId != null && String(data.conversationId).trim() !== ""
-          ? String(data.conversationId).trim()
-          : "";
-
-      const contactLabelRaw =
-        (typeof data.contactLabel === "string" && data.contactLabel.trim()
-          ? String(data.contactLabel).trim()
-          : null) ||
-        (data.callerInfo as { profile?: { name?: string } } | undefined)?.profile?.name ||
-        (typeof data.from === "string" ? data.from : null) ||
-        "Caller";
-
-      const next: PendingIncomingCallInvite = {
-        callId,
-        conversationId,
-        phoneNumberId: resolvedPhoneId,
-        offerSdp: sdp,
-        contactLabel: contactLabelRaw,
-      };
-      pendingIncomingInviteRef.current = next;
-      setPendingIncomingInvite(next);
-
-      incomingCallRingRef.current?.stop();
-      incomingCallRingRef.current?.dispose();
-      const ring = new IncomingCallRingController();
-      incomingCallRingRef.current = ring;
-      void ring.start();
-
-      toast({
-        title: "ðŸ“ž Incoming call",
-        description: `${contactLabelRaw} is calling. Tap Answer to connect.`,
-        duration: 12_000,
-      });
-      playNotificationSound();
-      showDesktopNotification({
-        title: "Incoming WhatsApp call",
-        body: `${contactLabelRaw} is calling â€” tap to answer in the app`,
-        tag: `wa-incoming-${callId}`,
-        requireInteraction: true,
-      });
-    });
-
-    // Handle missed calls
-    socket.on("whatsapp-call-missed", (data: any) => {
-      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
-        return;
-      }
-      toast({
-        title: "ðŸ“ž Missed Call",
-        description: `Missed call from ${data.from}`,
-        variant: "destructive",
-      });
-    });
-
-    // Handle call status updates (Meta / WhatsApp Calling statuses)
-    socket.on("whatsapp-call-status", (data: { callId?: string; callStatus?: string; userId?: string }) => {
-      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
-        return;
-      }
-      const callIdStr = data?.callId != null ? String(data.callId) : "";
-      const pendingInv = pendingIncomingInviteRef.current;
-      if (pendingInv && callIdStr && callIdStr === pendingInv.callId) {
-        const st0 = String(data?.callStatus || "").toLowerCase();
-        if (isRemoteCallTerminalStatus(st0)) {
-          pendingIncomingInviteRef.current = null;
-          setPendingIncomingInvite(null);
-          incomingCallRingRef.current?.stop();
-          incomingCallRingRef.current?.dispose();
-          incomingCallRingRef.current = null;
-        }
-      }
-
-      const currentId = activeCallIdRef.current;
-      if (!currentId || callIdStr !== String(currentId)) return;
-      const st = String(data?.callStatus || "").toLowerCase();
-      if (isRemoteCallTerminalStatus(st)) {
-        toast({
-          title: "Call ended",
-          description: `Status: ${data.callStatus ?? "unknown"}`,
-          variant: st === "missed" ? "default" : "destructive",
-        });
-        cleanupOutboundCallResources();
-      }
-    });
-
-    // SDP answer for business-initiated calls
-    socket.on("whatsapp-call-sdp-answer", async (data: Record<string, unknown>) => {
-      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
-        return;
-      }
-      try {
-        const convId = data?.conversationId != null ? String(data.conversationId) : "";
-        if (!convId) return;
-        const pending = pendingOutboundCallRef.current;
-        const selectedId = selectedConversationRef.current?._id;
-        const matches =
-          pending?.conversationId === convId ||
-          (selectedId != null && String(selectedId) === convId);
-        if (!matches) return;
-
-        const pc = peerRef.current;
-        const rawSdp = data?.sdp;
-        if (!pc || typeof rawSdp !== "string" || !rawSdp.trim()) return;
-
-        const browserSdp = sanitizeMetaAnswerSdpForBrowser(rawSdp);
-        const sdpHash = simpleHashUtf8(browserSdp);
-        if (sdpAnswerAppliedHashRef.current === sdpHash) {
-          return;
-        }
-
-        await pc.setRemoteDescription({ type: "answer", sdp: browserSdp });
-        sdpAnswerAppliedHashRef.current = sdpHash;
-        setLastAnswerSdpPreview(browserSdp.slice(0, 1600));
-        logWebRtcMediaDiagnostics(pc, "post-setRemoteDescription-answer");
-
-        if (signalingAnswerTimerRef.current) {
-          clearTimeout(signalingAnswerTimerRef.current);
-          signalingAnswerTimerRef.current = null;
-        }
-
-        setOutboundCallUi((prev) => {
-          if (!prev) return prev;
-          if (prev.phase === "connecting") return { ...prev, phase: "ringing", signalingState: pc.signalingState };
-          return { ...prev, signalingState: pc.signalingState };
-        });
-
-        try {
-          if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
-            navigator.vibrate([120, 80, 120]);
-          }
-        } catch {
-          /* ignore */
-        }
-
-        const el = remoteAudioRef.current;
-        if (el) {
-          const audioTracks = pc
-            .getReceivers()
-            .map((r) => r.track)
-            .filter((t): t is MediaStreamTrack => t != null && t.kind === "audio");
-          if (audioTracks.length > 0 && el.srcObject == null) {
-            el.srcObject = new MediaStream(audioTracks);
-            void el.play().catch((err) => {
-              console.warn("[call] receiver fallback play() failed:", err);
-              setRemoteAudioPlayBlocked(true);
-            });
-            callSoundRef.current?.stopRing();
-            void callSoundRef.current?.playConnectChime();
-            setOutboundCallUi((prev) => (prev ? { ...prev, phase: "connected" } : prev));
-          }
-        }
-
-        const cid = data?.callId;
-        if (typeof cid === "string" && cid.trim()) {
-          setActiveCallId(cid.trim());
-        }
-      } catch (err) {
-        console.error("Failed to apply SDP answer:", err);
-        cleanupOutboundCallResources();
-        toast({
-          title: "Call signaling failed",
-          description: "Could not apply SDP answer.",
-          variant: "destructive",
-        });
-      }
-    });
-
-    // Handle history sync events
-    socket.on("whatsapp-history-sync", (data: any) => {
-      console.log("History sync:", data);
-      if (data.status === "completed") {
-        toast({
-          title: "ðŸ“œ History Sync Complete",
-          description: `${data.messagesCount} messages synced`,
-        });
-        // Refresh conversations after history sync
-        fetchConversations();
-      }
-    });
-
-    // Handle app state sync events
-    socket.on("whatsapp-app-state-sync", (data: any) => {
-      console.log("App state sync:", data);
-    });
-
-    // Handle conversation read events (when someone reads a conversation)
-    socket.on("whatsapp-conversation-read", (data: any) => {
-      const { conversationId, userId } = data;
-      const currentConversation = selectedConversationRef.current;
-
-      const currentUserId = token?.id || (token as any)?._id;
-
-      // Only refetch readers when someone else read the open chat (not our own mark-read).
-      if (
-        currentConversation?._id === conversationId &&
-        currentUserId &&
-        String(userId) !== String(currentUserId)
-      ) {
-        setReadersRefreshToken((prev) => prev + 1);
-      }
-
-      // If this read event is for the current logged-in user, clear unread
-      // state for that conversation across all tabs/devices (both main and archived).
-      if (currentUserId && String(userId) === String(currentUserId)) {
-        setConversations((prev) => {
-          const updated = prev.map((conv) =>
-            conv._id === conversationId ? { ...conv, unreadCount: 0 } : conv
-          );
-          
-          // Update total unread count in real-time (socket-based)
-          const newTotalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
-          setTotalUnreadCount(newTotalUnread);
-          
-          return updated;
-        });
-
-        // Also clear unread count for archived conversations
-        setArchivedConversations((prev) => {
-          const conv = prev.find((c) => c._id === conversationId);
-          // Decrement unread chat count by 1 if this conversation had unread messages
-          // (it's no longer an unread chat)
-          if (conv && (conv.unreadCount || 0) > 0) {
-            setArchivedUnreadCount((c) => Math.max(0, c - 1));
-          }
-          return prev.map((c) =>
-            c._id === conversationId ? { ...c, unreadCount: 0 } : c
-          );
-        });
-      }
-    });
-
-    // Handle conversation update events (archive/unarchive, etc.)
-    socket.on("whatsapp-conversation-update", (data: any) => {
-      const { conversationId, isArchived, archivedAt, archivedBy } = data;
-      
-      // Update conversation archive state in real-time (global archive)
-      if (conversationId && typeof isArchived === "boolean") {
-        setConversations((prev) =>
-          prev.map((conv) =>
-            conv._id === conversationId
-              ? {
-                  ...conv,
-                  isArchivedByUser: isArchived,
-                  archivedAt: archivedAt ? new Date(archivedAt) : undefined,
-                  archivedBy: archivedBy,
-                }
-              : conv
-          )
-        );
-
-        // If conversation was archived and we're viewing it, close it
-        if (isArchived && selectedConversation?._id === conversationId) {
-          setSelectedConversation(null);
-          setMessages([]);
-        }
-
-        fetchConversations().catch(() => {});
-      }
-    });
-
-    return () => {
-      socket.emit("leave-whatsapp-room");
-      socket.off("whatsapp-new-conversation", handleNewConversation);
-      socket.off("whatsapp-message-status", handleMessageStatus);
-      socket.off("whatsapp-message-echo", handleMessageEcho);
-      socket.off("whatsapp-incoming-call");
-      socket.off("whatsapp-call-incoming-offer");
-      socket.off("whatsapp-call-missed");
-      socket.off("whatsapp-call-status");
-      socket.off("whatsapp-call-sdp-answer");
-      socket.off("whatsapp-history-sync");
-      socket.off("whatsapp-app-state-sync");
-      socket.off("whatsapp-conversation-read");
-      socket.off("whatsapp-conversation-update");
-    };
-  }, [socket, toast, token, playNotificationSound, selectedConversation, cleanupOutboundCallResources]);
-
-
-  // Fetch conversation counts from database
-  const fetchConversationCounts = async () => {
-    try {
-      const countsParams = new URLSearchParams();
-      if (retargetOnlyRef.current) {
-        countsParams.append("retargetOnly", "1");
-      }
-      const privilegeUser = {
-        role: token?.role,
-        email: token?.email,
-        allotedArea: token?.allotedArea,
-      };
-      if (
-        !adminQueue &&
-        adminLocationFilter &&
-        adminLocationFilter !== "all" &&
-        (token?.role === "SuperAdmin" || canUseInboxLocationFilter(privilegeUser))
-      ) {
-        countsParams.append("locationFilter", adminLocationFilter);
-      }
-      const response = await axios.get(`/api/whatsapp/conversations/counts?${countsParams.toString()}`);
-      if (response.data.success) {
-        setConversationCounts({
-          totalCount: response.data.totalCount || 0,
-          ownerCount: response.data.ownerCount || 0,
-          guestCount: response.data.guestCount || 0,
-        });
-      }
-    } catch (error: any) {
-      console.error("Error fetching conversation counts:", error);
-    }
-  };
-
-  const fetchConversations = async (reset = false) => {
-    try {
-      if (reset) {
-        setLoading(true);
-        setConversationsCursor(null);
-        setHasMoreConversations(true);
-      } else {
-        setLoadingMoreConversations(true);
-      }
-
-      const params = new URLSearchParams();
-      params.append("limit", "25");
-      // Inbox is unified — visibility filter on the server (areas/lines), not ?phoneId=
-      // CRITICAL: Pass search query to backend - database is source of truth, no client-side filtering
-      if (searchQuery.trim()) {
-        params.append("search", searchQuery.trim());
-        // When searching, don't use cursor (search results start fresh)
-      } else if (conversationsCursor && !reset) {
-        // Only use cursor when not searching (pagination)
-        params.append("cursor", conversationsCursor);
-      }
-      // Retarget-only mode: only fetch retarget conversations (for Advert role)
-      if (retargetOnlyRef.current) {
-        params.append("retargetOnly", "1");
-      }
-      // Admin Queue mode: conversations without a location key
-      if (labelFilter && labelFilter !== "all") {
-        params.append("labelFilter", labelFilter);
-      }
-      if (adminQueue) {
-        params.append("adminQueue", "true");
-      } else {
-        const privilegeUser = {
-          role: token?.role,
-          email: token?.email,
-          allotedArea: token?.allotedArea,
-        };
-        if (
-          adminLocationFilter &&
-          adminLocationFilter !== "all" &&
-          (token?.role === "SuperAdmin" || canUseInboxLocationFilter(privilegeUser))
-        ) {
-          params.append("locationFilter", adminLocationFilter);
-        }
-      }
-
-      const response = await axios.get(`/api/whatsapp/conversations?${params.toString()}`);
-      if (response.data.success) {
-        const rulesFromApi = response.data.phoneMaskRules as WhatsAppPhoneMaskRules | undefined;
-        if (rulesFromApi) {
-          setPhoneMaskRules(rulesFromApi);
-          phoneMaskRulesRef.current = rulesFromApi;
-        }
-        const newConversations = maskConversationListForViewer(
-          (response.data.conversations || []) as Conversation[],
-        );
-        
-        // Update archived count from response
-        if (response.data.archivedCount !== undefined) {
-          setArchivedCount(response.data.archivedCount);
-        }
-        
-        if (reset) {
-          // Deduplicate even on reset in case of any issues
-          let uniqueConversations = Array.from(
-            new Map(newConversations.map((c: Conversation) => [c._id, c])).values()
-          ) as Conversation[];
-          // Keep the open chat visible if the list refresh omitted it (e.g. pagination cap)
-          if (selectedConversation?._id) {
-            const openId = String(selectedConversation._id);
-            if (!uniqueConversations.some((c) => String(c._id) === openId)) {
-              uniqueConversations = sortConversations([
-                selectedConversation,
-                ...uniqueConversations,
-              ]);
-            }
-          }
-          setConversations(uniqueConversations);
-          
-          // Calculate total unread count from fetched conversations (socket-based)
-          const totalUnread = uniqueConversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
-          setTotalUnreadCount(totalUnread);
-        } else {
-          // Filter out duplicates by _id when appending
-          setConversations((prev) => {
-            const existingIds = new Set(prev.map((c) => c._id));
-            const uniqueNewConversations = newConversations.filter(
-              (c: Conversation) => !existingIds.has(c._id)
-            );
-            const updated = [...prev, ...uniqueNewConversations];
-            
-            // Calculate total unread count from all conversations (socket-based)
-            const totalUnread = updated.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
-            setTotalUnreadCount(totalUnread);
-            
-            return updated;
-          });
-        }
-
-        // NOTE: Phone configs are now loaded independently via /api/whatsapp/phone-configs
-        // We no longer update phone configs from conversation responses
-        // This ensures clean separation: phone configs are source of truth, conversations consume them
-
-        // Update cursor and hasMore
-        setHasMoreConversations(response.data.pagination?.hasMore || false);
-        setConversationsCursor(response.data.pagination?.nextCursor || null);
-
-        // Fetch counts after loading conversations
-        await fetchConversationCounts();
-
-        return newConversations;
-      }
-      return [];
-    } catch (error: any) {
-      console.error("Error fetching conversations:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch conversations",
-        variant: "destructive",
-      });
-      return [];
-    } finally {
-      setLoading(false);
-      setLoadingMoreConversations(false);
-    }
-  };
-
-  const fetchMessages = async (conversationId: string, reset = true) => {
-    const fetchGen = ++messagesFetchGenRef.current;
-    try {
-      if (reset) {
-        setMessagesLoading(true);
-        setMessagesCursor(null);
-        setHasMoreMessages(false);
-        setMessages([]);
-      } else {
-        setLoadingOlderMessages(true);
-      }
-
-      const params = new URLSearchParams();
-      params.append("limit", "20");
-      if (messagesCursor && !reset) {
-        params.append("beforeMessageId", messagesCursor.messageId);
-      }
-
-      const response = await axios.get(
-        `/api/whatsapp/conversations/${conversationId}/messages?${params.toString()}`
-      );
-      if (fetchGen !== messagesFetchGenRef.current) return;
-
-      if (response.data.success) {
-        const newMessages: Message[] = response.data.messages || [];
-
-        if (reset) {
-          setMessages((prev) => {
-            if (prev.length === 0) return newMessages;
-            const byId = new Map<string, Message>();
-            for (const msg of newMessages) {
-              if (msg.messageId) byId.set(msg.messageId, msg);
-            }
-            for (const msg of prev) {
-              if (msg.messageId && !byId.has(msg.messageId)) {
-                byId.set(msg.messageId, msg);
-              }
-            }
-            return Array.from(byId.values()).sort(
-              (a, b) =>
-                new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-            );
-          });
-        } else {
-          setMessages((prev) => [...newMessages, ...prev]);
-        }
-
-        setHasMoreMessages(response.data.pagination?.hasMore || false);
-        setMessagesCursor(response.data.pagination?.nextCursor || null);
-      }
-    } catch (error: unknown) {
-      console.error("Error fetching messages:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch messages",
-        variant: "destructive",
-      });
-    } finally {
-      if (fetchGen === messagesFetchGenRef.current) {
-        setMessagesLoading(false);
-        setLoadingOlderMessages(false);
-      }
-    }
-  };
-
-  const loadOlderMessages = () => {
-    if (selectedConversation && messagesCursor && !loadingOlderMessages) {
-      fetchMessages(selectedConversation._id, false);
-    }
-  };
-
-  // =========================================================
-  // Archive Functionality (WhatsApp-style per-user archive)
-  // =========================================================
-  
-  /**
-   * Fetch archived conversations for the current user.
-   * @param opts.silent - If true, do not set loading state (used for prefetching badge count).
-   */
-  const fetchArchivedConversations = async (opts?: { silent?: boolean }) => {
-    const silent = opts?.silent === true;
-    try {
-      if (!silent) setLoading(true);
-      const response = await axios.get("/api/whatsapp/conversations/archive");
-      if (response.data.success) {
-        const rulesFromApi = response.data.phoneMaskRules as WhatsAppPhoneMaskRules | undefined;
-        if (rulesFromApi) {
-          setPhoneMaskRules(rulesFromApi);
-          phoneMaskRulesRef.current = rulesFromApi;
-        }
-        const conversations = maskConversationListForViewer(
-          (response.data.conversations || []) as Conversation[],
-        );
-        setArchivedConversations(conversations);
-        setArchivedCount(response.data.count || 0);
-        // Count unread chats (conversations with unread messages) instead of total unread messages
-        const unreadChatCount = conversations.filter(
-          (c: Conversation) => (c.unreadCount || 0) > 0 && c.lastMessageDirection === "incoming"
-        ).length;
-        setArchivedUnreadCount(unreadChatCount);
-        const ids = conversations.map((c: any) => c._id) || [];
-        syncArchivedStorage(ids.filter(Boolean));
-      }
-    } catch (error: any) {
-      console.error("Error fetching archived conversations:", error);
-      if (!silent) {
-        toast({
-          title: "Error",
-          description: "Failed to fetch archived conversations",
-          variant: "destructive",
-        });
-      }
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
-
-  /**
-   * Archive a conversation for the current user
-   * WhatsApp-style: removes from main inbox, suppresses notifications
-   */
-  const archiveConversation = async (conversationId: string) => {
-    try {
-      const response = await axios.post("/api/whatsapp/conversations/archive", {
-        conversationId,
-      });
-      
-      if (response.data.success) {
-        archivedConversationIdsRef.current.add(conversationId);
-        setConversations((prev) => prev.filter((c) => c._id !== conversationId));
-        setArchivedCount((prev) => prev + 1);
-        syncArchivedStorage([
-          ...archivedConversations.map((c) => c._id),
-          conversationId,
-        ]);
-        
-        // If the archived conversation was selected, deselect it
-        if (selectedConversation?._id === conversationId) {
-          setSelectedConversation(null);
-          setMessages([]);
-        }
-        
-        toast({
-          title: "Chat archived",
-          description: "This chat has been archived. You can find it in the Archived section.",
-        });
-        // Refresh archived list so sidebar badge shows updated unread count
-        fetchArchivedConversations({ silent: true });
-      }
-    } catch (error: any) {
-      console.error("Error archiving conversation:", error);
-      toast({
-        title: "Error",
-        description: "Failed to archive conversation",
-        variant: "destructive",
-      });
-    }
-  };
-
-  /**
-   * Unarchive a conversation for the current user
-   * WhatsApp-style: returns to main inbox, notifications resume
-   */
-  const unarchiveConversation = async (conversationId: string) => {
-    try {
-      const response = await axios.delete(
-        `/api/whatsapp/conversations/archive?conversationId=${conversationId}`
-      );
-      
-      if (response.data.success) {
-        archivedConversationIdsRef.current.delete(conversationId);
-        setArchivedConversations((prev) => prev.filter((c) => c._id !== conversationId));
-        setArchivedCount((prev) => Math.max(0, prev - 1));
-        syncArchivedStorage(
-          archivedConversations
-            .filter((c) => c._id !== conversationId)
-            .map((c) => c._id)
-        );
-        
-        // Refresh main conversations to include the unarchived one
-        await fetchConversations(true);
-        
-        toast({
-          title: "Chat unarchived",
-          description: "This chat has been restored to your inbox.",
-        });
-      }
-    } catch (error: any) {
-      console.error("Error unarchiving conversation:", error);
-      toast({
-        title: "Error",
-        description: "Failed to unarchive conversation",
-        variant: "destructive",
-      });
-    }
-  };
-
-  /**
-   * Toggle between main inbox and archived view
-   */
-  const toggleArchiveView = () => {
-    if (showingArchived) {
-      // Going back to main inbox
-      setShowingArchived(false);
-      fetchConversations(true);
-    } else {
-      // Showing archived
-      setShowingArchived(true);
-      fetchArchivedConversations();
-    }
-    // Clear selection when switching views
-    setSelectedConversation(null);
-    setMessages([]);
-  };
-
-  const fetchTemplates = async (conversationId?: string | null) => {
-    if (!conversationId) {
-      setTemplates([]);
-      setTemplatesChannelScoped(false);
-      return;
-    }
-    try {
-      setTemplatesLoading(true);
-      const response = await axios.get("/api/whatsapp/templates", {
-        params: { conversationId },
-      });
-      if (response.data.success) {
-        setTemplates(response.data.templates);
-        setTemplatesChannelScoped(Boolean(response.data.channelScoped));
-        if (response.data.metaUnavailable && response.data.warning) {
-          toast({
-            title: "Templates unavailable",
-            description: String(response.data.warning),
-            variant: "destructive",
-          });
-        }
-      }
-    } catch (error: any) {
-      console.error("Error fetching templates:", error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch message templates",
-        variant: "destructive",
-      });
-    } finally {
-      setTemplatesLoading(false);
-    }
-  };
-
-  const selectConversation = (conversation: Conversation | null) => {
-    setReplyToMessage(null); // Clear any pending reply when switching conversations
-
-    if (conversation) {
-      const isSameConversation =
-        selectedConversationRef.current?._id === conversation._id;
-      const alreadyRead =
-        (conversation.unreadCount || 0) === 0 &&
-        conversation.lastMessageDirection !== "incoming";
-
-      if (isSameConversation && alreadyRead) {
-        return;
-      }
-
-      setSelectedConversation(maskConversationForViewer(conversation));
-
-      if (!isSameConversation) {
-        fetchMessages(conversation._id, true);
-
-        if (isMobile) {
-          navigateToChat();
-        }
-      }
-
-      const shouldMarkRead =
-        (conversation.unreadCount || 0) > 0 ||
-        conversation.lastMessageDirection === "incoming";
-      if (shouldMarkRead) {
-        void markConversationAsRead(conversation._id, {
-          lastMessageId: conversation.lastMessageId,
-        });
-      }
-
-      const currentConvParam =
-        searchParams?.get("conversation") || searchParams?.get("conversationId");
-      if (!isSameConversation || currentConvParam !== conversation._id) {
-        const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
-        router.push(`/whatsapp?conversation=${conversation._id}${suffix}`, { scroll: false });
-      }
-    } else {
-      setSelectedConversation(null);
-      // Navigate back to sidebar on mobile when clearing selection
-      if (isMobile) {
-        setMobileView("conversations");
-      }
-      
-      const suffixClear = retargetOnlyRef.current ? "?retargetOnly=1" : "";
-      router.push(`/whatsapp${suffixClear}`, { scroll: false });
-    }
-  };
+  useSocketHandlers({
+    socket,
+    token: token ?? null,
+    allowedPhoneConfigs,
+    phoneConfigsReady,
+    refs: {
+      seenEventIdsRef,
+      seenMessageIdsRef,
+      handleWhatsAppMessageRef,
+      selectedPhoneIdRef,
+      allowedPhoneIdsRef,
+      retargetOnlyRef,
+      selectedConversationRef,
+      conversationsFiltersRef,
+      markConversationAsReadRef,
+      pendingIncomingInviteRef,
+      incomingCallRingRef,
+      activeCallIdRef,
+      peerRef,
+      sdpAnswerAppliedHashRef,
+      signalingAnswerTimerRef,
+      remoteAudioRef,
+      callSoundRef,
+      pendingOutboundCallRef,
+      refetchConversationsListRef,
+      archivedConversationIdsRef,
+      threadActionsRef,
+      convUpdateTimerRef,
+      fetchArchivedConversationsRef,
+    },
+    actions: {
+      patchConversationsList,
+      mutateActiveMessages,
+      patchArchivedConversations,
+      adjustArchivedUnreadCount,
+      setSelectedConversation,
+      maskConversationForViewer,
+      syncArchivedStorage,
+      playNotificationSound,
+      cleanupOutboundCallResources,
+      setPendingIncomingInvite,
+      setOutboundCallUi,
+      setActiveCallId,
+      setRemoteAudioPlayBlocked,
+      setLastAnswerSdpPreview,
+      toast,
+    },
+  });
 
   const handleGuestAdded = async (conversationId: string, conversation?: Conversation) => {
     try {
-      // New owners have a location key — they never belong in Admin Queue
+      // New owners have a location key ? they never belong in Admin Queue
       setAdminQueue(false);
 
       const businessPhoneId = conversation?.businessPhoneId?.trim() || "";
@@ -3064,24 +1646,32 @@ export default function WhatsAppChat() {
         }
       }
 
-      const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
-
       if (newConversation) {
         const id = String(newConversation._id);
-        setConversations((prev) => {
+        patchConversationsList((prev) => {
           const without = prev.filter((c) => c._id !== id);
-          return sortConversations([newConversation!, ...without]);
+          return insertConversationAtCorrectPosition(without, newConversation!);
         });
 
         selectConversation(newConversation);
-        router.push(`/whatsapp?conversation=${id}${suffix}`, { scroll: false });
       } else {
-        router.push(`/whatsapp?conversation=${conversationId}${suffix}`, { scroll: false });
+        router.push(
+          buildWhatsAppInboxUrl(searchParams, {
+            conversation: conversationId,
+            retargetOnly: retargetOnlyRef.current,
+          }),
+          { scroll: false },
+        );
       }
     } catch (error) {
       console.error("Error handling guest added:", error);
-      const suffix = retargetOnlyRef.current ? `&retargetOnly=1` : "";
-      router.push(`/whatsapp?conversation=${conversationId}${suffix}`, { scroll: false });
+      router.push(
+        buildWhatsAppInboxUrl(searchParams, {
+          conversation: conversationId,
+          retargetOnly: retargetOnlyRef.current,
+        }),
+        { scroll: false },
+      );
     }
   };
 
@@ -3141,7 +1731,7 @@ export default function WhatsAppChat() {
           return;
         }
 
-        const convs = await fetchConversations();
+        const convs = await refetchConversationsList();
         const found = convs.find((c: Conversation) => {
           const phoneMatch = (c.participantPhone || "")
             .replace(/\D/g, "")
@@ -3167,19 +1757,20 @@ export default function WhatsAppChat() {
                 conversationType: openType,
               };
             } catch {
-              // non-blocking — still open the thread
+              // non-blocking ? still open the thread
             }
           }
-          setConversations((prev) => {
+          patchConversationsList((prev) => {
             const exists = prev.find((c) => c._id === conversationToOpen._id);
             if (exists) {
-              return sortConversations(
-                prev.map((c) =>
-                  c._id === conversationToOpen._id ? conversationToOpen : c,
-                ),
+              return repositionConversationAfterUpdate(
+                prev,
+                conversationToOpen._id,
+                () => conversationToOpen,
+                { reposition: false },
               );
             }
-            return sortConversations([conversationToOpen, ...prev]);
+            return insertConversationAtCorrectPosition(prev, conversationToOpen);
           });
           selectConversation(conversationToOpen);
         } else {
@@ -3195,14 +1786,17 @@ export default function WhatsAppChat() {
           });
           if (createRes.data.success) {
             const conversation = createRes.data.conversation as Conversation;
-            setConversations((prev) => {
+            patchConversationsList((prev) => {
               const exists = prev.find((c) => c._id === conversation._id);
               if (exists) {
-                return sortConversations(
-                  prev.map((c) => (c._id === conversation._id ? conversation : c)),
+                return repositionConversationAfterUpdate(
+                  prev,
+                  conversation._id,
+                  () => conversation,
+                  { reposition: false },
                 );
               }
-              return sortConversations([conversation, ...prev]);
+              return insertConversationAtCorrectPosition(prev, conversation);
             });
             selectConversation(conversation);
           }
@@ -3217,6 +1811,58 @@ export default function WhatsAppChat() {
       }
     })();
   }, [searchParams, token]);
+
+  // Deep-link: ?conversation=<id> ? restore the selected conversation on
+  // page load / refresh / back-forward navigation.
+  const deepLinkConvRestoredRef = useRef<string | null>(null);
+  useEffect(() => {
+    const convParam =
+      searchParams?.get("conversation") || searchParams?.get("conversationId");
+    if (!convParam || !token) return;
+    // Already restored for this exact value ? avoid re-running on unrelated searchParam changes.
+    if (deepLinkConvRestoredRef.current === convParam) return;
+    // If a conversation is already selected (user navigated manually) don't override.
+    if (selectedConversation) {
+      deepLinkConvRestoredRef.current = convParam;
+      return;
+    }
+
+    deepLinkConvRestoredRef.current = convParam;
+
+    (async () => {
+      // First try the already-loaded conversation list.
+      const fromList = conversations.find((c) => c._id === convParam);
+      if (fromList) {
+        selectConversation(fromList);
+        return;
+      }
+      // Fall back to a direct API lookup.
+      try {
+        const res = await axios.get(
+          `/api/whatsapp/conversations?conversation=${encodeURIComponent(convParam)}`,
+        );
+        if (res.data.success && res.data.conversations?.[0]) {
+          const conv = res.data.conversations[0] as Conversation;
+          patchConversationsList((prev) => {
+            const exists = prev.find((c) => c._id === conv._id);
+            if (exists) return prev;
+            return insertConversationAtCorrectPosition(prev, conv);
+          });
+          selectConversation(conv);
+        } else {
+          // Conversation not found or access denied ? strip the stale param gracefully.
+          toast({
+            title: "Conversation not found",
+            description: "The linked conversation could not be loaded.",
+            variant: "destructive",
+          });
+          router.replace("/whatsapp", { scroll: false });
+        }
+      } catch {
+        // Network error ? don't navigate away, let the user retry.
+      }
+    })();
+  }, [searchParams, token, conversations, selectedConversation, selectConversation, patchConversationsList, router, toast]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !selectedConversation) return;
@@ -3276,36 +1922,30 @@ export default function WhatsAppChat() {
         },
       }),
     };
-    setMessages((prev) => [...prev, tempMsg]);
+    mutateActiveMessages((prev) => [...prev, tempMsg]);
     setNewMessage("");
     setReplyToMessage(null); // Clear reply after sending
 
     // Immediately update conversation list optimistically
-    setConversations((prev) => {
+    patchConversationsList((prev) => {
       const exists = prev.find((c) => c._id === selectedConversation._id);
       if (exists) {
-        const updated = prev.map((conv) =>
-          conv._id === selectedConversation._id
-            ? {
-                ...conv,
-                lastMessageContent: messageContent,
-                lastMessageTime: sendTimestamp,
-                lastMessageDirection: "outgoing",
-                lastMessageId: tempId,
-                lastMessageStatus: "sending" as const,
-              }
-            : conv
-        );
-        return sortConversations(updated);
-      } else {
-        const newConv = {
-          ...selectedConversation,
+        return repositionConversationAfterUpdate(prev, selectedConversation._id, (conv) => ({
+          ...conv,
           lastMessageContent: messageContent,
           lastMessageTime: sendTimestamp,
           lastMessageDirection: "outgoing",
-        };
-        return sortConversations([newConv, ...prev]);
+          lastMessageId: tempId,
+          lastMessageStatus: "sending" as const,
+        }));
       }
+      const newConv = {
+        ...selectedConversation,
+        lastMessageContent: messageContent,
+        lastMessageTime: sendTimestamp,
+        lastMessageDirection: "outgoing",
+      };
+      return insertConversationAtCorrectPosition(prev, newConv);
     });
 
     // Update selected conversation timestamp instantly
@@ -3335,7 +1975,7 @@ export default function WhatsAppChat() {
         const savedMessageId = response.data.savedMessageId;
         const realTimestamp = new Date(response.data.timestamp || sendTimestamp);
 
-        setMessages((prev) => {
+        mutateActiveMessages((prev) => {
           const existingIdx = prev.findIndex((m) => m.messageId === realMessageId);
           if (existingIdx !== -1) {
             return prev
@@ -3360,26 +2000,20 @@ export default function WhatsAppChat() {
           );
         });
 
-        setConversations((prev) =>
-          prev.map((conv) =>
-            conv._id === selectedConversation._id
-              ? {
-                  ...conv,
-                  lastMessageId: realMessageId,
-                  lastMessageStatus: "sent" as const,
-                }
-              : conv,
-          ),
+        patchConversationsList((prev) =>
+          patchConversationInList(prev, selectedConversation._id, {
+            lastMessageId: realMessageId,
+            lastMessageStatus: "sent" as const,
+          }),
         );
 
         // Mark this messageId as seen to avoid duplicate processing
         try {
           addToLRUSet(seenMessageIdsRef.current, response.data.messageId);
         } catch (e) {}
-        setInitiationLimitRefreshKey((k) => k + 1);
       }
     } catch (error: any) {
-      setMessages((prev) =>
+      mutateActiveMessages((prev) =>
         prev.map((msg) =>
           msg._id === tempId ? { ...msg, status: "failed" } : msg
         )
@@ -3452,33 +2086,27 @@ export default function WhatsAppChat() {
       status: "sending",
       direction: "outgoing",
     };
-    setMessages((prev) => [...prev, tempMsg]);
+    mutateActiveMessages((prev) => [...prev, tempMsg]);
 
     // Update conversation list optimistically
     const templatePreview = templateDisplayText.substring(0, 50) + (templateDisplayText.length > 50 ? "..." : "");
-    setConversations((prev) => {
+    patchConversationsList((prev) => {
       const exists = prev.find((c) => c._id === selectedConversation._id);
       if (exists) {
-        const updated = prev.map((conv) =>
-          conv._id === selectedConversation._id
-            ? {
-                ...conv,
-                lastMessageContent: templatePreview,
-                lastMessageTime: sendTimestamp,
-                lastMessageDirection: "outgoing",
-              }
-            : conv
-        );
-        return sortConversations(updated);
-      } else {
-        const newConv = {
-          ...selectedConversation,
+        return repositionConversationAfterUpdate(prev, selectedConversation._id, (conv) => ({
+          ...conv,
           lastMessageContent: templatePreview,
           lastMessageTime: sendTimestamp,
           lastMessageDirection: "outgoing",
-        };
-        return sortConversations([newConv, ...prev]);
+        }));
       }
+      const newConv = {
+        ...selectedConversation,
+        lastMessageContent: templatePreview,
+        lastMessageTime: sendTimestamp,
+        lastMessageDirection: "outgoing",
+      };
+      return insertConversationAtCorrectPosition(prev, newConv);
     });
 
     // Update selected conversation timestamp instantly
@@ -3510,7 +2138,7 @@ export default function WhatsAppChat() {
         const savedMessageId = response.data.savedMessageId;
         const realTimestamp = new Date(response.data.timestamp || sendTimestamp);
 
-        setMessages((prev) => {
+        mutateActiveMessages((prev) => {
           const existingIdx = prev.findIndex((m) => m.messageId === realMessageId);
           if (existingIdx !== -1) {
             return prev
@@ -3545,7 +2173,6 @@ export default function WhatsAppChat() {
         } catch {
           // ignore
         }
-        setInitiationLimitRefreshKey((k) => k + 1);
 
         toast({
           title: "Template Sent",
@@ -3556,7 +2183,7 @@ export default function WhatsAppChat() {
         setTemplateParams({}); // Clear parameters after successful send
       }
     } catch (error: any) {
-      setMessages((prev) =>
+      mutateActiveMessages((prev) =>
         prev.map((msg) =>
           msg._id === tempId ? { ...msg, status: "failed" } : msg
         )
@@ -3634,7 +2261,7 @@ export default function WhatsAppChat() {
     toast({
       title: "Add location first",
       description:
-        "Use the + person icon → Owner or Guest and pick a city, or open the contact from a lead.",
+        "Use the + person icon ? Owner or Guest and pick a city, or open the contact from a lead.",
       variant: "destructive",
     });
   };
@@ -3662,11 +2289,11 @@ export default function WhatsAppChat() {
   };
 
   // Handle react to message
-  const handleReactMessage = async (message: Message, emoji: string = "ðŸ‘") => {
+  const handleReactMessage = async (message: Message, emoji: string = "??") => {
     if (!selectedConversation || !message.messageId) return;
 
     // Optimistically add reaction to the message
-    setMessages((prev) =>
+    mutateActiveMessages((prev) =>
       prev.map((msg) => {
         if (msg.messageId === message.messageId) {
           const existingReactions = msg.reactions || [];
@@ -3703,7 +2330,7 @@ export default function WhatsAppChat() {
     } catch (error: any) {
       console.error("React error:", error);
       // Revert optimistic update on error
-      setMessages((prev) =>
+      mutateActiveMessages((prev) =>
         prev.map((msg) => {
           if (msg.messageId === message.messageId) {
             const reactions = msg.reactions || [];
@@ -3776,18 +2403,18 @@ export default function WhatsAppChat() {
         });
         
         // Refresh conversations to reflect the transfer
-        await fetchConversations(true);
+        const refreshedConversations = await refetchConversationsList();
         
-        // Find and select the transferred/merged conversation
         const finalConversationId = response.data.conversationId;
-        const finalConv = conversations.find(
+        const finalConv = refreshedConversations.find(
           (c) => c._id === finalConversationId
         );
         
         if (finalConv) {
           selectConversation(finalConv);
-          // Also refresh messages for the new conversation
-          await fetchMessages(finalConv._id);
+          await queryClient.invalidateQueries({
+            queryKey: buildMessagesQueryKey(finalConv._id),
+          });
         } else {
           // If conversation not found in current list, it might be in a different phone's list
           // Clear selection and let user navigate manually
@@ -3833,7 +2460,7 @@ export default function WhatsAppChat() {
 
       const tempId = `temp-${Date.now()}`;
       const sendTimestamp = new Date();
-      const mediaDisplayText = `ðŸ“Ž ${file.name}`;
+      const mediaDisplayText = `?? ${file.name}`;
 
       // Add optimistic message
       const tempMsg: Message = {
@@ -3849,22 +2476,17 @@ export default function WhatsAppChat() {
         status: "sending",
         direction: "outgoing",
       };
-      setMessages((prev) => [...prev, tempMsg]);
+      mutateActiveMessages((prev) => [...prev, tempMsg]);
 
       // Update conversation list optimistically
-      setConversations((prev) => {
-        const updated = prev.map((conv) =>
-          conv._id === selectedConversation._id
-            ? {
-                ...conv,
-                lastMessageContent: mediaDisplayText,
-                lastMessageTime: sendTimestamp,
-                lastMessageDirection: "outgoing",
-              }
-            : conv
-        );
-        return sortConversations(updated);
-      });
+      patchConversationsList((prev) =>
+        repositionConversationAfterUpdate(prev, selectedConversation._id, (conv) => ({
+          ...conv,
+          lastMessageContent: mediaDisplayText,
+          lastMessageTime: sendTimestamp,
+          lastMessageDirection: "outgoing",
+        })),
+      );
 
       // Update selected conversation timestamp instantly
       setSelectedConversation((prev) => {
@@ -3888,7 +2510,7 @@ export default function WhatsAppChat() {
         });
 
         if (sendResponse.data.success) {
-          setMessages((prev) =>
+          mutateActiveMessages((prev) =>
             prev.map((msg) =>
               msg._id === tempId
                 ? {
@@ -3908,7 +2530,7 @@ export default function WhatsAppChat() {
           });
         }
       } catch (error: any) {
-        setMessages((prev) =>
+        mutateActiveMessages((prev) =>
           prev.map((msg) =>
             msg._id === tempId ? { ...msg, status: "failed" } : msg
           )
@@ -3999,7 +2621,7 @@ export default function WhatsAppChat() {
     const tempId = `temp-${Date.now()}`;
     const sendTimestamp = new Date();
     const captionText = customCaption?.trim() || "";
-    const mediaDisplayText = captionText ? `ðŸ“Ž ${captionText}` : `ðŸ“Ž ${file.name}`;
+    const mediaDisplayText = captionText ? `?? ${captionText}` : `?? ${file.name}`;
     
     // Create a local preview URL for images/videos
     const localPreviewUrl = (mediaType === "image" || mediaType === "video") 
@@ -4020,22 +2642,17 @@ export default function WhatsAppChat() {
       status: "sending",
       direction: "outgoing",
     };
-    setMessages((prev) => [...prev, tempMsg]);
+    mutateActiveMessages((prev) => [...prev, tempMsg]);
 
     // Update conversation list optimistically
-    setConversations((prev) => {
-      const updated = prev.map((conv) =>
-        conv._id === selectedConversation._id
-          ? {
-              ...conv,
-              lastMessageContent: mediaDisplayText,
-              lastMessageTime: sendTimestamp,
-              lastMessageDirection: "outgoing",
-            }
-          : conv
-      );
-      return sortConversations(updated);
-    });
+    patchConversationsList((prev) =>
+      repositionConversationAfterUpdate(prev, selectedConversation._id, (conv) => ({
+        ...conv,
+        lastMessageContent: mediaDisplayText,
+        lastMessageTime: sendTimestamp,
+        lastMessageDirection: "outgoing",
+      })),
+    );
 
     // Update selected conversation timestamp instantly
     setSelectedConversation((prev) => {
@@ -4064,7 +2681,7 @@ export default function WhatsAppChat() {
                 (progressEvent.loaded * 100) / progressEvent.total
               );
               // Update optimistic message to show upload progress
-              setMessages((prev) =>
+              mutateActiveMessages((prev) =>
                 prev.map((msg) =>
                   msg._id === tempId
                     ? { ...msg, uploadProgress: percentCompleted }
@@ -4082,8 +2699,8 @@ export default function WhatsAppChat() {
 
       const { url: bunnyUrl, filename: bunnyFilename } = uploadResponse.data;
 
-      // Update temp message with Bunny URL
-      setMessages((prev) =>
+      if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+      mutateActiveMessages((prev) =>
         prev.map((msg) =>
           msg._id === tempId ? { ...msg, mediaUrl: bunnyUrl } : msg
         )
@@ -4099,7 +2716,7 @@ export default function WhatsAppChat() {
       });
 
       if (sendResponse.data.success) {
-        setMessages((prev) =>
+        mutateActiveMessages((prev) =>
           prev.map((msg) =>
             msg._id === tempId
               ? {
@@ -4119,7 +2736,7 @@ export default function WhatsAppChat() {
         });
       }
     } catch (error: any) {
-      console.error("âŒ File upload error:", {
+      console.error("? File upload error:", {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
@@ -4127,7 +2744,7 @@ export default function WhatsAppChat() {
         fileName: file.name,
         fileSize: file.size,
       });
-      setMessages((prev) =>
+      mutateActiveMessages((prev) =>
         prev.map((msg) =>
           msg._id === tempId ? { ...msg, status: "failed" } : msg
         )
@@ -4187,7 +2804,7 @@ export default function WhatsAppChat() {
 
     const tempId = `temp-${Date.now()}`;
     const sendTimestamp = new Date();
-    const mediaDisplayText = caption || `ðŸ“· ${file.name}`;
+    const mediaDisplayText = caption || `?? ${file.name}`;
     
     // Create local preview URL
     const localPreviewUrl = URL.createObjectURL(file);
@@ -4206,22 +2823,17 @@ export default function WhatsAppChat() {
       status: "sending",
       direction: "outgoing",
     };
-    setMessages((prev) => [...prev, tempMsg]);
+    mutateActiveMessages((prev) => [...prev, tempMsg]);
 
     // Update conversation list optimistically
-    setConversations((prev) => {
-      const updated = prev.map((conv) =>
-        conv._id === selectedConversation._id
-          ? {
-              ...conv,
-              lastMessageContent: mediaDisplayText,
-              lastMessageTime: sendTimestamp,
-              lastMessageDirection: "outgoing",
-            }
-          : conv
-      );
-      return sortConversations(updated);
-    });
+    patchConversationsList((prev) =>
+      repositionConversationAfterUpdate(prev, selectedConversation._id, (conv) => ({
+        ...conv,
+        lastMessageContent: mediaDisplayText,
+        lastMessageTime: sendTimestamp,
+        lastMessageDirection: "outgoing",
+      })),
+    );
 
     try {
       // Upload to Bunny CDN
@@ -4238,7 +2850,7 @@ export default function WhatsAppChat() {
               const percentCompleted = Math.round(
                 (progressEvent.loaded * 100) / progressEvent.total
               );
-              setMessages((prev) =>
+              mutateActiveMessages((prev) =>
                 prev.map((msg) =>
                   msg._id === tempId
                     ? { ...msg, uploadProgress: percentCompleted }
@@ -4256,8 +2868,8 @@ export default function WhatsAppChat() {
 
       const { url: bunnyUrl, filename: bunnyFilename } = uploadResponse.data;
 
-      // Update temp message with Bunny URL
-      setMessages((prev) =>
+      if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
+      mutateActiveMessages((prev) =>
         prev.map((msg) =>
           msg._id === tempId ? { ...msg, mediaUrl: bunnyUrl } : msg
         )
@@ -4274,7 +2886,7 @@ export default function WhatsAppChat() {
       });
 
       if (sendResponse.data.success) {
-        setMessages((prev) =>
+        mutateActiveMessages((prev) =>
           prev.map((msg) =>
             msg._id === tempId
               ? {
@@ -4288,8 +2900,8 @@ export default function WhatsAppChat() {
         );
       }
     } catch (error: any) {
-      console.error("âŒ Image send error:", error);
-      setMessages((prev) =>
+      console.error("? Image send error:", error);
+      mutateActiveMessages((prev) =>
         prev.map((msg) =>
           msg._id === tempId ? { ...msg, status: "failed" } : msg
         )
@@ -4325,24 +2937,19 @@ export default function WhatsAppChat() {
         status: "sending",
         direction: "outgoing",
       };
-      setMessages((prev) => [...prev, tempMsg]);
+      mutateActiveMessages((prev) => [...prev, tempMsg]);
     });
 
     // Update conversation list optimistically
-    const mediaDisplayText = `ðŸ“· ${files.length} image${files.length > 1 ? 's' : ''}`;
-    setConversations((prev) => {
-      const updated = prev.map((conv) =>
-        conv._id === selectedConversation._id
-          ? {
-              ...conv,
-              lastMessageContent: mediaDisplayText,
-              lastMessageTime: sendTimestamp,
-              lastMessageDirection: "outgoing",
-            }
-          : conv
-      );
-      return sortConversations(updated);
-    });
+    const mediaDisplayText = `?? ${files.length} image${files.length > 1 ? 's' : ''}`;
+    patchConversationsList((prev) =>
+      repositionConversationAfterUpdate(prev, selectedConversation._id, (conv) => ({
+        ...conv,
+        lastMessageContent: mediaDisplayText,
+        lastMessageTime: sendTimestamp,
+        lastMessageDirection: "outgoing",
+      })),
+    );
 
     // Update selected conversation timestamp
     setSelectedConversation((prev) => {
@@ -4374,7 +2981,7 @@ export default function WhatsAppChat() {
                   const percentCompleted = Math.round(
                     (progressEvent.loaded * 100) / progressEvent.total
                   );
-                  setMessages((prev) =>
+                  mutateActiveMessages((prev) =>
                     prev.map((msg) =>
                       msg._id === tempId
                         ? { ...msg, uploadProgress: percentCompleted }
@@ -4392,12 +2999,16 @@ export default function WhatsAppChat() {
 
           const { url: bunnyUrl, filename: bunnyFilename } = uploadResponse.data;
 
-          // Update temp message with Bunny URL
-          setMessages((prev) =>
-            prev.map((msg) =>
+          // Revoke the per-iteration blob URL before replacing with CDN URL
+          mutateActiveMessages((prev) => {
+            const existing = prev.find((m) => m._id === tempId);
+            if (existing?.mediaUrl?.startsWith("blob:")) {
+              URL.revokeObjectURL(existing.mediaUrl);
+            }
+            return prev.map((msg) =>
               msg._id === tempId ? { ...msg, mediaUrl: bunnyUrl } : msg
-            )
-          );
+            );
+          });
 
           // Send the image via WhatsApp API
           const sendResponse = await axios.post("/api/whatsapp/send-media", {
@@ -4409,7 +3020,7 @@ export default function WhatsAppChat() {
           });
 
           if (sendResponse.data.success) {
-            setMessages((prev) =>
+            mutateActiveMessages((prev) =>
               prev.map((msg) =>
                 msg._id === tempId
                   ? {
@@ -4423,8 +3034,8 @@ export default function WhatsAppChat() {
             );
           }
         } catch (error: any) {
-          console.error(`âŒ Image ${index + 1} upload error:`, error);
-          setMessages((prev) =>
+          console.error(`? Image ${index + 1} upload error:`, error);
+          mutateActiveMessages((prev) =>
             prev.map((msg) =>
               msg._id === tempId ? { ...msg, status: "failed" } : msg
             )
@@ -4448,7 +3059,8 @@ export default function WhatsAppChat() {
 
   // Handle audio call
   const handleAudioCall = async () => {
-    if (!selectedConversation || !callPermissions.canMakeCalls) return;
+    const canCall = await fetchCallPermissions();
+    if (!selectedConversation || !canCall) return;
 
     const phoneNumberId = getConversationBusinessPhoneId(selectedConversation);
     if (!phoneNumberId) {
@@ -4595,7 +3207,7 @@ export default function WhatsAppChat() {
       console.log("[call] raw Chrome offer SDP:\n", rawOffer.sdp);
       await pc.setLocalDescription(rawOffer);
 
-      // Wait for ICE gathering (resolves on complete OR timeout â€” never rejects).
+      // Wait for ICE gathering (resolves on complete OR timeout ? never rejects).
       const rawIceSummary = await awaitIceGatheringForMeta(
         pc,
         relayConfigured,
@@ -4611,7 +3223,7 @@ export default function WhatsAppChat() {
       });
       if (pc.signalingState === "closed" || pc.connectionState === "closed") {
         throw new Error(
-          `[outbound] RTCPeerConnection closed during ICE gathering â€” ` +
+          `[outbound] RTCPeerConnection closed during ICE gathering ? ` +
             `signalingState=${pc.signalingState} connectionState=${pc.connectionState} ` +
             `iceConnectionState=${pc.iceConnectionState}. ` +
             `Possible causes: premature cleanup, TURN auth rejected, or browser closed PC.`,
@@ -4621,7 +3233,7 @@ export default function WhatsAppChat() {
       logWebRtcMediaDiagnostics(pc, "post-ICE-gather");
 
       // Build a fresh minimal RFC 8866 SDP from Chrome's local description.  This drops
-      // all Chrome-only attributes (extmap, rtcp-fb, â€¦) and filters ICE candidates so we
+      // all Chrome-only attributes (extmap, rtcp-fb, ?) and filters ICE candidates so we
       // send Meta only public IPv4 srflx/relay candidates.
       const gathered = pc.localDescription?.sdp ?? "";
       if (!gathered) throw new Error("Failed to generate SDP offer");
@@ -4708,8 +3320,8 @@ export default function WhatsAppChat() {
           : prev,
       );
       toast({
-        title: "ðŸ“ž Callingâ€¦",
-        description: "Call initiated. Waiting for SDP answerâ€¦",
+        title: "?? Calling?",
+        description: "Call initiated. Waiting for SDP answer?",
       });
     } catch (error: unknown) {
       cleanupOutboundCallResources();
@@ -4770,35 +3382,40 @@ export default function WhatsAppChat() {
   // Handle mobile back navigation
   const handleMobileBack = useCallback(() => {
     setSelectedConversation(null);
-    setMessages([]);
     navigateToConversations();
   }, [navigateToConversations]);
 
+  // -- Stable ref wrapper for handleAudioCall so containers don't break memoization --
+  const handleAudioCallRef = useRef(handleAudioCall);
+  handleAudioCallRef.current = handleAudioCall;
+  const stableHandleAudioCall = useCallback(async () => handleAudioCallRef.current(), []);
+
+  // -- Stable dialog-opener callbacks for containers --
+  const stableOpenDisposition = useCallback(() => setShowDispositionDialog(true), [setShowDispositionDialog]);
+  const stableOpenSetVisit = useCallback(() => setShowVisitDialog(true), [setShowVisitDialog]);
+  const stableOpenReminder = useCallback(() => setShowReminderDialog(true), [setShowReminderDialog]);
+  const stableOpenAddOwner = useCallback(() => {
+    setAddContactType("owner");
+    setShowAddContactModal(true);
+  }, [setAddContactType, setShowAddContactModal]);
+  const stableOpenAddGuestModal = useCallback(() => {
+    setAddContactType("guest");
+    setShowAddContactModal(true);
+  }, [setAddContactType, setShowAddContactModal]);
+  const stableOpenTransferDialog = useCallback(() => setShowTransferDialog(true), [setShowTransferDialog]);
+
+  // -- Keep sendActionsRef fresh every render so containers always call the latest closures --
+  sendActionsRef.current.sendMessage = sendMessage;
+  sendActionsRef.current.sendTemplateMessage = sendTemplateMessage;
+  sendActionsRef.current.handleFileUpload = handleFileUpload as SendActions["handleFileUpload"];
+  sendActionsRef.current.handleSendMediaWithCaptions = handleSendMediaWithCaptions as SendActions["handleSendMediaWithCaptions"];
+
   return (
     <div className="flex flex-col h-full w-full max-w-full bg-[#f0f2f5] dark:bg-[#0b141a] overflow-x-hidden">
-        {/* WhatsApp-style header - responsive */}
-        <div className={cn(
-          "bg-[#008069] dark:bg-[#202c33] flex items-center shadow-sm flex-shrink-0",
-          "h-[50px] px-4",
-          "md:h-[50px] md:px-4",
-          // Safe area for iOS
-          "pt-[env(safe-area-inset-top,0px)]"
-        )}>
-          <h1 className="text-white font-semibold text-base md:text-lg">Chat</h1>
-          <Link
-            href="/whatsapp/calls"
-            className="ml-3 text-xs font-medium text-white/85 underline-offset-2 hover:text-white hover:underline md:text-sm"
-          >
-            Call history
-          </Link>
-          <div className="flex-1" />
-          {/* User info - hidden on mobile, shown on tablet+ */}
-          <div className="text-white/80 text-sm hidden md:block">
-            {token?.name} &bull; {token?.role}
-          </div>
-        </div>
+        
 
-        {isDesktopNotificationSupported() &&
+        {clientMounted &&
+          isDesktopNotificationSupported() &&
           getDesktopNotificationPermission() === "default" &&
           !desktopNotifyBannerDismissed && (
             <div
@@ -4845,370 +3462,83 @@ export default function WhatsAppChat() {
         <div className="flex-1 overflow-x-hidden max-w-full min-h-0">
           {/* Mobile-first responsive layout */}
           <div className="flex h-full relative w-full max-w-full min-h-0 overflow-hidden">
-            {/* Conversation Sidebar - Full screen on mobile, fixed width on desktop */}
-            <div className={cn(
-              // Base: Always flex, full height; min-w-0 so content fits without overflow
-              "flex flex-col h-full min-w-0 flex-shrink-0",
-              // Mobile: Full screen width, hidden when chat is open
-              "w-full max-w-full",
-              isMobile && mobileView === "chat" && "hidden",
-              // Tablet and up: Fixed sidebar width
-              "md:w-[340px] md:min-w-[280px] md:max-w-[340px]",
-              "lg:w-[600px] lg:min-w-[340px] lg:max-w-[600px]",
-              // Transition for smooth view changes
-              "transition-all duration-200 ease-out"
-            )}>
-              <ConversationSidebar
-              conversations={showingArchived ? archivedConversations : conversations}
-              selectedConversation={selectedConversation}
-              searchQuery={searchQuery}
-              onSearchQueryChange={setSearchQuery}
-              loading={loading}
-              newCountryCode={newCountryCode}
-              onCountryCodeChange={setNewCountryCode}
-              newPhoneNumber={newPhoneNumber}
-              onPhoneNumberChange={setNewPhoneNumber}
-              onStartConversation={startNewConversation}
-              onSelectConversation={selectConversation}
-              isConnected={isConnected}
-              conversationCounts={conversationCounts}
-              hasMoreConversations={showingArchived ? false : hasMoreConversations}
-              loadingMoreConversations={loadingMoreConversations}
-              onLoadMoreConversations={showingArchived ? undefined : () => fetchConversations(false)}
-              onAddOwner={() => {
-                setAddContactType("owner");
-                setShowAddContactModal(true);
-              }}
-              onAddGuest={() => {
-                if (guestInitiationAtLimit) {
-                  toast({
-                    title: "Daily limit reached",
-                    description:
-                      "You have reached your daily limit of 15 new guest conversations.",
-                    variant: "destructive",
-                  });
-                  return;
-                }
-                setAddContactType("guest");
-                setShowAddContactModal(true);
-              }}
-              // Archive functionality
-              archivedCount={archivedCount}
-              archivedUnreadCount={archivedConversations.reduce(
-                (sum, c) =>
-                  sum +
-                  ((c.unreadCount || 0) > 0 && c.lastMessageDirection === "incoming" ? c.unreadCount || 0 : 0),
-                0
-              )}
-              showingArchived={showingArchived}
-              onToggleArchiveView={toggleArchiveView}
-              onArchiveConversation={archiveConversation}
-              onUnarchiveConversation={unarchiveConversation}
-              // User info for access control
-              userRole={token?.role}
-              userEmail={token?.email}
-              userAreas={token?.allotedArea}
-              // User profile for nav strip
-              userName={token?.name}
-              userProfilePic={(token as any)?.profilePic || (token as any)?.avatar}
-              // Mobile props
+            {/* -- Sidebar Container ----------------------------------------- */}
+            <ConversationSidebarContainer
               isMobile={isMobile}
-              onUpdateConversation={handleUpdateConversation}
-              onConversationTypeChange={handleConversationTypeChange}
-              onRefreshConversations={() => void fetchConversations(true)}
-              phoneMaskRules={phoneMaskRules}
+              mobileView={mobileView}
+              isConnected={isConnected}
+              token={token as ConversationSidebarContainerProps["token"]}
               canManagePhoneMask={canManagePhoneMask}
-              // Admin Queue (full-access roles only)
-              adminQueue={adminQueue}
-              onAdminQueueChange={handleAdminQueueChange}
-              adminLocationFilter={adminLocationFilter}
-              adminLocationOptions={adminLocationOptions}
-              onAdminLocationFilterChange={handleAdminLocationFilterChange}
-              sidebarTabHint={sidebarTabHint}
-              onSidebarTabHintConsumed={() => setSidebarTabHint(null)}
-              labelFilter={labelFilter}
-              onLabelFilterChange={setLabelFilter}
-              initiationLimitRefreshKey={initiationLimitRefreshKey}
-              guestInitiationAtLimit={guestInitiationAtLimit}
-              onOpenDisposition={() => setShowDispositionDialog(true)}
-              onOpenSetVisit={() => setShowVisitDialog(true)}
-              onOpenReminder={() => setShowReminderDialog(true)}
-              onCrmActionForConversation={(conversation) => {
-                if (selectedConversation?._id !== conversation._id) {
-                  selectConversation(conversation);
-                }
-              }}
-              // Jump to message from search results
-              onJumpToMessage={(conversationId, messageId) => {
-                // Find and select the conversation
-                const conv = (showingArchived ? archivedConversations : conversations).find(
-                  (c) => c._id === conversationId
-                );
-                if (conv) {
-                  selectConversation(conv);
-                  // Set pending message ID to scroll to after messages load
-                  setPendingScrollToMessageId(messageId);
-                  // Set message search query for highlighting
-                  setMessageSearchQuery(searchQuery);
-                }
-              }}
+              onOpenAddOwner={stableOpenAddOwner}
+              onOpenAddGuestModal={stableOpenAddGuestModal}
+              onOpenDisposition={stableOpenDisposition}
+              onOpenSetVisit={stableOpenSetVisit}
+              onOpenReminder={stableOpenReminder}
             />
-            </div>
 
-            {/* Chat Panel - Full screen on mobile when chat is selected */}
-            <div
-              className={cn(
-                // Base: Flex column layout
-                "flex flex-col bg-[#efeae2] dark:bg-[#0b141a]",
-                // Background: light and dark mode images
-                "bg-[url(/whatsapp-background.png)] dark:bg-[url(/whatsapp-background-dark.png)] bg-contain bg-center bg-repeat",
-                // Mobile: Full screen overlay when chat is open
-                isMobile ? (
-                  mobileView === "chat" ? "absolute inset-0 z-10 w-full h-full max-w-full" : "hidden"
-                ) : "flex-1 relative min-w-0",
-                // Desktop: Always visible, flex-1 for remaining space
-                "md:flex-1 md:relative md:z-auto md:min-w-0",
-                // Transition for smooth view changes
-                "transition-all duration-200 ease-out"
-              )}
-            >
-              {initiationLimitStatus?.limited && (
-                <div className="px-4 py-2.5 bg-[#e7f8f3] dark:bg-[#0b3328] border-b border-[#cfe8f6] dark:border-[#2a3942] flex-shrink-0">
-                  <InitiationLimitBadge
-                    refreshKey={initiationLimitRefreshKey}
-                    variant="banner"
-                  />
-                </div>
-              )}
+            {/* -- Message Thread Container ---------------------------------- */}
+            <MessageThreadContainer
+              isMobile={isMobile}
+              mobileView={mobileView}
+              token={token as MessageThreadContainerProps["token"]}
+              canManagePhoneMask={canManagePhoneMask}
+              isConnected={isConnected}
+              phoneMaskRules={phoneMaskRules}
+              initiationLimitRefreshKey={initiationLimitRefreshKey}
+              callPermissions={callPermissions}
+              callPermsFetched={callPermsFetched}
+              callingAudio={callingAudio}
+              onAudioCall={stableHandleAudioCall}
+              onFetchCallPermissions={fetchCallPermissions}
+              onOpenTransferDialog={stableOpenTransferDialog}
+              fileInputRef={fileInputRef}
+              imageInputRef={imageInputRef}
+              videoInputRef={videoInputRef}
+              audioInputRef={audioInputRef}
+              messagesEndRef={messagesEndRef}
+              sendActionsRef={sendActionsRef}
+              onMobileBack={handleMobileBack}
+            />
 
-              {selectedConversation ? (
-                <>
-                  <ChatHeader
-                    conversation={selectedConversation}
-                    callPermissions={callPermissions}
-                    callingAudio={callingAudio}
-                    onAudioCall={handleAudioCall}
-                    onRefreshTemplates={() =>
-                      fetchTemplates(selectedConversation?._id ?? null)
-                    }
-                    templatesLoading={templatesLoading}
-                    showMessageSearch={showMessageSearch}
-                    onToggleMessageSearch={() => setShowMessageSearch((prev) => !prev)}
-                    onCloseSearch={() => {
-                      setShowMessageSearch(false);
-                      setMessageSearchQuery("");
-                    }}
-                    messageSearchQuery={messageSearchQuery}
-                    onMessageSearchChange={setMessageSearchQuery}
-                    toastCopy={copyPhoneNumber}
-                    readersRefreshToken={readersRefreshToken}
-                    currentUserId={token?.id || (token as any)?._id}
-                    onBack={handleMobileBack}
-                    isMobile={isMobile}
-                    availablePhoneConfigs={allowedPhoneConfigs}
-                    currentPhoneId={getConversationBusinessPhoneId(selectedConversation) ?? null}
-                    onTransferLead={() => setShowTransferDialog(true)}
-                    onConversationTypeChange={handleConversationTypeChange}
-                    phoneMaskRules={phoneMaskRules}
-                    userRole={token?.role}
-                    userEmail={token?.email}
-                    userAreas={token?.allotedArea}
-                    onLocationSet={(conversationId, location) => {
-                      handleUpdateConversation(conversationId, {
-                        participantLocation: location,
-                      } as Partial<Conversation>);
-                      void fetchConversations(true);
-                    }}
-                    onOpenDisposition={
-                      showCrmActions ? () => setShowDispositionDialog(true) : undefined
-                    }
-                    onOpenSetVisit={
-                      showCrmActions ? () => setShowVisitDialog(true) : undefined
-                    }
-                    onOpenReminder={
-                      showCrmActions ? () => setShowReminderDialog(true) : undefined
-                    }
-                    onToggleCrmPanel={
-                      showCrmActions && !isMobile
-                        ? () => setShowCrmPanel((p) => !p)
-                        : undefined
-                    }
-                    crmPanelOpen={showCrmPanel}
-                  />
-
-                  {showCrmActions && (
-                    <CrmQuickActionsBar
-                      onOpenDisposition={() => setShowDispositionDialog(true)}
-                      onOpenSetVisit={() => setShowVisitDialog(true)}
-                      onOpenReminder={() => setShowReminderDialog(true)}
-                    />
-                  )}
-
-                  <MessageList
-                    key={selectedConversation._id}
-                    messages={messages}
-                    messagesLoading={messagesLoading}
-                    messageSearchQuery={messageSearchQuery}
-                    messagesEndRef={messagesEndRef}
-                    selectedConversationActive={!!selectedConversation}
-                    onLoadOlderMessages={loadOlderMessages}
-                    hasMoreMessages={hasMoreMessages}
-                    loadingOlderMessages={loadingOlderMessages}
-                    onForwardMessages={handleForwardMessages}
-                    conversations={conversations}
-                    onReplyMessage={handleReplyMessage}
-                    onReactMessage={handleReactMessage}
-                    isMobile={isMobile}
-                    pendingScrollToMessageId={pendingScrollToMessageId}
-                    onScrolledToMessage={() => setPendingScrollToMessageId(null)}
-                  />
-
-                  <MessageComposer
-                    newMessage={newMessage}
-                    onMessageChange={setNewMessage}
-                    onSendMessage={sendMessage}
-                    sendingMessage={sendingMessage}
-                    canSendFreeForm={canSendFreeForm}
-                    showTemplateDialog={showTemplateDialog}
-                    onTemplateDialogChange={setShowTemplateDialog}
-                    templates={templates}
-                    templatesLoading={templatesLoading}
-                    templatesChannelScoped={templatesChannelScoped}
-                    selectedTemplate={selectedTemplate}
-                    onSelectTemplate={setSelectedTemplate}
-                    templateParams={templateParams}
-                    onTemplateParamsChange={setTemplateParams}
-                    onSendTemplate={sendTemplateMessage}
-                    uploadingMedia={uploadingMedia}
-                    onHandleFileUpload={handleFileUpload}
-                    fileInputRef={fileInputRef}
-                    imageInputRef={imageInputRef}
-                    videoInputRef={videoInputRef}
-                    audioInputRef={audioInputRef}
-                    onOpenTemplateFromWarning={() => setShowTemplateDialog(true)}
-                    templateContext={{
-                      ...getConversationTemplateContext(selectedConversation),
-                      agentName: token?.name || "",
-                    }}
-                    replyToMessage={replyToMessage}
-                    onCancelReply={handleCancelReply}
-                    isYouConversation={isYouConversation}
-                    conversationType={selectedConversation?.conversationType}
-                    conversationRentalType={selectedConversation?.rentalType}
-                    selectedConversation={selectedConversation}
-                    onSendMediaWithCaptions={handleSendMediaWithCaptions}
-                  />
-                  <DispositionDialog
-                    open={showDispositionDialog}
-                    onOpenChange={setShowDispositionDialog}
-                    conversation={selectedConversation}
-                    onApplied={handleCrmLabelsUpdated}
-                  />
-                  <SetVisitDialog
-                    open={showVisitDialog}
-                    onOpenChange={setShowVisitDialog}
-                    conversation={selectedConversation}
-                    onScheduled={handleCrmLabelsUpdated}
-                  />
-                  <ReminderDialog
-                    open={showReminderDialog}
-                    onOpenChange={setShowReminderDialog}
-                    conversation={selectedConversation}
-                    onCreated={handleCrmLabelsUpdated}
-                  />
-                </>
-              ) : (
-                /* Empty state - WhatsApp Web style (hidden on mobile) */
-                <div className={cn(
-                  "flex-1 flex flex-col items-center justify-center bg-[#f7f5f3] dark:bg-[#222e35]",
-                  // Hide on mobile since we show the conversation list instead
-                  "hidden md:flex"
-                )}>
-                  <div className="max-w-md text-center px-4">
-                    {/* WhatsApp illustration - responsive */}
-                    <div className="w-[240px] h-[141px] md:w-[320px] md:h-[188px] mx-auto mb-6 md:mb-8">
-                      <svg viewBox="0 0 320 188" className="w-full h-full">
-                        <rect fill="#d9fdd3" x="116" y="22" width="88" height="136" rx="10" className="dark:fill-[#005c4b]"/>
-                        <rect fill="#25d366" x="128" y="33" width="64" height="10" rx="5"/>
-                        <rect fill="#fff" x="128" y="54" width="54" height="8" rx="4" className="dark:fill-[#e9edef]"/>
-                        <rect fill="#fff" x="128" y="68" width="40" height="8" rx="4" className="dark:fill-[#e9edef]"/>
-                        <rect fill="#fff" x="128" y="86" width="60" height="8" rx="4" className="dark:fill-[#e9edef]"/> 
-                        <rect fill="#fff" x="128" y="100" width="45" height="8" rx="4" className="dark:fill-[#e9edef]"/>
-                        <rect fill="#fff" x="128" y="118" width="55" height="8" rx="4" className="dark:fill-[#e9edef]"/>
-                        <rect fill="#fff" x="128" y="132" width="35" height="8" rx="4" className="dark:fill-[#e9edef]"/>
-                        <circle fill="#25d366" cx="160" cy="170" r="14"/>
-                        <path fill="#fff" d="M155 170l3 3 7-7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </div>
-                    
-                    <h1 className="text-2xl md:text-[32px] font-light text-[#41525d] dark:text-[#e9edef] mb-3 md:mb-4">
-                      WhatsApp Business
-                    </h1>
-                    <p className="text-[13px] md:text-[14px] text-[#667781] dark:text-[#8696a0] leading-relaxed mb-6 md:mb-8">
-                      Send and receive messages without keeping your phone online.<br className="hidden md:inline" />
-                      <span className="md:hidden"> </span>
-                      Use WhatsApp on up to 4 linked devices and 1 phone at the same time.
-                    </p>
-                    
-                    <div className="flex items-center justify-center gap-2 text-[13px] md:text-[14px] text-[#667781] dark:text-[#8696a0]">
-                      <svg viewBox="0 0 10 12" width="10" height="12" className="text-[#8696a0]">
-                        <path fill="currentColor" d="M5.0 0.65C2.648 0.65 0.75 2.548 0.75 4.9V6.125L0.0 6.875V8.375H10.0V6.875L9.25 6.125V4.9C9.25 2.548 7.352 0.65 5.0 0.65ZM5.0 11.35C5.967 11.35 6.75 10.567 6.75 9.6H3.25C3.25 10.567 4.033 11.35 5.0 11.35Z"/>
-                      </svg>
-                      <span>End-to-end encrypted</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* CRM Panel — right side, desktop only */}
-            {showCrmPanel && selectedConversation && showCrmActions && (
-              <CrmPanel
-                isOpen={showCrmPanel}
-                conversation={selectedConversation}
-                onClose={() => setShowCrmPanel(false)}
-                onOpenDisposition={() => setShowDispositionDialog(true)}
-                onOpenSetVisit={() => setShowVisitDialog(true)}
-                onOpenReminder={() => setShowReminderDialog(true)}
-                onLabelsUpdated={handleCrmLabelsUpdated}
-                className="hidden md:flex w-[400px] min-w-[300px] max-w-[400px] flex-shrink-0"
-              />
-            )}
           </div>
         </div>
       
-      {/* Add Guest Modal */}
-      <AddGuestModal
-        open={showAddContactModal}
-        onOpenChange={setShowAddContactModal}
-        onGuestAdded={handleGuestAdded}
-        conversationType={addContactType}
-        userRole={token?.role}
-        userEmail={token?.email}
-        userAreas={token?.allotedArea}
-        userRentalType={token?.rentalType}
-        hidePhoneLineLabel
-      />
-      
-      {/* Forward Dialog */}
-      <ForwardDialog
-        open={showForwardDialog}
-        onOpenChange={setShowForwardDialog}
-        onForward={handleForwardConfirm}
-        selectedMessageCount={messagesToForward.length}
-        conversations={conversations}
-        loading={forwardingMessages}
-      />
+      {showAddContactModal && (
+        <AddGuestModal
+          open={showAddContactModal}
+          onOpenChange={setShowAddContactModal}
+          onGuestAdded={handleGuestAdded}
+          conversationType={addContactType}
+          userRole={token?.role}
+          userEmail={token?.email}
+          userAreas={token?.allotedArea}
+          userRentalType={token?.rentalType}
+          hidePhoneLineLabel
+        />
+      )}
 
-      <LeadTransferDialog
-        open={showTransferDialog}
-        onOpenChange={setShowTransferDialog}
-        conversation={selectedConversation}
-        currentPhoneId={getConversationBusinessPhoneId(selectedConversation) ?? null}
-        availablePhoneConfigs={allowedPhoneConfigs}
-        onTransfer={handleTransferLead}
-        loading={transferringLead}
-      />
+      {showForwardDialog && (
+        <ForwardDialog
+          open={showForwardDialog}
+          onOpenChange={setShowForwardDialog}
+          onForward={handleForwardConfirm}
+          selectedMessageCount={messagesToForward.length}
+          conversations={conversations}
+          loading={forwardingMessages}
+        />
+      )}
+
+      {showTransferDialog && (
+        <LeadTransferDialog
+          open={showTransferDialog}
+          onOpenChange={setShowTransferDialog}
+          conversation={selectedConversation}
+          currentPhoneId={getConversationBusinessPhoneId(selectedConversation) ?? null}
+          availablePhoneConfigs={allowedPhoneConfigs}
+          onTransfer={handleTransferLead}
+          loading={transferringLead}
+        />
+      )}
 
       <audio ref={remoteAudioRef} playsInline className="hidden" aria-hidden />
 
@@ -5235,7 +3565,7 @@ export default function WhatsAppChat() {
                 }}
                 className="min-h-[44px] rounded-full bg-[#25d366] px-5 text-[14px] font-semibold text-[#0b141a] hover:bg-[#20bd5a] disabled:opacity-50"
               >
-                {answeringIncoming ? "Connectingâ€¦" : "Answer"}
+                {answeringIncoming ? "Connecting?" : "Answer"}
               </button>
             </div>
           </div>

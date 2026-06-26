@@ -326,6 +326,24 @@ whatsAppMessageSchema.index({
   timestamp: -1,
 });
 
+// Inbox unread count aggregation (direction + timestamp cutoff per employee)
+whatsAppMessageSchema.index(
+  { conversationId: 1, direction: 1, timestamp: -1 },
+  { name: "wa_inbox_unread_count_idx" },
+);
+
+// Batch first-template conversation type inference
+whatsAppMessageSchema.index(
+  { conversationId: 1, direction: 1, type: 1, timestamp: 1 },
+  { name: "wa_first_template_idx" },
+);
+
+// Batch last-message status lookup by wamid
+whatsAppMessageSchema.index(
+  { messageId: 1, status: 1 },
+  { name: "wa_message_status_lookup_idx" },
+);
+
 const WhatsAppMessage =
   mongoose.models?.WhatsAppMessage ||
   mongoose.model<IWhatsAppMessage>("WhatsAppMessage", whatsAppMessageSchema);

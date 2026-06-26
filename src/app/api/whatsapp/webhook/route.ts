@@ -1486,6 +1486,7 @@ async function processIncomingMessage(
         if (updateResult.modifiedCount > 0) {
 
           emitWhatsAppEvent(WHATSAPP_EVENTS.CONVERSATION_UPDATE, {
+            type: "lead",
             conversationId: conversation._id.toString(),
             businessPhoneId: phoneNumberId,
             phone: senderPhone,

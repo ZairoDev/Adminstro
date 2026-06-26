@@ -11,6 +11,7 @@ connectDb();
 export const dynamic = 'force-dynamic';
 
 // Get database-driven conversation counts
+// Superseded by `counts` on GET /api/whatsapp/conversations — kept for backwards compat
 export async function GET(req: NextRequest) {
   try {
     const token = await getDataFromToken(req) as any;

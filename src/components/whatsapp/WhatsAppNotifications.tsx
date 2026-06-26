@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageSquare, Clock, ExternalLink, Loader2, Circle } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
@@ -22,9 +22,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import axios from "@/util/axios";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/AuthStore";
 import { useSocket } from "@/hooks/useSocket";
+import { useWhatsAppBaseRoom } from "@/app/whatsapp/modules/useWhatsAppSocketRooms";
 
 interface NotificationItem {
   _id: string;
@@ -58,6 +59,8 @@ export function WhatsAppNotifications() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
+  const isOnWhatsAppPage = pathname?.startsWith("/whatsapp");
   const { token } = useAuthStore();
   const { socket, isConnected } = useSocket();
 
@@ -66,7 +69,14 @@ export function WhatsAppNotifications() {
                    token?.role === "Sales-TeamLead" || 
                    token?.role === "Sales";
 
-  // Feature flag - default to true if not explicitly set to false
+  const currentUserId =
+    token?.id?.toString() ??
+    (token as { _id?: string } | null)?._id?.toString();
+
+  const tokenRef = useRef(token);
+  tokenRef.current = token;
+
+  // Feature flag
   const FEATURE_WHATSAPP_NOTIFICATIONS = process.env.NEXT_PUBLIC_FEATURE_WHATSAPP_NOTIFICATIONS !== "false";
 
   useEffect(() => {
@@ -83,21 +93,33 @@ export function WhatsAppNotifications() {
       return emptySummary;
     },
     staleTime: 60 * 1000,
-    refetchInterval: 2 * 60 * 1000,
+    refetchInterval: isOnWhatsAppPage
+      ? false
+      : isConnected
+        ? 5 * 60 * 1000
+        : 2 * 60 * 1000,
     enabled: isMounted && hasAccess,
   });
 
+  const refetchRef = useRef(refetch);
+  refetchRef.current = refetch;
+
+  // Dashboard-only base room owner (/whatsapp uses useWhatsAppSocketRooms).
+  useWhatsAppBaseRoom(
+    hasAccess && !isOnWhatsAppPage ? socket : null,
+    hasAccess && !isOnWhatsAppPage ? currentUserId : undefined,
+  );
+
   useEffect(() => {
-    if (!socket || !hasAccess) {
+    if (!socket || !hasAccess || !currentUserId) {
       return;
     }
 
-    const currentUserId = token?.id || (token as any)?._id;
-    socket.emit("join-whatsapp-room", currentUserId?.toString());
-
     const handleNewMessage = (data: any) => {
-      const currentUserId = token?.id || (token as any)?._id;
-      if (data.userId && currentUserId && String(data.userId) !== String(currentUserId)) {
+      const uid =
+        tokenRef.current?.id ||
+        (tokenRef.current as { _id?: string } | null)?._id;
+      if (data.userId && uid && String(data.userId) !== String(uid)) {
         return;
       }
       if (data.message?.direction === "incoming") {
@@ -176,7 +198,7 @@ export function WhatsAppNotifications() {
     };
 
     const handleConversationUpdate = () => {
-      void refetch();
+      void refetchRef.current();
     };
 
     const handleMessageRead = (data: {conversationId: string}) => {
@@ -203,13 +225,17 @@ export function WhatsAppNotifications() {
       socket.off("whatsapp-conversation-update", handleConversationUpdate);
       socket.off("whatsapp-messages-read", handleMessageRead);
     };
-  }, [socket, hasAccess, refetch, queryClient, token]);
+  }, [socket, hasAccess, currentUserId, queryClient]);
 
   const totalCount = summary.expiringCount + summary.unreadCount;
 
-  const handleOpenConversation = (participantPhone: string) => {
-    // WhatsApp page expects 'phone' parameter, not conversation ID
-    router.push(`/whatsapp?phone=${encodeURIComponent(participantPhone)}`);
+  const handleOpenConversation = (conversationId: string, participantPhone: string) => {
+    // Prefer ?conversation= so the deep-link effect restores the exact thread.
+    // Fall back to ?phone= if the ID is unavailable.
+    const url = conversationId
+      ? `/whatsapp?conversation=${encodeURIComponent(conversationId)}`
+      : `/whatsapp?phone=${encodeURIComponent(participantPhone)}`;
+    router.push(url);
     setIsOpen(false);
   };
 
@@ -307,7 +333,7 @@ export function WhatsAppNotifications() {
                         <div
                           key={item._id}
                           className={`p-3 rounded-lg border ${bgColor} cursor-pointer transition-colors`}
-                          onClick={() => handleOpenConversation(item.participantPhone)}
+                          onClick={() => handleOpenConversation(item._id, item.participantPhone)}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
@@ -351,7 +377,7 @@ export function WhatsAppNotifications() {
                       <div
                         key={item._id}
                         className="p-3 rounded-lg border bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-950/30 cursor-pointer transition-colors"
-                        onClick={() => handleOpenConversation(item.participantPhone)}
+                        onClick={() => handleOpenConversation(item._id, item.participantPhone)}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">

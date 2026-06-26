@@ -66,9 +66,13 @@ export function normalizeWhatsAppNotification(
     {
       label: "Open",
       action: () => {
-        // Navigation will be handled by parent component
-        if (typeof window !== "undefined" && message.from) {
-          window.location.href = `/whatsapp?phone=${encodeURIComponent(message.from)}`;
+        if (typeof window !== "undefined") {
+          const url = conversationId
+            ? `/whatsapp?conversation=${encodeURIComponent(conversationId)}`
+            : message.from
+              ? `/whatsapp?phone=${encodeURIComponent(message.from)}`
+              : "/whatsapp";
+          window.location.href = url;
         }
       },
       variant: "outline",
@@ -112,8 +116,13 @@ export function normalizeWhatsAppNotification(
       {
         label: "Open",
         action: () => {
-          if (typeof window !== "undefined" && message.from) {
-            window.location.href = `/whatsapp?phone=${encodeURIComponent(message.from)}`;
+          if (typeof window !== "undefined") {
+            const url = conversationId
+              ? `/whatsapp?conversation=${encodeURIComponent(conversationId)}`
+              : message.from
+                ? `/whatsapp?phone=${encodeURIComponent(message.from)}`
+                : "/whatsapp";
+            window.location.href = url;
           }
         },
         variant: "outline",

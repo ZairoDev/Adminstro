@@ -58,30 +58,11 @@ export function useMobileView(options: UseMobileViewOptions = {}): UseMobileView
   const { defaultView = "conversations", breakpoint = BREAKPOINTS.mobile } = options;
 
   const [mobileView, setMobileViewState] = useState<MobileView>(defaultView);
-  // Initialize based on window size if available (client-side)
-  const [isMobile, setIsMobile] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.innerWidth <= breakpoint;
-    }
-    return false; // SSR default
-  });
-  const [isTablet, setIsTablet] = useState(() => {
-    if (typeof window !== "undefined") {
-      const width = window.innerWidth;
-      return width > breakpoint && width <= BREAKPOINTS.tablet;
-    }
-    return false;
-  });
-  const [isDesktop, setIsDesktop] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.innerWidth > BREAKPOINTS.tablet;
-    }
-    return true; // SSR default
-  });
-  const [viewport, setViewport] = useState(() => ({
-    width: typeof window !== "undefined" ? window.innerWidth : 0,
-    height: typeof window !== "undefined" ? window.innerHeight : 0,
-  }));
+  // SSR-safe defaults — never read window during initial render (hydration mismatch).
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(true);
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [scrollPositions, setScrollPositions] = useState({
     conversations: 0,
     chat: 0,

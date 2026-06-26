@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, type ComponentType, type ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,10 +15,6 @@ import {
   Phone,
   Wifi,
   WifiOff,
-  Check,
-  CheckCheck,
-  Clock,
-  AlertTriangle,
   User,
   Users,
   UserPlus,
@@ -25,27 +22,23 @@ import {
   MoreVertical,
   Filter,
   Archive,
-  ArchiveRestore,
   MessageSquare,
   X,
   SquarePlus,
-  ChevronDown,
   MessageSquarePlus,
   Images,
   MessageCircle,
   Sun,
   Moon,
   Shield,
-  Link2,
-  ListChecks,
   MapPin,
   MapPinOff,
   Timer,
+  Plus,
 } from "lucide-react";
 import axios from "@/util/axios";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
-import { formatTime } from "../utils";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -59,12 +52,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
 import { useUnifiedWhatsAppSearch } from "../hooks/useUnifiedWhatsAppSearch";
 import { UnifiedSearchResults } from "./UnifiedSearchResults";
 import { MediaPopup } from "./MediaPopup";
@@ -75,16 +62,31 @@ import {
   canAccessWhatsAppAdminQueue,
   canUseInboxLocationFilter,
 } from "@/lib/whatsapp/participantLocationPrivileges";
-import {
-  getMaskedMessagePreview,
-  resolveConversationDisplayLabel,
-  type WhatsAppPhoneMaskRules,
-} from "@/lib/whatsapp/phoneMask";
-import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
+import { type WhatsAppPhoneMaskRules } from "@/lib/whatsapp/phoneMask";
 import { SetParticipantLocationDialog } from "./SetParticipantLocationDialog";
 import { InitiationLimitBadge } from "./InitiationLimitBadge";
-import { ConversationLabelChips } from "./ConversationLabelChips";
+import { ConversationItem } from "./ConversationItem";
 import { SIDEBAR_LABEL_FILTERS } from "@/lib/whatsapp/crmLabels";
+
+function inboxFilterPillClass(active: boolean): string {
+  return cn(
+    "rounded-full font-semibold transition-colors whitespace-nowrap min-w-0 flex-1 basis-0",
+    "px-1.5 py-1.5 text-[10px] leading-none sm:px-2 sm:text-[11px]",
+    "truncate text-center",
+    active
+      ? "bg-[#d8f5e0] text-[#007a5a] border border-transparent dark:bg-[#1a3d2f] dark:text-[#8fd4a8]"
+      : "bg-transparent text-[#667781] border border-[#c8d1d8] hover:bg-[#f0f2f5] dark:text-[#aebac1] dark:border-[#3d4f5c] dark:hover:bg-[#202c33]/60",
+  );
+}
+
+function inboxFilterIconButtonClass(active = false): string {
+  return cn(
+    "shrink-0 flex items-center justify-center w-7 h-7 rounded-full transition-colors",
+    active
+      ? "bg-[#d8f5e0] text-[#007a5a] border border-transparent dark:bg-[#1a3d2f] dark:text-[#8fd4a8]"
+      : "bg-transparent text-[#667781] border border-[#c8d1d8] hover:bg-[#f0f2f5] dark:text-[#aebac1] dark:border-[#3d4f5c] dark:hover:bg-[#202c33]/60",
+  );
+}
 
 interface SidebarProps {
   conversations: Conversation[];
@@ -103,7 +105,10 @@ interface SidebarProps {
     totalCount: number;
     ownerCount: number;
     guestCount: number;
+    unreadCount?: number;
   };
+  /** Server-derived unread chat count (tab badge) */
+  totalUnreadCount?: number;
   hasMoreConversations?: boolean;
   loadingMoreConversations?: boolean;
   onLoadMoreConversations?: () => void;
@@ -172,6 +177,12 @@ function ThemeToggleButton() {
   const toggleTheme = () => {
     setTheme(isDark ? "light" : "dark");
   };
+  const themeToggleLabel = mounted
+    ? isDark
+      ? "Switch to light mode"
+      : "Switch to dark mode"
+    : "Toggle theme";
+  const themeTooltip = mounted ? (isDark ? "Light mode" : "Dark mode") : "Theme";
 
   return (
     <TooltipProvider>
@@ -181,7 +192,7 @@ function ThemeToggleButton() {
             type="button"
             onClick={toggleTheme}
             className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors"
-            aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            aria-label={themeToggleLabel}
           >
             {mounted && isDark ? (
               <Sun className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
@@ -190,525 +201,15 @@ function ThemeToggleButton() {
             )}
           </button>
         </TooltipTrigger>
-        <TooltipContent side="right">
-          {mounted && isDark ? "Light mode" : "Dark mode"}
+        <TooltipContent side="right" suppressHydrationWarning>
+          {themeTooltip}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
 }
 
-function ConversationActionItems({
-  MenuItem,
-  conversation,
-  isArchived,
-  canChangeType,
-  role,
-  onRenameFor,
-  onTriggerUpload,
-  onConversationTypeChange,
-  onArchive,
-  onUnarchive,
-  onSetLocation,
-  canSetLocation,
-  isMobile,
-  onOpenDisposition,
-  onOpenSetVisit,
-  onOpenReminder,
-  onCrmActionForConversation,
-}: {
-  MenuItem: ComponentType<{
-    onSelect?: () => void;
-    className?: string;
-    children: ReactNode;
-  }>;
-  conversation: Conversation;
-  isArchived?: boolean;
-  canChangeType: boolean;
-  role?: Conversation["conversationType"];
-  onRenameFor?: (conversationId: string, currentName?: string) => void;
-  onTriggerUpload?: (conversationId: string) => void;
-  onConversationTypeChange?: (
-    conversationId: string,
-    conversationType: "owner" | "guest",
-  ) => void | Promise<void>;
-  onArchive?: (id: string) => void;
-  onUnarchive?: (id: string) => void;
-  onSetLocation?: (conversation: Conversation) => void;
-  canSetLocation?: boolean;
-  isMobile?: boolean;
-  onOpenDisposition?: () => void;
-  onOpenSetVisit?: () => void;
-  onOpenReminder?: () => void;
-  onCrmActionForConversation?: (conversation: Conversation) => void;
-}) {
-  const isInternal =
-    conversation.isInternal || conversation.source === "internal";
-  const runCrmAction = (action: () => void) => {
-    onCrmActionForConversation?.(conversation);
-    action();
-  };
-  const itemClass = isMobile ? "py-3 text-base" : undefined;
-
-  return (
-    <>
-      {!isInternal && onOpenDisposition && (
-        <MenuItem
-          className={itemClass}
-          onSelect={() => runCrmAction(onOpenDisposition)}
-        >
-          <ListChecks className="h-4 w-4 mr-2" />
-          Lead disposition
-        </MenuItem>
-      )}
-      {!isInternal && onOpenSetVisit && (
-        <MenuItem
-          className={itemClass}
-          onSelect={() => runCrmAction(onOpenSetVisit)}
-        >
-          <MapPin className="h-4 w-4 mr-2" />
-          Set visit
-        </MenuItem>
-      )}
-      {!isInternal && onOpenReminder && (
-        <MenuItem
-          className={itemClass}
-          onSelect={() => runCrmAction(onOpenReminder)}
-        >
-          <Timer className="h-4 w-4 mr-2" />
-          Set reminder
-        </MenuItem>
-      )}
-      {!isInternal &&
-        (onOpenDisposition || onOpenSetVisit || onOpenReminder) && (
-          <div className="h-px bg-[#e9edef] dark:bg-[#222d34] my-1" />
-        )}
-      {canSetLocation && onSetLocation ? (
-        <MenuItem
-          className={itemClass}
-          onSelect={() => onSetLocation(conversation)}
-        >
-          <MapPin className="h-4 w-4 mr-2" />
-          {(conversation as { participantLocation?: string }).participantLocation
-            ? "Change location"
-            : "Set location"}
-        </MenuItem>
-      ) : null}
-      <MenuItem
-        className={itemClass}
-        onSelect={() => onRenameFor?.(conversation._id, conversation.participantName)}
-      >
-        <MoreVertical className="h-4 w-4 mr-2" />
-        Rename
-      </MenuItem>
-      <MenuItem
-        className={itemClass}
-        onSelect={() => onTriggerUpload?.(conversation._id)}
-      >
-        <Images className="h-4 w-4 mr-2" />
-        Upload profile picture
-      </MenuItem>
-      {canChangeType && role !== "owner" && (
-        <MenuItem
-          className={itemClass}
-          onSelect={() => void onConversationTypeChange?.(conversation._id, "owner")}
-        >
-          <User className="h-4 w-4 mr-2" />
-          Convert to owner
-        </MenuItem>
-      )}
-      {canChangeType && role !== "guest" && (
-        <MenuItem
-          className={itemClass}
-          onSelect={() => void onConversationTypeChange?.(conversation._id, "guest")}
-        >
-          <Users className="h-4 w-4 mr-2" />
-          Convert to guest
-        </MenuItem>
-      )}
-      {isArchived ? (
-        <MenuItem
-          className={itemClass}
-          onSelect={() => onUnarchive?.(conversation._id)}
-        >
-          <ArchiveRestore className="h-4 w-4 mr-2" />
-          Unarchive
-        </MenuItem>
-      ) : (
-        <MenuItem
-          className={itemClass}
-          onSelect={() => onArchive?.(conversation._id)}
-        >
-          <Archive className="h-4 w-4 mr-2" />
-          Archive
-        </MenuItem>
-      )}
-    </>
-  );
-}
-
-function ConversationItem({
-  conversation,
-  isSelected,
-  onClick,
-  isMounted,
-  onArchive,
-  onUnarchive,
-  isArchived,
-  isMobile = false,
-  onUpdateConversation,
-  onTriggerUpload,
-  onRenameFor,
-  onConversationTypeChange,
-  onSetLocation,
-  phoneMaskRules,
-  userRole = "",
-  userEmail = "",
-  userAreas,
-  onOpenDisposition,
-  onOpenSetVisit,
-  onOpenReminder,
-  onCrmActionForConversation,
-}: {
-  conversation: Conversation;
-  isSelected: boolean;
-  onClick: () => void;
-  isMounted: boolean;
-  onArchive?: (id: string) => void;
-  onUnarchive?: (id: string) => void;
-  isArchived?: boolean;
-  isMobile?: boolean;
-  onUpdateConversation?: (conversationId: string, patch: Partial<Conversation>) => void;
-  onTriggerUpload?: (conversationId: string) => void;
-  onRenameFor?: (conversationId: string, currentName?: string) => void;
-  onConversationTypeChange?: (
-    conversationId: string,
-    conversationType: "owner" | "guest",
-  ) => void | Promise<void>;
-  onSetLocation?: (conversation: Conversation) => void;
-  phoneMaskRules?: WhatsAppPhoneMaskRules;
-  userRole?: string;
-  userEmail?: string;
-  userAreas?: string | string[];
-  onOpenDisposition?: () => void;
-  onOpenSetVisit?: () => void;
-  onOpenReminder?: () => void;
-  onCrmActionForConversation?: (conversation: Conversation) => void;
-}): JSX.Element {
-  // Use parent-level upload/rename handlers to avoid input unmount issues
-  const hasUnread =
-    (conversation.unreadCount || 0) > 0 &&
-    conversation.lastMessageDirection === "incoming";
-
-  const getStatusIcon = (status?: Conversation["lastMessageStatus"]) => {
-    if (!status) return null;
-    switch (status) {
-      case "sending":
-        return <Clock className="h-3 w-3 text-[#8696a0]" />;
-      case "sent":
-        return <Check className="h-3 w-3 text-[#8696a0]" />;
-      case "delivered":
-        return <CheckCheck className="h-3 w-3 text-[#8696a0]" />;
-      case "read":
-        return <CheckCheck className="h-3 w-3 text-[#53bdeb]" />;
-      case "failed":
-        return <AlertTriangle className="h-3 w-3 text-red-500" />;
-      default:
-        return null;
-    }
-  };
-
-  const maskRules = phoneMaskRules ?? {
-    maskOwnerPhones: false,
-    maskGuestPhones: false,
-  };
-  const isInternal =
-    Boolean(conversation.isInternal) || conversation.source === "internal";
-  const whatsappName =
-    (conversation as { whatsappName?: string }).whatsappName ||
-    (conversation as { waName?: string }).waName ||
-    (conversation as { waDisplayName?: string }).waDisplayName;
-
-  const { title: listTitle, maskedPhone: phone } = resolveConversationDisplayLabel(
-    {
-      participantName: conversation.participantName,
-      participantPhone: conversation.participantPhone,
-      whatsappName: typeof whatsappName === "string" ? whatsappName : undefined,
-      conversationType: conversation.conversationType,
-      isInternal,
-    },
-    maskRules,
-    userRole,
-  );
-
-  const hasRealDisplayName =
-    !isInternal &&
-    Boolean(conversation.participantName?.trim() || whatsappName) &&
-    listTitle !== phone;
-
-  const messagePreview = getMaskedMessagePreview(
-    conversation.lastMessageContent,
-    conversation.participantPhone,
-    conversation.conversationType,
-    maskRules,
-    userRole,
-  );
-
-  const role = conversation.conversationType;
-  const canChangeType =
-    !conversation.isInternal &&
-    conversation.source !== "internal" &&
-    Boolean(onConversationTypeChange);
-
-  const listingLinkSentCount = conversation.listingLinkSentCount ?? 0;
-  const optionsSentCount = conversation.optionsSentCount ?? 0;
-  const showGuestStats =
-    role === "guest" && (listingLinkSentCount > 0 || optionsSentCount > 0);
-
-  const canSetLocation =
-    !isInternal &&
-    Boolean(onSetLocation) &&
-    canAssignWhatsAppParticipantLocation({
-      role: userRole,
-      email: userEmail,
-      allotedArea: userAreas,
-    });
-
-  const hasCrmActions =
-    !isInternal &&
-    Boolean(onOpenDisposition || onOpenSetVisit || onOpenReminder);
-
-  const hasActions = Boolean(
-    onArchive ||
-      onUnarchive ||
-      canChangeType ||
-      onRenameFor ||
-      canSetLocation ||
-      hasCrmActions
-  );
-
-  const actionMenuProps = {
-    conversation,
-    isArchived,
-    canChangeType,
-    role,
-    onRenameFor,
-    onTriggerUpload,
-    onConversationTypeChange,
-    onArchive,
-    onUnarchive,
-    onSetLocation,
-    canSetLocation,
-    isMobile,
-    onOpenDisposition,
-    onOpenSetVisit,
-    onOpenReminder,
-    onCrmActionForConversation,
-  };
-
-  const row = (
-    <div
-      className={cn(
-        "relative flex items-center gap-3 cursor-pointer transition-colors group",
-        "mx-2 mb-0.5 rounded-xl px-3 py-3 min-h-[72px] md:py-2.5 md:min-h-[56px]",
-        "hover:bg-[#f0f0f0] dark:hover:bg-[#2a3942]",
-        "active:bg-[#e9edef] dark:active:bg-[#1d282f]",
-        isSelected && "bg-[#f0f0f0] dark:bg-[#2a3942]"
-      )}
-      onClick={onClick}
-    >
-      {/* Avatar - WhatsApp style circular */}
-      <div className="relative flex-shrink-0">
-        <Avatar className="h-12 w-12 md:h-12 md:w-12 rounded-full">
-          <AvatarImage src={conversation.participantProfilePic} />
-          <AvatarFallback className={cn(
-            "text-sm font-medium rounded-full",
-            conversation.isInternal || conversation.source === "internal"
-              ? "bg-[#25d366] text-white"
-              : "bg-[#e0e0e0] dark:bg-[#6b7b85] text-[#54656f] dark:text-white"
-          )}>
-            {isInternal
-              ? "You"
-              : listTitle.slice(0, 2).toUpperCase() || "??"}
-          </AvatarFallback>
-        </Avatar>
-        {(conversation.isOnline || hasUnread) && (
-          <span className="absolute bottom-0 right-0 h-3 w-3 bg-[#25d366] rounded-full border-2 border-white dark:border-[#111b21]" />
-        )}
-      </div>
-
-      {/* Content - bringing together both notification style and streamlined user info layout */}
-      <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden py-1 pl-2">
-        <div className="flex items-center justify-between gap-2 min-h-5">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            {role && (
-              <span className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 font-medium uppercase tracking-wide",
-                role === "owner"
-                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                  : "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
-              )}>
-                {role === "owner" ? "O" : "G"}
-              </span>
-            )}
-            <span
-              className={cn(
-                "text-[16px] truncate flex-1 min-w-0",
-                hasUnread ? "font-semibold text-[#111b21] dark:text-[#e9edef]" : "font-medium text-[#111b21] dark:text-[#e9edef]"
-              )}
-            >
-              {listTitle}
-            </span>
-            {/* {hasUnread && (
-              <Badge className="flex-shrink-0 bg-blue-500 text-white text-[11px] font-medium min-w-[18px] h-[18px] rounded-full px-1">
-                {conversation.unreadCount}
-              </Badge>
-            )} */}
-            {hasRealDisplayName && phone && !hasUnread && (
-              <span className="text-[12px] text-[#667781] dark:text-[#8696a0] flex-shrink-0 tabular-nums">
-                {phone.replace(/^\+?91/, "")}
-              </span>
-            )}
-          </div>
-          {/* Message meta: time and unread badge, right aligned */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-[12px] text-[#667781] dark:text-[#8696a0] whitespace-nowrap">
-              {isMounted ? formatTime(conversation.lastMessageTime) : ""}
-            </span>
-            {hasUnread && (
-              <span className="bg-[#25d366] text-white text-[11px] font-medium min-w-[20px] h-[20px] rounded-full flex items-center justify-center px-1.5 flex-shrink-0">
-                {conversation.unreadCount}
-              </span>
-            )}
-          </div>
-        </div>
-        {/* Message preview row: last message content, status icon, etc. */}
-        <div className="flex items-center gap-1.5 min-w-0 pr-0">
-          {conversation.lastMessageDirection === "outgoing" && (
-            <span className="flex-shrink-0 mt-0.5">{getStatusIcon(conversation.lastMessageStatus)}</span>
-          )}
-          <span
-            className={cn(
-              "text-[14px] truncate min-w-0",
-              hasUnread ? "text-[#111b21] dark:text-[#d1d7db] font-medium" : "text-[#667781] dark:text-[#8696a0]"
-            )}
-          >
-            {messagePreview || phone || " "}
-          </span>
-        </div>
-        <ConversationLabelChips labels={conversation.labels} max={2} />
-        {showGuestStats && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-            {listingLinkSentCount > 0 && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-[#008069] dark:text-[#00a884] bg-[#e7f8f3] dark:bg-[#0b3328] px-1.5 py-0.5 rounded-full tabular-nums">
-                      <Link2 className="h-3 w-3" />
-                      {listingLinkSentCount}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    Listing link{listingLinkSentCount === 1 ? "" : "s"} sent
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-            {optionsSentCount > 0 && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-[#6b5b95] dark:text-[#b8a9e0] bg-[#f3f0f8] dark:bg-[#2a2438] px-1.5 py-0.5 rounded-full tabular-nums">
-                      <ListChecks className="h-3 w-3" />
-                      {optionsSentCount}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    &quot;Options sent&quot; message{optionsSentCount === 1 ? "" : "s"}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-          </div>
-        )}
-        {/* Location badge */}
-        {(conversation as any).participantLocation && (
-          <div className="flex items-center gap-0.5 mt-0.5">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-[#54656f] dark:text-[#8696a0] bg-[#f0f2f5] dark:bg-[#202c33] px-1.5 py-0.5 rounded-full capitalize">
-                    <MapPin className="h-2.5 w-2.5" />
-                    {(conversation as any).participantLocation}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="top">Participant location</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        )}
-        {!(conversation as any).participantLocation && !(conversation as any).participantLocationKey && (
-          <div className="flex items-center gap-0.5 mt-0.5">
-            <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded-full">
-              <MapPinOff className="h-2.5 w-2.5" />
-              No location
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Chevron: hover menu */}
-      {hasActions && (
-        <div className="absolute right-3 bottom-3 opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none group-hover:pointer-events-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="p-1 rounded hover:bg-[#e9edef] dark:hover:bg-[#374045] transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <ChevronDown className="h-5 w-5 text-[#54656f] dark:text-[#aebac1]" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-              <ConversationActionItems
-                MenuItem={DropdownMenuItem as ComponentType<{
-                  onSelect?: () => void;
-                  className?: string;
-                  children: ReactNode;
-                }>}
-                {...actionMenuProps}
-              />
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )}
-    </div>
-  );
-
-  if (!hasActions) {
-    return row;
-  }
-
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{row}</ContextMenuTrigger>
-      <ContextMenuContent className="min-w-[180px]">
-        <ConversationActionItems
-          MenuItem={ContextMenuItem as ComponentType<{
-            onSelect?: () => void;
-            className?: string;
-            children: ReactNode;
-          }>}
-          {...actionMenuProps}
-        />
-      </ContextMenuContent>
-    </ContextMenu>
-  );
-}
-
-
-export function ConversationSidebar({
+export const ConversationSidebar = memo(function ConversationSidebar({
   conversations,
   selectedConversation,
   searchQuery,
@@ -759,6 +260,7 @@ export function ConversationSidebar({
   onSidebarTabHintConsumed,
   labelFilter = "all",
   onLabelFilterChange,
+  totalUnreadCount: totalUnreadCountProp = 0,
   initiationLimitRefreshKey = 0,
   guestInitiationAtLimit = false,
   onOpenDisposition,
@@ -768,7 +270,7 @@ export function ConversationSidebar({
 }: SidebarProps) {
   const [showPhoneMaskForm, setShowPhoneMaskForm] = useState(false);
   const [conversationTab, setConversationTab] = useState<"all" | "owners" | "guests">("all");
-  const [filterPill, setFilterPill] = useState<"all" | "unread">("all");
+  const isUnreadFilter = labelFilter === "unread";
   const [showNewChat, setShowNewChat] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
    const [showMediaPopup, setShowMediaPopup] = useState(false);
@@ -776,6 +278,13 @@ export function ConversationSidebar({
   const [isMounted, setIsMounted] = useState(false);
   const [locationDialogConversation, setLocationDialogConversation] =
     useState<Conversation | null>(null);
+  const [labelsMenuOpen, setLabelsMenuOpen] = useState(false);
+
+  const isAllFilterActive =
+    !isUnreadFilter && conversationTab === "all" && labelFilter === "all";
+  const isLabelsFilterActive =
+    conversationTab !== "all" ||
+    (labelFilter !== "all" && labelFilter !== "unread");
 
   const inboxPrivilegeUser = {
     role: userRole,
@@ -870,8 +379,6 @@ export function ConversationSidebar({
       });
       if (typeof onUpdateConversation === "function") {
         onUpdateConversation(conversationId, { participantName: newName } as Partial<Conversation>);
-      } else {
-        window.location.reload();
       }
     } catch (err) {
       console.error("Rename failed:", err);
@@ -910,27 +417,43 @@ export function ConversationSidebar({
     }
   }, [conversations, unifiedSearchResults, onSelectConversation, onJumpToMessage]);
 
-  // Only filter by conversation type (tab) and unread client-side
-  const filteredConversations = conversations.filter((conv) => {
-    if (conversationTab === "owners" && conv.conversationType !== "owner") return false;
-    if (conversationTab === "guests" && conv.conversationType !== "guest") return false;
-    if (filterPill === "unread") {
-      const hasUnread = (conv.unreadCount || 0) > 0 && conv.lastMessageDirection === "incoming";
-      if (!hasUnread) return false;
-    }
-    return true;
-  });
+  const handleSelectConversation = useCallback(
+    (conversation: Conversation) => {
+      onSelectConversation(conversation);
+    },
+    [onSelectConversation],
+  );
 
-  // Counts
-  const ownerCount = isMounted && conversationCounts?.ownerCount !== undefined
-    ? conversationCounts.ownerCount
-    : conversations.filter((c) => c.conversationType === "owner").length;
-  const guestCount = isMounted && conversationCounts?.guestCount !== undefined
-    ? conversationCounts.guestCount
-    : conversations.filter((c) => c.conversationType === "guest").length;
-  const totalCount = isMounted && conversationCounts?.totalCount !== undefined
-    ? conversationCounts.totalCount
-    : conversations.length;
+  const filteredConversations = useMemo(
+    () =>
+      conversations.filter((conv) => {
+        if (conversationTab === "owners" && conv.conversationType !== "owner") {
+          return false;
+        }
+        if (conversationTab === "guests" && conv.conversationType !== "guest") {
+          return false;
+        }
+        return true;
+      }),
+    [conversations, conversationTab],
+  );
+
+  // Counts — always use server-provided meta (stable 0 on SSR) to avoid hydration text mismatch.
+  const ownerCount = conversationCounts?.ownerCount ?? 0;
+  const guestCount = conversationCounts?.guestCount ?? 0;
+  const totalCount = conversationCounts?.totalCount ?? 0;
+
+  // Virtualizer for conversation list
+  const conversationVirtualizer = useVirtualizer({
+    count: filteredConversations.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 72,
+    overscan: 10,
+    measureElement:
+      typeof window !== "undefined" && navigator.userAgent.indexOf("Firefox") === -1
+        ? (element) => element?.getBoundingClientRect().height
+        : undefined,
+  });
 
   // Infinite scroll
   const handleScroll = useCallback(() => {
@@ -950,16 +473,16 @@ export function ConversationSidebar({
     return () => el.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
-  // Calculate unread count for notification badge
-  const totalUnreadCount = conversations.reduce(
-    (sum, conv) => sum + ((conv.unreadCount || 0) > 0 && conv.lastMessageDirection === "incoming" ? 1 : 0),
-    0
-  );
+  const totalUnreadCount =
+    totalUnreadCountProp ||
+    conversationCounts?.unreadCount ||
+    0;
+  const displayUnreadCount = isMounted ? totalUnreadCount : 0;
 
   return (
     <div
       className={cn(
-        "flex h-full bg-white dark:bg-[#111b21] min-h-0 min-w-0 w-full overflow-hidden",
+        "flex h-full bg-white dark:bg-[#06090a] min-h-0 min-w-0 w-full overflow-hidden",
         "md:border-r md:border-[#e9edef] md:dark:border-[#222d34]",
       )}
     >
@@ -976,15 +499,15 @@ export function ConversationSidebar({
             <TooltipTrigger asChild>
               <button className="relative w-12 h-12 rounded-full bg-[#e9edef] dark:bg-[#2a3942] flex items-center justify-center hover:bg-[#d1d7db] dark:hover:bg-[#374045] transition-colors">
                 <LuMessageSquareText className="h-6 w-6 text-[#111b21] dark:text-[#e9edef]" />
-                {totalUnreadCount > 0 && (
+                {displayUnreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 min-w-[20px] h-5 px-1 flex items-center justify-center bg-[#25d366] text-white text-[11px] font-semibold rounded-full border-2 border-white dark:border-[#202c33] leading-none">
-                    {totalUnreadCount > 99 ? "99+" : totalUnreadCount}
+                    {displayUnreadCount > 99 ? "99+" : displayUnreadCount}
                   </span>
                 )}
               </button>
             </TooltipTrigger>
             <TooltipContent side="right">
-              Chats{totalUnreadCount > 0 ? ` (${totalUnreadCount} unread)` : ""}
+              Chats{displayUnreadCount > 0 ? ` (${displayUnreadCount} unread)` : ""}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -1032,7 +555,7 @@ export function ConversationSidebar({
       {/* Main Sidebar Content - min-w-0 so it shrinks and doesn't overflow */}
       <div
         className={cn(
-          "flex flex-col h-full min-w-0 flex-1 overflow-hidden bg-white dark:bg-[#111b21]",
+          "flex flex-col h-full min-w-0 flex-1 overflow-hidden bg-white dark:bg-[#06090a]",
         )}
       >
         {/* Hidden file input for per-item uploads (stays mounted) */}
@@ -1046,7 +569,7 @@ export function ConversationSidebar({
         {/* Header - WhatsApp style: white, "WhatsApp" title, new chat + menu */}
         <div
           className={cn(
-            "flex items-center justify-between bg-white dark:bg-[#111b21] flex-shrink-0 min-w-0",
+            "flex items-center justify-between bg-white dark:bg-[#06090a] flex-shrink-0 min-w-0",
             "h-[60px] px-3 pt-[env(safe-area-inset-top,0px)] md:pt-0 md:px-3",
             "border-b border-[#f0f2f5] dark:border-[#222d34]",
           )}
@@ -1243,7 +766,7 @@ export function ConversationSidebar({
             "px-3 py-2 flex-shrink-0 min-w-0 overflow-hidden transition-colors duration-200 rounded-t-lg",
             searchFocused || (searchQuery && searchQuery.trim().length > 0)
               ? "bg-[#e9edef] dark:bg-[#2a3942]"
-              : "bg-white dark:bg-[#111b21]",
+              : "bg-white dark:bg-[#06090a]",
           )}
         >
           {showNewChat ? (
@@ -1262,7 +785,7 @@ export function ConversationSidebar({
                       )
                     }
                     className={cn(
-                      "pl-6 bg-[#f0f2f5] dark:bg-[#202c33] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]",
+                      "pl-6 bg-[#f0f2f5] dark:bg-[#06090a] border-0 rounded-lg text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0]",
                       // Mobile: Taller inputs for touch
                       "h-11",
                       "md:h-9",
@@ -1334,7 +857,7 @@ export function ConversationSidebar({
                 className={cn(
                   "w-full min-w-0 pl-10 pr-10 border-0 rounded-[22px] text-[15px] text-[#111b21] dark:text-[#e9edef] placeholder:text-[#8696a0] focus-visible:ring-0 h-10 transition-colors",
                   searchFocused || searchQuery?.trim()
-                    ? "bg-white dark:bg-[#111b21] shadow-sm"
+                    ? "bg-white dark:bg-[#111b21] "
                     : "bg-[#f0f2f5] dark:bg-[#202c33]",
                   "md:h-9 md:text-[14px]",
                 )}
@@ -1356,54 +879,43 @@ export function ConversationSidebar({
           )}
         </div>
 
-        {/* Filter pills - All | Unread | Favourites | Groups | Labels (WhatsApp style) */}
+        {/* Filter pills - All | Unread | Favourites | Labels (+) — compact, no horizontal scroll */}
         {!showNewChat && (
-          <div className="flex items-center gap-1 px-3 py-2 overflow-x-auto overflow-y-hidden min-w-0 bg-white dark:bg-[#111b21] flex-shrink-0 scrollbar-none">
+          <div className="flex items-center gap-1.5 px-2.5 py-2 min-w-0 w-full overflow-hidden flex-nowrap bg-white dark:bg-[#06090a] flex-shrink-0">
             <button
+              type="button"
               onClick={() => {
-                setFilterPill("all");
                 setConversationTab("all");
                 onLabelFilterChange?.("all");
               }}
-              className={cn(
-                "shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
-                filterPill === "all" && conversationTab === "all"
-                  ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
-                  : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]",
-              )}
+              className={inboxFilterPillClass(isAllFilterActive)}
             >
               All
             </button>
             <button
+              type="button"
               onClick={() => {
-                setFilterPill("unread");
+                setConversationTab("all");
                 onLabelFilterChange?.("unread");
               }}
-              className={cn(
-                "shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
-                filterPill === "unread"
-                  ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
-                  : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]",
-              )}
+              className={inboxFilterPillClass(isUnreadFilter)}
             >
-              Unread
+              {displayUnreadCount > 0 ? `Unread (${displayUnreadCount})` : "Unread"}
             </button>
-            <button className="shrink-0 px-4 py-2 rounded-full text-[14px] font-medium text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33] transition-colors">
+            <button
+              type="button"
+              className={inboxFilterPillClass(false)}
+            >
               Favourites
             </button>
 
-            <DropdownMenu>
+            <DropdownMenu open={labelsMenuOpen} onOpenChange={setLabelsMenuOpen}>
               <DropdownMenuTrigger asChild>
                 <button
-                  className={cn(
-                    "flex items-center gap-1 shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors",
-                    conversationTab !== "all"
-                      ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
-                      : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]",
-                  )}
+                  type="button"
+                  className={inboxFilterPillClass(isLabelsFilterActive)}
                 >
                   Labels
-                  <ChevronDown className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
@@ -1413,21 +925,31 @@ export function ConversationSidebar({
                     onClick={() => {
                       if (item.key === "owners") {
                         setConversationTab("owners");
-                        setFilterPill("all");
+                        onLabelFilterChange?.("owners");
                       } else if (item.key === "guests") {
                         setConversationTab("guests");
-                        setFilterPill("all");
+                        onLabelFilterChange?.("guests");
                       } else if (item.key === "unread") {
-                        setFilterPill("unread");
                         setConversationTab("all");
+                        onLabelFilterChange?.("unread");
+                      } else if (item.key === "all") {
+                        setConversationTab("all");
+                        onLabelFilterChange?.("all");
                       } else {
                         setConversationTab("all");
-                        setFilterPill("all");
+                        onLabelFilterChange?.(item.key);
                       }
-                      onLabelFilterChange?.(item.key);
                     }}
                     className={cn(
-                      labelFilter === item.key &&
+                      (item.key === "unread"
+                        ? isUnreadFilter
+                        : item.key === "owners"
+                          ? conversationTab === "owners"
+                          : item.key === "guests"
+                            ? conversationTab === "guests"
+                            : item.key === "all"
+                              ? isAllFilterActive
+                              : labelFilter === item.key) &&
                         "bg-[#e9edef] dark:bg-[#2a3942]",
                     )}
                   >
@@ -1444,22 +966,25 @@ export function ConversationSidebar({
                     type="button"
                     disabled={adminQueue}
                     className={cn(
-                      "flex items-center gap-1 shrink-0 px-4 py-2 rounded-full text-[14px] font-medium transition-colors max-w-[160px]",
-                      adminLocationFilter !== "all"
-                        ? "bg-[#e9edef] dark:bg-[#2a3942] text-[#111b21] dark:text-[#e9edef]"
-                        : "bg-transparent text-[#667781] dark:text-[#8696a0] hover:bg-[#f0f2f5] dark:hover:bg-[#202c33]",
+                      inboxFilterIconButtonClass(adminLocationFilter !== "all"),
                       adminQueue && "opacity-60 cursor-not-allowed",
                     )}
-                  >
-                    <MapPin className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">
-                      {adminLocationFilter === "all"
+                    aria-label={
+                      adminLocationFilter === "all"
                         ? userRole === "SuperAdmin"
                           ? "All locations"
                           : "All my locations"
-                        : adminLocationFilter}
-                    </span>
-                    <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                        : adminLocationFilter
+                    }
+                    title={
+                      adminLocationFilter === "all"
+                        ? userRole === "SuperAdmin"
+                          ? "All locations"
+                          : "All my locations"
+                        : adminLocationFilter
+                    }
+                  >
+                    <MapPin className="h-3.5 w-3.5" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
@@ -1491,7 +1016,7 @@ export function ConversationSidebar({
         )}
 
         {!showNewChat && (
-          <div className="px-3 pb-2 bg-white dark:bg-[#111b21] flex-shrink-0 space-y-2">
+          <div className="px-3 pb-2 bg-white dark:bg-[#06090a] flex-shrink-0 space-y-2">
             <InitiationLimitBadge refreshKey={initiationLimitRefreshKey} />
             {guestInitiationAtLimit && (
               <p className="text-xs text-red-600 dark:text-red-400 px-1">
@@ -1609,7 +1134,7 @@ export function ConversationSidebar({
                 <div
                   onClick={onToggleArchiveView}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors bg-white dark:bg-[#111b21]",
+                    "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors bg-white dark:bg-[#06090a]",
                     "hover:bg-[#f5f6f6] dark:hover:bg-[#202c33] active:bg-[#e9edef] dark:active:bg-[#1d282f]",
                     "border-b border-[#f0f2f5] dark:border-[#222d34]",
                   )}
@@ -1632,7 +1157,7 @@ export function ConversationSidebar({
                 <div
                   onClick={onToggleArchiveView}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors bg-[#f0f2f5] dark:bg-[#202c33]",
+                    "flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors bg-[#f0f2f5] dark:bg-[#06090a]",
                     "hover:bg-[#e9edef] dark:hover:bg-[#2a3942] border-b border-[#e9edef] dark:border-[#222d34]",
                   )}
                 >
@@ -1644,36 +1169,55 @@ export function ConversationSidebar({
                   </span>
                 </div>
               )}
-              {filteredConversations.map((conversation) => (
-                <ConversationItem
-                  key={`${conversation._id}-${conversation.lastMessageTime}-${conversation.unreadCount}`}
-                  conversation={conversation}
-                  isSelected={selectedConversation?._id === conversation._id}
-                  onClick={() => onSelectConversation(conversation)}
-                  isMounted={isMounted}
-                  onArchive={
-                    showingArchived ? undefined : onArchiveConversation
-                  }
-                  onUnarchive={
-                    showingArchived ? onUnarchiveConversation : undefined
-                  }
-                  isArchived={showingArchived || conversation.isArchivedByUser}
-                  isMobile={isMobile}
-                  onUpdateConversation={onUpdateConversation}
-                  onTriggerUpload={triggerUploadFor}
-                  onRenameFor={handleRenameFor}
-                  onConversationTypeChange={onConversationTypeChange}
-                  onSetLocation={setLocationDialogConversation}
-                  phoneMaskRules={phoneMaskRules}
-                  userRole={userRole}
-                  userEmail={userEmail}
-                  userAreas={userAreas}
-                  onOpenDisposition={onOpenDisposition}
-                  onOpenSetVisit={onOpenSetVisit}
-                  onOpenReminder={onOpenReminder}
-                  onCrmActionForConversation={onCrmActionForConversation}
-                />
-              ))}
+              <div
+                style={{
+                  height: `${conversationVirtualizer.getTotalSize()}px`,
+                  width: "100%",
+                  position: "relative",
+                }}
+              >
+                {conversationVirtualizer.getVirtualItems().map((virtualItem) => {
+                  const conversation = filteredConversations[virtualItem.index];
+                  if (!conversation) return null;
+                  return (
+                    <div
+                      key={virtualItem.key}
+                      data-index={virtualItem.index}
+                      ref={conversationVirtualizer.measureElement}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${virtualItem.start}px)`,
+                      }}
+                    >
+                      <ConversationItem
+                        conversation={conversation}
+                        isSelected={selectedConversation?._id === conversation._id}
+                        onSelect={handleSelectConversation}
+                        isMounted={isMounted}
+                        onArchive={showingArchived ? undefined : onArchiveConversation}
+                        onUnarchive={showingArchived ? onUnarchiveConversation : undefined}
+                        isArchived={showingArchived || conversation.isArchivedByUser}
+                        isMobile={isMobile}
+                        onTriggerUpload={triggerUploadFor}
+                        onRenameFor={handleRenameFor}
+                        onConversationTypeChange={onConversationTypeChange}
+                        onSetLocation={setLocationDialogConversation}
+                        phoneMaskRules={phoneMaskRules}
+                        userRole={userRole}
+                        userEmail={userEmail}
+                        userAreas={userAreas}
+                        onOpenDisposition={onOpenDisposition}
+                        onOpenSetVisit={onOpenSetVisit}
+                        onOpenReminder={onOpenReminder}
+                        onCrmActionForConversation={onCrmActionForConversation}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
 
               {/* Load More */}
               {hasMoreConversations && (
@@ -1731,4 +1275,4 @@ export function ConversationSidebar({
       )}
     </div>
   );
-}
+});

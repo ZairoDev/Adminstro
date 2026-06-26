@@ -364,6 +364,35 @@ export function getRemainingHours(
   return getMessagingWindowRemaining(lastAt);
 }
 
+/** Stable React Query key for template lists (channel/WABA routing, not conversationId). */
+export function resolveTemplatesCacheKey(
+  conversation: Conversation | null,
+  phoneConfigs: Array<{ phoneNumberId: string; businessAccountId?: string; channelId?: string }>,
+): string | null {
+  if (!conversation?._id) return null;
+
+  const channelId = (conversation as { whatsappChannelId?: string }).whatsappChannelId;
+  if (channelId) return `channel:${channelId}`;
+
+  const phoneId = getConversationBusinessPhoneId(conversation);
+  const config = phoneConfigs.find((c) => c.phoneNumberId === phoneId);
+
+  if (config?.channelId) return `channel:${config.channelId}`;
+  if (config?.businessAccountId) return `waba:${config.businessAccountId}`;
+
+  const locationKey =
+    (conversation as { participantLocationKey?: string }).participantLocationKey?.trim() ||
+    conversation.participantLocation?.trim() ||
+    "";
+  const rentalType = conversation.rentalType ?? "";
+  const channelType =
+    conversation.conversationType ||
+    (conversation as { channelType?: string }).channelType ||
+    "guest";
+
+  return `route:${locationKey}|${rentalType}|${channelType}|${phoneId ?? ""}`;
+}
+
 export function getTemplatePreviewText(
   template: Template,
   params: Record<string, string>

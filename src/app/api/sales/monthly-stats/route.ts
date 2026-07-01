@@ -1,68 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
 import Query from "@/models/query";
-import Employee from "@/models/employee";   // ⭐ ADD THIS
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { getLeadGenEmployeeEmails } from "@/lib/leads/leadGenEmailCache";
+import { COMPARE_LEAD_LIST_PROJECTION } from "@/lib/leads/compareLeadFields";
 
 connectDb();
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const token = await getDataFromToken(request);
-  
+
   try {
     const url = request.nextUrl;
     const month = url.searchParams.get("month");
+    const createdByFilter = url.searchParams.get("createdBy");
 
     if (!month) {
       return NextResponse.json(
         { message: "Month parameter is required (format: YYYY-MM)" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const [year, monthNum] = month.split("-").map(Number);
-    
+
     const startDate = new Date(Date.UTC(year, monthNum - 1, 1, 0, 0, 0, 0));
     const endDate = new Date(Date.UTC(year, monthNum, 0, 23, 59, 59, 999));
 
-    // ⭐ GET ALL EMAILS OF LEADGEN EMPLOYEES
-    const leadGenEmployees = await Employee.find({ role: "LeadGen" }).select("email");
-    const leadGenEmails = leadGenEmployees.map(e => e.email);
+    const leadGenEmails = await getLeadGenEmployeeEmails();
 
-    // Keep base filter limited to LeadGen-created leads
-    let matchQuery: Record<string, any> = {
+    let matchQuery: Record<string, unknown> = {
       createdAt: {
         $gte: startDate,
         $lte: endDate,
       },
-      createdBy: { $in: leadGenEmails } // ⭐ VERY IMPORTANT
+      createdBy: { $in: leadGenEmails },
     };
 
-    // Strict RBAC: LeadGen can only view their own leads
     if (token.role === "LeadGen" && token.email) {
       matchQuery.createdBy = token.email;
     }
 
-    // Aggregation: group by createdBy
+    if (createdByFilter) {
+      matchQuery.createdBy = createdByFilter;
+    }
+
     const monthlyStats = await Query.aggregate([
-      {
-        $match: matchQuery
-      },
+      { $match: matchQuery },
       {
         $group: {
           _id: "$createdBy",
           totalQueries: { $sum: 1 },
-          details: { $push: "$$ROOT" }
-        }
+        },
       },
-      {
-        $sort: { totalQueries: -1 }
-      }
+      { $sort: { totalQueries: -1 } },
     ]);
 
-    // Also return full list for the UI table
-    const allQueries = await Query.find(matchQuery)
+    const allQueries = await Query.find(matchQuery, COMPARE_LEAD_LIST_PROJECTION)
       .sort({ _id: -1 })
       .lean();
 
@@ -73,15 +68,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       queries: allQueries,
       totalQueries: allQueries.length,
     });
-    
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { message?: string };
     console.error("Error in GET monthly stats:", error);
     return NextResponse.json(
       {
         message: "Failed to fetch monthly stats",
-        error: error.message,
+        error: err?.message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

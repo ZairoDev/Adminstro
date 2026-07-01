@@ -291,6 +291,10 @@ querySchema.index({ location: 1, leadStatus: 1, createdAt: -1 });
 querySchema.index({ createdBy: 1, createdAt: -1 });
 querySchema.index({ location: 1, messageStatus: 1 });
 querySchema.index({ typeOfProperty: 1, location: 1, createdAt: -1 });
+querySchema.index({ leadStatus: 1, updatedAt: -1 });
+querySchema.index({ leadStatus: 1, location: 1, updatedAt: -1 });
+querySchema.index({ leadStatus: 1, salesPriority: 1, updatedAt: -1 });
+querySchema.index({ createdBy: 1, createdAt: -1, leadStatus: 1 });
 
 const Query = models.Query || model("Query", querySchema);
 export default Query;

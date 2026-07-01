@@ -212,16 +212,11 @@ export const LeadPage = () => {
   //   };
   // }, [queries, allotedArea]);
 
-  useEffect(() => {
-    // debounce(filterLeads, 500);
-    filterLeads(1);
-  }, [filters.searchTerm]);
-
   const debouncedFilterLeads = React.useCallback(
-    debounce((page: number, filters: FilterState) => {
-      filterLeads(page, filters);
-    }, 500), // 500ms delay
-    []
+    debounce((filtersToUse: FilterState) => {
+      filterLeads(1, { ...filtersToUse, allotedArea: area });
+    }, 500),
+    [area],
   );
 
   return (
@@ -315,15 +310,13 @@ export const LeadPage = () => {
                               };
             
                               setFilters(updatedFilters);
-            
-                              // ✅ Trigger the search after state update
-                              debouncedFilterLeads(1, updatedFilters);
+
+                              debouncedFilterLeads(updatedFilters);
                             }}
                             onKeyDown={(e) => {
-                              // Allow immediate search on Enter key
                               if (e.key === "Enter") {
-                                debouncedFilterLeads.cancel(); // Cancel any pending debounced call
-                                filterLeads(1, filters);
+                                debouncedFilterLeads.cancel();
+                                filterLeads(1, { ...filters, allotedArea: area });
                               }
                             }}
                             className="pr-24"

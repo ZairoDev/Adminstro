@@ -59,8 +59,12 @@ export async function enforceOwnerSheetRentalTypeAccess(
 export async function applyEmployeeRentalTypeLeadFilter(
   query: Record<string, unknown>,
   token: unknown,
+  preloadedRentalType?: EmployeeRentalType | null,
 ): Promise<Record<string, unknown>> {
   const auth = asAuthToken(token);
-  const rentalType = await getResolvedEmployeeRentalType(auth);
+  const rentalType =
+    preloadedRentalType !== undefined
+      ? preloadedRentalType
+      : await getResolvedEmployeeRentalType(auth);
   return applyRentalTypeToLeadQuery(query, rentalType, String(auth.role ?? ""));
 }

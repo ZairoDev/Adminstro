@@ -9,24 +9,24 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 import Query from "@/models/query";
-import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
-import { applyPricingRulesByLocationToQuery, loadEmployeePricingRules } from "@/util/pricingRule";
+import {
+  getBlockedLeadLocations,
+  loadEmployeeLeadContext,
+} from "@/lib/leads/employeeLeadContext";
+import { LeadQueryService } from "@/lib/leads/LeadQueryService";
+import { applyPricingRulesByLocationToQuery } from "@/util/pricingRule";
 import {
   applyPropertyVisibilityRulesByLocationToLeadQuery,
-  loadEmployeePropertyVisibilityRules,
 } from "@/util/propertyVisibilityRule";
-import { exactCaseInsensitiveRegex } from "@/util/regex";
 import {
   applyGuestLeadLocationToQuery,
   resolveEffectiveLeadLocations,
 } from "@/util/guestLeadLocationScope";
 import {
   applyQuickPropertyFiltersToQuery,
-  buildWordsCountGroupFields,
-  stripQuickPropertyFiltersFromQuery,
 } from "@/util/leadFilterUtils";
 
 connectDb();
@@ -45,12 +45,11 @@ export async function POST(req: NextRequest) {
     const reqBody = await req.json();
     const assignedArea = token.allotedArea as String[];
     const role = token.role;
-    const employeeId = String((token as any)?.id || "");
-    const employeePricingRules = await loadEmployeePricingRules(employeeId);
-    const employeeVisibilityRules = await loadEmployeePropertyVisibilityRules(employeeId);
-    const employeeLocationBlock = await Employees.findById(employeeId)
-      .select("guestLeadLocationBlock")
-      .lean();
+    const employeeId = String((token as { id?: string })?.id || "");
+    const employeeContext = await loadEmployeeLeadContext(
+      employeeId,
+      token.rentalType,
+    );
     // console.log("req body in filter route: ", assignedArea, reqBody);
 
     const {
@@ -76,9 +75,6 @@ export async function POST(req: NextRequest) {
     const hasQuickPropertyFilters =
       Array.isArray(quickPropertyFilters) && quickPropertyFilters.length > 0;
     const PAGE = reqBody.page;
-
-    const LIMIT = 50;
-    const SKIP = (PAGE - 1) * LIMIT;
 
     const regex = new RegExp(searchTerm, "i");
     let query: Record<string, any> = {};
@@ -166,10 +162,8 @@ export async function POST(req: NextRequest) {
       uiAllotedArea: allotedArea,
     });
 
-    const blocked = new Set(
-      Array.isArray((employeeLocationBlock as any)?.guestLeadLocationBlock?.all)
-        ? ((employeeLocationBlock as any).guestLeadLocationBlock.all as any[]).map(String)
-        : [],
+    const blocked = getBlockedLeadLocations(
+      employeeContext.guestLeadLocationBlock,
     );
     if (blocked.size && effectiveLocations && effectiveLocations.length) {
       const filtered = effectiveLocations.filter((l) => !blocked.has(String(l).toLowerCase()));
@@ -188,7 +182,7 @@ export async function POST(req: NextRequest) {
     {
       const { impossible } = applyPropertyVisibilityRulesByLocationToLeadQuery({
         query,
-        rules: employeeVisibilityRules,
+        rules: employeeContext.propertyVisibilityRules,
         locations: effectiveLocations,
         uiPropertyType: propertyType,
         uiTypeOfProperty: hasQuickPropertyFilters ? "" : typeOfProperty,
@@ -211,7 +205,7 @@ export async function POST(req: NextRequest) {
     {
       const { impossible } = applyPricingRulesByLocationToQuery({
         query,
-        pricingRules: employeePricingRules,
+        pricingRules: employeeContext.pricingRules,
         uiBudgetFrom: budgetFrom,
         uiBudgetTo: budgetTo,
         locations: effectiveLocations,
@@ -279,114 +273,21 @@ export async function POST(req: NextRequest) {
 
     // console.log("created query: ", query);
 
-    query = await applyEmployeeRentalTypeLeadFilter(query, token);
+    query = await applyEmployeeRentalTypeLeadFilter(
+      query,
+      token,
+      employeeContext.rentalType,
+    );
 
-    const allquery = await Query.aggregate([
-      { $match: query },
-      { $sort: { updatedAt: -1 } }, // last updated lead will come first
-      { $skip: SKIP },
-      { $limit: LIMIT },
-      {
-        $addFields: {
-          istCreatedAt: {
-            $dateToString: {
-              date: { $add: ["$createdAt", 5.5 * 60 * 60 * 1000] },
-              format: "%Y-%m-%d %H:%M:%S",
-              timezone: "UTC",
-            },
-          },
-        },
-      },
-    ]);
-
-    // console.log("all query length: ", allquery.length);
-
-    {
-      /*Sorting*/
-    }
-    const priorityMap = {
-      None: 0,
-      Medium : 1,
-      Low: 2,
-      High: 3,
-    };
-    if (sortBy && sortBy !== "None") {
-      allquery.sort((a, b) => {
-        const priorityA =
-          priorityMap[(a.salesPriority as keyof typeof priorityMap) || "None"];
-        const priorityB =
-          priorityMap[(b.salesPriority as keyof typeof priorityMap) || "None"];
-
-        if (sortBy === "Asc") {
-          return priorityA - priorityB;
-        } else {
-          return priorityB - priorityA;
-        }
-      });
-    }
-    
-  const wordsCountMatchQuery = stripQuickPropertyFiltersFromQuery(query);
-  const pipeline = [
-    { $match: wordsCountMatchQuery },
-    { $group: buildWordsCountGroupFields() },
-    {
-      $project: {
-        _id: 0,
-        "1bhk": 1,
-        "2bhk": 1,
-        "3bhk": 1,
-        "4bhk": 1,
-        studio: 1,
-        sharedApartment: 1,
-      },
-    },
-  ];
-
-
-   const statusPipeline = [
-  {
-    "$group": {
-      "_id": "$messageStatus",
-      "count": { "$sum": 1 }
-    }
-  },
-  {
-    "$group": {
-      "_id": null,
-      "First":   { "$sum": { "$cond": [{ "$eq": ["$_id", "First"] }, "$count", 0] } },
-      "Second":  { "$sum": { "$cond": [{ "$eq": ["$_id", "Second"] }, "$count", 0] } },
-      "Third":   { "$sum": { "$cond": [{ "$eq": ["$_id", "Third"] }, "$count", 0] } },
-      "Fourth":  { "$sum": { "$cond": [{ "$eq": ["$_id", "Fourth"] }, "$count", 0] } },
-      "Options": { "$sum": { "$cond": [{ "$eq": ["$_id", "Options"] }, "$count", 0] } },
-      "Visit":   { "$sum": { "$cond": [{ "$eq": ["$_id", "Visit"] }, "$count", 0] } },
-      "None":    { "$sum": { "$cond": [{ "$eq": ["$_id", "None"] }, "$count", 0] } },
-      "Null":    { "$sum": { "$cond": [{ "$eq": ["$_id", null] }, "$count", 0] } }
-    }
-  },
-  {
-    "$project": { "_id": 0 }
-  }
-]
-
-  const statusCount= await Query.aggregate(statusPipeline);
-    // console.log("statusCount: ", statusCount);
-
-
-    const wordsCount = await Query.aggregate(pipeline as any[]);
-    //  console.log("wordsCount: ", wordsCount);
-
-    const totalQueries = await Query.countDocuments(query);
-    const totalPages = Math.ceil(totalQueries / LIMIT);
-
-    return NextResponse.json({
-      data: allquery,
-      PAGE,
-      totalPages,
-      totalQueries,
-      wordsCount,
-      statusCount
-
+    const result = await LeadQueryService.list({
+      matchQuery: query,
+      page: PAGE,
+      sortBy,
+      includeStatusCount: true,
+      includeWordsCount: true,
     });
+
+    return NextResponse.json(result);
     
   } catch (error: unknown) {
     const err = error as { status?: number; code?: string; message?: string };

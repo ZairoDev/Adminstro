@@ -3,6 +3,7 @@ import PersonalReminder from "@/models/personalReminder";
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { sendPersonalReminderEmail } from "@/lib/email";
+import { lockEmployeesWithOverduePips } from "@/lib/employee/pipAutoLock";
 
 const DEFAULT_CRON = "*/5 * * * *";
 
@@ -20,6 +21,15 @@ function formatScheduledAt(date: Date): string {
 
 export async function processDuePersonalReminders(): Promise<void> {
   await connectDb();
+
+  try {
+    const locked = await lockEmployeesWithOverduePips();
+    if (locked > 0) {
+      console.log(`[pip-auto-lock] Locked ${locked} employee(s) with overdue active PIP`);
+    }
+  } catch (err) {
+    console.error("[pip-auto-lock] Cron run failed:", err);
+  }
 
   const now = new Date();
   const due = await PersonalReminder.find({

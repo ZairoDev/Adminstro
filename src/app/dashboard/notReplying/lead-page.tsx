@@ -1,10 +1,9 @@
 "use client";
 
-import axios from "@/util/axios";
 import Pusher from "pusher-js";
 import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import {
@@ -31,7 +30,6 @@ import {
 import { IQuery } from "@/util/type";
 import Heading from "@/components/Heading";
 import { useAuthStore } from "@/AuthStore";
-import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import QueryCard from "@/components/QueryCard";
 import { Button } from "@/components/ui/button";
@@ -42,17 +40,13 @@ import LeadsFilter, {
 import { InfinityLoader } from "@/components/Loaders";
 import LeadTable from "@/components/leadTable/LeadTable";
 import HandLoader from "@/components/HandLoader";
+import { useLeadList } from "@/hooks/useLeadList";
+import { mergeLeadFilters } from "@/util/leadFilterUtils";
 
 export const NotReplyingLeads = () => {
   const router = useRouter();
-  const { toast } = useToast(); 
   const { token } = useAuthStore();
   const searchParams = useSearchParams();
-
-  const [queries, setQueries] = useState<IQuery[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [totalQuery, setTotalQueries] = useState<number>(0);
-  const [totalPages, setTotalPages] = useState<number>(1);
 
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
@@ -92,12 +86,28 @@ export const NotReplyingLeads = () => {
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
 
+  const mergedFilters = useMemo(
+    () => (area ? mergeLeadFilters(filters, area) : filters),
+    [filters, area],
+  );
+
+  const {
+    queries,
+    setQueries,
+    loading,
+    totalPages,
+    totalQueries: totalQuery,
+  } = useLeadList({
+    queryKey: "not-replying",
+    endpoint: "/api/leads/notReplying",
+    filters: mergedFilters,
+    page,
+  });
+
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams ?? undefined);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
-    filterLeads(newPage, { ...filters, allotedArea: area });
-
     setPage(newPage);
   };
 
@@ -168,55 +178,27 @@ export const NotReplyingLeads = () => {
     return items;
   };
 
-  const filterLeads = async (newPage: number, filtersToUse?: FilterState) => {
-    try {
-      setLoading(true);
-      const response = await axios.post("/api/leads/getAllLeads", {
-        filters: filtersToUse ? filtersToUse : filters,
-        page: newPage,
-      });
-      // console.log("response of new leads: ", response);
-      setQueries(response.data.data);
-      setTotalPages(response.data.totalPages);
-      setTotalQueries(response.data.totalQueries);
-    } catch (err: any) {
-      console.log("error in getting leads: ", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    filterLeads(1, defaultFilters);
-    setPage(parseInt(searchParams?.get("page") ?? "1") || 1);
-    // allotedArea derived from token
-  }, []);
-
   useEffect(() => {
     const pusher = new Pusher("1725fd164206c8aa520b", {
       cluster: "ap2",
     });
     const channel = pusher.subscribe("queries");
-    // channel.bind("new-query", (data: any) => {
-    //   setQueries((prevQueries) => [data, ...prevQueries]);
-    // });
-    channel.bind(`new-query-${allotedArea}`, (data: any) => {
+    channel.bind(`new-query-${allotedArea}`, (data: IQuery) => {
       setQueries((prevQueries) => [data, ...prevQueries]);
-    });
-    toast({
-      title: "Query Created Successfully",
     });
     return () => {
       channel.unbind(`new-query-${allotedArea}`);
       pusher.unsubscribe("queries");
       pusher.disconnect();
     };
-  }, [queries, allotedArea]);
+  }, [allotedArea]);
 
-  useEffect(() => {
-    // debounce(filterLeads, 500);
-    filterLeads(1, { ...filters, allotedArea: area });
-  }, [filters.searchTerm]);
+  const debouncedFilterLeads = React.useCallback(
+    debounce(() => {
+      setPage(1);
+    }, 500),
+    [],
+  );
 
   return (
     <div className=" w-full">
@@ -237,10 +219,10 @@ export const NotReplyingLeads = () => {
                   onValueChange={(value: string) => {
                     if (value === "all") {
                       setArea("");
-                      filterLeads(1, { ...filters, allotedArea: "" });
+                      setPage(1);
                     } else {
                       setArea(value);
-                      filterLeads(1, { ...filters, allotedArea: value });
+                      setPage(1);
                     }
                   }}
                   value={area}
@@ -290,9 +272,17 @@ export const NotReplyingLeads = () => {
             <Input
               placeholder="Search..."
               value={filters.searchTerm}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, searchTerm: e.target.value }))
-              }
+              onChange={(e) => {
+                const value = e.target.value;
+                setFilters((prev) => ({ ...prev, searchTerm: value }));
+                debouncedFilterLeads();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  debouncedFilterLeads.cancel();
+                  setPage(1);
+                }
+              }}
             />
           </div>
           <div className="flex md:w-auto w-full justify-between  gap-x-2">
@@ -317,7 +307,6 @@ export const NotReplyingLeads = () => {
                           );
                           setPage(1);
                           router.push(`?${params.toString()}&page=1`);
-                          filterLeads(1, { ...filters, allotedArea: area });
                         }}
                         className="w-full"
                       >
@@ -332,7 +321,6 @@ export const NotReplyingLeads = () => {
                           setArea("");
                           setFilters({ ...defaultFilters });
                           setPage(1);
-                          filterLeads(1, { ...defaultFilters, allotedArea: "" });
                         }}
                         className="w-full"
                       >

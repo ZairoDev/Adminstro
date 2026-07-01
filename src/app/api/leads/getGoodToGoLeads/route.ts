@@ -9,36 +9,25 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 import Query from "@/models/query";
-import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
-import { leadStatuses } from "@/app/dashboard/sales-offer/sales-offer-utils";
-import { isArray } from "@apollo/client/utilities";
-import { Regex } from "lucide-react";
 import { batchComputeWhatsAppReplyStatus } from "@/lib/whatsapp/replyStatusResolver";
 import {
-  applyEffectiveRangeToQuery,
-  computeEffectiveRange,
-  loadEmployeePricingRule,
-  loadEmployeePricingRules,
-  applyPricingRulesByLocationToQuery,
-} from "@/util/pricingRule";
+  getBlockedLeadLocations,
+  loadEmployeeLeadContext,
+} from "@/lib/leads/employeeLeadContext";
+import { applyPricingRulesByLocationToQuery } from "@/util/pricingRule";
 import {
-  applyPropertyVisibilityRuleToLeadQuery,
-  loadEmployeePropertyVisibilityRule,
-  loadEmployeePropertyVisibilityRules,
   applyPropertyVisibilityRulesByLocationToLeadQuery,
 } from "@/util/propertyVisibilityRule";
-import { exactCaseInsensitiveRegex } from "@/util/regex";
 import {
   applyGuestLeadLocationToQuery,
   resolveEffectiveLeadLocations,
 } from "@/util/guestLeadLocationScope";
+import { LeadQueryService } from "@/lib/leads/LeadQueryService";
 import {
   applyQuickPropertyFiltersToQuery,
-  buildWordsCountGroupFields,
-  stripQuickPropertyFiltersFromQuery,
 } from "@/util/leadFilterUtils";
 
 export const dynamic = "force-dynamic";
@@ -59,12 +48,11 @@ export async function POST(req: NextRequest) {
   const token = await getDataFromToken(req);
   const assignedArea = token.allotedArea as String[];
   const role = token.role;
-  const employeeId = String((token as any)?.id || "");
-  const employeePricingRules = await loadEmployeePricingRules(employeeId);
-  const employeeVisibilityRules = await loadEmployeePropertyVisibilityRules(employeeId);
-  const employeeLocationBlock = await Employees.findById(employeeId)
-    .select("guestLeadLocationBlock")
-    .lean();
+  const employeeId = String((token as { id?: string })?.id || "");
+  const employeeContext = await loadEmployeeLeadContext(
+    employeeId,
+    token.rentalType,
+  );
 
   try {
     // console.log("req body in filter route: ", assignedArea, reqBody);
@@ -180,10 +168,8 @@ export async function POST(req: NextRequest) {
       uiAllotedArea: allotedArea,
     });
 
-    const blocked = new Set(
-      Array.isArray((employeeLocationBlock as any)?.guestLeadLocationBlock?.all)
-        ? ((employeeLocationBlock as any).guestLeadLocationBlock.all as any[]).map(String)
-        : [],
+    const blocked = getBlockedLeadLocations(
+      employeeContext.guestLeadLocationBlock,
     );
     if (blocked.size && effectiveLocations && effectiveLocations.length) {
       const filtered = effectiveLocations.filter((l) => !blocked.has(String(l).toLowerCase()));
@@ -201,7 +187,7 @@ export async function POST(req: NextRequest) {
     {
       const { impossible } = applyPropertyVisibilityRulesByLocationToLeadQuery({
         query,
-        rules: employeeVisibilityRules,
+        rules: employeeContext.propertyVisibilityRules,
         locations: effectiveLocations,
         uiPropertyType: propertyType,
         uiTypeOfProperty: hasQuickPropertyFilters ? "" : typeOfProperty,
@@ -223,7 +209,7 @@ export async function POST(req: NextRequest) {
     {
       const { impossible } = applyPricingRulesByLocationToQuery({
         query,
-        pricingRules: employeePricingRules,
+        pricingRules: employeeContext.pricingRules,
         uiBudgetFrom: budgetFrom,
         uiBudgetTo: budgetTo,
         locations: effectiveLocations,
@@ -299,121 +285,60 @@ export async function POST(req: NextRequest) {
 
     // console.log("created query: ", query);
 
-    query = await applyEmployeeRentalTypeLeadFilter(query, token);
+    query = await applyEmployeeRentalTypeLeadFilter(
+      query,
+      token,
+      employeeContext.rentalType,
+    );
 
-    const allquery = await Query.aggregate([
-      { $match: query },
-      { $sort: { updatedAt: -1 } }, // last updated lead will come first
-      { $skip: SKIP },
-      { $limit: LIMIT },
-      {
-        $addFields: {
-          istCreatedAt: {
-            $dateToString: {
-              date: { $add: ["$createdAt", 5.5 * 60 * 60 * 1000] },
-              format: "%Y-%m-%d %H:%M:%S",
-              timezone: "UTC",
-            },
-          },
-        },
-      },
-    ]);
+    const result = await LeadQueryService.list({
+      matchQuery: query,
+      page: PAGE,
+      sortBy,
+      includeWordsCount: true,
+    });
 
-    // console.log("all query length: ", allquery.length);
-
-    {
-      /*Sorting*/
-    }
-    const priorityMap = {
-      None: 1,
-      Low: 2,
-      High: 3,
+    const statusPriorityMap: Record<string, number> = {
+      None: 0,
+      First: 1,
+      Second: 2,
+      Third: 3,
+      Fourth: 4,
+      Options: 5,
+      Visit: 6,
     };
-    if (sortBy && sortBy !== "None") {
-      allquery.sort((a, b) => {
-        const priorityA =
-          priorityMap[(a.salesPriority as keyof typeof priorityMap) || "None"];
-        const priorityB =
-          priorityMap[(b.salesPriority as keyof typeof priorityMap) || "None"];
 
-        if (sortBy === "Asc") {
-          return priorityA - priorityB;
-        } else {
-          return priorityB - priorityA;
-        }
+    if (status && status !== "None") {
+      result.data.sort((a, b) => {
+        const statusA =
+          statusPriorityMap[String(a.messageStatus ?? "None")] ?? 0;
+        const statusB =
+          statusPriorityMap[String(b.messageStatus ?? "None")] ?? 0;
+        return status === "Default" ? statusA - statusB : statusB - statusA;
       });
     }
 
-    const statusPriorityMap = {
-      None:0,
-      First:1,
-      Second:2,
-      Third:3,
-      Fourth:4,
-      Options:5,
-      Visit:6,
-    }
-
-    if (status && status !== "None") {
-  allquery.sort((a, b) => {
-    const statusA =
-      statusPriorityMap[(a.messageStatus as keyof typeof statusPriorityMap) || "None"];
-    const statusB =
-      statusPriorityMap[(b.messageStatus as keyof typeof statusPriorityMap) || "None"];
-
-    return status === "Default"
-      ? statusA - statusB 
-      : statusB - statusA; 
-  });
-}
-
-
-    
-//  console.log("alloted area: ", allotedArea);
-//  console.log("assigned area: ", assignedArea);
-
-
-  const wordsCountMatchQuery = stripQuickPropertyFiltersFromQuery(query);
-  const pipeline = [
-    { $match: wordsCountMatchQuery },
-    { $group: buildWordsCountGroupFields() },
-    {
-      $project: {
-        _id: 0,
-        "1bhk": 1,
-        "2bhk": 1,
-        "3bhk": 1,
-        "4bhk": 1,
-        studio: 1,
-        sharedApartment: 1,
-      },
-    },
-  ];
-
-    const wordsCount = await Query.aggregate(pipeline as any[]);
-    const totalQueries = await Query.countDocuments(query);
-    const totalPages = Math.ceil(totalQueries / LIMIT);
-
-    // Compute WhatsApp reply status for Reply column (same as fresh leads, non-fatal)
     let statusMap = new Map<string, string | null>();
     try {
-      const phoneNumbers = allquery.map((q: any) => String(q.phoneNo || "")).filter(Boolean);
+      const phoneNumbers = result.data
+        .map((q) => String(q.phoneNo || ""))
+        .filter(Boolean);
       statusMap = await batchComputeWhatsAppReplyStatus(phoneNumbers);
     } catch (replyErr) {
-      console.warn("WhatsApp reply status computation failed, returning leads without it:", replyErr);
+      console.warn(
+        "WhatsApp reply status computation failed, returning leads without it:",
+        replyErr,
+      );
     }
-    const queriesWithReplyStatus = allquery.map((q: any) => ({
+
+    const data = result.data.map((q) => ({
       ...q,
       whatsappReplyStatus: statusMap.get(String(q.phoneNo || "")) || null,
     }));
 
-    // console.log("words count: ", wordsCount);
     return NextResponse.json({
-      data: queriesWithReplyStatus,
-      PAGE,
-      totalPages,
-      totalQueries,
-      wordsCount,
+      ...result,
+      data,
     });
   } catch (error: any) {
     if (error?.status === 401) {

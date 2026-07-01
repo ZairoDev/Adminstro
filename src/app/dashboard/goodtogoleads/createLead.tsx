@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "@/util/axios";
+import { useAreaFilterTargets } from "@/hooks/useAreaFilterTargets";
 import { useToast } from "@/hooks/use-toast";
 import { IQuery } from "@/util/type";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,8 @@ export default function CreateLeadDialog({
   const [checking, setChecking] = useState(false);
   const [phone, setPhone] = useState("");
   const [numberStatus, setNumberStatus] = useState("");
-  const [targets, setTargets] = useState<TargetType[]>([]);
+  const { data: areaTargets = [] } = useAreaFilterTargets();
+  const targets = areaTargets as unknown as TargetType[];
   const [areas1, setAreas1] = useState<TargetType["areas"]>([]);
   const [selectedLocation, setSelectedLocation] = useState("");
   const [startDate, setStartDate] = useState<Date>(new Date());
@@ -93,14 +95,6 @@ export default function CreateLeadDialog({
     messageStatus: "None",
     BoostID: "",
   });
-
-  // 🔄 Fetch Targets for Location/Area Select
-  useEffect(() => {
-    axios
-      .get("/api/addons/target/getAreaFilterTarget")
-      .then((res) => setTargets(res.data.data))
-      .catch((err) => console.error("Error fetching targets:", err));
-  }, []);
 
   useEffect(() => {
     const target = targets.find((t) => t.city === selectedLocation);

@@ -1,5 +1,6 @@
 import axios from "@/util/axios";
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useCompareDailyLeads, useCompareMonthlyLeads } from "@/hooks/useCompareLeadStats";
 import { useSearchParams } from "next/navigation";
 import { IQuery } from "@/util/type";
 import { useAuthStore } from "@/AuthStore";
@@ -7,17 +8,6 @@ import { EmployeeInterface } from "@/util/type";
 import debounce from "lodash.debounce";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface AreaType {
-  _id: string;
-  city: string;
-  name: string;
-}
-interface TargetType {
-  _id: string;
-  city: string;
-  areas: AreaType[];
-}
 
 export default function CompareTable({
   queries,
@@ -34,12 +24,7 @@ export default function CompareTable({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
 
-  const [fetchedQueries, setFetchedQueries] = useState<IQuery[]>([]);
-  const [fetchedMonthQueries, setFetchedMonthQueries] = useState<IQuery[]>([]); 
-  const [loading, setLoading] = useState(false);
-  const [targets, setTargets] = useState<TargetType[]>([]);
   const [employees, setEmployees] = useState<EmployeeInterface[]>([]);
-  // CRITICAL: Employee-specific filtering state
   const [selectedEmployeeEmail, setSelectedEmployeeEmail] = useState<string | null>(null);
   const [isFilteringByEmployee, setIsFilteringByEmployee] = useState(false);
 
@@ -55,18 +40,6 @@ export default function CompareTable({
       // Keep page-related behavior harmless for other components
     }
   }, [searchParams]);
-
-  useEffect(() => {
-    const fetchTargets = async () => {
-      try {
-        const res = await axios.get("/api/addons/target/getAreaFilterTarget");
-        setTargets(res.data.data);
-      } catch (error) {
-        console.error("Error fetching targets:", error);
-      }
-    };
-    fetchTargets();
-  }, []);
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -164,99 +137,59 @@ export default function CompareTable({
     return { monthStart, monthEnd, isCurrentMonth };
   }, []);
 
-  const fetchForDate = async (isoDate: string, employeeEmail?: string | null) => {
-    setLoading(true);
-    try {
-      const effectiveEmployeeEmail =
-        ownLeadGenEmail || employeeEmail || null;
-      // CRITICAL FIX: Use a very high limit to get ALL results for the date query
-      // This ensures we get all matches, not just the first 50
-      let url = `/api/sales/getquery?fromDate=${isoDate}&toDate=${isoDate}&limit=10000`;
-      
-      // Add employee filter if an employee is selected
-      if (effectiveEmployeeEmail) {
-        url += `&createdBy=${encodeURIComponent(effectiveEmployeeEmail)}`;
+  const [dailyRange, setDailyRange] = useState<{
+    fromDate: string;
+    toDate: string;
+    createdBy: string | null;
+  } | null>(null);
 
-      }
-      
-      const res = await axios.get(url);
-      const data: IQuery[] = res.data?.data || [];
-      setFetchedQueries(data);
-      setQueries?.(data);
-      
-    } catch (err) {
-      console.error("Error fetching queries for date", err);
-      setFetchedQueries([]);
-      // Show error toast if available
-      if (err instanceof Error) {
-        console.error("Error details:", err.message);
-      }
-    } finally {
-      setLoading(false);
+  const effectiveEmployeeEmail =
+    ownLeadGenEmail || selectedEmployeeEmail || null;
+
+  const dailyQuery = useCompareDailyLeads(
+    dailyRange?.fromDate ?? null,
+    dailyRange?.toDate ?? null,
+    dailyRange?.createdBy ?? effectiveEmployeeEmail,
+    !!dailyRange,
+  );
+
+  const monthlyQuery = useCompareMonthlyLeads(
+    currentMonth,
+    effectiveEmployeeEmail,
+    !!currentMonth,
+  );
+
+  const fetchedQueries = dailyQuery.data?.data ?? [];
+  const fetchedMonthQueries = monthlyQuery.data ?? [];
+  const loading = dailyQuery.isFetching || monthlyQuery.isFetching;
+
+  useEffect(() => {
+    if (dailyQuery.data?.data) {
+      setQueries?.(dailyQuery.data.data);
     }
+  }, [dailyQuery.data, setQueries]);
+
+  const fetchForDate = (isoDate: string, employeeEmail?: string | null) => {
+    const effective = ownLeadGenEmail || employeeEmail || null;
+    setDailyRange({
+      fromDate: isoDate,
+      toDate: isoDate,
+      createdBy: effective,
+    });
   };
 
-  // NEW: Fetch employee data for entire month range
-  const fetchEmployeeMonthData = async (employeeEmail: string, month: string) => {
-    setLoading(true);
-    try {
-      const { monthStart, monthEnd } = getMonthRange(month);
-      const effectiveEmployeeEmail = ownLeadGenEmail || employeeEmail;
-      
-      // Fetch all data from month start to month end (or today if current month)
-      let url = `/api/sales/getquery?fromDate=${monthStart}&toDate=${monthEnd}&limit=10000&createdBy=${encodeURIComponent(effectiveEmployeeEmail)}`;
-      
-
-      
-      const res = await axios.get(url);
-      const data: IQuery[] = res.data?.data || [];
-      setFetchedQueries(data);
-      setQueries?.(data);
-
-    } catch (err) {
-      console.error("Error fetching employee month data", err);
-      setFetchedQueries([]);
-      if (err instanceof Error) {
-        console.error("Error details:", err.message);
-      }
-    } finally {
-      setLoading(false);
-    }
+  const fetchEmployeeMonthData = (employeeEmail: string, month: string) => {
+    const { monthStart, monthEnd } = getMonthRange(month);
+    const effective = ownLeadGenEmail || employeeEmail;
+    setDailyRange({
+      fromDate: monthStart,
+      toDate: monthEnd,
+      createdBy: effective,
+    });
   };
 
-  // UPDATED: Fetch monthly stats with optional employee filter
-  const fetchForMonth = async (month: string, employeeEmail?: string | null) => {
-    setLoading(true);
-    try {
-      const effectiveEmployeeEmail = ownLeadGenEmail || employeeEmail || null;
-      let url = `/api/sales/monthly-stats?month=${month}`;
-      
-      // Note: monthly-stats endpoint doesn't support employee filter directly
-      // We'll filter client-side after fetching
-      const res = await axios.get(url);
-      
-      let data: IQuery[] = res.data?.queries || [];
-      
-      // Apply employee filter client-side if specified
-      if (effectiveEmployeeEmail) {
-        data = data.filter(
-          (q) => q.createdBy?.toLowerCase() === effectiveEmployeeEmail?.toLowerCase()
-        );
-
-      }
-      
-      setFetchedMonthQueries(data);
-
-    } catch (err) {
-      console.error("Error fetching queries for month", err);
-      setFetchedMonthQueries([]);
-      // Show error toast if available
-      if (err instanceof Error) {
-        console.error("Error details:", err.message);
-      }
-    } finally {
-      setLoading(false);
-    }
+  const fetchForMonth = (_month: string, _employeeEmail?: string | null) => {
+    monthlyQuery.refetch();
   };
 
   useEffect(() => {

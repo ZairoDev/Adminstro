@@ -1,9 +1,8 @@
 "use client";
 
-import axios from "@/util/axios";
 import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import {
@@ -41,16 +40,13 @@ import { InfinityLoader } from "@/components/Loaders";
 import LeadTable from "@/components/leadTable/LeadTable";
 import HandLoader from "@/components/HandLoader";
 import { useLeadSocket } from "@/hooks/useLeadSocket";
+import { useLeadList } from "@/hooks/useLeadList";
+import { mergeLeadFilters } from "@/util/leadFilterUtils";
 
 export const RejectedLeads = () => {
   const router = useRouter();
   const { token } = useAuthStore();
   const searchParams = useSearchParams();
-
-  const [queries, setQueries] = useState<IQuery[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [totalQuery, setTotalQueries] = useState<number>(0);
-  const [totalPages, setTotalPages] = useState<number>(1);
 
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
@@ -87,21 +83,34 @@ export const RejectedLeads = () => {
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
 
+  const mergedFilters = useMemo(
+    () => mergeLeadFilters(filters, area),
+    [filters, area],
+  );
+
+  const {
+    queries,
+    setQueries,
+    loading,
+    totalPages,
+    totalQueries: totalQuery,
+  } = useLeadList({
+    queryKey: "rejected",
+    endpoint: "/api/leads/getRejectedLeads",
+    filters: mergedFilters,
+    page,
+  });
+
   useLeadSocket({
     disposition: "rejected",
     allotedArea,
     setQueries,
-    page,
-    setTotalQueries,
-    setTotalPages,
   });
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams ?? undefined);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
-    filterLeads(newPage, { ...filters, allotedArea: area });
-
     setPage(newPage);
   };
 
@@ -172,62 +181,12 @@ export const RejectedLeads = () => {
     return items;
   };
 
-  const filterLeads = async (newPage: number, filtersToUse?: FilterState) => {
-    try {
-      setLoading(true);
-      const response = await axios.post("/api/leads/getRejectedLeads", {
-        filters: filtersToUse ? filtersToUse : filters,
-        page: newPage,
-      });
-      // console.log("response of new leads: ", response);
-      setQueries(response.data.data);
-      setTotalPages(response.data.totalPages);
-      setTotalQueries(response.data.totalQueries);
-    } catch (err: any) {
-      console.log("error in getting leads: ", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    filterLeads(1, defaultFilters);
-    setPage(parseInt(searchParams?.get("page") ?? "1"));
-    // allotedArea derived from token
-  }, []);
-
-  // useEffect(() => {
-  //   const pusher = new Pusher("1725fd164206c8aa520b", {
-  //     cluster: "ap2",
-  //   });
-  //   const channel = pusher.subscribe("queries");
-  //   // channel.bind("new-query", (data: any) => {
-  //   //   setQueries((prevQueries) => [data, ...prevQueries]);
-  //   // });
-  //   channel.bind(`new-query-${allotedArea}`, (data: any) => {
-  //     setQueries((prevQueries) => [data, ...prevQueries]);
-  //   });
-  //   toast({
-  //     title: "Query Created Successfully",
-  //   });
-  //   return () => {
-  //     channel.unbind(`new-query-${allotedArea}`);
-  //     pusher.unsubscribe("queries");
-  //     pusher.disconnect();
-  //   };
-  // }, [queries, allotedArea]);
-
-  useEffect(() => {
-    // debounce(filterLeads, 500);
-    filterLeads(1, { ...filters, allotedArea: area });
-  }, [filters.searchTerm]);
-
-    const debouncedFilterLeads = React.useCallback(
-      debounce((page: number, filters: FilterState) => {
-        filterLeads(page, filters);
-      }, 500), // 500ms delay
-      []
-    );
+  const debouncedFilterLeads = React.useCallback(
+    debounce(() => {
+      setPage(1);
+    }, 500),
+    [],
+  );
 
   return (
     <div className=" w-full">
@@ -250,10 +209,10 @@ export const RejectedLeads = () => {
                   onValueChange={(value: string) => {
                     if (value === "all") {
                       setArea("");
-                      filterLeads(1, { ...filters, allotedArea: "" });
+                      setPage(1);
                     } else {
                       setArea(value);
-                      filterLeads(1, { ...filters, allotedArea: value });
+                      setPage(1);
                     }
                   }}
                   value={area}
@@ -324,22 +283,17 @@ export const RejectedLeads = () => {
                     detectedType = "phoneNo";
                   }
 
-                  const updatedFilters = {
-                    ...filters,
+                  setFilters((prev) => ({
+                    ...prev,
                     searchTerm: value,
                     searchType: detectedType,
-                  };
-
-                  setFilters(updatedFilters);
-
-                  // ✅ Trigger the search after state update
-                  debouncedFilterLeads(1, updatedFilters);
+                  }));
+                  debouncedFilterLeads();
                 }}
                 onKeyDown={(e) => {
-                  // Allow immediate search on Enter key
                   if (e.key === "Enter") {
-                    debouncedFilterLeads.cancel(); // Cancel any pending debounced call
-                    filterLeads(1, filters);
+                    debouncedFilterLeads.cancel();
+                    setPage(1);
                   }
                 }}
                 className="pr-24"
@@ -375,7 +329,6 @@ export const RejectedLeads = () => {
                           );
                           setPage(1);
                           router.push(`?${params.toString()}&page=1`);
-                          filterLeads(1, { ...filters, allotedArea: area });
                         }}
                         className="w-full"
                       >
@@ -390,7 +343,6 @@ export const RejectedLeads = () => {
                           setArea("");
                           setFilters({ ...defaultFilters });
                           setPage(1);
-                          filterLeads(1, { ...defaultFilters, allotedArea: "" });
                         }}
                         className="w-full"
                       >

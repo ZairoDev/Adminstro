@@ -2,18 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
-import {
-  subDays,
-  addHours,
-  setHours,
-  
-  setMinutes,
-  setSeconds,
-  setMilliseconds,
-} from "date-fns";
-import Employee from "@/models/employee";
+import { subDays } from "date-fns";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
+import { getLeadGenEmployeeEmails } from "@/lib/leads/leadGenEmailCache";
+import { loadEmployeeLeadContext } from "@/lib/leads/employeeLeadContext";
 import { batchComputeWhatsAppReplyStatus } from "@/lib/whatsapp/replyStatusResolver";
 connectDb();
 export const dynamic = "force-dynamic";
@@ -136,23 +129,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         },
       };
       
-      // Enhanced debug logging to help diagnose issues
-      console.log(`[getquery] ===== DATE QUERY DEBUG =====`);
-      console.log(`[getquery] Input: fromDate=${fromDate}, toDate=${toDate}`);
-      console.log(`[getquery] IST Start (UTC): ${istStartDate.toISOString()}`);
-      console.log(`[getquery] IST End (UTC): ${istEndDate.toISOString()}`);
-      console.log(`[getquery] Query: createdAt >= ${istStartDate.toISOString()} AND < ${istEndDate.toISOString()}`);
-      
-      // Validate date range - ensure end is after start
-      if (istEndDate <= istStartDate) {
-        console.error(`[getquery] ERROR: Invalid date range! End date (${istEndDate.toISOString()}) is not after start date (${istStartDate.toISOString()})`);
-      }
-      
-      // Log the date range in IST for clarity
-      const istStartLocal = new Date(istStartDate.getTime() + (5.5 * 60 * 60 * 1000));
-      const istEndLocal = new Date(istEndDate.getTime() + (5.5 * 60 * 60 * 1000));
-      console.log(`[getquery] Date range in IST: ${istStartLocal.toISOString().split('T')[0]} 00:00:00 IST to ${istEndLocal.toISOString().split('T')[0]} 00:00:00 IST (exclusive)`);
-      console.log(`[getquery] ============================`);
     } else {
       // Handle dateFilter parameter (for backward compatibility)
       const today = new Date();
@@ -209,30 +185,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
    // Handle employee filter
    // CRITICAL FIX: Handle createdBy parameter if provided (overrides default filter)
    if (createdBy) {
-     // If specific employee is requested, use that
      query.createdBy = createdBy;
-     console.log(`[getquery] Filtering by specific employee: ${createdBy}`);
    } else {
-     // Default behavior: filter by LeadGen employees
-     const leadGenEmployees = await Employee.find({ role: "LeadGen" }).select("email");
-     const leadGenEmails = leadGenEmployees.map((emp) => emp.email);
-     
-     console.log(`[getquery] LeadGen employees found: ${leadGenEmails.length}`);
-     console.log(`[getquery] User role: ${token.role}, User email: ${token.email}`);
+     const leadGenEmails = await getLeadGenEmployeeEmails();
 
-     if(token.role === "LeadGen"){
+     if (token.role === "LeadGen") {
        query.createdBy = token.email;
-       console.log(`[getquery] Filtering by LeadGen user's own email: ${token.email}`);
-     }
-     else{
+     } else {
        query.createdBy = { $in: leadGenEmails };
-       console.log(`[getquery] Filtering by LeadGen employees list (${leadGenEmails.length} employees)`);
      }
    }
-   
-   console.log(`[getquery] Final query filter:`, JSON.stringify(query, null, 2));
 
-    query = await applyEmployeeRentalTypeLeadFilter(query, token);
+    const employeeId = String((token as { id?: string })?.id || "");
+    const employeeContext = await loadEmployeeLeadContext(
+      employeeId,
+      token.rentalType,
+    );
+    query = await applyEmployeeRentalTypeLeadFilter(
+      query,
+      token,
+      employeeContext.rentalType,
+    );
 
     // CRITICAL FIX: For date-specific queries, skip pagination to get all results
     const aggregationPipeline: any[] = [
@@ -277,12 +250,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const totalQueries = await Query.countDocuments(query);
     const totalPages = Math.ceil(totalQueries / limit);
-    
-    console.log(`[getquery] Query results: ${queriesWithStatus.length} returned, ${totalQueries} total matches`);
-    if (queriesWithStatus.length > 0) {
-      console.log(`[getquery] First result createdAt: ${queriesWithStatus[0].createdAt}`);
-      console.log(`[getquery] Last result createdAt: ${queriesWithStatus[queriesWithStatus.length - 1].createdAt}`);
-    }
 
     return NextResponse.json({
       data: queriesWithStatus,

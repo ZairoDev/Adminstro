@@ -210,10 +210,12 @@ export const ReviewLeads = () => {
     };
   }, [queries, allotedArea]);
 
-  useEffect(() => {
-    // debounce(filterLeads, 500);
-    filterLeads(1, { ...filters, allotedArea: area });
-  }, [filters.searchTerm]);
+  const debouncedFilterLeads = React.useCallback(
+    debounce((filtersToUse: FilterState) => {
+      filterLeads(1, { ...filtersToUse, allotedArea: area });
+    }, 500),
+    [area],
+  );
 
   return (
     <div className=" w-full">
@@ -287,9 +289,18 @@ export const ReviewLeads = () => {
             <Input
               placeholder="Search..."
               value={filters.searchTerm}
-              onChange={(e) =>
-                setFilters((prev) => ({ ...prev, searchTerm: e.target.value }))
-              }
+              onChange={(e) => {
+                const value = e.target.value;
+                const updatedFilters = { ...filters, searchTerm: value };
+                setFilters(updatedFilters);
+                debouncedFilterLeads(updatedFilters);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  debouncedFilterLeads.cancel();
+                  filterLeads(1, { ...filters, allotedArea: area });
+                }
+              }}
             />
           </div>
           <div className="flex md:w-auto w-full justify-between  gap-x-2">

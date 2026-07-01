@@ -1,9 +1,9 @@
 "use client";
 
-import axios from "@/util/axios";
+import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import {
   Sheet,
@@ -46,6 +46,7 @@ import PropertyQuickFilters, {
 } from "@/components/lead-component/PropertyQuickFilters";
 import HandLoader from "@/components/HandLoader";
 import { useLeadSocket } from "@/hooks/useLeadSocket";
+import { useLeadList } from "@/hooks/useLeadList";
 import { mergeLeadFilters } from "@/util/leadFilterUtils";
 
 export const LeadPage = () => {
@@ -53,11 +54,6 @@ export const LeadPage = () => {
   const { token } = useAuthStore();
   const searchParams = useSearchParams();
 
-  const [queries, setQueries] = useState<IQuery[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [totalQuery, setTotalQueries] = useState<number>(0);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [wordsCount, setWordsCount] = useState<WordsCount[]>([]);
   const [activeTab, setActiveTab] = useState<"approved" | "notApproved">(
     "approved"
   );
@@ -100,6 +96,25 @@ export const LeadPage = () => {
 
   const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
 
+  const mergedFilters = useMemo(
+    () => mergeLeadFilters(filters, area),
+    [filters, area],
+  );
+
+  const {
+    queries,
+    setQueries,
+    loading,
+    totalPages,
+    totalQueries: totalQuery,
+    wordsCount,
+  } = useLeadList({
+    queryKey: `fresh-${activeTab}`,
+    endpoint: "/api/leads/getLeads",
+    filters: mergedFilters,
+    page,
+  });
+
   // ✅ Use the reusable socket hook for real-time lead updates
   useLeadSocket({
     disposition: "fresh",
@@ -111,9 +126,6 @@ export const LeadPage = () => {
     const params = new URLSearchParams(searchParams ?? undefined);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
-    // console.log("area ::", area);
-    filterLeads(newPage, mergeLeadFilters(filters, area));
-
     setPage(newPage);
   };
 
@@ -184,53 +196,16 @@ export const LeadPage = () => {
     return items;
   };
 
-  const filterLeads = async (newPage: number, filtersToUse?: FilterState) => {
-    try {
-      setLoading(true);
-      const response = await axios.post("/api/leads/getLeads", {
-        filters: filtersToUse ? filtersToUse : filters,
-        page: newPage,
-      });
-      setQueries(response.data.data);
-      setTotalPages(response.data.totalPages);
-      setTotalQueries(response.data.totalQueries);
-      setWordsCount(response.data.wordsCount);
-    } catch (err: any) {
-      console.log("error in getting leads: ", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    filterLeads(1, mergeLeadFilters(filters, area));
-    setPage(parseInt(searchParams?.get("page") ?? "1"));
+    setPage(1);
   }, [activeTab]);
 
-  // useEffect(() => {
-  //   const pusher = new Pusher("1725fd164206c8aa520b", {
-  //     cluster: "ap2",
-  //   });
-  //   const channel = pusher.subscribe("queries");
-  //   // channel.bind("new-query", (data: any) => {
-  //   //   setQueries((prevQueries) => [data, ...prevQueries]);
-  //   // });
-  //   channel.bind(`new-query-${allotedArea}`, (data: any) => {
-  //     setQueries((prevQueries) => [data, ...prevQueries]);
-  //   });
-  //   toast({
-  //     title: "Query Created Successfully",
-  //   });
-  //   return () => {
-  //     channel.unbind(`new-query-${allotedArea}`);
-  //     pusher.unsubscribe("queries");
-  //     pusher.disconnect();
-  //   };
-  // }, [queries, allotedArea]);
-
-  useEffect(() => {
-    filterLeads(1, mergeLeadFilters(filters, area));
-  }, [filters.searchTerm]);
+  const debouncedFilterLeads = React.useCallback(
+    debounce(() => {
+      setPage(1);
+    }, 500),
+    [],
+  );
 
   const handleQuickFilterToggle = (key: string) => {
     const current = filters.quickPropertyFilters ?? [];
@@ -245,7 +220,7 @@ export const LeadPage = () => {
     };
     setFilters(updated);
     setPage(1);
-    filterLeads(1, mergeLeadFilters(updated, area));
+    setPage(1);
   };
 
   const handleQuickFilterClear = () => {
@@ -257,7 +232,7 @@ export const LeadPage = () => {
     };
     setFilters(updated);
     setPage(1);
-    filterLeads(1, mergeLeadFilters(updated, area));
+    setPage(1);
   };
 
   return (
@@ -288,10 +263,10 @@ export const LeadPage = () => {
                   onValueChange={(value: string) => {
                     if (value === "all") {
                       setArea("");
-                      filterLeads(1, mergeLeadFilters(filters, ""));
+                      setPage(1);
                     } else {
                       setArea(value);
-                      filterLeads(1, mergeLeadFilters(filters, value));
+                      setPage(1);
                     }
                   }}
                   value={area}
@@ -343,6 +318,13 @@ export const LeadPage = () => {
                     searchTerm: value,
                     searchType: detectedType,
                   }));
+                  debouncedFilterLeads();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    debouncedFilterLeads.cancel();
+                    setPage(1);
+                  }
                 }}
                 className="pr-24"
               />
@@ -379,7 +361,6 @@ export const LeadPage = () => {
                           );
                           setPage(1);
                           router.push(`?${params.toString()}&page=1`);
-                          filterLeads(1, mergeLeadFilters(filters, area));
                         }}
                         className="w-full"
                       >
@@ -394,7 +375,6 @@ export const LeadPage = () => {
                           setArea("");
                           setFilters({ ...defaultFilters });
                           setPage(1);
-                          filterLeads(1, mergeLeadFilters(defaultFilters, ""));
                         }}
                         className="w-full"
                       >
@@ -439,6 +419,7 @@ export const LeadPage = () => {
                 leadQualityByTeamLead:
                   val === "approved" ? "Approved" : "Not Approved",
               });
+              setPage(1);
             }}
           >
             <TabsList className="mt-4">

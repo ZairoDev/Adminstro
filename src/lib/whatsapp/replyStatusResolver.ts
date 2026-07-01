@@ -132,6 +132,32 @@ async function loadMessagesForPhone(
     .lean<MessageLike[]>();
 }
 
+function computeReplyStatusLabelFromMessages(
+  messages: MessageLike[],
+): string | null {
+  if (messages.length === 0) {
+    return null;
+  }
+
+  const firstIncomingMessage = messages.find(
+    (msg) => msg.direction === "incoming",
+  );
+
+  if (!firstIncomingMessage) {
+    const successfulOutgoing = messages.filter(isSuccessfulOutgoing);
+    const count = successfulOutgoing.length;
+    if (count === 0) return null;
+    if (count === 1) return "NR1";
+    if (count === 2) return "NR2";
+    return "NR3";
+  }
+
+  const classification = classifyMessagesReplyState(messages);
+  if (classification.replied) return "WFR";
+  if (classification.notReplied) return "NTR";
+  return null;
+}
+
 /**
  * Computes WhatsApp reply status dynamically from message history.
  *
@@ -150,27 +176,7 @@ export async function computeWhatsAppReplyStatus(
     }
 
     const messages = await loadMessagesForPhone(normalizedPhone);
-    if (messages.length === 0) {
-      return null;
-    }
-
-    const firstIncomingMessage = messages.find(
-      (msg) => msg.direction === "incoming",
-    );
-
-    if (!firstIncomingMessage) {
-      const successfulOutgoing = messages.filter(isSuccessfulOutgoing);
-      const count = successfulOutgoing.length;
-      if (count === 0) return null;
-      if (count === 1) return "NR1";
-      if (count === 2) return "NR2";
-      return "NR3";
-    }
-
-    const classification = classifyMessagesReplyState(messages);
-    if (classification.replied) return "WFR";
-    if (classification.notReplied) return "NTR";
-    return null;
+    return computeReplyStatusLabelFromMessages(messages);
   } catch (error) {
     console.error("Error computing WhatsApp reply status:", error);
     return null;
@@ -219,15 +225,95 @@ export async function batchComputeWhatsAppReplyStatus(
   phoneNumbers: string[],
 ): Promise<Map<string, string | null>> {
   const results = new Map<string, string | null>();
-  const promises = phoneNumbers.map(async (phoneNo) => {
-    const status = await computeWhatsAppReplyStatus(phoneNo);
-    return { phoneNo, status };
-  });
+  if (phoneNumbers.length === 0) {
+    return results;
+  }
 
-  const resolved = await Promise.all(promises);
-  resolved.forEach(({ phoneNo, status }) => {
-    results.set(phoneNo, status);
-  });
+  const uniquePhones = [
+    ...new Set(
+      phoneNumbers
+        .map(normalizePhone)
+        .filter((phone) => phone.length >= 7),
+    ),
+  ];
+
+  const statusByNormalized = new Map<string, string | null>();
+
+  if (uniquePhones.length === 0) {
+    phoneNumbers.forEach((phoneNo) => results.set(phoneNo, null));
+    return results;
+  }
+
+  const exactConversations = await WhatsAppConversation.find({
+    participantPhone: { $in: uniquePhones },
+    source: { $ne: "internal" },
+  }).lean();
+
+  const conversationsByPhone = new Map<
+    string,
+    Array<(typeof exactConversations)[number]>
+  >();
+
+  for (const conversation of exactConversations) {
+    const phone = normalizePhone(conversation.participantPhone);
+    const list = conversationsByPhone.get(phone) ?? [];
+    list.push(conversation);
+    conversationsByPhone.set(phone, list);
+  }
+
+  const phonesNeedingFallback = uniquePhones.filter(
+    (phone) => !conversationsByPhone.has(phone),
+  );
+
+  for (const phone of phonesNeedingFallback) {
+    const conversations = await findConversationsForPhone(phone);
+    if (conversations.length > 0) {
+      conversationsByPhone.set(phone, conversations);
+    }
+  }
+
+  const allConversationIds = [
+    ...new Set(
+      [...conversationsByPhone.values()]
+        .flat()
+        .map((conversation) => conversation._id),
+    ),
+  ];
+
+  type MessageWithConversation = MessageLike & { conversationId: unknown };
+
+  let messagesByConversationId = new Map<string, MessageWithConversation[]>();
+
+  if (allConversationIds.length > 0) {
+    const allMessages = await WhatsAppMessage.find({
+      conversationId: { $in: allConversationIds },
+      source: { $ne: "internal" },
+    })
+      .select("direction status timestamp conversationId")
+      .sort({ timestamp: 1 })
+      .lean<MessageWithConversation[]>();
+
+    messagesByConversationId = allMessages.reduce((acc, message) => {
+      const key = String(message.conversationId);
+      const list = acc.get(key) ?? [];
+      list.push(message);
+      acc.set(key, list);
+      return acc;
+    }, new Map<string, MessageWithConversation[]>());
+  }
+
+  for (const phone of uniquePhones) {
+    const conversations = conversationsByPhone.get(phone) ?? [];
+    const messages = conversations.flatMap((conversation) =>
+      messagesByConversationId.get(String(conversation._id)) ?? [],
+    );
+    statusByNormalized.set(phone, computeReplyStatusLabelFromMessages(messages));
+  }
+
+  for (const phoneNo of phoneNumbers) {
+    const normalized = normalizePhone(phoneNo);
+    results.set(phoneNo, statusByNormalized.get(normalized) ?? null);
+  }
 
   return results;
 }

@@ -3,7 +3,7 @@
 import axios from "@/util/axios";
 import debounce from "lodash.debounce";
 import { SlidersHorizontal } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import {
@@ -38,14 +38,13 @@ import { Toaster } from "@/components/ui/toaster";
 import LeadsFilter, {
   FilterState,
 } from "@/components/lead-component/NewLeadFilter";
-import PropertyQuickFilters, {
-  WordsCount,
-} from "@/components/lead-component/PropertyQuickFilters";
+import PropertyQuickFilters from "@/components/lead-component/PropertyQuickFilters";
 import HandLoader from "@/components/HandLoader";
 import { mergeLeadFilters } from "@/util/leadFilterUtils";
 import GoodTable from "./good-table";
 import CreateLeadDialog from "./createLead";
 import { useLeadSocket } from "@/hooks/useLeadSocket";
+import { useLeadList } from "@/hooks/useLeadList";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export const GoodToGoLeads = () => {
@@ -55,13 +54,8 @@ export const GoodToGoLeads = () => {
   const searchParams = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<string>("leads");
-  const [queries, setQueries] = useState<IQuery[]>([]);
   const [brokers, setBrokers] = useState<IQuery[]>([]);
   const [brokersLoading, setBrokersLoading] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [totalQuery, setTotalQueries] = useState<number>(0);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [wordsCount, setWordsCount] = useState<WordsCount[]>([]);
 
   const [sortingField, setSortingField] = useState("");
   const [area, setArea] = useState("");
@@ -98,24 +92,45 @@ export const GoodToGoLeads = () => {
     quickPropertyFilters: [],
   };
 
-  const [filters, setFilters] = useState<FilterState>({ ...defaultFilters });
+  const [appliedFilters, setAppliedFilters] = useState<FilterState>({
+    ...defaultFilters,
+  });
+  const [filterDraft, setFilterDraft] = useState<FilterState>({
+    ...defaultFilters,
+  });
+  const [searchInput, setSearchInput] = useState("");
+
+  const mergedFilters = useMemo(
+    () => mergeLeadFilters(appliedFilters, area),
+    [appliedFilters, area],
+  );
+
+  const {
+    queries,
+    setQueries,
+    loading,
+    isFetching,
+    totalPages,
+    totalQueries: totalQuery,
+    wordsCount,
+  } = useLeadList({
+    queryKey: "good-to-go",
+    endpoint: "/api/leads/getGoodToGoLeads",
+    filters: mergedFilters,
+    page,
+    enabled: activeTab === "leads",
+  });
 
   useLeadSocket({
     disposition: "active",
     allotedArea,
     setQueries,
-    page,
-    setTotalQueries,
-    setTotalPages,
   });
 
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams(searchParams ?? undefined);
     params.set("page", newPage.toString());
     router.push(`?${params.toString()}`);
-
-    filterLeads(newPage, mergeLeadFilters(filters, area));
-
     setPage(newPage);
   };
 
@@ -158,25 +173,6 @@ export const GoodToGoLeads = () => {
       );
     }
     return items;
-  };
-
-  const filterLeads = async (newPage: number, filtersToUse?: FilterState) => {
-    try {
-      setLoading(true);
-      const response = await axios.post("/api/leads/getGoodToGoLeads", {
-        filters: filtersToUse ? filtersToUse : filters,
-        page: newPage,
-      });
-
-      setQueries(response.data.data);
-      setTotalPages(response.data.totalPages);
-      setTotalQueries(response.data.totalQueries);
-      setWordsCount(response.data.wordsCount);
-    } catch (err: any) {
-      console.log("error in getting leads: ", err);
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Fetch brokers and transform to IQuery format
@@ -229,13 +225,6 @@ export const GoodToGoLeads = () => {
     }
   };
 
-  // ✅ Initial data fetch
-  useEffect(() => {
-    filterLeads(1, defaultFilters);
-    setPage(parseInt(searchParams?.get("page") ?? "1"));
-    // allotedArea derived from token
-  }, []);
-
   // Fetch brokers when brokers tab is active
   useEffect(() => {
     if (activeTab === "brokers") {
@@ -244,39 +233,58 @@ export const GoodToGoLeads = () => {
   }, [activeTab]);
   
   const handleQuickFilterToggle = (key: string) => {
-    const current = filters.quickPropertyFilters ?? [];
+    const current = appliedFilters.quickPropertyFilters ?? [];
     const next = current.includes(key)
       ? current.filter((k) => k !== key)
       : [...current, key];
     const updated: FilterState = {
-      ...filters,
+      ...appliedFilters,
       quickPropertyFilters: next,
       typeOfProperty: "",
       noOfBeds: "0",
     };
-    setFilters(updated);
+    setAppliedFilters(updated);
+    setFilterDraft(updated);
     setPage(1);
-    filterLeads(1, mergeLeadFilters(updated, area));
   };
 
   const handleQuickFilterClear = () => {
     const updated: FilterState = {
-      ...filters,
+      ...appliedFilters,
       quickPropertyFilters: [],
       typeOfProperty: "",
       noOfBeds: "0",
     };
-    setFilters(updated);
+    setAppliedFilters(updated);
+    setFilterDraft(updated);
     setPage(1);
-    filterLeads(1, mergeLeadFilters(updated, area));
   };
 
-  const debouncedFilterLeads = React.useCallback(
-    debounce((page: number, filtersToUse: FilterState, areaValue: string) => {
-      filterLeads(page, mergeLeadFilters(filtersToUse, areaValue));
+  const debouncedApplySearch = React.useRef(
+    debounce((term: string, searchType: string) => {
+      setAppliedFilters((prev) => ({
+        ...prev,
+        searchTerm: term,
+        searchType,
+      }));
+      setPage(1);
     }, 500),
-    [],
-  );
+  ).current;
+
+  const applySheetFilters = () => {
+    setAppliedFilters(filterDraft);
+    setSearchInput(filterDraft.searchTerm ?? "");
+    setPage(1);
+  };
+
+  const clearAllFilters = () => {
+    router.push(`?page=1`);
+    setArea("");
+    setAppliedFilters({ ...defaultFilters });
+    setFilterDraft({ ...defaultFilters });
+    setSearchInput("");
+    setPage(1);
+  };
 
   return (
     <div className=" w-full">
@@ -296,7 +304,7 @@ export const GoodToGoLeads = () => {
         <Heading heading="Good To Go Leads" subheading="" />
         <PropertyQuickFilters
           wordsCount={wordsCount}
-          selected={filters.quickPropertyFilters ?? []}
+          selected={appliedFilters.quickPropertyFilters ?? []}
           onToggle={handleQuickFilterToggle}
           onClearAll={handleQuickFilterClear}
           className="md:justify-end"
@@ -317,10 +325,10 @@ export const GoodToGoLeads = () => {
                   onValueChange={(value: string) => {
                     if (value === "all") {
                       setArea("");
-                      filterLeads(1, mergeLeadFilters(filters, ""));
+                      setPage(1);
                     } else {
                       setArea(value);
-                      filterLeads(1, mergeLeadFilters(filters, value));
+                      setPage(1);
                     }
                   }}
                   value={area}
@@ -380,32 +388,31 @@ export const GoodToGoLeads = () => {
 <div className="relative w-full">
   <Input
     placeholder="Search by name, email, or phone..."
-    value={filters.searchTerm}
+    value={searchInput}
     onChange={(e) => {
       const value = e.target.value;
-
-      // Auto-detect search type
-      let detectedType = "name"; // default
-
+      let detectedType = "name";
       if (value.includes("@")) {
         detectedType = "email";
       } else if (/^\d+$/.test(value)) {
         detectedType = "phoneNo";
       }
-
-      const updatedFilters = {
-        ...filters,
-        searchTerm: value,
-        searchType: detectedType,
-      };
-
-      setFilters(updatedFilters);
-      debouncedFilterLeads(1, updatedFilters, area);
+      setSearchInput(value);
+      debouncedApplySearch(value, detectedType);
     }}
     onKeyDown={(e) => {
       if (e.key === "Enter") {
-        debouncedFilterLeads.cancel();
-        filterLeads(1, mergeLeadFilters(filters, area));
+        debouncedApplySearch.cancel();
+        let detectedType = "name";
+        const value = searchInput;
+        if (value.includes("@")) detectedType = "email";
+        else if (/^\d+$/.test(value)) detectedType = "phoneNo";
+        setAppliedFilters((prev) => ({
+          ...prev,
+          searchTerm: value,
+          searchType: detectedType,
+        }));
+        setPage(1);
       }
     }}
     className="pr-24"
@@ -413,7 +420,11 @@ export const GoodToGoLeads = () => {
 
   {/* Show detected type as a subtle indicator */}
   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground capitalize">
-    {filters.searchType === "phoneNo" ? "Phone" : filters.searchType}
+    {(() => {
+      if (searchInput.includes("@")) return "email";
+      if (/^\d+$/.test(searchInput)) return "Phone";
+      return "name";
+    })()}
   </span>
 </div>
           </div>
@@ -428,7 +439,7 @@ export const GoodToGoLeads = () => {
                 </SheetTrigger>
                 <SheetContent className="flex flex-col">
                   <div className="flex-1 overflow-y-auto pb-6">
-                    <LeadsFilter filters={filters} setFilters={setFilters} />
+                    <LeadsFilter filters={filterDraft} setFilters={setFilterDraft} />
                   </div>
 
                   <SheetFooter className="flex flex-col gap-3 border-t border-border pt-4">
@@ -437,11 +448,10 @@ export const GoodToGoLeads = () => {
                         <Button
                           onClick={() => {
                             const params = new URLSearchParams(
-                              Object.entries(filters),
+                              Object.entries(filterDraft),
                             );
-                            setPage(1);
                             router.push(`?${params.toString()}&page=1`);
-                            filterLeads(1, mergeLeadFilters(filters, area));
+                            applySheetFilters();
                           }}
                           className="w-1/2"
                         >
@@ -452,13 +462,7 @@ export const GoodToGoLeads = () => {
                       <SheetClose asChild>
                         <Button
                           variant="outline"
-                          onClick={() => {
-                            router.push(`?page=1`);
-                            setArea("");
-                            setFilters({ ...defaultFilters });
-                            setPage(1);
-                            filterLeads(1, mergeLeadFilters(defaultFilters, ""));
-                          }}
+                          onClick={clearAllFilters}
                           className="w-1/2"
                         >
                           Clear
@@ -487,6 +491,12 @@ export const GoodToGoLeads = () => {
           <HandLoader />
         </div>
       ) : view === "Table View" ? (
+        <div className="relative">
+          {isFetching && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40 pointer-events-none">
+              <HandLoader />
+            </div>
+          )}
         <div className="">
           <div>
             <div className="mt-2 border rounded-lg min-h-[90vh]">
@@ -518,6 +528,7 @@ export const GoodToGoLeads = () => {
               </div>
             </div>
           </div>
+        </div>
         </div>
       ) : (
         <div>

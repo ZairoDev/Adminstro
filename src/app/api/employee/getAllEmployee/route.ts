@@ -79,10 +79,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
     const queryWithExclusion = excludeTestAccountFromQuery(query);
 
-    // Start of day (UTC) for overdue PIP comparison
-    const startOfToday = new Date();
-    startOfToday.setUTCHours(0, 0, 0, 0);
-
     // LeadGen-TeamLead can only see LeadGen employees
     if (userRole === "LeadGen-TeamLead") {
       allEmployees = (await Employees.find({ ...queryWithExclusion, role: "LeadGen" })
@@ -113,19 +109,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     else {
       // Default: no access
       allEmployees = [];
-    }
-
-    // Auto-lock employee when they have an active PIP past end date (PIP duration over, not cleared)
-    for (const emp of allEmployees) {
-      const employee = emp as EmployeeWithLock;
-      const pips = employee.pips || [];
-      const hasOverdueActivePIP = pips.some(
-        (p) => p.status === "active" && new Date(p.endDate) < startOfToday
-      );
-      if (hasOverdueActivePIP && !employee.isLocked) {
-        await Employees.findByIdAndUpdate(employee._id, { isLocked: true });
-        employee.isLocked = true;
-      }
     }
 
     const baseCountQuery = excludeTestAccountFromCount(query);

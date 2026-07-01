@@ -9,22 +9,22 @@ import {
 import { NextRequest, NextResponse } from "next/server";
 
 import Query from "@/models/query";
-import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
+import { LeadQueryService } from "@/lib/leads/LeadQueryService";
+import {
+  getBlockedLeadLocations,
+  loadEmployeeLeadContext,
+} from "@/lib/leads/employeeLeadContext";
+import { applyPricingRulesByLocationToQuery } from "@/util/pricingRule";
+import {
+  applyPropertyVisibilityRulesByLocationToLeadQuery,
+} from "@/util/propertyVisibilityRule";
 import {
   applyGuestLeadLocationToQuery,
   resolveEffectiveLeadLocations,
 } from "@/util/guestLeadLocationScope";
-import {
-  loadEmployeePricingRules,
-  applyPricingRulesByLocationToQuery,
-} from "@/util/pricingRule";
-import {
-  loadEmployeePropertyVisibilityRules,
-  applyPropertyVisibilityRulesByLocationToLeadQuery,
-} from "@/util/propertyVisibilityRule";
 
 connectDb();
 
@@ -43,12 +43,11 @@ export async function POST(req: NextRequest) {
   const role = token.role;
 
   try {
-    const employeeId = String((token as any)?.id || "");
-    const employeePricingRules = await loadEmployeePricingRules(employeeId);
-    const employeeVisibilityRules = await loadEmployeePropertyVisibilityRules(employeeId);
-    const employeeLocationBlock = await Employees.findById(employeeId)
-      .select("guestLeadLocationBlock")
-      .lean();
+    const employeeId = String((token as { id?: string })?.id || "");
+    const employeeContext = await loadEmployeeLeadContext(
+      employeeId,
+      token.rentalType,
+    );
     // console.log("req body in filter route: ", assignedArea, reqBody);
 
     const {
@@ -147,10 +146,8 @@ export async function POST(req: NextRequest) {
       uiAllotedArea: allotedArea,
     });
 
-    const blocked = new Set(
-      Array.isArray((employeeLocationBlock as any)?.guestLeadLocationBlock?.all)
-        ? ((employeeLocationBlock as any).guestLeadLocationBlock.all as any[]).map(String)
-        : [],
+    const blocked = getBlockedLeadLocations(
+      employeeContext.guestLeadLocationBlock,
     );
     if (blocked.size && effectiveLocations && effectiveLocations.length) {
       const filtered = effectiveLocations.filter((l) => !blocked.has(String(l).toLowerCase()));
@@ -167,7 +164,7 @@ export async function POST(req: NextRequest) {
     {
       const { impossible } = applyPropertyVisibilityRulesByLocationToLeadQuery({
         query,
-        rules: employeeVisibilityRules,
+        rules: employeeContext.propertyVisibilityRules,
         locations: effectiveLocations,
         uiPropertyType: propertyType,
       });
@@ -183,7 +180,7 @@ export async function POST(req: NextRequest) {
     {
       const { impossible } = applyPricingRulesByLocationToQuery({
         query,
-        pricingRules: employeePricingRules,
+        pricingRules: employeeContext.pricingRules,
         uiBudgetFrom: budgetFrom,
         uiBudgetTo: budgetTo,
         locations: effectiveLocations,
@@ -255,60 +252,19 @@ export async function POST(req: NextRequest) {
     }
     // console.log("created query: ", query);
 
-    query = await applyEmployeeRentalTypeLeadFilter(query, token);
+    query = await applyEmployeeRentalTypeLeadFilter(
+      query,
+      token,
+      employeeContext.rentalType,
+    );
 
-    const allquery = await Query.aggregate([
-      { $match: query },
-      { $sort: { updatedAt: -1 } }, // last updated lead will come first
-      { $skip: SKIP },
-      { $limit: LIMIT },
-      {
-        $addFields: {
-          istCreatedAt: {
-            $dateToString: {
-              date: { $add: ["$createdAt", 5.5 * 60 * 60 * 1000] },
-              format: "%Y-%m-%d %H:%M:%S",
-              timezone: "UTC",
-            },
-          },
-        },
-      },
-    ]);
-
-    // console.log("all query length: ", allquery.length);
-
-    {
-      /*Sorting*/
-    }
-    const priorityMap = {
-      None: 1,
-      Low: 2,
-      High: 3,
-    };
-    if (sortBy && sortBy !== "None") {
-      allquery.sort((a, b) => {
-        const priorityA =
-          priorityMap[(a.salesPriority as keyof typeof priorityMap) || "None"];
-        const priorityB =
-          priorityMap[(b.salesPriority as keyof typeof priorityMap) || "None"];
-
-        if (sortBy === "Asc") {
-          return priorityA - priorityB;
-        } else {
-          return priorityB - priorityA;
-        }
-      });
-    }
-
-    const totalQueries = await Query.countDocuments(query);
-    const totalPages = Math.ceil(totalQueries / LIMIT);
-
-    return NextResponse.json({
-      data: allquery,
-      PAGE,
-      totalPages,
-      totalQueries,
+    const result = await LeadQueryService.list({
+      matchQuery: query,
+      page: PAGE,
+      sortBy,
     });
+
+    return NextResponse.json(result);
   } catch (error: any) {
     console.log("error in getting filtered leads: ", error);
     return NextResponse.json(

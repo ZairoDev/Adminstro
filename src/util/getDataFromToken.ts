@@ -45,7 +45,9 @@ export const getDataFromToken = async (request: NextRequest) => {
 
     await connectDb();
 
-    const employee = await Employees.findById(employeeId);
+    const employee = await Employees.findById(employeeId).select(
+      "tokenValidAfter webTokenValidAfter mobileTokenValidAfter mobileSession webSession rentalType",
+    );
 
     if (!employee) {
       throw { status: 401, code: "USER_NOT_FOUND" };

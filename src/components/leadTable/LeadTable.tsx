@@ -27,7 +27,8 @@ import {
 } from "lucide-react";
 import axios from "@/util/axios";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useRouter, usePathname } from "next/navigation";
 import {
   Table,
@@ -555,8 +556,21 @@ const handleSave = async (
     window.open(`/dashboard/recommendations/${id}`, "_blank");
   };
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: queries?.length ?? 0,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 72,
+    overscan: 8,
+  });
+  const virtualRows = rowVirtualizer.getVirtualItems();
+
   return (
     <div className=" w-full">
+      <div
+        ref={scrollRef}
+        className="overflow-auto"
+      >
       <Table>
         <TableHeader>
           <TableRow>
@@ -586,9 +600,14 @@ const handleSave = async (
           </TableRow>
         </TableHeader>
         <TableBody>
-          {queries?.map((query, index) => (
+          {virtualRows.map((virtualRow) => {
+            const query = queries[virtualRow.index];
+            const index = virtualRow.index;
+            return (
             <TableRow
               key={query?._id}
+              data-index={virtualRow.index}
+              ref={rowVirtualizer.measureElement}
               className={`
               ${
                 query?.leadQualityByTeamLead === "Approved"
@@ -1359,9 +1378,11 @@ const handleSave = async (
                 </div>
               </TableCell>
             </TableRow>
-          ))}
+          );
+          })}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }

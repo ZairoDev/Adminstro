@@ -166,15 +166,11 @@ export const ClosedLeads = () => {
     // allotedArea derived from token
   }, []);
 
-  useEffect(() => {
-    filterLeads(1);
-  }, [filters.searchTerm]);
-
   const debouncedFilterLeads = React.useCallback(
-    debounce((page: number, filters: FilterState) => {
-      filterLeads(page, filters);
+    debounce((filtersToUse: FilterState) => {
+      filterLeads(1, { ...filtersToUse, allotedArea: area });
     }, 500),
-    []
+    [area],
   );
 
   // RBAC: only allow SuperAdmin and Sales roles to access Closed Leads
@@ -261,12 +257,12 @@ export const ClosedLeads = () => {
                     searchType: detectedType,
                   };
                   setFilters(updatedFilters);
-                  debouncedFilterLeads(1, updatedFilters);
+                  debouncedFilterLeads(updatedFilters);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     debouncedFilterLeads.cancel();
-                    filterLeads(1, filters);
+                    filterLeads(1, { ...filters, allotedArea: area });
                   }
                 }}
                 className="pr-24"

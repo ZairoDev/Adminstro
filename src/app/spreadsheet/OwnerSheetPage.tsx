@@ -16,7 +16,9 @@ import {
   OWNER_SHEET_SHORT_TERM_CONFIG,
   type OwnerSheetConfig,
 } from "./ownerSheetConfig";
-import { canAccessOwnerSheetVariant } from "@/util/employeeRentalTypeAccess";
+import {
+  canAccessOwnerSheetVariant,
+} from "@/util/employeeRentalTypeAccess";
 
 const DEFAULT_LIMIT = 50;
 
@@ -124,8 +126,12 @@ export function OwnerSheetPage({ config }: { config: OwnerSheetConfig }) {
     canAccessOwnerSheetVariant(rentalType, role, otherSheetConfig.variant);
   const canShowGeoSearch =
     !!role &&
-    canAccessOwnerSheetVariant(rentalType, role, "long-term") &&
-    !isSalesInternOnly;
+    !isSalesInternOnly &&
+    (role === "Sales" ||
+      role === "Sales-TeamLead" ||
+      role === "Advert" ||
+      role === "SuperAdmin" ||
+      role === "LeadGen-TeamLead");
 
   useEffect(() => {
     setFilters(loadPersistedFilters(config.filterStorageKey));

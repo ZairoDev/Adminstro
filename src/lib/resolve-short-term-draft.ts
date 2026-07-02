@@ -5,8 +5,11 @@ export type ShortTermSheetRow = {
   ownerUserId?: string;
   email?: string;
   advertListingStatus?: string;
+  propertyMongoId?: string;
   name?: string;
 };
+
+const ACTIVE_SHORT_TERM_DRAFT_STATUSES = ["pending", "listed_draft"] as const;
 
 export interface ResolvedShortTermDraft {
   shortTermDraft: boolean;
@@ -53,7 +56,7 @@ export async function resolveShortTermDraft({
   let sheetRow = (await unregisteredOwnerShortTerm
     .findOne({
       ownerUserId: userId,
-      advertListingStatus: "pending",
+      advertListingStatus: { $in: ACTIVE_SHORT_TERM_DRAFT_STATUSES },
     })
     .lean()) as ShortTermSheetRow | null;
 
@@ -63,7 +66,7 @@ export async function resolveShortTermDraft({
   if (!sheetRow && emailNorm) {
     sheetRow = (await unregisteredOwnerShortTerm
       .findOne({
-        advertListingStatus: "pending",
+        advertListingStatus: { $in: ACTIVE_SHORT_TERM_DRAFT_STATUSES },
         email: { $regex: new RegExp(`^${emailNorm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
       })
       .lean()) as ShortTermSheetRow | null;
@@ -71,7 +74,7 @@ export async function resolveShortTermDraft({
 
   if (!sheetRow && phoneNorm.length >= 8) {
     const candidates = await unregisteredOwnerShortTerm
-      .find({ advertListingStatus: "pending" })
+      .find({ advertListingStatus: { $in: ACTIVE_SHORT_TERM_DRAFT_STATUSES } })
       .select("ownerUserId email phoneNumber name")
       .lean();
     sheetRow =

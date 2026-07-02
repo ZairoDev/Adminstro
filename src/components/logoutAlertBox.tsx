@@ -6,6 +6,7 @@ import { CircleHelp } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { useAuthStore } from "@/AuthStore";
+import { clearMonthlyTargetGateSkip } from "@/lib/monthly-target-gate-skip";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -29,7 +30,7 @@ import { Button } from "./ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 
 export function LogoutButton() {
-  const { clearToken } = useAuthStore();
+  const { clearToken, token } = useAuthStore();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -41,6 +42,9 @@ export function LogoutButton() {
       const response = await axios.get("/api/employeelogout", {
         withCredentials: true,
       });
+      if (token?.id) {
+        clearMonthlyTargetGateSkip(String(token.id));
+      }
       clearToken();
       setOpen(false);
       setDropdownOpen(false);

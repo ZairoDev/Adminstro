@@ -1436,6 +1436,11 @@ const otherSettingsRoutes = [
     Icon: <IoMdPaper size={18} />,
   },
   {
+    path: "/dashboard/monthly-targets",
+    label: "Monthly Targets",
+    Icon: <Target size={18} />,
+  },
+  {
     path: "/dashboard/areadetails",
     label: "Area Details",
     Icon: <TramFront size={18} />,
@@ -1535,8 +1540,13 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const invoiceRoute = inGroup(InvoiceRoutes);
     const propertyBoostRoute = inGroup(propertyBoostRoutes);
     const otherSettingsRoute = inGroup(otherSettingsRoutes).filter(
-      (r) =>
-        !(role === "HAdmin" && r.path === "/dashboard/coupons")
+      (r) => {
+        if (role === "HAdmin" && r.path === "/dashboard/coupons") return false;
+        if (r.path === "/dashboard/monthly-targets" && role !== "SuperAdmin") {
+          return false;
+        }
+        return true;
+      },
     );
     const holidaySeraRoute = inGroup(holidaySeraRoutes);
     const retargetAllowedRoles = ["SuperAdmin", "Sales", "Advert"];

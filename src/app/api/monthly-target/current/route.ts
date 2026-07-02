@@ -23,8 +23,21 @@ export async function GET(req: NextRequest) {
     const allotedArea = tokenData.allotedArea as string | string[] | undefined;
 
     const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
+    let currentMonth = now.getMonth() + 1;
+    let currentYear = now.getFullYear();
+
+    if (role === "SuperAdmin") {
+      const monthParam = req.nextUrl.searchParams.get("month");
+      const yearParam = req.nextUrl.searchParams.get("year");
+      if (monthParam && yearParam) {
+        const m = Number(monthParam);
+        const y = Number(yearParam);
+        if (Number.isInteger(m) && m >= 1 && m <= 12 && Number.isInteger(y) && y >= 2020) {
+          currentMonth = m;
+          currentYear = y;
+        }
+      }
+    }
     const editableFields = EDITABLE_FIELDS_BY_ROLE[role] ?? [];
 
     // Locations source-of-truth lives in MonthlyTarget. Do not rely on `month` existing/non-existing

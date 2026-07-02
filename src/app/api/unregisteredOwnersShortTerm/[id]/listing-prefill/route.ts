@@ -20,6 +20,7 @@ type OwnerSheetRow = {
   address?: string;
   propertyFloor?: string;
   advertListingStatus?: string;
+  propertyMongoId?: string;
 };
 
 export async function GET(
@@ -75,6 +76,9 @@ export async function GET(
       propertyCoverFileUrl: cover,
       propertyPictureUrls: gallery,
       advertListingStatus: owner.advertListingStatus,
+      propertyMongoId: owner.propertyMongoId
+        ? String(owner.propertyMongoId)
+        : "",
     });
   } catch (error: unknown) {
     const err = error as { status?: number; message?: string };

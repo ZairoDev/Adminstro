@@ -5,6 +5,14 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
+const PROPERTY_EDIT_ROLES = new Set([
+  "SuperAdmin",
+  "Advert",
+  "Admin",
+  "Developer",
+  "HAdmin",
+]);
+
 /** Accepts numbers or numeric strings (e.g. inputs); strips thousands separators. */
 function parseNumericField(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -57,6 +65,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         { success: false, code, message: "Unauthorized" },
         { status },
       );
+    }
+
+    const role = String(auth.role ?? "").trim();
+    if (!PROPERTY_EDIT_ROLES.has(role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { PropertyId, propertyData, syncImages } = await req.json();

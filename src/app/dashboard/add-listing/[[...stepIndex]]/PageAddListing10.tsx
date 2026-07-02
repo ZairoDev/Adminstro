@@ -404,10 +404,14 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
         const emailSent = response2.data?.emailSent;
         const emailError = response2.data?.emailError;
         toast({
-          title: shortTermDraft
-            ? "Property registered (not live)"
-            : "Your Property is Now Live!",
-          description: shortTermDraft
+          title: response2.data?.updated
+            ? "Property updated"
+            : shortTermDraft
+              ? "Property registered (not live)"
+              : "Your Property is Now Live!",
+          description: response2.data?.updated
+            ? `Draft listing updated for ${user?.name}.`
+            : shortTermDraft
             ? emailSent
               ? `Draft listing created for ${user?.name}. Owner has been emailed with login details.`
               : emailError

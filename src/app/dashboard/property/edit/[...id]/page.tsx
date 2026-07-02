@@ -56,8 +56,13 @@ import SearchableAreaSelect from "@/app/dashboard/createquery/SearchAndSelect";
 
 interface PageProps {
   params: {
-    id: string;
+    id: string | string[];
   };
+}
+
+function resolvePropertyId(id: string | string[] | undefined): string {
+  if (!id) return "";
+  return Array.isArray(id) ? String(id[0] ?? "") : String(id);
 }
 
 interface TargetType {
@@ -92,6 +97,7 @@ const getCoordinatesFromPincode = async (pincode: any) => {
 };
 const EditPropertyPage = ({ params }: PageProps) => {
   const { toast } = useToast();
+  const propertyId = resolvePropertyId(params.id);
   let portions = 0;
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -207,12 +213,12 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
   // TODO: Fetching Property
   useEffect(() => {
-    if (params.id) {
+    if (propertyId) {
       const fetchProperty = async () => {
         setLoading(true);
         try {
           const response = await axios.post("/api/singleproperty/getproperty", {
-            propertyId: params.id,
+            propertyId: [propertyId],
           });
           setProperty(response.data);
           setNumberOfPortions(response.data.numberOfPortions);
@@ -241,7 +247,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
 
       fetchProperty();
     }
-  }, [params.id, refreshFetchProperty]);
+  }, [propertyId, refreshFetchProperty]);
 
   useEffect(() => {
     if (property) {
@@ -925,7 +931,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
   const handleImageDelete = async () => {
     try {
       const response = await axios.post("/api/editproperty/deleteImages", {
-        pId: params.id,
+        pId: propertyId,
         data: imageDeleteObject,
       });
       toast({
@@ -964,7 +970,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
     setLoadingproperty(true);
     try {
       const response = await axios.post("/api/editproperty/editpropertydata", {
-        propertyId: params.id,
+        propertyId,
         updatedData: newFormData,
       });
 
@@ -1971,7 +1977,7 @@ const EditPropertyPage = ({ params }: PageProps) => {
                               desc="Price of Portion"
                             />
                             <Link
-                              href={`/dashboard/property/edit/availability/${params.id}/${index}`}
+                              href={`/dashboard/property/edit/availability/${propertyId}/${index}`}
                               className=" flex items-center"
                               onClick={(e) => e.stopPropagation()}
                             >

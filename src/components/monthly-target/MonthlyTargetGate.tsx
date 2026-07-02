@@ -6,8 +6,12 @@ import { TargetSetupModal } from "./TargetSetupModal";
 import { useAuthStore } from "@/AuthStore";
 import axios from "@/util/axios";
 import type { MonthlyTargetRow } from "./types";
+import {
+  isMonthlyTargetGateSkipped,
+  setMonthlyTargetGateSkipped,
+} from "@/lib/monthly-target-gate-skip";
 
-  export type { MonthlyTargetRow };
+export type { MonthlyTargetRow };
 
 interface CurrentTargetResponse {
   hasTarget: boolean;
@@ -16,7 +20,7 @@ interface CurrentTargetResponse {
   editableFields: Array<"leads" | "visits" | "sales">;
   currentMonth: number;
   currentYear: number;
-} 
+}
 
 type GateStatus = "loading" | "blocked" | "allowed";
 
@@ -34,22 +38,31 @@ export function MonthlyTargetGate({ children }: MonthlyTargetGateProps) {
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
 
   const role = token?.role ?? "";
+  const userId = token?.id ?? "";
   const requiresMonthlyTargets =
     role === "SuperAdmin" || role === "LeadGen-TeamLead" || role === "Sales-TeamLead";
 
   const checkTarget = useCallback(async () => {
+    if (
+      role === "SuperAdmin" &&
+      userId &&
+      isMonthlyTargetGateSkipped(userId)
+    ) {
+      setStatus("allowed");
+      return;
+    }
+
     setStatus("loading");
     try {
       const { data } = await axios.get<CurrentTargetResponse>("/api/monthly-target/current");
       setAvailableCities(data.availableCities ?? []);
-      // Preserve *Configured booleans — ensure they are real booleans even if API omits them
       setExistingTargetsByCity(
         (data.existingTargetsByCity ?? []).map((t) => ({
           ...t,
           leadsConfigured: Boolean(t.leadsConfigured),
           visitsConfigured: Boolean(t.visitsConfigured),
           salesConfigured: Boolean(t.salesConfigured),
-        }))
+        })),
       );
       setEditableFields(data.editableFields ?? []);
       setCurrentMonth(data.currentMonth);
@@ -58,7 +71,13 @@ export function MonthlyTargetGate({ children }: MonthlyTargetGateProps) {
     } catch {
       setStatus(requiresMonthlyTargets ? "blocked" : "allowed");
     }
-  }, [requiresMonthlyTargets]);
+  }, [requiresMonthlyTargets, role, userId]);
+
+  const handleSkip = useCallback(() => {
+    if (role !== "SuperAdmin" || !userId) return;
+    setMonthlyTargetGateSkipped(userId);
+    setStatus("allowed");
+  }, [role, userId]);
 
   useEffect(() => {
     if (!token) return;
@@ -66,10 +85,9 @@ export function MonthlyTargetGate({ children }: MonthlyTargetGateProps) {
       setStatus("allowed");
       return;
     }
-    checkTarget();
+    void checkTarget();
   }, [token, requiresMonthlyTargets, checkTarget]);
 
-  // Re-run when the calendar month changes (team leads only)
   useEffect(() => {
     if (!requiresMonthlyTargets) return;
     const intervalId = setInterval(() => {
@@ -79,7 +97,7 @@ export function MonthlyTargetGate({ children }: MonthlyTargetGateProps) {
       if (month !== currentMonth || year !== currentYear) {
         setCurrentMonth(month);
         setCurrentYear(year);
-        checkTarget();
+        void checkTarget();
       }
     }, 60_000);
     return () => clearInterval(intervalId);
@@ -105,6 +123,7 @@ export function MonthlyTargetGate({ children }: MonthlyTargetGateProps) {
         currentMonth={currentMonth}
         currentYear={currentYear}
         onSuccess={checkTarget}
+        onSkip={role === "SuperAdmin" ? handleSkip : undefined}
       />
     );
   }

@@ -243,7 +243,7 @@ CompareTable mount
   ├─ (removed) GET getAreaFilterTarget                    ✅
   ├─ GET /api/employee/getAllEmployee (+ PIP writes)      🟠 unchanged
   ├─ GET /api/sales/getquery?limit=10000&createdBy=       🔴 still heavy
-  └─ GET /api/sales/monthly-stats?month=&createdBy=       ✅ projected + filtered
+  └─ GET /api/sales/monthly-stats?month=&createdBy=       ✅ projected + filtered\\
        ├─ getLeadGenEmployeeEmails (cached)                ✅
        ├─ aggregate $group (no $push $$ROOT)              ✅
        └─ Query.find with COMPARE_LEAD_LIST_PROJECTION     ✅

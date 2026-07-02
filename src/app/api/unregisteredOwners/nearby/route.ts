@@ -431,10 +431,22 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     await connectDb();
 
     const token = await getDataFromToken(req);
-    const denied = await enforceOwnerSheetRentalTypeAccess(token, "long-term");
-    if (denied) return denied;
-
     const role = String((token as { role?: unknown })?.role ?? "");
+    const isGeoAllowedRole =
+      role === "SuperAdmin" ||
+      role === "Advert" ||
+      role === "Sales" ||
+      role === "Sales-TeamLead" ||
+      role === "LeadGen-TeamLead";
+    if (!isGeoAllowedRole) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    // Keep geo-search data tied to long-term owner sheet dataset.
+    // Sales/Advert roles are allowed even if their rentalType token is Short Term.
+    if (role !== "Sales" && role !== "Sales-TeamLead") {
+      const denied = await enforceOwnerSheetRentalTypeAccess(token, "long-term");
+      if (denied) return denied;
+    }
     const alloted = (token as { allotedArea?: unknown })?.allotedArea;
     const assignedArea =
       Array.isArray(alloted) || typeof alloted === "string"
@@ -455,10 +467,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             locationGeo: {
               $geoWithin: {
                 $geometry: {
-                  type: "Polygon",
+                  type: "Polygon",            
                   coordinates: [
                     buildCorridorPolygon(
-                      searchOrigin,
+                      searchOrigin, 
                       searchDestination,
                       corridorWidthMeters / 2,
                     ),

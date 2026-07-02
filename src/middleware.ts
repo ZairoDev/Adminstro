@@ -157,6 +157,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/unregistered-owner", // New Owners page access
     "/dashboard/sales-offer",
     /^\/dashboard\/sales-offer\/.*$/,
+    "/dashboard/geo-search",
+    /^\/dashboard\/geo-search\/.*$/,
   ],
   "Sales-TeamLead": [
     "/",
@@ -190,6 +192,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/compareLeads",
     "/dashboard/sales-offer",
     /^\/dashboard\/sales-offer\/.*$/,
+    "/dashboard/geo-search",
+    /^\/dashboard\/geo-search\/.*$/,
   ],
   HR: [
     "/",

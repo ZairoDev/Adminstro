@@ -204,6 +204,188 @@ export async function POST(request: NextRequest) {
         new Set([propertyCoverFileUrl, ...(propertyPictureUrls || [])])
       ).filter(Boolean);
 
+      if (shortTermDraft && ownerSheetId) {
+        const ownerSheetRow = await unregisteredOwnerShortTerm
+          .findById(ownerSheetId)
+          .select("propertyMongoId VSID listedBy advertListingStatus")
+          .lean();
+        const existingPropertyId = String(
+          (ownerSheetRow as { propertyMongoId?: string } | null)
+            ?.propertyMongoId ?? "",
+        ).trim();
+
+        if (existingPropertyId) {
+          let authEmail = listedByEmail;
+          try {
+            const auth = await getDataFromToken(request);
+            const role = String((auth as { role?: string }).role ?? "");
+            if (role !== "Advert" && role !== "SuperAdmin") {
+              return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+            authEmail = String((auth as { email?: string }).email ?? "").trim();
+          } catch {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+          }
+
+          const existing = await Properties.findById(existingPropertyId);
+          if (!existing) {
+            return NextResponse.json(
+              { error: "Linked property not found" },
+              { status: 404 },
+            );
+          }
+
+          const portionCover =
+            isMultiShortTerm && portionCoverFileUrls[0]
+              ? portionCoverFileUrls[0]
+              : propertyCoverFileUrl;
+          let portionGallery =
+            isMultiShortTerm && portionPictureUrls[0]
+              ? portionPictureUrls[0]
+              : propertyPictureUrls;
+          portionGallery = Array.from(new Set(portionGallery || [])).filter(
+            Boolean,
+          );
+
+          const lastUpdatedBy = Array.isArray(existing.lastUpdatedBy)
+            ? [...existing.lastUpdatedBy]
+            : [];
+          if (authEmail) {
+            lastUpdatedBy.push(authEmail);
+          }
+          const priorUpdates = Array.isArray(existing.lastUpdates)
+            ? [...existing.lastUpdates]
+            : [];
+          const lastUpdates: string[][] = priorUpdates.flatMap(
+            (row: unknown) => {
+              if (Array.isArray(row)) return [row as string[]];
+              if (typeof row === "string") return [[row]];
+              return [];
+            },
+          );
+          lastUpdates.push([new Date().toISOString()]);
+
+          const updatePayload: Record<string, unknown> = {
+            userId,
+            email: normalizedEmail,
+            propertyType,
+            rentalForm,
+            rentalType,
+            origin: normalizedOrigin,
+            propertyName: placeName,
+            placeName: portionName?.[0],
+            street,
+            postalCode,
+            city,
+            state,
+            country,
+            center,
+            internalCity,
+            internalArea,
+            size: portionSize?.[0],
+            guests: guests?.[0],
+            bedrooms: bedrooms?.[0],
+            beds: beds?.[0],
+            bathroom: bathroom?.[0],
+            kitchen: kitchen?.[0],
+            childrenAge: childrenAge?.[0],
+            basePrice: basePrice?.[0],
+            weekendPrice: weekendPrice?.[0],
+            weeklyDiscount: weeklyDiscount?.[0],
+            pricePerDay: pricePerDay?.[0],
+            basePriceLongTerm: basePriceLongTerm?.[0],
+            monthlyDiscount: monthlyDiscount?.[0],
+            monthlyDiscountLongTerm: monthlyDiscountLongTerm?.[0],
+            currency,
+            generalAmenities: sanitizeAmenities(generalAmenities),
+            otherAmenities: sanitizeAmenities(otherAmenities),
+            safeAmenities: sanitizeAmenities(safeAmenities),
+            smoking,
+            pet,
+            party,
+            cooking,
+            additionalRules,
+            reviews: reviews?.[0],
+            propertyCoverFileUrl: portionCover,
+            propertyPictureUrls: portionGallery,
+            propertyImages: [...masterImages],
+            night,
+            time,
+            datesPerPortion: datesPerPortion?.[0],
+            area,
+            subarea,
+            neighbourhood,
+            floor,
+            isTopFloor,
+            orientation,
+            levels,
+            zones,
+            propertyStyle,
+            constructionYear: constructionYear
+              ? Number(constructionYear) || undefined
+              : undefined,
+            isSuitableForStudents,
+            monthlyExpenses: monthlyExpenses
+              ? Number(monthlyExpenses) || undefined
+              : undefined,
+            heatingType,
+            heatingMedium,
+            energyClass,
+            nearbyLocations: nearbyLocationsMap,
+            hostedFrom: host,
+            longTermMonths,
+            lastUpdatedBy,
+            lastUpdates,
+          };
+
+          const updated = await Properties.findByIdAndUpdate(
+            existingPropertyId,
+            { $set: updatePayload },
+            { new: true, runValidators: true },
+          );
+
+          if (!updated) {
+            return NextResponse.json(
+              { error: "Failed to update property" },
+              { status: 500 },
+            );
+          }
+
+          const ownerSheetUpdate: Record<string, unknown> = {
+            VSID: updated.VSID,
+            propertyMongoId: existingPropertyId,
+            advertListingStatus:
+              (ownerSheetRow as { advertListingStatus?: string } | null)
+                ?.advertListingStatus === "live"
+                ? "live"
+                : "listed_draft",
+          };
+          const existingListedBy = String(
+            (ownerSheetRow as { listedBy?: string } | null)?.listedBy ?? "",
+          ).trim();
+          if (!existingListedBy && listedByEmail) {
+            ownerSheetUpdate.listedBy = listedByEmail;
+          }
+
+          await unregisteredOwnerShortTerm.findByIdAndUpdate(
+            ownerSheetId,
+            ownerSheetUpdate,
+          );
+
+          return NextResponse.json(
+            {
+              propertyIds: [updated.VSID],
+              mongoIds: [existingPropertyId],
+              isLive: updated.isLive,
+              shortTermDraft: true,
+              ownerSheetId,
+              updated: true,
+            },
+            { status: 200 },
+          );
+        }
+      }
+
       for (let i = 0; i < (numberOfPortions ?? 1); i++) {
         // ----------------------------
         // 📌 PORTION-IMAGE DECISION

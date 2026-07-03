@@ -1,4 +1,22 @@
 import WhatsAppConversation from "@/models/whatsappConversation";
+import {
+  PRIMARY_DISPOSITION_CRM_LABELS,
+  WHATSAPP_CRM_LABELS,
+  primaryDispositionLabelsForLeadStatus,
+  type WhatsAppCrmLabel,
+} from "./crmLabels";
+
+/** Labels replaced when applying a new CRM disposition from WhatsApp */
+const DISPOSITION_LABEL_VALUES: WhatsAppCrmLabel[] = [
+  ...PRIMARY_DISPOSITION_CRM_LABELS,
+  WHATSAPP_CRM_LABELS.REMINDER_SET,
+  WHATSAPP_CRM_LABELS.FUTURE,
+  WHATSAPP_CRM_LABELS.LOW_BUDGET,
+  WHATSAPP_CRM_LABELS.ALREADY_FOUND,
+  WHATSAPP_CRM_LABELS.NOT_INTERESTED,
+  WHATSAPP_CRM_LABELS.BLOCKED,
+  WHATSAPP_CRM_LABELS.FOLLOW_UP,
+];
 export async function addLabelsToConversation(
   conversationId: string,
   labelsToAdd: string[],
@@ -56,4 +74,38 @@ export async function linkLeadToConversation(
   await WhatsAppConversation.findByIdAndUpdate(conversationId, {
     $set: { leadQueryId },
   });
+}
+
+/**
+ * Swap disposition workflow labels while keeping visit / custom labels intact.
+ */
+export async function replaceDispositionLabels(
+  conversationId: string,
+  labelsToAdd: string[],
+): Promise<string[]> {
+  const current = await WhatsAppConversation.findById(conversationId)
+    .select("labels")
+    .lean() as { labels?: string[] } | null;
+
+  const dispositionSet = new Set<string>(DISPOSITION_LABEL_VALUES);
+  const kept = (current?.labels ?? []).filter((l) => !dispositionSet.has(l));
+  const next = [
+    ...new Set([
+      ...kept,
+      ...labelsToAdd.map((l) => l.trim()).filter(Boolean),
+    ]),
+  ];
+
+  return setConversationLabels(conversationId, next);
+}
+
+/** Align primary funnel labels on a conversation with the linked lead status. */
+export async function syncPrimaryDispositionLabels(
+  conversationId: string,
+  leadStatus: string | null | undefined,
+): Promise<string[]> {
+  return replaceDispositionLabels(
+    conversationId,
+    primaryDispositionLabelsForLeadStatus(leadStatus),
+  );
 }

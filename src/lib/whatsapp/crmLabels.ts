@@ -3,6 +3,8 @@
  * disposition auto-labeling, and sidebar chips.
  */
 
+import { normalizeLeadStatus } from "@/lib/leads/leadDisposition";
+
 export const WHATSAPP_CRM_LABELS = {
   GOOD_TO_GO: "Good To Go",
   REJECTED: "Rejected",
@@ -20,6 +22,58 @@ export const WHATSAPP_CRM_LABELS = {
 
 export type WhatsAppCrmLabel =
   (typeof WHATSAPP_CRM_LABELS)[keyof typeof WHATSAPP_CRM_LABELS];
+
+/** Funnel status labels applied when disposition changes (not visit/reminder/etc.). */
+export const PRIMARY_DISPOSITION_CRM_LABELS: readonly WhatsAppCrmLabel[] = [
+  WHATSAPP_CRM_LABELS.GOOD_TO_GO,
+  WHATSAPP_CRM_LABELS.REJECTED,
+  WHATSAPP_CRM_LABELS.DECLINED,
+];
+
+/** Conversation labels to apply for each Query.leadStatus after disposition. */
+export function primaryDispositionLabelsForLeadStatus(
+  leadStatus: string | null | undefined,
+): WhatsAppCrmLabel[] {
+  switch (normalizeLeadStatus(leadStatus)) {
+    case "active":
+      return [WHATSAPP_CRM_LABELS.GOOD_TO_GO];
+    case "rejected":
+      return [WHATSAPP_CRM_LABELS.REJECTED];
+    case "declined":
+      return [WHATSAPP_CRM_LABELS.DECLINED];
+    default:
+      return [];
+  }
+}
+
+export const CRM_LABEL_CHIP_COLORS: Record<string, string> = {
+  Fresh:
+    "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30",
+  [WHATSAPP_CRM_LABELS.GOOD_TO_GO]:
+    "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+  [WHATSAPP_CRM_LABELS.REJECTED]:
+    "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30",
+  [WHATSAPP_CRM_LABELS.DECLINED]:
+    "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30",
+  [WHATSAPP_CRM_LABELS.VISIT_SCHEDULED]:
+    "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
+  [WHATSAPP_CRM_LABELS.VISIT_COMPLETED]:
+    "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
+  [WHATSAPP_CRM_LABELS.REMINDER_SET]:
+    "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30",
+  [WHATSAPP_CRM_LABELS.FUTURE]:
+    "bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30",
+  [WHATSAPP_CRM_LABELS.LOW_BUDGET]:
+    "bg-yellow-500/15 text-yellow-800 dark:text-yellow-200 border-yellow-500/30",
+  [WHATSAPP_CRM_LABELS.BLOCKED]:
+    "bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 border-zinc-500/30",
+  [WHATSAPP_CRM_LABELS.ALREADY_FOUND]:
+    "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30",
+  [WHATSAPP_CRM_LABELS.NOT_INTERESTED]:
+    "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30",
+  [WHATSAPP_CRM_LABELS.FOLLOW_UP]:
+    "bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30",
+};
 
 /** Sidebar / API filter keys (URL-safe) → Mongo label value */
 export const WHATSAPP_LABEL_FILTER_MAP: Record<string, WhatsAppCrmLabel> = {
@@ -56,6 +110,7 @@ export type WhatsAppDispositionAction =
   | "good_to_go"
   | "reject_lead"
   | "decline_lead"
+  | "revert_to_fresh"
   | "set_reminder"
   | "future_follow_up"
   | "already_found"
@@ -71,6 +126,45 @@ export type DispositionActionConfig = {
   labelsToAdd: WhatsAppCrmLabel[];
   requiresReason?: boolean;
 };
+
+export type { CoreWhatsAppDispositionAction } from "@/lib/leads/leadDisposition";
+
+export type CoreDispositionActionConfig = {
+  action: import("@/lib/leads/leadDisposition").CoreWhatsAppDispositionAction;
+  label: string;
+  leadStatus: string;
+  labelsToAdd: WhatsAppCrmLabel[];
+  requiresReason?: boolean;
+};
+
+export const CORE_WHATSAPP_DISPOSITION_ACTIONS: CoreDispositionActionConfig[] = [
+  {
+    action: "good_to_go",
+    label: "Good To Go",
+    leadStatus: "active",
+    labelsToAdd: [WHATSAPP_CRM_LABELS.GOOD_TO_GO],
+  },
+  {
+    action: "reject_lead",
+    label: "Reject",
+    leadStatus: "rejected",
+    labelsToAdd: [WHATSAPP_CRM_LABELS.REJECTED],
+    requiresReason: true,
+  },
+  {
+    action: "decline_lead",
+    label: "Decline",
+    leadStatus: "declined",
+    labelsToAdd: [WHATSAPP_CRM_LABELS.DECLINED],
+    requiresReason: true,
+  },
+  {
+    action: "revert_to_fresh",
+    label: "Revert to Fresh",
+    leadStatus: "fresh",
+    labelsToAdd: [],
+  },
+];
 
 export const WHATSAPP_DISPOSITION_ACTIONS: DispositionActionConfig[] = [
   {
@@ -92,6 +186,12 @@ export const WHATSAPP_DISPOSITION_ACTIONS: DispositionActionConfig[] = [
     leadStatus: "declined",
     labelsToAdd: [WHATSAPP_CRM_LABELS.DECLINED],
     requiresReason: true,
+  },
+  {
+    action: "revert_to_fresh",
+    label: "Revert to Fresh",
+    leadStatus: "fresh",
+    labelsToAdd: [],
   },
   {
     action: "set_reminder",

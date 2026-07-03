@@ -116,6 +116,9 @@ export async function POST(
     if (typeof body.participantProfilePic === "string") {
       update.participantProfilePic = body.participantProfilePic;
     }
+    if (typeof body.notes === "string") {
+      update.notes = body.notes.trim();
+    }
 
     // Primary field for owner/guest classification
     if (parsedConversationType) {

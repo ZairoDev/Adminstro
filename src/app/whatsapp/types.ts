@@ -125,6 +125,8 @@ export interface Conversation {
   isInternal?: boolean;
   /** CRM workflow labels */
   labels?: string[];
+  /** Free-text note for this chat (searchable in inbox) */
+  notes?: string;
   preferredLanguage?: string;
   preferredLanguageCode?: string;
   hasActiveReminder?: boolean;

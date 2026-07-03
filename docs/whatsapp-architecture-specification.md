@@ -2,8 +2,10 @@
 
 **Repository:** `c:\Admin`  
 **Stack:** Next.js App Router · TypeScript · MongoDB/Mongoose · Socket.IO · Meta WhatsApp Cloud API v24.0 · Bunny CDN · Expo Push  
-**Last updated:** June 27, 2026  
+**Last updated:** July 3, 2026  
 **Audience:** Senior engineers onboarding to the WhatsApp CRM subsystem
+
+> **July 2026 update:** Section [19](#19-crm-integration--disposition) and [Document Changelog](#document-changelog--implementation-gap) were expanded for the strict lead disposition funnel, label sync, conversation merge tool, and dashboard parity work. See changelog for features still only on dashboard vs WhatsApp UI.
 
 ---
 
@@ -44,6 +46,7 @@
 33. [Database Index Reference](#33-database-index-reference)
 34. [Complete File Map](#34-complete-file-map)
 35. [Cross-Reference Flow Index](#35-cross-reference-flow-index)
+36. [Document Changelog & Implementation Gap](#document-changelog--implementation-gap)
 
 ---
 
@@ -435,6 +438,11 @@ Global archive flag per conversation (user-independent).
 | `whatsappLastErrorCode` | Last Meta error (131049, 131021, 131215 = blocking) |
 | `whatsappLastMessageAt` | Last outbound timestamp |
 | `customerFirstReply` | CRM first-reply tracking |
+| `leadStatus` | `fresh` \| `active` \| `rejected` \| `declined` \| `reminder` \| `closed` — disposition funnel |
+| `reason` | Free-text disposition reason (decline/reject) |
+| `rejectionReason` | Enum rejection reason on `Query` |
+| `leadQualityByReviewer` | `Good` \| `Average` \| `Below Average` — required before G2G/reject/decline from WA CRM |
+| `note[]` | CRM notes array — synced in `CrmPanel` via `/api/sales/createNote` |
 
 #### `employees` — `whatsappPhoneMask`
 
@@ -567,7 +575,7 @@ All routes under `src/app/api/whatsapp/` unless noted. Auth = `getDataFromToken`
 | `conversations/media/route.ts` | GET | Message media gallery |
 | `conversations/[id]/messages/route.ts` | GET | `replyStatusResolver` |
 | `conversations/[id]/meta/route.ts` | POST | Participant name/location/notes |
-| `conversations/[id]/labels/route.ts` | GET, PATCH | `conversationLabelService` |
+| `conversations/[id]/labels/route.ts` | GET, PATCH | `conversationLabelService` — add/remove/set; `syncFromLeadStatus` aligns funnel labels |
 | `conversations/[id]/preferences/route.ts` | GET, PATCH | Translation language prefs |
 | `conversations/[id]/readers/route.ts` | GET | `conversationReaders` |
 | `conversations/[id]/shared-properties/route.ts` | GET | `propertyLinkExtractor` |
@@ -637,7 +645,7 @@ All routes under `src/app/api/whatsapp/` unless noted. Auth = `getDataFromToken`
 | Route | WhatsApp touchpoint |
 |-------|-------------------|
 | `api/analytics/whatsapp-overview/route.ts` | `whatsappAnalyticsService` |
-| `api/admin/merge-conversations/route.ts` | `conversationMergeService` |
+| `api/admin/merge-conversations/route.ts` | `conversationMergeService` — SuperAdmin duplicate merge |
 | `api/employee/whatsapp-phone-mask/route.ts` | `phoneMask` rules |
 | `api/sales/createquery/route.ts` | Create lead + send WA template + `NEW_CONVERSATION` socket |
 | `api/sales/getquery/route.ts` | Lead WA retarget fields |
@@ -843,7 +851,21 @@ POST /conversations/transfer
 
 ### Merge (SuperAdmin)
 
-`conversationMergeService.ts` — find duplicate groups by phone+channel, merge messages into survivor.
+**Service:** `conversationMergeService.ts`  
+**API:** `GET/POST /api/admin/merge-conversations`  
+**UI:** `/dashboard/admin/merge-conversations` → `ConversationMergePanel.tsx`
+
+Duplicate groups are detected by **normalized `participantPhone` + `whatsappChannelId`**. Legacy rows without `whatsappChannelId` fall back to `participantLocationKey + conversationType`.
+
+```
+Dry run → list groups (canonical = most messages / latest activity)
+Execute merge →
+  move all WhatsAppMessage rows to canonical conversationId
+  soft-delete duplicates: status = "merged", mergedInto, mergedAt
+  canonical conversation keeps labels, leadQueryId, channel fields
+```
+
+**Model fields:** `status: "merged"`, `mergedInto`, `mergedAt` on `whatsappconversations`.
 
 ---
 
@@ -987,7 +1009,7 @@ The shell is the orchestration layer:
 | `TemplateDialog` | — (props from ActiveThreadContext) |
 | `MediaSendPreview` | — |
 | `MediaPopup` | conversations/media |
-| `CrmPanel` | shared-properties, labels |
+| `CrmPanel` | shared-properties, labels, leads/lookup, createNote, meta (notes) |
 | `DispositionDialog` | leads/lookup, disposition |
 | `SetVisitDialog` | leads/lookup, properties/search, visits/addVisit, labels |
 | `ReminderDialog` | reminders |
@@ -1176,62 +1198,199 @@ Aggregates:
 
 ## 19. CRM Integration & Disposition
 
-### Label System
+WhatsApp CRM disposition mirrors the **lead dashboard funnel** (`rolebaseLead`, `goodtogoleads`, rejected, declined pages). A single shared rules layer keeps dashboard tables and WhatsApp UI aligned.
+
+### Lead status mapping (dashboard page → `Query.leadStatus`)
+
+| Dashboard page | `Query.leadStatus` | Inbox label (conversation) |
+|----------------|-------------------|------------------------------|
+| Fresh Leads (`rolebaseLead`) | `fresh` | *(none — default)* |
+| Good To Go (`goodtogoleads`) | `active` | `Good To Go` |
+| Rejected | `rejected` | `Rejected` |
+| Declined | `declined` | `Declined` |
+| Reminder | `reminder` | `Reminder Set` |
+| Closed / already found | `closed` | `Already Found` |
+
+**Shared mapping module:** `src/lib/leads/leadDisposition.ts`  
+**Shared reason lists:** `src/lib/leads/dispositionReasons.ts` (must match `LeadTable`, `good-table`, `/api/sales/rejectionReason`)
+
+### Strict disposition state machine (July 2026)
+
+Only these transitions are allowed when a CRM lead is linked:
+
+```
+fresh (default on new lead)
+  ├─ good_to_go   → active   (+ lead quality review)
+  └─ reject_lead  → rejected (+ reason + lead quality review)
+
+rejected
+  └─ revert_to_fresh → fresh (clears reason/rejectionReason; no quality review)
+
+active (Good To Go)
+  └─ decline_lead → declined (+ reason + lead quality review)
+
+visit scheduling → separate action (does not change leadStatus funnel step)
+```
+
+**Not allowed from WhatsApp CRM (server returns 400):**
+
+- Reject / decline while not on the correct page status
+- Good To Go from rejected (must revert to fresh first)
+- Decline from fresh (must be Good To Go first)
+
+**Reject-family actions** (`reject_lead`, `not_interested`, `low_budget`, `blocked` in `whatsappDispositionService`) are additionally restricted to **fresh** leads only.
+
+**Declined leads:** WhatsApp `DispositionDialog` currently shows **no** core actions. Dashboard `declined-lead-table.tsx` can restore to `active` via `/api/leads/disposition` — not yet exposed in WhatsApp UI.
+
+### Label system
 
 **File:** `src/lib/whatsapp/crmLabels.ts`
 
-| Label | Filter key |
-|-------|-----------|
-| Good To Go | `good-to-go` |
-| Rejected | `rejected` |
-| Visit Scheduled | `visit-scheduled` |
-| Reminder Set | `reminder-set` |
-| ... | (see `SIDEBAR_LABEL_FILTERS`) |
+| Constant / helper | Purpose |
+|-------------------|---------|
+| `WHATSAPP_CRM_LABELS` | Canonical label strings |
+| `WHATSAPP_LABEL_FILTER_MAP` | Sidebar filter key → label |
+| `SIDEBAR_LABEL_FILTERS` | Inbox filter chips (`good-to-go`, `rejected`, `declined`, …) |
+| `PRIMARY_DISPOSITION_CRM_LABELS` | `Good To Go`, `Rejected`, `Declined` |
+| `primaryDispositionLabelsForLeadStatus()` | Maps `Query.leadStatus` → labels to apply |
+| `CRM_LABEL_CHIP_COLORS` | Shared chip styles (`CrmPanel`, `ConversationLabelChips`) |
+| `CORE_WHATSAPP_DISPOSITION_ACTIONS` | UI + API config for core funnel actions |
+| `WHATSAPP_DISPOSITION_ACTIONS` | Extended actions (reminder, future, blocked, …) |
 
-### Disposition Service
+**Label replacement rules** (`conversationLabelService.replaceDispositionLabels`):
 
-**File:** `src/lib/whatsapp/whatsappDispositionService.ts`  
-**API:** `POST /api/whatsapp/disposition`
+- On disposition, **workflow labels** are swapped while **visit / custom labels** are kept.
+- Workflow labels cleared/replaced: Good To Go, Rejected, Declined, Reminder Set, Future, Low Budget, Already Found, Not Interested, Blocked, Follow Up.
+- **Not** cleared: `Visit Scheduled`, `Visit Completed`, ad-hoc custom strings.
 
+| `leadStatus` after action | Labels applied |
+|---------------------------|----------------|
+| `fresh` | *(all primary disposition labels removed)* |
+| `active` | `Good To Go` |
+| `rejected` | `Rejected` |
+| `declined` | `Declined` |
+
+**Label sync on CRM open:** `CrmPanel` calls `PATCH .../labels` with `{ syncFromLeadStatus }` when conversation labels disagree with the linked lead (e.g. lead changed on dashboard). Implemented in `syncPrimaryDispositionLabels()`.
+
+**Visit label:** `SetVisitDialog` uses `PATCH .../labels { add: ["Visit Scheduled"] }` — does **not** remove `Good To Go`.
+
+### Disposition API
+
+**Route:** `POST /api/whatsapp/disposition`  
+**Service:** `whatsappDispositionService.applyWhatsAppDisposition`
+
+**Request body (Zod):**
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `conversationId` | yes | |
+| `action` | yes | See `WhatsAppDispositionAction` in `crmLabels.ts` |
+| `reason` | if action requires | Rejection or decline reason from shared lists |
+| `leadQualityByReviewer` | core actions except `revert_to_fresh` | `Good` \| `Average` \| `Below Average` |
+| `leadId` | optional | Defaults to phone lookup |
+| `reminderAt` | `set_reminder` | ISO datetime |
+| `customLabel` | `custom` action | |
+
+**Response:**
+
+```typescript
+{
+  success: true,
+  leadId: string | null,
+  leadStatus: string,
+  labels: string[],
+  conversationId: string,
+  lead: LeadLookupResult | null,
+  previousLeadStatus: string | null,
+}
 ```
-applyWhatsAppDisposition(action, conversationId, ...)
-  → Update conversation labels
-  → Update linked Query (lead) status
-  → Create PersonalReminder if action requires
-  → emit CONVERSATION_UPDATE
-```
 
-### Label Service
+**Query updates** (`buildQueryDispositionUpdate`):
 
-**File:** `src/lib/whatsapp/conversationLabelService.ts`  
-**API:** `PATCH /api/whatsapp/conversations/[id]/labels`
+| Action | `leadStatus` | `reason` | `rejectionReason` |
+|--------|-------------|----------|-------------------|
+| `good_to_go` | `active` | cleared | `null` |
+| `reject_lead` | `rejected` | reason text | enum via `toQueryRejectionReasonEnum` |
+| `decline_lead` | `declined` | reason text | `null` |
+| `revert_to_fresh` | `fresh` | `null` | `null` |
 
-- Add/remove labels
-- Link/unlink lead (`leadQueryId`)
+**Note:** Disposition route does **not** emit `CONVERSATION_UPDATE` today. Client updates labels from API response; lead dashboard gets live updates via `useLeadSocketEmit().emitDispositionChange` from `MessageThreadContainer`.
 
-### Lead Lookup
+### Labels API
 
-**File:** `src/lib/whatsapp/leadLookupService.ts`  
-**API:** `GET /api/whatsapp/leads/lookup?phone=...`
+**Route:** `GET/PATCH /api/whatsapp/conversations/[id]/labels`
 
-Used by `DispositionDialog`, `SetVisitDialog`.
+| PATCH body | Behavior |
+|------------|----------|
+| `{ add: string[] }` | `$addToSet` labels |
+| `{ remove: string }` | `$pull` one label |
+| `{ set: string[] }` | Replace entire label array |
+| `{ syncFromLeadStatus: string }` | `syncPrimaryDispositionLabels` — funnel sync |
+
+Emits `CONVERSATION_UPDATE` with `{ type: "label", labels }` on PATCH.
+
+### Lead lookup
+
+**Route:** `GET /api/whatsapp/leads/lookup?phone=&email=`  
+**Service:** `leadLookupService.findLeadByPhoneOrEmail`
+
+Returns `LeadLookupResult`: `_id`, `name`, `email`, `phoneNo`, `location`, `leadStatus`, `reason`, `rejectionReason`, `leadQualityByReviewer`, `reminder`, budgets, `note[]`.
+
+Used by `DispositionDialog`, `CrmPanel`, `SetVisitDialog`.
+
+### Frontend CRM components
+
+| Component | Responsibility |
+|-----------|----------------|
+| `CrmPanel.tsx` | Tabs: CRM / Details / Notes; status chip from lead; filtered quick actions; label chips; visit (active only); auto label sync |
+| `DispositionDialog.tsx` | Lead lookup; quality review; action picker filtered by `primaryDispositionActionsForLeadStatus`; reason select |
+| `MessageThreadContainer.tsx` | Wires dialogs; `onApplied` → update labels + `emitDispositionChange` |
+| `ConversationLabelChips.tsx` | Inbox row chips — uses `CRM_LABEL_CHIP_COLORS` |
+| `SetVisitDialog.tsx` | `POST /api/visits/addVisit` + add `Visit Scheduled` label |
+| `ReminderDialog.tsx` | `POST /api/whatsapp/reminders` |
+
+**CrmPanel quick actions by lead status:**
+
+| `leadStatus` | Actions shown |
+|--------------|---------------|
+| `fresh` | Good To Go, Reject, Set Reminder |
+| `active` | Decline, Set Reminder, Schedule Visit |
+| `rejected` | Revert to Fresh, Set Reminder |
+| `declined` | Set Reminder only |
+| other | Set Reminder only |
+
+### Meta / notes
+
+**Route:** `POST /api/whatsapp/conversations/[id]/meta`  
+Supports `participantName`, `participantLocation`, `conversationType`, `notes` (conversation-level chat note when no CRM lead).
+
+**CRM lead notes:** `CrmPanel` → `POST /api/sales/createNote` when lead exists; falls back to `meta.notes` on conversation.
 
 ### Reminders
 
-**File:** `src/lib/whatsapp/whatsappReminderService.ts`  
+**File:** `whatsappReminderService.ts`  
 **API:** `GET/POST /api/whatsapp/reminders`
 
-Creates `PersonalReminder` with `whatsappConversationId`; mirrors `hasActiveReminder` on conversation.
+`set_reminder` disposition sets `Query.leadStatus = "reminder"`, applies `Reminder Set` label, creates `PersonalReminder` with `whatsappConversationId`.
 
-### Visit Scheduling
+### Property sharing & visits
 
-`SetVisitDialog.tsx` → `POST /api/visits/addVisit` + label `Visit Scheduled`
+- `propertyLinkExtractor.ts` — URLs from message history
+- `shared-properties/route.ts` — CRM panel property list
+- `properties/search/route.ts` — `SetVisitDialog` property picker
+- `POST /api/visits/addVisit` — visit record + `Visit Scheduled` label
 
-### Property Sharing
+### Dashboard parity & sockets
 
-- `propertyLinkExtractor.ts` — extract URLs from message history
-- `shared-properties/route.ts` — list linked properties in thread
-- `properties/search/route.ts` — search for properties to share
+| Dashboard action | API | WhatsApp equivalent |
+|------------------|-----|---------------------|
+| Fresh → Good To Go | `/api/leads/disposition` | `good_to_go` |
+| Fresh → Rejected | `/api/leads/disposition` | `reject_lead` |
+| Rejected → Fresh | `/api/sales/retrieveLead` | `revert_to_fresh` |
+| G2G → Declined | `/api/leads/disposition` | `decline_lead` |
+| Declined → G2G | `/api/leads/disposition` | *(not in WA UI yet)* |
+
+**Live dashboard refresh:** `MessageThreadContainer` calls `emitDispositionChange(lead, previousLeadStatus, newStatus)` after successful WA disposition so open lead tables update without reload.
 
 ### Sales Create Query Integration
 
@@ -1811,6 +1970,7 @@ templateClassification.ts      propertyLinkExtractor.ts
 crmLabels.ts                   conversationLabelService.ts
 whatsappDispositionService.ts  whatsappReminderService.ts
 leadLookupService.ts           leadOpenUrl.ts
+../leads/leadDisposition.ts    ../leads/dispositionReasons.ts
 locationAccess.ts              locationConstants.ts
 assignableLocations.ts         participantLocationPrivileges.ts
 areaTokenUtils.ts
@@ -2000,11 +2160,36 @@ Meta → webhook POST
 ```
 DispositionDialog → POST /disposition
   → whatsappDispositionService.applyWhatsAppDisposition
-  → conversation.labels update
-  → query status update
-  → personalReminder.create (if applicable) 
-  → emit CONVERSATION_UPDATE
-  → CrmPanel + sidebar chips refresh via cache patch
+  → assertValidDispositionTransition (core actions)
+  → Query.leadStatus + reason + leadQualityByReviewer update
+  → replaceDispositionLabels (or reminder branch)
+  → linkLeadToConversation
+  → Response { labels, lead, leadStatus }
+  → MessageThreadContainer: handleCrmLabelsUpdated + emitDispositionChange
+  → CrmPanel + ConversationLabelChips refresh
+```
+
+### Disposition funnel (core actions)
+
+```
+CrmPanel / DispositionDialog
+  → GET /leads/lookup?phone=
+  → User selects action allowed for leadStatus
+  → Lead quality (Good/Average/Below Average) except revert
+  → Reason picker for reject / decline
+  → POST /disposition
+  → Labels synced to primaryDispositionLabelsForLeadStatus
+  → Optional: PATCH /labels { syncFromLeadStatus } on next CRM open if drift
+```
+
+### Merge duplicate conversations (SuperAdmin)
+
+```
+/dashboard/admin/merge-conversations
+  → GET /api/admin/merge-conversations (dry run)
+  → POST /api/admin/merge-conversations { groupKeys[] }
+  → conversationMergeService.mergeGroups
+  → Messages moved; duplicates status=merged
 ```
 
 ### WebRTC incoming call
@@ -2036,5 +2221,55 @@ Meta calls webhook → processCallEvent
 
 ---
 
-*This document is the authoritative engineering reference for the WhatsApp module. When implementation changes, update the corresponding section and cross-references.*
+## Document Changelog & Implementation Gap
+
+Tracks documentation vs code as of **July 3, 2026**. Use this when onboarding or planning follow-up work.
+
+### Recently implemented (documented in this revision)
+
+| Area | What shipped | Key files |
+|------|--------------|-----------|
+| **Strict disposition funnel** | fresh→G2G/reject; rejected→fresh; active→decline; server validation | `leadDisposition.ts`, `whatsappDispositionService.ts` |
+| **Label ↔ lead sync** | Auto-apply/clear Good To Go / Rejected / Declined; CRM open repair | `crmLabels.ts`, `conversationLabelService.ts`, `CrmPanel.tsx` |
+| **Disposition UI** | Quality review, reason pickers, status-filtered actions | `DispositionDialog.tsx`, `CrmPanel.tsx` |
+| **Shared reason lists** | Same reject/decline options as dashboard tables | `dispositionReasons.ts` |
+| **Lead notes in CRM** | Notes tab; `createNote` or conversation `meta.notes` | `CrmPanel.tsx`, `meta/route.ts` |
+| **Dashboard live sync** | Socket emit after WA disposition | `MessageThreadContainer.tsx`, `useLeadSocketEmit.ts` |
+| **Conversation merge** | SuperAdmin dry-run + merge by phone+channel | `conversationMergeService.ts`, `ConversationMergePanel.tsx` |
+| **Visit label fix** | `Visit Scheduled` added without stripping G2G | `SetVisitDialog.tsx`, `addVisitScheduledLabel` |
+
+### Documented earlier but unchanged in this pass
+
+| Area | Status in docs |
+|------|----------------|
+| WhatsApp Calling / WebRTC | §21 — business + user-initiated calls |
+| Retarget pipeline | §20 |
+| Multi-WABA routing | §8 |
+| Performance hotspots | §31 + `whatsapp-crm-architecture-audit.md` |
+| Socket.IO event bus | §15 (`src/lib/pusher.ts` = Socket.IO) |
+
+### Known gaps (code exists; docs call out limitation)
+
+| Gap | Detail |
+|-----|--------|
+| **Declined → Good To Go in WhatsApp** | Dashboard supports via `/api/leads/disposition`; WA `DispositionDialog` shows no actions for `declined` |
+| **Extended disposition in WA UI** | `not_interested`, `low_budget`, `blocked`, `future_follow_up` in `WHATSAPP_DISPOSITION_ACTIONS` but not in `DispositionDialog` (core actions only) |
+| **No socket on disposition** | Label PATCH emits `CONVERSATION_UPDATE`; `/disposition` relies on client response + manual cache update |
+| **Fresh inbox filter** | No sidebar filter for `fresh` — fresh leads have no disposition label on conversation |
+| **Performance audit** | N+1 inbox unread, notification summary O(n) — see audit doc; not fixed |
+| **Horizontal scale** | No Redis/BullMQ; in-process caches |
+
+### Suggested doc maintenance
+
+When changing disposition or labels, update in lockstep:
+
+1. `src/lib/leads/leadDisposition.ts` — state machine
+2. `src/lib/whatsapp/crmLabels.ts` — label strings + `primaryDispositionLabelsForLeadStatus`
+3. `src/lib/leads/dispositionReasons.ts` — reason enums
+4. This file §19 + changelog table above
+5. Dashboard tables if reason lists change
+
+---
+
+*This document is the authoritative engineering reference for the WhatsApp module. When implementation changes, update the corresponding section, cross-references, and [Document Changelog](#document-changelog--implementation-gap).*
 8

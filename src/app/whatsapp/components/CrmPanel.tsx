@@ -1,10 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import axios from "@/util/axios";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import type { CoreWhatsAppDispositionAction } from "@/lib/leads/leadDisposition";
+import type { LeadLookupResult } from "@/lib/whatsapp/leadLookupService";
+import {
+  formatLeadStatusLabel,
+  normalizeLeadStatus,
+  primaryDispositionActionsForLeadStatus,
+} from "@/lib/leads/leadDisposition";
+import {
+  CRM_LABEL_CHIP_COLORS,
+  PRIMARY_DISPOSITION_CRM_LABELS,
+  primaryDispositionLabelsForLeadStatus,
+} from "@/lib/whatsapp/crmLabels";
 import {
   X,
   Plus,
@@ -15,67 +30,63 @@ import {
   ThumbsDown,
   CheckCircle2,
   Bell,
-  Repeat,
-  MoreHorizontal,
   XCircle,
   ChevronRight,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
 
-const LABEL_COLORS: Record<string, string> = {
-  "Good To Go":
-    "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
-  Rejected: "bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/30",
-  Declined:
-    "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30",
-  "Visit Scheduled":
-    "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
-  "Reminder Set":
-    "bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/30",
-  Future:
-    "bg-amber-500/15 text-amber-800 dark:text-amber-300 border-amber-500/30",
-  "Low Budget":
-    "bg-yellow-500/15 text-yellow-800 dark:text-yellow-200 border-yellow-500/30",
-  Blocked:
-    "bg-zinc-500/15 text-zinc-700 dark:text-zinc-300 border-zinc-500/30",
-};
+function primaryLabelsOnConversation(labelList: string[]): string[] {
+  const allowed = new Set<string>(PRIMARY_DISPOSITION_CRM_LABELS);
+  return labelList.filter((label) => allowed.has(label));
+}
 
-const DISPOSITION_LABELS = [
-  "Good To Go",
-  "Rejected",
-  "Declined",
-  "Future",
-  "Low Budget",
-  "Blocked",
-];
+function sameLabelSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortedA = [...a].sort();
+  const sortedB = [...b].sort();
+  return sortedA.every((value, index) => value === sortedB[index]);
+}
 
 const LEAD_ACTIONS: Array<{
   id: string;
   label: string;
   icon: React.ElementType;
   color: string;
+  dispositionAction?: CoreWhatsAppDispositionAction;
   onClick: "disposition" | "reminder";
 }> = [
-  {
-    id: "reject",
-    label: "Reject Lead",
-    icon: XCircle,
-    color: "text-red-500",
-    onClick: "disposition",
-  },
-  {
-    id: "decline",
-    label: "Decline Lead",
-    icon: ThumbsDown,
-    color: "text-orange-500",
-    onClick: "disposition",
-  },
   {
     id: "good-to-go",
     label: "Good To Go",
     icon: CheckCircle2,
     color: "text-emerald-500",
+    dispositionAction: "good_to_go",
+    onClick: "disposition",
+  },
+  {
+    id: "reject",
+    label: "Reject",
+    icon: XCircle,
+    color: "text-red-500",
+    dispositionAction: "reject_lead",
+    onClick: "disposition",
+  },
+  {
+    id: "decline",
+    label: "Decline",
+    icon: ThumbsDown,
+    color: "text-orange-500",
+    dispositionAction: "decline_lead",
+    onClick: "disposition",
+  },
+  {
+    id: "revert-fresh",
+    label: "Revert to Fresh",
+    icon: RotateCcw,
+    color: "text-sky-500",
+    dispositionAction: "revert_to_fresh",
     onClick: "disposition",
   },
   {
@@ -84,20 +95,6 @@ const LEAD_ACTIONS: Array<{
     icon: Bell,
     color: "text-violet-500",
     onClick: "reminder",
-  },
-  {
-    id: "future",
-    label: "Future Follow Up",
-    icon: Repeat,
-    color: "text-amber-500",
-    onClick: "disposition",
-  },
-  {
-    id: "found",
-    label: "Already Found",
-    icon: Home,
-    color: "text-blue-500",
-    onClick: "disposition",
   },
 ];
 
@@ -116,10 +113,11 @@ interface CrmPanelProps {
   isOpen?: boolean;
   conversation: Conversation | null;
   onClose: () => void;
-  onOpenDisposition: () => void;
+  onOpenDisposition: (action?: CoreWhatsAppDispositionAction) => void;
   onOpenSetVisit: () => void;
   onOpenReminder: () => void;
   onLabelsUpdated?: (labels: string[]) => void;
+  onLeadUpdated?: (lead: LeadLookupResult | null) => void;
   className?: string;
 }
 
@@ -131,8 +129,10 @@ export function CrmPanel({
   onOpenSetVisit,
   onOpenReminder,
   onLabelsUpdated,
+  onLeadUpdated,
   className,
 }: CrmPanelProps) {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<"crm" | "details" | "notes">(
     "crm",
   );
@@ -142,11 +142,65 @@ export function CrmPanel({
   const [loadingProperties, setLoadingProperties] = useState(false);
   const [vsidSearch, setVsidSearch] = useState("");
   const [labels, setLabels] = useState<string[]>([]);
+  const [leadInfo, setLeadInfo] = useState<LeadLookupResult | null>(null);
+  const [leadLoading, setLeadLoading] = useState(false);
+  const [noteValue, setNoteValue] = useState("");
+  const [chatNote, setChatNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
   const conversationId = conversation?._id;
+
+  const fetchLeadInfo = useCallback(async () => {
+    if (!conversation?.participantPhone) {
+      setLeadInfo(null);
+      return;
+    }
+    setLeadLoading(true);
+    try {
+      const res = await axios.get("/api/whatsapp/leads/lookup", {
+        params: { phone: conversation.participantPhone },
+      });
+      const lead = (res.data?.lead as LeadLookupResult | null) ?? null;
+      setLeadInfo(lead);
+      onLeadUpdated?.(lead);
+
+      if (lead?._id && conversationId) {
+        const expected = primaryDispositionLabelsForLeadStatus(lead.leadStatus);
+        const currentPrimary = primaryLabelsOnConversation(
+          conversation?.labels ?? [],
+        );
+        if (!sameLabelSet(expected, currentPrimary)) {
+          try {
+            const syncRes = await axios.patch(
+              `/api/whatsapp/conversations/${conversationId}/labels`,
+              { syncFromLeadStatus: lead.leadStatus ?? "fresh" },
+            );
+            const synced: string[] = syncRes.data?.labels ?? [];
+            setLabels(synced);
+            onLabelsUpdated?.(synced);
+          } catch {
+            // Non-critical — CRM status still reflects lead record
+          }
+        }
+      }
+    } catch {
+      setLeadInfo(null);
+    } finally {
+      setLeadLoading(false);
+    }
+  }, [conversation?.participantPhone, conversation?.labels, conversationId, onLabelsUpdated, onLeadUpdated]);
 
   useEffect(() => {
     setLabels(conversation?.labels ?? []);
-  }, [conversation?.labels]);
+    setChatNote(conversation?.notes ?? "");
+  }, [conversation?.labels, conversation?.notes]);
+
+  useEffect(() => {
+    if (!isOpen || !conversation?.participantPhone) {
+      setLeadInfo(null);
+      return;
+    }
+    void fetchLeadInfo();
+  }, [isOpen, conversation?.participantPhone, fetchLeadInfo]);
 
   useEffect(() => {
     if (!isOpen || !conversationId) {
@@ -190,9 +244,73 @@ export function CrmPanel({
     }
   };
 
-  const currentDisposition = labels.find((l) =>
-    DISPOSITION_LABELS.includes(l),
-  );
+  const handleSaveNote = async () => {
+    const trimmed = noteValue.trim();
+    if (!trimmed) return;
+
+    setSavingNote(true);
+    try {
+      if (leadInfo?._id) {
+        const res = await axios.post("/api/sales/createNote", {
+          id: leadInfo._id,
+          note: trimmed,
+        });
+        const updated = res.data?.data as LeadLookupResult | undefined;
+        if (updated?._id) {
+          setLeadInfo(updated);
+          onLeadUpdated?.(updated);
+        }
+        setNoteValue("");
+        toast({ title: "Note saved to CRM lead" });
+        return;
+      }
+
+      if (!conversationId) return;
+      await axios.post(`/api/whatsapp/conversations/${conversationId}/meta`, {
+        notes: trimmed,
+      });
+      setChatNote(trimmed);
+      setNoteValue("");
+      toast({ title: "Chat note saved" });
+    } catch {
+      toast({
+        title: "Could not save note",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  const crmLeadStatus = leadInfo?.leadStatus;
+  const crmReason = leadInfo?.rejectionReason || leadInfo?.reason;
+  const normalizedLeadStatus = normalizeLeadStatus(crmLeadStatus);
+
+  const statusChipLabel = useMemo(() => {
+    if (leadInfo) {
+      if (normalizedLeadStatus === "fresh") return "Fresh";
+      return formatLeadStatusLabel(crmLeadStatus);
+    }
+    const fromLabels = labels.find((label) =>
+      (PRIMARY_DISPOSITION_CRM_LABELS as readonly string[]).includes(label),
+    );
+    return fromLabels ?? null;
+  }, [leadInfo, normalizedLeadStatus, crmLeadStatus, labels]);
+
+  const canScheduleVisit =
+    normalizedLeadStatus === "active" || labels.includes("Visit Scheduled");
+
+  const visibleLeadActions = useMemo(() => {
+    const allowed = new Set(
+      primaryDispositionActionsForLeadStatus(crmLeadStatus),
+    );
+    return LEAD_ACTIONS.filter(
+      (item) =>
+        item.onClick === "reminder" ||
+        (item.dispositionAction &&
+          allowed.has(item.dispositionAction)),
+    );
+  }, [crmLeadStatus]);
 
   if (!conversation) return null;
 
@@ -250,28 +368,49 @@ export function CrmPanel({
               <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wide">
                 Lead Status
               </p>
-              {currentDisposition ? (
-                <button
-                  type="button"
-                  onClick={onOpenDisposition}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium border cursor-pointer transition-opacity hover:opacity-80",
-                    LABEL_COLORS[currentDisposition] ??
-                      "bg-muted text-muted-foreground",
-                  )}
-                >
-                  {currentDisposition}
-                  <ChevronRight className="h-3 w-3" />
-                </button>
+              {leadLoading ? (
+                <div className="flex items-center gap-2 text-[12px] text-[#8696a0]">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Syncing CRM…
+                </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={onOpenDisposition}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium border border-dashed border-[#d1d5db] dark:border-[#374045] text-[#8696a0] hover:border-[#008069] hover:text-[#008069] transition-colors"
-                >
-                  <Plus className="h-3 w-3" />
-                  Set Status
-                </button>
+                <div className="space-y-1.5">
+                  {leadInfo && (
+                    <p className="text-[12px] text-[#54656f] dark:text-[#aebac1]">
+                      CRM page:{" "}
+                      <span className="font-medium">
+                        {formatLeadStatusLabel(crmLeadStatus)}
+                      </span>
+                      {leadInfo.leadQualityByReviewer
+                        ? ` · Review: ${leadInfo.leadQualityByReviewer}`
+                        : ""}
+                      {crmReason ? ` · ${crmReason}` : ""}
+                    </p>
+                  )}
+                  {statusChipLabel ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenDisposition()}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium border cursor-pointer transition-opacity hover:opacity-80",
+                        CRM_LABEL_CHIP_COLORS[statusChipLabel] ??
+                          "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {statusChipLabel}
+                      <ChevronRight className="h-3 w-3" />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => onOpenDisposition()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-medium border border-dashed border-[#d1d5db] dark:border-[#374045] text-[#8696a0] hover:border-[#008069] hover:text-[#008069] transition-colors"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Set Status
+                    </button>
+                  )}
+                </div>
               )}
             </section>
 
@@ -285,7 +424,7 @@ export function CrmPanel({
                 </p>
                 <button
                   type="button"
-                  onClick={onOpenDisposition}
+                  onClick={() => onOpenDisposition()}
                   className="text-[11px] text-[#008069] hover:opacity-80 transition-opacity"
                 >
                   Manage
@@ -297,7 +436,7 @@ export function CrmPanel({
                     key={label}
                     className={cn(
                       "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border",
-                      LABEL_COLORS[label] ??
+                      CRM_LABEL_CHIP_COLORS[label] ??
                         "bg-[#f0f2f5] dark:bg-[#202c33] text-[#54656f] dark:text-[#aebac1] border-transparent",
                     )}
                   >
@@ -314,7 +453,7 @@ export function CrmPanel({
                 ))}
                 <button
                   type="button"
-                  onClick={onOpenDisposition}
+                  onClick={() => onOpenDisposition()}
                   className="inline-flex items-center justify-center h-5 w-5 rounded-full border border-dashed border-[#8696a0] text-[#8696a0] hover:border-[#008069] hover:text-[#008069] transition-colors"
                   aria-label="Add label"
                 >
@@ -331,7 +470,7 @@ export function CrmPanel({
                 Lead Actions
               </p>
               <div className="grid grid-cols-2 gap-1.5">
-                {LEAD_ACTIONS.map((action) => {
+                {visibleLeadActions.map((action) => {
                   const Icon = action.icon;
                   return (
                     <button
@@ -340,7 +479,8 @@ export function CrmPanel({
                       onClick={
                         action.onClick === "reminder"
                           ? onOpenReminder
-                          : onOpenDisposition
+                          : () =>
+                              onOpenDisposition(action.dispositionAction)
                       }
                       className={cn(
                         "flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl",
@@ -356,27 +496,12 @@ export function CrmPanel({
                     </button>
                   );
                 })}
-                <button
-                  type="button"
-                  onClick={onOpenDisposition}
-                  className={cn(
-                    "flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl",
-                    "bg-[#f0f2f5] dark:bg-[#202c33]",
-                    "hover:bg-[#e9edef] dark:hover:bg-[#2a3942]",
-                    "transition-colors cursor-pointer text-center",
-                  )}
-                >
-                  <MoreHorizontal className="h-4 w-4 text-[#8696a0]" />
-                  <span className="text-[10px] font-medium text-[#54656f] dark:text-[#aebac1] leading-tight">
-                    More Actions
-                  </span>
-                </button>
               </div>
             </section>
 
             <Separator className="bg-[#f0f2f5] dark:bg-[#222d34]" />
 
-            {/* Visit */}
+            {canScheduleVisit && (
             <section className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wide">
@@ -417,6 +542,7 @@ export function CrmPanel({
                 </button>
               )}
             </section>
+            )}
 
             <Separator className="bg-[#f0f2f5] dark:bg-[#222d34]" />
 
@@ -525,6 +651,12 @@ export function CrmPanel({
             {(
               [
                 {
+                  label: "CRM status",
+                  value: leadInfo
+                    ? `${formatLeadStatusLabel(crmLeadStatus)}${crmReason ? ` (${crmReason})` : ""}`
+                    : undefined,
+                },
+                {
                   label: "Location",
                   value: conversation.participantLocation,
                 },
@@ -595,8 +727,83 @@ export function CrmPanel({
 
         {/* ──── Notes Tab ──── */}
         {activeTab === "notes" && (
-          <div className="px-4 py-8 text-center">
-            <p className="text-[13px] text-[#8696a0]">Notes coming soon</p>
+          <div className="px-4 py-3 space-y-4">
+            {leadInfo ? (
+              <p className="text-[12px] text-[#8696a0]">
+                Notes sync to CRM lead{" "}
+                <span className="font-medium text-[#54656f] dark:text-[#aebac1]">
+                  {leadInfo.name || leadInfo.phoneNo}
+                </span>{" "}
+                and appear on lead dashboards.
+              </p>
+            ) : (
+              <p className="text-[12px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+                No CRM lead linked — notes save to this chat only.
+              </p>
+            )}
+
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wide">
+                Add note
+              </p>
+              <Textarea
+                value={noteValue}
+                onChange={(e) => setNoteValue(e.target.value)}
+                placeholder="Write a note about this conversation…"
+                rows={3}
+                className="text-[13px] resize-none bg-[#f0f2f5] dark:bg-[#202c33] border-transparent"
+              />
+              <Button
+                size="sm"
+                className="bg-[#008069] hover:bg-[#006e5a] text-white"
+                disabled={!noteValue.trim() || savingNote}
+                onClick={() => void handleSaveNote()}
+              >
+                {savingNote ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Save note"
+                )}
+              </Button>
+            </div>
+
+            {leadInfo?.note && leadInfo.note.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wide">
+                  CRM notes
+                </p>
+                <div className="space-y-2">
+                  {[...leadInfo.note].reverse().map((entry, index) => (
+                    <div
+                      key={`${entry.createOn}-${index}`}
+                      className="rounded-xl bg-[#f0f2f5] dark:bg-[#202c33] px-3 py-2"
+                    >
+                      <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap">
+                        {entry.noteData}
+                      </p>
+                      <p className="text-[10px] text-[#8696a0] mt-1">
+                        {[entry.createdBy, entry.createOn]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {!leadInfo && chatNote ? (
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold text-[#8696a0] uppercase tracking-wide">
+                  Chat note
+                </p>
+                <div className="rounded-xl bg-[#f0f2f5] dark:bg-[#202c33] px-3 py-2">
+                  <p className="text-[13px] text-[#111b21] dark:text-[#e9edef] whitespace-pre-wrap">
+                    {chatNote}
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
       </ScrollArea>

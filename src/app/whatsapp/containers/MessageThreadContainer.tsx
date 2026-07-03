@@ -1,10 +1,13 @@
 "use client";
 
-import { memo, useCallback, useRef, useEffect, type MutableRefObject, type RefObject } from "react";
+import { memo, useCallback, useRef, useEffect, useState, type MutableRefObject, type RefObject } from "react";
 import dynamic from "next/dynamic";
 import { useQueryClient } from "@tanstack/react-query";
 import axios from "@/util/axios";
 import { useToast } from "@/hooks/use-toast";
+import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
+import type { CoreWhatsAppDispositionAction } from "@/lib/leads/leadDisposition";
+import type { DispositionAppliedResult } from "../components/DispositionDialog";
 import { cn } from "@/lib/utils";
 import {
   isMessageWindowActive,
@@ -184,6 +187,19 @@ export const MessageThreadContainer = memo(function MessageThreadContainer({
     setForwardingMessages,
   } = useWhatsAppUIState();
 
+  const { emitDispositionChange } = useLeadSocketEmit();
+  const [dispositionInitialAction, setDispositionInitialAction] = useState<
+    CoreWhatsAppDispositionAction | undefined
+  >(undefined);
+
+  const openDispositionDialog = useCallback(
+    (action?: CoreWhatsAppDispositionAction) => {
+      setDispositionInitialAction(action);
+      setShowDispositionDialog(true);
+    },
+    [setShowDispositionDialog],
+  );
+
   // ── Stable wrappers for shell send actions ────────────────────────────────
   const sendMessage = useCallback(
     () => sendActionsRef.current.sendMessage(),
@@ -326,6 +342,21 @@ export const MessageThreadContainer = memo(function MessageThreadContainer({
   const handleCrmLabelsUpdated = useCallback(
     (labels: string[]) => threadActionsRef.current.handleCrmLabelsUpdated(labels),
     [threadActionsRef],
+  );
+
+  const handleDispositionApplied = useCallback(
+    (result: DispositionAppliedResult) => {
+      handleCrmLabelsUpdated(result.labels);
+      if (result.lead) {
+        const oldStatus = result.previousLeadStatus || "fresh";
+        emitDispositionChange(
+          result.lead as unknown as Parameters<typeof emitDispositionChange>[0],
+          oldStatus,
+          result.leadStatus,
+        );
+      }
+    },
+    [handleCrmLabelsUpdated, emitDispositionChange],
   );
 
   const loadOlderMessages = useCallback(
@@ -505,7 +536,7 @@ export const MessageThreadContainer = memo(function MessageThreadContainer({
                 } as Partial<Conversation>);
                 void refetchConversationsList();
               }}
-              onOpenDisposition={showCrmActions ? () => setShowDispositionDialog(true) : undefined}
+              onOpenDisposition={showCrmActions ? () => openDispositionDialog() : undefined}
               onOpenSetVisit={showCrmActions ? () => setShowVisitDialog(true) : undefined}
               onOpenReminder={showCrmActions ? () => setShowReminderDialog(true) : undefined}
               onToggleCrmPanel={
@@ -572,9 +603,13 @@ export const MessageThreadContainer = memo(function MessageThreadContainer({
             {showDispositionDialog && (
               <DispositionDialog
                 open={showDispositionDialog}
-                onOpenChange={setShowDispositionDialog}
+                onOpenChange={(open) => {
+                  setShowDispositionDialog(open);
+                  if (!open) setDispositionInitialAction(undefined);
+                }}
                 conversation={selectedConversation}
-                onApplied={handleCrmLabelsUpdated}
+                initialAction={dispositionInitialAction}
+                onApplied={handleDispositionApplied}
               />
             )}
             {showVisitDialog && (
@@ -634,7 +669,7 @@ export const MessageThreadContainer = memo(function MessageThreadContainer({
           isOpen={showCrmPanel}
           conversation={selectedConversation}
           onClose={() => setShowCrmPanel(false)}
-          onOpenDisposition={() => setShowDispositionDialog(true)}
+          onOpenDisposition={openDispositionDialog}
           onOpenSetVisit={() => setShowVisitDialog(true)}
           onOpenReminder={() => setShowReminderDialog(true)}
           onLabelsUpdated={handleCrmLabelsUpdated}

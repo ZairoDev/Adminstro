@@ -9,6 +9,7 @@ import {
   addLabelsToConversation,
   removeLabelFromConversation,
   setConversationLabels,
+  syncPrimaryDispositionLabels,
 } from "@/lib/whatsapp/conversationLabelService";
 import { WHATSAPP_EVENTS } from "@/lib/pusher";
 import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
@@ -19,6 +20,7 @@ const patchSchema = z.object({
   add: z.array(z.string()).optional(),
   remove: z.string().optional(),
   set: z.array(z.string()).optional(),
+  syncFromLeadStatus: z.string().optional(),
 });
 
 export async function GET(
@@ -85,7 +87,12 @@ export async function PATCH(
     }
 
     let labels: string[];
-    if (parsed.data.set) {
+    if (parsed.data.syncFromLeadStatus !== undefined) {
+      labels = await syncPrimaryDispositionLabels(
+        params.conversationId,
+        parsed.data.syncFromLeadStatus,
+      );
+    } else if (parsed.data.set) {
       labels = await setConversationLabels(params.conversationId, parsed.data.set);
     } else {
       if (parsed.data.add?.length) {

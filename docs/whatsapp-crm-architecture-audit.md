@@ -2,8 +2,10 @@
 
 **Scope:** Pre-Redis / pre-BullMQ analysis of the WhatsApp module  
 **Stack:** Next.js App Router, TypeScript, MongoDB/Mongoose, Socket.IO, Meta WhatsApp Cloud API, multi-WABA, multi-phone, VPS (single PM2 process)  
-**Date:** June 18, 2026  
+**Date:** June 18, 2026 (performance analysis) · **CRM disposition addendum:** July 3, 2026  
 **Repository:** c:\Admin
+
+> **July 2026 addendum:** Strict lead disposition funnel, label sync, and SuperAdmin conversation merge are documented in [`whatsapp-architecture-specification.md`](./whatsapp-architecture-specification.md) §19 and [Document Changelog](./whatsapp-architecture-specification.md#document-changelog--implementation-gap). This audit file remains focused on **performance**; it does not re-audit the new CRM flows.
 
 ---
 
@@ -100,20 +102,22 @@ Redis and BullMQ are **not present** today. All caching is in-process `Map` sing
 
 #### Search, CRM, Retarget, Leads, Analytics, Admin
 
-| Route | Methods |
-|-------|---------|
-| `search/unified/route.ts` | GET |
-| `disposition/route.ts` | POST |
+| Route | Methods | Notes |
+|-------|---------|-------|
+| `search/unified/route.ts` | GET | |
+| `disposition/route.ts` | POST | Strict lead funnel; syncs `queries` + labels |
 | `reminders/route.ts` | GET, POST |
 | `retarget/route.ts` | POST |
 | `retarget/upload/route.ts` | POST |
 | `retarget/uploaded-contacts/route.ts` | GET |
 | `retarget/handover/route.ts` | POST |
-| `leads/lookup/route.ts` | GET |
-| `properties/search/route.ts` | GET |
-| `analytics/whatsapp-overview/route.ts` | GET |
-| `admin/migrate-conversation-types/route.ts` | POST |
-| `employee/whatsapp-phone-mask/route.ts` | GET, PUT |
+| `leads/lookup/route.ts` | GET | CRM panel / disposition |
+| `conversations/[conversationId]/labels/route.ts` | GET, PATCH | `syncFromLeadStatus` for funnel label repair |
+| `properties/search/route.ts` | GET | |
+| `analytics/whatsapp-overview/route.ts` | GET | |
+| `admin/migrate-conversation-types/route.ts` | POST | |
+| `admin/merge-conversations/route.ts` | GET, POST | SuperAdmin duplicate merge |
+| `employee/whatsapp-phone-mask/route.ts` | GET, PUT | |
 
 ### 1.2 Flow Diagrams
 
@@ -493,6 +497,9 @@ Webhook + media worker, cron scheduler, Socket.IO server, BullMQ workers, analyt
 
 | Concern | Path |
 |---------|------|
+| CRM disposition funnel | src/lib/leads/leadDisposition.ts, src/lib/whatsapp/whatsappDispositionService.ts |
+| CRM labels | src/lib/whatsapp/crmLabels.ts, src/lib/whatsapp/conversationLabelService.ts |
+| Conversation merge | src/lib/whatsapp/conversationMergeService.ts, src/app/api/admin/merge-conversations/route.ts |
 | Webhook | src/app/api/whatsapp/webhook/route.ts |
 | Inbox API | src/app/api/whatsapp/conversations/route.ts |
 | Messages API | src/app/api/whatsapp/conversations/[conversationId]/messages/route.ts |

@@ -15,6 +15,7 @@ const bodySchema = z.object({
   customLabel: z.string().max(100).optional(),
   leadId: z.string().optional(),
   reminderAt: z.string().optional(),
+  leadQualityByReviewer: z.string().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
       customLabel: parsed.data.customLabel,
       leadId: parsed.data.leadId,
       reminderAt: parsed.data.reminderAt,
+      leadQualityByReviewer: parsed.data.leadQualityByReviewer,
     });
 
     return NextResponse.json({ success: true, ...result });

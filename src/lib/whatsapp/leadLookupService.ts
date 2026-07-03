@@ -9,9 +9,16 @@ export type LeadLookupResult = {
   location?: string;
   leadStatus?: string;
   reason?: string;
+  rejectionReason?: string | null;
+  leadQualityByReviewer?: string | null;
   reminder?: Date;
   minBudget?: number;
   maxBudget?: number;
+  note?: Array<{
+    noteData?: string;
+    createdBy?: string;
+    createOn?: string;
+  }>;
 };
 
 function phoneVariants(digits: string): string[] {
@@ -49,7 +56,7 @@ export async function findLeadByPhoneOrEmail(params: {
 
   const lead = await Query.findOne({ $or: or })
     .select(
-      "name email phoneNo location leadStatus reason reminder minBudget maxBudget",
+      "name email phoneNo location leadStatus reason rejectionReason leadQualityByReviewer reminder minBudget maxBudget note",
     )
     .lean() as LeadLookupResult | null;
 

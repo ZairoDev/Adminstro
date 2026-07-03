@@ -1323,16 +1323,17 @@ const handleSave = async (
                 </DropdownMenu>
                 <div className=" absolute right-0 top-1.5">
                   <Dialog>
-                    <DialogTrigger>
-                      <p
+                    <DialogTrigger asChild>
+                      <button
+                        type="button"
                         className={` h-[65px] w-5 flex items-center justify-center rounded-xl ${
                           query?.note && query?.note?.length > 0
                             ? "bg-gradient-to-b from-[#99f2c8] to-[#1f4037] text-slate-900"
                             : "bg-muted text-muted-foreground"
                         } text-sm font-bold `}
                       >
-                        <p className=" rotate-90">Note</p>
-                      </p>
+                        <span className="rotate-90">Note</span>
+                      </button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>

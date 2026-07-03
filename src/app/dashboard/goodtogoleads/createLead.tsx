@@ -1,7 +1,7 @@
 // components/CreateLeadDialog.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import axios from "@/util/axios";
 import { useAreaFilterTargets } from "@/hooks/useAreaFilterTargets";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +46,8 @@ interface TargetType {
   areas: { _id: string; city: string; name: string }[];
 }
 
+const EMPTY_AREAS: TargetType["areas"] = [];
+
 export default function CreateLeadDialog({
   triggerButton = true,
 }: {
@@ -60,9 +62,12 @@ export default function CreateLeadDialog({
   const [checking, setChecking] = useState(false);
   const [phone, setPhone] = useState("");
   const [numberStatus, setNumberStatus] = useState("");
-  const { data: areaTargets = [] } = useAreaFilterTargets();
-  const targets = areaTargets as unknown as TargetType[];
-  const [areas1, setAreas1] = useState<TargetType["areas"]>([]);
+  const { data: areaTargets } = useAreaFilterTargets();
+  const targets = useMemo(
+    () => (areaTargets ?? []) as unknown as TargetType[],
+    [areaTargets],
+  );
+  const [areas1, setAreas1] = useState<TargetType["areas"]>(EMPTY_AREAS);
   const [selectedLocation, setSelectedLocation] = useState("");
   const [startDate, setStartDate] = useState<Date>(new Date());
   const [endDate, setEndDate] = useState<Date>(new Date());
@@ -97,9 +102,16 @@ export default function CreateLeadDialog({
   });
 
   useEffect(() => {
-    const target = targets.find((t) => t.city === selectedLocation);
-    setAreas1(target ? target.areas : []);
-  }, [selectedLocation, targets]);
+    if (!areaTargets?.length || !selectedLocation) {
+      setAreas1((prev) => (prev.length === 0 ? prev : EMPTY_AREAS));
+      return;
+    }
+    const target = (areaTargets as unknown as TargetType[]).find(
+      (t) => t.city === selectedLocation,
+    );
+    const nextAreas = target?.areas ?? EMPTY_AREAS;
+    setAreas1((prev) => (prev === nextAreas ? prev : nextAreas));
+  }, [selectedLocation, areaTargets]);
 
   // 🟢 Handlers
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) =>

@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "sonner";
 import "./globals.css";
 import SocketGlobalListener from "@/components/SocketGlobalListener";
+import { AuthHydrator } from "@/components/AuthHydrator";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -51,6 +52,7 @@ export default function RootLayout({
             ]}
             disableTransitionOnChange
           >
+            <AuthHydrator />
             <SocketGlobalListener />
             {children}
           </ThemeProvider>

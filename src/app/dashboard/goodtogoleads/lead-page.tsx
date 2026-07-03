@@ -53,7 +53,12 @@ export const GoodToGoLeads = () => {
   const { token } = useAuthStore();
   const searchParams = useSearchParams();
 
+  const [hasMounted, setHasMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("leads");
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
   const [brokers, setBrokers] = useState<IQuery[]>([]);
   const [brokersLoading, setBrokersLoading] = useState<boolean>(false);
 
@@ -486,7 +491,7 @@ export const GoodToGoLeads = () => {
           </div>
         </div>
       </div>
-      {loading ? (
+      {!hasMounted || loading ? (
         <div className="flex mt-2 min-h-screen items-center justify-center">
           <HandLoader />
         </div>

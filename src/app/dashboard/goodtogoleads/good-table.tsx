@@ -23,7 +23,7 @@ import {
 import axios from "@/util/axios";
 import Link from "next/link";
 import debounce from "lodash.debounce";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useAreaFilterTargets } from "@/hooks/useAreaFilterTargets";
 import { useRouter, usePathname } from "next/navigation";
@@ -136,8 +136,11 @@ export default function GoodTable({
       propertyShown: q["propertyShown"] || 0,
     }))
   );
-  const { data: areaTargets = [] } = useAreaFilterTargets();
-  const targets = areaTargets as unknown as TargetType[];
+  const { data: areaTargets } = useAreaFilterTargets();
+  const targets = useMemo(
+    () => (areaTargets ?? []) as unknown as TargetType[],
+    [areaTargets],
+  );
   const IsView = async (id: any, index: any) => {
     try {
       await axios.post("/api/sales/queryStatusUpdate", {
@@ -493,14 +496,24 @@ export default function GoodTable({
 
     return `${shortDuration} ${month}`;
   };
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => setIsMounted(true), []);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const rowVirtualizer = useVirtualizer({
-    count: queries?.length ?? 0,
+    count: isMounted ? (queries?.length ?? 0) : 0,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 72,
     overscan: 8,
   });
-  const virtualRows = rowVirtualizer.getVirtualItems();
+  const virtualRows = isMounted
+    ? rowVirtualizer.getVirtualItems()
+    : queries.map((_, index) => ({
+        index,
+        start: index * 72,
+        size: 72,
+        key: index,
+      }));
 
   return (
     <div className=" w-full">
@@ -540,7 +553,7 @@ export default function GoodTable({
             <TableRow
               key={query?._id}
               data-index={virtualRow.index}
-              ref={rowVirtualizer.measureElement}
+              ref={isMounted ? rowVirtualizer.measureElement : undefined}
               className={`
               ${
                 query?.messageStatus === "Visit"
@@ -1312,16 +1325,17 @@ export default function GoodTable({
                 </DropdownMenu>
                 <div className=" absolute right-0 top-1.5">
                   <Dialog>
-                    <DialogTrigger>
-                      <p
+                    <DialogTrigger asChild>
+                      <button
+                        type="button"
                         className={` h-[65px] w-5 flex items-center justify-center rounded-xl ${
                           query?.note && query?.note?.length > 0
                             ? "bg-gradient-to-b from-[#99f2c8] to-[#1f4037] text-slate-900"
                             : "bg-muted text-muted-foreground"
                         } text-sm font-bold `}
                       >
-                        <p className=" rotate-90">Note</p>
-                      </p>
+                        <span className="rotate-90">Note</span>
+                      </button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>

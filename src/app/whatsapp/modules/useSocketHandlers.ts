@@ -43,7 +43,8 @@ import {
   logWebRtcMediaDiagnostics,
   type OutboundCallUiState,
 } from "@/lib/whatsapp/calling";
-import { useWhatsAppSocketRooms } from "./useWhatsAppSocketRooms";
+import { useWhatsAppSocketRooms, useWhatsAppConversationRoom } from "./useWhatsAppSocketRooms";
+import { WHATSAPP_EVENTS } from "@/lib/pusher";
 import { showDesktopNotification } from "@/lib/whatsapp/browserDesktopNotify";
 import { toast as whatsAppToastFn } from "@/hooks/use-toast";
 import {
@@ -80,6 +81,13 @@ type SocketMessagePayload = {
   source?: string;
 };
 
+type SessionUpdatedPayload = {
+  conversationId: string;
+  sessionExpiresAt: string;
+  lastCustomerMessageAt: string;
+  isSessionActive: boolean;
+};
+
 type WhatsAppNewMessagePayload = {
   eventId?: string;
   userId?: string;
@@ -87,6 +95,8 @@ type WhatsAppNewMessagePayload = {
   businessPhoneId?: string;
   isRetarget?: boolean;
   lastMessagePreview?: string | null;
+  lastCustomerMessageAt?: string | Date;
+  sessionExpiresAt?: string | Date;
   message?: SocketMessagePayload;
 };
 
@@ -208,6 +218,8 @@ export interface UseSocketHandlersParams {
   allowedPhoneConfigs: ChannelPhoneConfig[];
   /** True once GET /api/whatsapp/phone-configs has settled (avoids empty-then-loaded room churn). */
   phoneConfigsReady: boolean;
+  /** Open conversation — joins conversation-{id} room for session_updated events */
+  activeConversationId?: string | null;
   refs: SocketHandlerRefs;
   actions: SocketHandlerActions;
 }
@@ -239,7 +251,15 @@ function buildSocketRoomKeys(configs: ChannelPhoneConfig[]): {
 
 export function useSocketHandlers(params: UseSocketHandlersParams): void {
   const queryClient = useQueryClient();
-  const { socket, token, allowedPhoneConfigs, phoneConfigsReady, refs, actions } = params;
+  const {
+    socket,
+    token,
+    allowedPhoneConfigs,
+    phoneConfigsReady,
+    activeConversationId,
+    refs,
+    actions,
+  } = params;
 
   const {
     seenEventIdsRef,
@@ -305,6 +325,8 @@ export function useSocketHandlers(params: UseSocketHandlersParams): void {
     channelIds,
     phoneConfigsReady,
   );
+
+  useWhatsAppConversationRoom(socket, activeConversationId);
 
   const handleWhatsAppMessage = useCallback(
     (data: WhatsAppNewMessagePayload) => {
@@ -381,6 +403,14 @@ export function useSocketHandlers(params: UseSocketHandlersParams): void {
         message.direction === "outgoing"
           ? (message.status as Message["status"]) || "sent"
           : undefined;
+      // Inbound customer message re-opens the 24h free-form window — prefer the
+      // server-computed sessionExpiresAt, fall back to message timestamp + 24h.
+      const incomingSessionExpiresAt = isIncomingMessage
+        ? new Date(
+            data.sessionExpiresAt ??
+              new Date(message.timestamp!).getTime() + 24 * 60 * 60 * 1000,
+          )
+        : null;
 
       if (isCurrentConversation) {
         addToLRUSet(seenMessageIdsRef.current, message.messageId!);
@@ -508,6 +538,7 @@ export function useSocketHandlers(params: UseSocketHandlersParams): void {
               ...(isIncomingMessage
                 ? {
                     lastCustomerMessageAt: new Date(message.timestamp!),
+                    sessionExpiresAt: incomingSessionExpiresAt!,
                     ...(data.businessPhoneId
                       ? {
                           lastCustomerMessageAtByPhone: {
@@ -554,6 +585,12 @@ export function useSocketHandlers(params: UseSocketHandlersParams): void {
               lastMessageId: message.messageId,
               lastMessageStatus: outgoingStatus,
               unreadCount: newUnreadCount,
+              ...(isIncomingMessage
+                ? {
+                    lastCustomerMessageAt: new Date(message.timestamp!),
+                    sessionExpiresAt: incomingSessionExpiresAt!,
+                  }
+                : {}),
             } as Conversation;
           }),
         );
@@ -569,6 +606,7 @@ export function useSocketHandlers(params: UseSocketHandlersParams): void {
               ...(isIncomingMessage
                 ? {
                     lastCustomerMessageAt: new Date(message.timestamp!),
+                    sessionExpiresAt: incomingSessionExpiresAt!,
                     ...(data.businessPhoneId
                       ? {
                           lastCustomerMessageAtByPhone: {
@@ -1194,6 +1232,22 @@ export function useSocketHandlers(params: UseSocketHandlersParams): void {
       }
     };
 
+    const applySessionPatch = (data: SessionUpdatedPayload) => {
+      if (!data.conversationId) return;
+      applyConversationPatch(data.conversationId, {
+        sessionExpiresAt: new Date(data.sessionExpiresAt),
+        lastCustomerMessageAt: new Date(data.lastCustomerMessageAt),
+      } as Partial<Conversation>);
+    };
+
+    const handleSessionUpdated = (data: SessionUpdatedPayload) => {
+      applySessionPatch(data);
+    };
+
+    const handleConversationSessionUpdated = (data: SessionUpdatedPayload) => {
+      applySessionPatch(data);
+    };
+
     socket.on("whatsapp-new-conversation", handleNewConversation);
     socket.on("whatsapp-message-status", handleMessageStatus);
     socket.on("whatsapp-message-echo", handleMessageEcho);
@@ -1206,6 +1260,11 @@ export function useSocketHandlers(params: UseSocketHandlersParams): void {
     socket.on("whatsapp-app-state-sync", handleAppStateSync);
     socket.on("whatsapp-conversation-read", handleConversationRead);
     socket.on("whatsapp-conversation-update", handleConversationUpdate);
+    socket.on(WHATSAPP_EVENTS.SESSION_UPDATED, handleSessionUpdated);
+    socket.on(
+      WHATSAPP_EVENTS.CONVERSATION_SESSION_UPDATED,
+      handleConversationSessionUpdated,
+    );
 
     return () => {
       if (convUpdateTimerRef.current) {
@@ -1224,6 +1283,11 @@ export function useSocketHandlers(params: UseSocketHandlersParams): void {
       socket.off("whatsapp-app-state-sync", handleAppStateSync);
       socket.off("whatsapp-conversation-read", handleConversationRead);
       socket.off("whatsapp-conversation-update", handleConversationUpdate);
+      socket.off(WHATSAPP_EVENTS.SESSION_UPDATED, handleSessionUpdated);
+      socket.off(
+        WHATSAPP_EVENTS.CONVERSATION_SESSION_UPDATED,
+        handleConversationSessionUpdated,
+      );
     };
   }, [
     socket,

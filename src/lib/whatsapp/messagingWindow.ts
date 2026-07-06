@@ -5,6 +5,8 @@ export type MessagingWindowConversation = {
   lastCustomerMessageAt?: Date | string | null;
   lastCustomerMessageAtByPhone?: Record<string, Date | string> | Map<string, Date> | null;
   businessPhoneId?: string;
+  sessionExpiresAt?: Date | string | null;
+  lastIncomingMessageTime?: Date | string | null;
 };
 
 export function isWithinMessagingWindow(
@@ -13,6 +15,73 @@ export function isWithinMessagingWindow(
 ): boolean {
   if (!lastCustomerMessageAt) return false;
   return nowMs - lastCustomerMessageAt.getTime() < MESSAGING_WINDOW_MS;
+}
+
+function toTimeMs(value: Date | string | null | undefined): number | null {
+  if (!value) return null;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * Single source of truth for "can the business send free-form messages?".
+ * Uses sessionExpiresAt when present, then falls back to anchor timestamps.
+ */
+export function isSessionActive(
+  conversation: MessagingWindowConversation | null | undefined,
+  _outboundPhoneId?: string | null,
+  nowMs: number = Date.now(),
+): boolean {
+  if (!conversation) return false;
+
+  if (conversation.sessionExpiresAt) {
+    return new Date(conversation.sessionExpiresAt).getTime() > nowMs;
+  }
+
+  if (conversation.lastCustomerMessageAt) {
+    return (
+      new Date(conversation.lastCustomerMessageAt).getTime() + MESSAGING_WINDOW_MS >
+      nowMs
+    );
+  }
+
+  if (conversation.lastIncomingMessageTime) {
+    return (
+      new Date(conversation.lastIncomingMessageTime).getTime() + MESSAGING_WINDOW_MS >
+      nowMs
+    );
+  }
+
+  return false;
+}
+
+/** Epoch ms for the effective window anchor (newest known inbound customer time). */
+export function resolveSessionAnchorMs(
+  conversation: MessagingWindowConversation | null | undefined,
+  outboundPhoneId?: string | null,
+): number | null {
+  if (!conversation) return null;
+
+  const candidates: number[] = [];
+
+  const sessionExpiresMs = toTimeMs(conversation.sessionExpiresAt);
+  if (sessionExpiresMs !== null) {
+    candidates.push(sessionExpiresMs - MESSAGING_WINDOW_MS);
+  }
+  const customerMs = toTimeMs(conversation.lastCustomerMessageAt);
+  if (customerMs !== null) candidates.push(customerMs);
+  const incomingMs = toTimeMs(conversation.lastIncomingMessageTime);
+  if (incomingMs !== null) candidates.push(incomingMs);
+
+  const phone = outboundPhoneId?.trim();
+  if (phone) {
+    const fromMap = toTimeMs(
+      readByPhoneTimestamp(conversation.lastCustomerMessageAtByPhone, phone),
+    );
+    if (fromMap !== null) candidates.push(fromMap);
+  }
+
+  return candidates.length > 0 ? Math.max(...candidates) : null;
 }
 
 export function getMessagingWindowRemaining(

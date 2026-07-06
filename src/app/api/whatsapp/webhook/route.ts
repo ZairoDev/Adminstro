@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
+import { emitWhatsAppEvent, emitSessionWindowUpdated, WHATSAPP_EVENTS } from "@/lib/pusher";
 import { sendExpoPushToEmployee } from "@/services/push/expoPush.service";
 import { getWhatsAppToken, WHATSAPP_API_BASE_URL, WHATSAPP_ACCESS_ROLES } from "@/lib/whatsapp/config";
 import {
@@ -31,6 +31,7 @@ import {
 } from "@/services/whatsapp-calling/callHistoryService";
 import { getEligibleUsersForNotification } from "@/lib/whatsapp/notificationRecipients";
 import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
+import { MESSAGING_WINDOW_MS } from "@/lib/whatsapp/messagingWindow";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +93,45 @@ function canPushForMessage(messageId: string, userId: string): boolean {
     }
   }
   return true;
+}
+
+/**
+ * Refresh the 24h customer-care window fields for an inbound customer message.
+ *
+ * Runs UNCONDITIONALLY for every inbound message (unlike the preview-metadata
+ * update below, which is guarded by lastMessageTime ordering). Uses $max so the
+ * update is monotonic and idempotent: out-of-order webhook deliveries or an
+ * outbound message racing ahead of the inbound webhook can never prevent the
+ * session window from opening. Without this, a conversation whose
+ * lastMessageTime was already newer than the customer's timestamp would skip
+ * lastCustomerMessageAt/sessionExpiresAt entirely and show "Template only"
+ * even though the customer just replied.
+ */
+async function refreshMessagingWindowFields(
+  conversationId: unknown,
+  phoneNumberId: string,
+  timestamp: Date,
+): Promise<{ sessionExpiresAt: Date; lastCustomerMessageAt: Date }> {
+  const sessionExpiresAt = new Date(timestamp.getTime() + MESSAGING_WINDOW_MS);
+  try {
+    await WhatsAppConversation.updateOne(
+      { _id: conversationId },
+      {
+        $max: {
+          lastCustomerMessageAt: timestamp,
+          lastIncomingMessageTime: timestamp,
+          [`lastCustomerMessageAtByPhone.${phoneNumberId}`]: timestamp,
+          sessionExpiresAt,
+        },
+        $set: {
+          lastMessageDirection: "incoming",
+        },
+      },
+    );
+  } catch (err) {
+    console.error("❌ [webhook] failed to refresh messaging window fields:", err);
+  }
+  return { sessionExpiresAt, lastCustomerMessageAt: timestamp };
 }
 
 function buildIncomingMessagePushPreview(messageType: string, displayText: string): string {
@@ -276,6 +316,10 @@ export async function POST(req: NextRequest) {
     );
 
     await connectDb();
+
+    void import("@/lib/whatsapp/webhookLog/persist")
+      .then((m) => m.persistWebhookPayload(body))
+      .catch((err) => console.warn("[webhook-log] persist failed:", err));
 
     const signature = req.headers.get('x-hub-signature-256');
 
@@ -673,7 +717,8 @@ async function processIncomingMessage(
       return;
     }
     const senderName = contact?.profile?.name || senderPhone;
-    const timestamp = new Date(parseInt(message.timestamp) * 1000);
+    const inboundTimestampMs = parseInt(message.timestamp, 10) * 1000;
+    const timestamp = new Date(inboundTimestampMs);
 
     // Validate required fields
     if (!senderPhone || !phoneNumberId) {
@@ -718,6 +763,7 @@ async function processIncomingMessage(
       ...(leadLocation ? { participantLocation: leadLocation } : {}),
       snapshotSource: leadLocation ? "trusted" : "untrusted",
       isInboundWebhook: true,
+      inboundTimestampMs,
     }) as any; // Cast to any to access Mongoose document properties like _id
 
     // ============================================================
@@ -970,6 +1016,19 @@ async function processIncomingMessage(
     // DUPLICATE MESSAGE HANDLING: Full idempotency using modifiedCount
     // ============================================================
     if (!isNewMessage) {
+      // Always refresh the 24h window first — monotonic, unaffected by the
+      // lastMessageTime ordering guard below.
+      const sessionFields = await refreshMessagingWindowFields(
+        conversation._id,
+        phoneNumberId,
+        timestamp,
+      );
+      emitSessionWindowUpdated({
+        conversationId: conversation._id.toString(),
+        sessionExpiresAt: sessionFields.sessionExpiresAt,
+        lastCustomerMessageAt: sessionFields.lastCustomerMessageAt,
+      });
+
       // Use updateOne with modifiedCount for precise idempotency check
       const conversationUpdateResult = await WhatsAppConversation.updateOne(
         {
@@ -984,21 +1043,18 @@ async function processIncomingMessage(
             lastMessageId: message.id,
             lastMessageContent: displayText.substring(0, 100),
             lastMessageTime: timestamp,
-            lastIncomingMessageTime: timestamp,
             lastMessageDirection: "incoming",
-            lastCustomerMessageAt: timestamp,
-            [`lastCustomerMessageAtByPhone.${phoneNumberId}`]: timestamp,
-            sessionExpiresAt: new Date(timestamp.getTime() + 24 * 60 * 60 * 1000),
           }
         }
       );
 
-      // CRITICAL IDEMPOTENCY CHECK: Skip all processing if nothing changed
+      // CRITICAL IDEMPOTENCY CHECK: Skip notification processing if preview unchanged
       if (conversationUpdateResult.modifiedCount === 0) {
         logWebhookNotify("duplicate.idempotent-skip", {
           messageId: message.id,
           conversationId: conversation._id.toString(),
           reason: "conversation_not_modified_true_duplicate",
+          note: "session_window_fields_still_refreshed",
         });
         return;
       }
@@ -1101,6 +1157,8 @@ async function processIncomingMessage(
           participantName: senderName,
           lastMessagePreview: displayText.substring(0, 100),
           lastMessageTime: timestamp,
+          lastCustomerMessageAt: timestamp,
+          sessionExpiresAt: new Date(timestampMs + MESSAGING_WINDOW_MS),
           message: {
             id: existingMessage._id,
             messageId: message.id,
@@ -1235,6 +1293,13 @@ async function processIncomingMessage(
     // ============================================================
     // UPDATE CONVERSATION METADATA
     // ============================================================
+    // Session window fields first — unconditional and monotonic.
+    const sessionFields = await refreshMessagingWindowFields(
+      conversation._id,
+      phoneNumberId,
+      timestamp,
+    );
+
     const updatedConversation = await WhatsAppConversation.findOneAndUpdate(
       { 
         _id: conversation._id,
@@ -1247,17 +1312,20 @@ async function processIncomingMessage(
         lastMessageId: message.id,
         lastMessageContent: displayText.substring(0, 100),
         lastMessageTime: timestamp,
-        lastIncomingMessageTime: timestamp,
         lastMessageDirection: "incoming",
-        lastCustomerMessageAt: timestamp,
-        [`lastCustomerMessageAtByPhone.${phoneNumberId}`]: timestamp,
-        sessionExpiresAt: new Date(timestamp.getTime() + 24 * 60 * 60 * 1000),
       },
       { new: true }
     );
 
     if (!updatedConversation) {
-      console.log(`⏭️ [SKIP] Conversation ${conversation._id} already has newer message`);
+      console.log(
+        `⏭️ [SKIP] Conversation ${conversation._id} preview already newer (window fields refreshed)`,
+      );
+      emitSessionWindowUpdated({
+        conversationId: conversation._id.toString(),
+        sessionExpiresAt: sessionFields.sessionExpiresAt,
+        lastCustomerMessageAt: sessionFields.lastCustomerMessageAt,
+      });
       return;
     }
 
@@ -1281,6 +1349,13 @@ async function processIncomingMessage(
     // GET ELIGIBLE USERS AND EMIT NOTIFICATIONS
     // ============================================================
     const eligibleUsers = await getEligibleUsersForNotification(conversation);
+
+    emitSessionWindowUpdated({
+      conversationId: conversation._id.toString(),
+      sessionExpiresAt: sessionFields.sessionExpiresAt,
+      lastCustomerMessageAt: sessionFields.lastCustomerMessageAt,
+      userIds: eligibleUsers.map((u) => u.userId),
+    });
 
     logWebhookNotify("new.eligible-users", {
       messageId: message.id,
@@ -1383,6 +1458,8 @@ async function processIncomingMessage(
         participantName: senderName,
         lastMessagePreview: displayText.substring(0, 100),
         lastMessageTime: timestamp,
+        lastCustomerMessageAt: timestamp,
+        sessionExpiresAt: new Date(timestampMs + MESSAGING_WINDOW_MS),
         createdAt: firstMessageTime,
         isArchived,
         isRetarget: !!(conversation as any).isRetarget,
@@ -1538,13 +1615,42 @@ async function processStatusUpdate(status: any) {
     const existingMessage = await WhatsAppMessage.findOne({ messageId });
     if (!existingMessage) {
       console.log("ℹ️ [webhook] status for unknown messageId (not in DB)", { messageId });
+      const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
+        await import("@/lib/whatsapp/webhookInspector");
+      if (isWebhookInspectorActive()) {
+        void recordStatusProcessingOutcome({
+          messageId,
+          newStatus,
+          recipientId,
+          messageFound: false,
+          databaseUpdated: false,
+          outcome: "message_not_found",
+        });
+      }
       return;
     }
 
     const previousStatus = existingMessage.status;
 
     // Skip if status hasn't changed (duplicate webhook) - silent skip
-    if (previousStatus === newStatus) return;
+    if (previousStatus === newStatus) {
+      const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
+        await import("@/lib/whatsapp/webhookInspector");
+      if (isWebhookInspectorActive()) {
+        void recordStatusProcessingOutcome({
+          messageId,
+          newStatus,
+          recipientId,
+          previousStatus,
+          messageFound: true,
+          mongoMessageId: existingMessage._id.toString(),
+          conversationId: existingMessage.conversationId?.toString(),
+          databaseUpdated: false,
+          outcome: "duplicate_status",
+        });
+      }
+      return;
+    }
 
     // Build update object with statusEvents push and failureReason
     const updateObj: any = { 
@@ -1576,7 +1682,24 @@ async function processStatusUpdate(status: any) {
       { new: true }
     );
 
-    if (!message) return; // Status already up-to-date - silent skip
+    if (!message) {
+      const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
+        await import("@/lib/whatsapp/webhookInspector");
+      if (isWebhookInspectorActive()) {
+        void recordStatusProcessingOutcome({
+          messageId,
+          newStatus,
+          recipientId,
+          previousStatus,
+          messageFound: true,
+          mongoMessageId: existingMessage._id.toString(),
+          conversationId: existingMessage.conversationId?.toString(),
+          databaseUpdated: false,
+          outcome: "db_update_skipped",
+        });
+      }
+      return; // Status already up-to-date - silent skip
+    }
 
     console.log("✅ [webhook] status persisted", {
       messageId,
@@ -1623,7 +1746,7 @@ async function processStatusUpdate(status: any) {
     }
 
     // STEP 9: Only emit socket event if status actually changed
-    const emitted = emitWhatsAppEvent(WHATSAPP_EVENTS.MESSAGE_STATUS_UPDATE, {
+    emitWhatsAppEvent(WHATSAPP_EVENTS.MESSAGE_STATUS_UPDATE, {
       conversationId: message.conversationId.toString(),
       messageId,
       status: newStatus,
@@ -1633,10 +1756,37 @@ async function processStatusUpdate(status: any) {
       errorCode: errorCode || null,
     });
 
-    // Only log actual status changes (not duplicates)
+    const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
+      await import("@/lib/whatsapp/webhookInspector");
+    if (isWebhookInspectorActive()) {
+      void recordStatusProcessingOutcome({
+        messageId,
+        newStatus,
+        recipientId,
+        previousStatus,
+        messageFound: true,
+        mongoMessageId: message._id.toString(),
+        conversationId: message.conversationId?.toString(),
+        databaseUpdated: true,
+        outcome: "db_updated",
+      });
+    }
 
   } catch (error) {
     console.error("Error processing status update:", error);
+    const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
+      await import("@/lib/whatsapp/webhookInspector");
+    if (isWebhookInspectorActive()) {
+      void recordStatusProcessingOutcome({
+        messageId: status?.id ?? "unknown",
+        newStatus: status?.status ?? "unknown",
+        recipientId: status?.recipient_id,
+        messageFound: false,
+        databaseUpdated: false,
+        outcome: "processing_error",
+        inspectorErrors: [error instanceof Error ? error.message : String(error)],
+      });
+    }
   }
 }
 

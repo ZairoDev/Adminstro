@@ -14,7 +14,9 @@
     "migrate:employee-sessions-to-slots": "tsx src/scripts/migrateEmployeeSessionsToSlots.ts",
     "migrate:employee-mobile-pins": "tsx src/scripts/generateMissingEmployeeMobilePins.ts",
     "seed:whatsapp-phone-locations": "tsx src/scripts/seedWhatsAppPhoneLocations.ts",
-    "backfill:whatsapp-metrics": "tsx src/scripts/backfillWhatsAppConversationMetrics.ts"
+    "backfill:whatsapp-metrics": "tsx src/scripts/backfillWhatsAppConversationMetrics.ts",
+    "backfill:whatsapp-session": "tsx src/scripts/backfillWhatsAppSessionExpiry.ts",
+    "analyze:whatsapp-delivery": "tsx src/scripts/analyzeWhatsAppDeliveryStatus.ts"
   },
   "dependencies": {
     "@apollo/client": "^3.11.7",

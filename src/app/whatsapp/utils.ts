@@ -1,8 +1,8 @@
 import type { Conversation, Message, Template } from "./types";
 import {
-  getLastCustomerMessageAtForPhone,
   getMessagingWindowRemaining,
-  isWithinMessagingWindow,
+  isSessionActive,
+  resolveSessionAnchorMs,
 } from "@/lib/whatsapp/messagingWindow";
 
  /** Business line for outbound API calls — from the open chat, not a sidebar phone tab. */
@@ -342,6 +342,7 @@ export function getConversationTemplateContext(conversation: Conversation | null
   return { clientName, locationName };
 }
 
+/** UI gate for free-form messaging — delegates to the shared isSessionActive. */
 export function isMessageWindowActive(
   conversation: Conversation | null,
   outboundPhoneId?: string | null,
@@ -351,17 +352,28 @@ export function isMessageWindowActive(
   }
 
   const phone = outboundPhoneId ?? getConversationBusinessPhoneId(conversation);
-  const lastAt = getLastCustomerMessageAtForPhone(conversation, phone);
-  return isWithinMessagingWindow(lastAt);
+  return isSessionActive(conversation, phone);
 }
 
 export function getRemainingHours(
   conversation: Conversation | null,
   outboundPhoneId?: string | null,
 ): { hours: number; minutes: number } | null {
+  if (!conversation) return null;
+
+  const sessionExp = conversation.sessionExpiresAt
+    ? new Date(conversation.sessionExpiresAt)
+    : null;
+  if (sessionExp && sessionExp.getTime() > Date.now()) {
+    const msRemaining = sessionExp.getTime() - Date.now();
+    const hours = Math.floor(msRemaining / (1000 * 60 * 60));
+    const minutes = Math.floor((msRemaining % (1000 * 60 * 60)) / (1000 * 60));
+    return { hours, minutes };
+  }
+
   const phone = outboundPhoneId ?? getConversationBusinessPhoneId(conversation);
-  const lastAt = getLastCustomerMessageAtForPhone(conversation, phone);
-  return getMessagingWindowRemaining(lastAt);
+  const anchorMs = resolveSessionAnchorMs(conversation, phone);
+  return getMessagingWindowRemaining(anchorMs !== null ? new Date(anchorMs) : null);
 }
 
 /** Stable React Query key for template lists (channel/WABA routing, not conversationId). */

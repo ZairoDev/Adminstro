@@ -15,6 +15,10 @@ export const WHATSAPP_EVENTS = {
   // Conversation events
   NEW_CONVERSATION: "whatsapp-new-conversation",
   CONVERSATION_UPDATE: "whatsapp-conversation-update",
+  /** 24h messaging window reopened/extended after inbound customer message */
+  SESSION_UPDATED: "session_updated",
+  /** Inbox-wide session field patch (whatsapp-room) */
+  CONVERSATION_SESSION_UPDATED: "conversation_session_updated",
      
   // Typing indicator
   TYPING_START: "whatsapp-typing-start",
@@ -139,6 +143,25 @@ export const emitWhatsAppEvent = (event: string, data: WhatsAppEmitPayload) => {
     } catch (emitErr) {
       console.error(`Error during socket emit for event ${event}:`, emitErr);
     }
+
+    if (event === WHATSAPP_EVENTS.MESSAGE_STATUS_UPDATE) {
+      void import("@/lib/whatsapp/webhookInspector/record").then(
+        ({ recordStatusSocketEmit }) =>
+          recordStatusSocketEmit({
+            conversationId:
+              typeof data.conversationId === "string"
+                ? data.conversationId
+                : undefined,
+            messageId:
+              typeof data.messageId === "string" ? data.messageId : undefined,
+            status: typeof data.status === "string" ? data.status : undefined,
+            recipientId:
+              typeof data.recipientId === "string"
+                ? data.recipientId
+                : undefined,
+          }),
+      );
+    }
   } catch (error) {
     console.error("Error emitting socket event:", error);
   }
@@ -158,5 +181,33 @@ export const emitToRoom = (room: string, event: string, data: any) => {
     }
   } catch (error) {
     console.error("Error emitting to room:", error);
+  }
+};
+
+/** Push updated 24h session window fields to agents viewing this conversation or inbox. */
+export const emitSessionWindowUpdated = (params: {
+  conversationId: string;
+  sessionExpiresAt: Date;
+  lastCustomerMessageAt: Date;
+  userIds?: string[];
+}) => {
+  const payload = {
+    conversationId: params.conversationId,
+    sessionExpiresAt: params.sessionExpiresAt.toISOString(),
+    lastCustomerMessageAt: params.lastCustomerMessageAt.toISOString(),
+    isSessionActive: params.sessionExpiresAt.getTime() > Date.now(),
+  };
+
+  emitToRoom(
+    `conversation-${params.conversationId}`,
+    WHATSAPP_EVENTS.SESSION_UPDATED,
+    payload,
+  );
+  emitToRoom("whatsapp-room", WHATSAPP_EVENTS.CONVERSATION_SESSION_UPDATED, payload);
+
+  if (params.userIds?.length) {
+    for (const userId of params.userIds) {
+      emitWhatsAppEventToUser(userId, WHATSAPP_EVENTS.SESSION_UPDATED, payload);
+    }
   }
 };

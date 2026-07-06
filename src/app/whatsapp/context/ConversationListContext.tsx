@@ -51,6 +51,7 @@ import {
 import {
   canUseInboxLocationFilter,
   getInboxLocationFilterOptionsForUser,
+  usesGlobalInboxLocationList,
 } from "@/lib/whatsapp/participantLocationPrivileges";
 import {
   buildWhatsAppInboxUrl,
@@ -481,6 +482,9 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
       if (token?.role === "SuperAdmin" && value !== "all") {
         persistSuperAdminLocationFilter(value);
       }
+      if (token?.role === "LeadGen-TeamLead" && value !== "all") {
+        persistSuperAdminLocationFilter(value);
+      }
       if (value !== "all") {
         setAdminQueue(false);
       }
@@ -694,14 +698,24 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     setAdminLocationFilter(defaults.adminLocationFilter);
     setAdminQueue(defaults.adminQueue);
 
-    if (defaults.shouldSyncUrl && defaults.urlLocationFilter) {
-      router.replace(
-        buildWhatsAppInboxUrl(searchParams, {
-          locationFilter: defaults.urlLocationFilter,
-          adminQueue: false,
-        }),
-        { scroll: false },
-      );
+    if (defaults.shouldSyncUrl) {
+      if (defaults.adminQueue) {
+        router.replace(
+          buildWhatsAppInboxUrl(searchParams, {
+            adminQueue: true,
+            locationFilter: null,
+          }),
+          { scroll: false },
+        );
+      } else if (defaults.urlLocationFilter) {
+        router.replace(
+          buildWhatsAppInboxUrl(searchParams, {
+            locationFilter: defaults.urlLocationFilter,
+            adminQueue: false,
+          }),
+          { scroll: false },
+        );
+      }
     }
 
     inboxFiltersReadyRef.current = true;
@@ -726,17 +740,20 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     if (fromUrl) {
       setAdminLocationFilter(fromUrl);
       setAdminQueue(false);
-      if (token?.role === "SuperAdmin") {
+      if (
+        token?.role === "SuperAdmin" ||
+        token?.role === "LeadGen-TeamLead"
+      ) {
         persistSuperAdminLocationFilter(fromUrl);
       }
     }
   }, [searchParams, token?.role]);
 
-  const superAdminLocationsEnabled =
-    inboxFiltersReady && token?.role === "SuperAdmin";
+  const globalInboxLocationsEnabled =
+    inboxFiltersReady && usesGlobalInboxLocationList(token?.role || "");
 
   const { data: monthlyTargetLocations } = useMonthlyTargetLocations(
-    superAdminLocationsEnabled,
+    globalInboxLocationsEnabled,
   );
 
   const adminLocationOptions = useMemo(() => {
@@ -748,7 +765,7 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
       allotedArea: token.allotedArea,
     };
 
-    if (token.role === "SuperAdmin") {
+    if (usesGlobalInboxLocationList(token.role || "")) {
       return monthlyTargetLocations ?? EMPTY_ADMIN_LOCATION_OPTIONS;
     }
 

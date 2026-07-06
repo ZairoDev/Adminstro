@@ -20,6 +20,7 @@ import {
   MapPinOff,
   ListChecks,
   PanelRight,
+  Webhook,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -52,6 +53,7 @@ import {
 import { toast } from "sonner";
 import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
 import type { ConversationReader } from "@/lib/whatsapp/conversationReaders";
+import { WebhookLogButton } from "./WebhookLogDialog";
 
 interface ChatHeaderProps {
   conversation: Conversation;
@@ -186,11 +188,20 @@ export const ChatHeader = memo(function ChatHeader({
     setIsMounted(true);
   }, []);
 
+  // Re-evaluate the 24h window every minute so the countdown stays live and
+  // the badge flips to/from "Template only" without a page refresh.
+  const [windowTick, setWindowTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setWindowTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const outboundPhoneId = getConversationBusinessPhoneId(conversation);
   const remaining = useMemo(
     () =>
       isMounted ? getRemainingHours(conversation, outboundPhoneId) : null,
-    [conversation, isMounted, outboundPhoneId],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- windowTick forces minute-level re-evaluation
+    [conversation, isMounted, outboundPhoneId, windowTick],
   );
 
   const maskRules = phoneMaskRules ?? {
@@ -540,6 +551,15 @@ export const ChatHeader = memo(function ChatHeader({
             </Button>
           )}
 
+          <WebhookLogButton
+            participantPhone={conversation.participantPhone}
+            className={cn(
+              "text-[#54656f] dark:text-[#aebac1] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full",
+              "h-11 w-11 min-h-[44px] min-w-[44px]",
+              "md:h-10 md:w-10 md:min-h-0 md:min-w-0",
+            )}
+          />
+
           <Button
             variant="ghost"
             size="icon"
@@ -586,6 +606,15 @@ export const ChatHeader = memo(function ChatHeader({
               <DropdownMenuItem onClick={onRefreshTemplates}>
                 <RefreshCw className={cn("h-4 w-4 mr-3", templatesLoading && "animate-spin")} />
                 Refresh templates
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  document.getElementById("webhook-log-trigger")?.click();
+                }}
+              >
+                <Webhook className="h-4 w-4 mr-3" />
+                Webhook activity
               </DropdownMenuItem>
               {onOpenDisposition && (
                 <DropdownMenuItem onClick={onOpenDisposition}>

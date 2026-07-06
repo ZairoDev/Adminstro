@@ -19,6 +19,18 @@ const CITY_TEAM_ASSIGN_ROLES = [
   "LeadGen-TeamLead",
 ] as const;
 
+/** Inbox city dropdown uses monthly-target list (not allotedArea). */
+export const WHATSAPP_GLOBAL_INBOX_LOCATION_ROLES = [
+  "SuperAdmin",
+  "LeadGen-TeamLead",
+] as const;
+
+export function usesGlobalInboxLocationList(role: string): boolean {
+  return (WHATSAPP_GLOBAL_INBOX_LOCATION_ROLES as readonly string[]).includes(
+    (role || "").trim() as (typeof WHATSAPP_GLOBAL_INBOX_LOCATION_ROLES)[number],
+  );
+}
+
 export function isWhatsAppLocationCoordinatorEmail(email?: string): boolean {
   return (email || "").trim().toLowerCase() === WHATSAPP_LOCATION_ASSIGN_EMAIL;
 }
@@ -27,6 +39,7 @@ export function isWhatsAppLocationCoordinatorEmail(email?: string): boolean {
 export function canAccessWhatsAppAdminQueue(user: LocationAssignUser): boolean {
   const role = (user.role || "").trim();
   if ((FULL_ACCESS_ROLES as readonly string[]).includes(role)) return true;
+  if (role === "LeadGen-TeamLead") return true;
   return isWhatsAppLocationCoordinatorEmail(user.email);
 }
 
@@ -39,7 +52,7 @@ export function getUserScopedLocationKeys(user: LocationAssignUser): string[] {
 
 /** Inbox city dropdown when user has 2+ assigned locations (SuperAdmin uses monthly-target list). */
 export function canUseInboxLocationFilter(user: LocationAssignUser): boolean {
-  if ((user.role || "").trim() === "SuperAdmin") return true;
+  if (usesGlobalInboxLocationList(user.role || "")) return true;
   return getUserScopedLocationKeys(user).length > 1;
 }
 

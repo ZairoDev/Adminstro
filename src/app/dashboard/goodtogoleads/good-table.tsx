@@ -15,7 +15,7 @@ import {
   Image,
   Map,
   Mail,
-  MailCheck,
+  MailCheck,                
   MailX,
   MessageSquareX,
   MessageSquareOff,
@@ -27,7 +27,6 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useAreaFilterTargets } from "@/hooks/useAreaFilterTargets";
 import { useRouter, usePathname } from "next/navigation";
-
 import {
   Table,
   TableRow,
@@ -78,8 +77,7 @@ import CustomTooltip from "../../../components/CustomToolTip";
 import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
 import { EditableCell } from "@/app/spreadsheet/components/cells/EditableCell";
 import { TooltipEditableCell } from "./ToolTipEditableProp";
-import { AreaSelect } from "@/components/leadTableSearch/page";
-import { options } from "@fullcalendar/core/preact.js";
+import { AreaSelect } from "@/components/leadTableSearch/page";import { options } from "@fullcalendar/core/preact.js";
 import { FaWhatsapp } from "react-icons/fa6";
 import { getWhatsAppErrorInfo, getActionMessage } from "@/lib/whatsapp/errorHandler";
 import { buildWhatsAppLeadOpenUrl } from "@/lib/whatsapp/leadOpenUrl";

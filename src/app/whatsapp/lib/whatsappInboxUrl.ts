@@ -143,6 +143,16 @@ export function resolveInboxLocationDefaults(
     };
   }
 
+  // LeadGen-TeamLead: no allotedArea — default to admin queue (unassigned location chats).
+  if (role === "LeadGen-TeamLead") {
+    return {
+      adminLocationFilter: "all",
+      adminQueue: true,
+      shouldSyncUrl: true,
+      urlLocationFilter: null,
+    };
+  }
+
   const allotted = token.allotedArea;
   if (allotted) {
     const area =

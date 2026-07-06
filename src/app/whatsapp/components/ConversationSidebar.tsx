@@ -61,6 +61,7 @@ import { WhatsAppPhoneMaskForm } from "./WhatsAppPhoneMaskForm";
 import {
   canAccessWhatsAppAdminQueue,
   canUseInboxLocationFilter,
+  usesGlobalInboxLocationList,
 } from "@/lib/whatsapp/participantLocationPrivileges";
 import { type WhatsAppPhoneMaskRules } from "@/lib/whatsapp/phoneMask";
 import { SetParticipantLocationDialog } from "./SetParticipantLocationDialog";
@@ -291,8 +292,9 @@ export const ConversationSidebar = memo(function ConversationSidebar({
     email: userEmail,
     allotedArea: userAreas,
   };
+  const globalLocationList = usesGlobalInboxLocationList(userRole || "");
   const showInboxLocationFilter =
-    userRole === "SuperAdmin" || canUseInboxLocationFilter(inboxPrivilegeUser);
+    globalLocationList || canUseInboxLocationFilter(inboxPrivilegeUser);
   const showAdminQueueMenu =
     userRole === "SuperAdmin" ||
     userRole === "Admin" ||
@@ -971,14 +973,14 @@ export const ConversationSidebar = memo(function ConversationSidebar({
                     )}
                     aria-label={
                       adminLocationFilter === "all"
-                        ? userRole === "SuperAdmin"
+                        ? globalLocationList
                           ? "All locations"
                           : "All my locations"
                         : adminLocationFilter
                     }
                     title={
                       adminLocationFilter === "all"
-                        ? userRole === "SuperAdmin"
+                        ? globalLocationList
                           ? "All locations"
                           : "All my locations"
                         : adminLocationFilter
@@ -995,7 +997,7 @@ export const ConversationSidebar = memo(function ConversationSidebar({
                         "bg-[#e9edef] dark:bg-[#2a3942]",
                     )}
                   >
-                    {userRole === "SuperAdmin" ? "All locations" : "All my locations"}
+                    {globalLocationList ? "All locations" : "All my locations"}
                   </DropdownMenuItem>
                   {adminLocationOptions.map((loc) => (
                     <DropdownMenuItem

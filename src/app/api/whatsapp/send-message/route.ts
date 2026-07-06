@@ -734,6 +734,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    void import("@/lib/whatsapp/webhookInspector").then(({ recordSendApiEvent }) =>
+      recordSendApiEvent({
+        messageId: whatsappMessageId,
+        customerPhone: formattedPhone,
+        businessPhoneId: sendPhoneNumberId,
+        conversationId: conversation._id.toString(),
+        source: "send-message",
+      }),
+    );
+
     // Update conversation last message
     await WhatsAppConversation.findByIdAndUpdate(conversation._id, {
       lastMessageId: whatsappMessageId,

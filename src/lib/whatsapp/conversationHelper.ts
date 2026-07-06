@@ -15,6 +15,7 @@ import {
 import type { WhatsAppChannelRentalType } from "@/lib/whatsapp/rentalTypeAccess";
 import type { WhatsappChannelType } from "@/models/whatsappChannel";
 import WhatsappChannel from "@/models/whatsappChannel";
+import { MESSAGING_WINDOW_MS } from "@/lib/whatsapp/messagingWindow";
 
 type SnapshotSource = "trusted" | "untrusted";
 
@@ -32,6 +33,8 @@ interface ConversationSnapshotInput {
   channelType?: WhatsappChannelType;
   snapshotSource?: SnapshotSource;
   isInboundWebhook?: boolean;
+  /** Meta inbound message time (ms) — used on create to avoid server-time race */
+  inboundTimestampMs?: number;
 }
 
 function isDuplicateKeyError(err: unknown): boolean {
@@ -293,6 +296,11 @@ export async function findOrCreateConversationWithSnapshot(
     ? locationKeyFromDisplay(participantLocation)
     : "";
   const now = new Date();
+  const inboundAnchor =
+    input.isInboundWebhook && input.inboundTimestampMs
+      ? new Date(input.inboundTimestampMs)
+      : null;
+  const messageTime = inboundAnchor ?? now;
 
   const createPayload: Record<string, unknown> = {
     participantPhone: normalizedPhone,
@@ -305,9 +313,19 @@ export async function findOrCreateConversationWithSnapshot(
     status: "active",
     unreadCount: 0,
     referenceLink: referenceLink || undefined,
-    lastMessageTime: now,
-    firstMessageTime: now,
+    lastMessageTime: messageTime,
+    firstMessageTime: messageTime,
     identityVersion: 2,
+    ...(inboundAnchor
+      ? {
+          lastCustomerMessageAt: inboundAnchor,
+          lastIncomingMessageTime: inboundAnchor,
+          sessionExpiresAt: new Date(
+            input.inboundTimestampMs! + MESSAGING_WINDOW_MS,
+          ),
+          [`lastCustomerMessageAtByPhone.${businessPhoneId}`]: inboundAnchor,
+        }
+      : {}),
     ...(channel
       ? channelStampFields(channel, effectiveChannelType)
       : {

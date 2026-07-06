@@ -1561,6 +1561,7 @@ function WhatsAppChatInner() {
     token: token ?? null,
     allowedPhoneConfigs,
     phoneConfigsReady,
+    activeConversationId: selectedConversation?._id ?? null,
     refs: {
       seenEventIdsRef,
       seenMessageIdsRef,

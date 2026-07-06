@@ -239,6 +239,12 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <List size={18} />,
     },
     {
+      path: "/whatsapp",
+      label: "WhatsApp",
+      Icon: <MessageSquare size={18} />,
+      openInNewTab: true,
+    },
+    {
       path: "/spreadsheet",
       label: "Owner Sheet Long Term",
       Icon: <PencilLine size={18} />,

@@ -697,7 +697,8 @@ processIncomingMessage
   → download media → Bunny CDN (image/video/audio/document)
   → audio: ffmpeg transcode if needed
   → WhatsAppMessage.create (idempotent on messageId+businessPhoneId)
-  → update conversation preview + metrics
+  → refreshMessagingWindowFields ($max, unconditional — 24h window fields)
+  → update conversation preview + metrics (guarded by lastMessageTime ordering)
   → guest initiation state machine updates
   → auto guest-questions template (business rule)
   → getEligibleUsersForNotification
@@ -760,11 +761,28 @@ Filters approved templates by owner/guest context before `send-template` and tem
 
 | File | Layer |
 |------|-------|
-| `messagingWindowServer.ts` | Server: anchor from last customer message per phone |
-| `messagingWindow.ts` | Client: window display in composer |
-| `utils.ts` | UI helpers |
+| `messagingWindowServer.ts` | Server: authoritative per-line anchor for outbound sends (`resolveMessagingWindowAnchor` queries newest inbound `WhatsAppMessage` on the resolved line) |
+| `messagingWindow.ts` | Shared: `isSessionActive` / `resolveSessionAnchorMs` — single source of truth for "free-form allowed?" |
+| `utils.ts` (whatsapp app) | UI helpers: `isMessageWindowActive`, `getRemainingHours` — thin delegates to `messagingWindow.ts` |
 
 Outside 24h window: only template messages allowed (Meta policy).
+
+**Window state fields on `WhatsAppConversation`** (all updated by the inbound webhook on *every* customer message):
+
+- `lastCustomerMessageAt` — newest inbound customer message (conversation level)
+- `lastCustomerMessageAtByPhone.{phoneNumberId}` — per business line (Meta scopes the window per line)
+- `lastIncomingMessageTime` — same anchor, kept for analytics
+- `sessionExpiresAt` — `lastCustomerMessageAt + 24h`, denormalized for queries/UI
+
+**Webhook update semantics (critical):** the window fields are written by `refreshMessagingWindowFields()` using a MongoDB `$max` update that runs *unconditionally* for every inbound message, **before** the `lastMessageTime`-ordering guard that protects the preview metadata (`lastMessageContent`, `lastMessageTime`, ...). This makes the window update monotonic and immune to out-of-order webhook delivery or an outbound message racing ahead of the inbound webhook. (Historical bug: the window fields used to live inside the guarded update, so a conversation whose `lastMessageTime` was already newer than the customer's timestamp silently skipped `lastCustomerMessageAt`/`sessionExpiresAt` and stayed in "Template only" forever.)
+
+**Client evaluation:** `resolveSessionAnchorMs` takes the newest of `lastCustomerMessageAtByPhone[line]`, `lastCustomerMessageAt`, `lastIncomingMessageTime`, and `sessionExpiresAt − 24h`, which makes the UI resilient to legacy documents missing any one field. The UI errs on the permissive side; `send-message/route.ts` re-checks the window authoritatively per line and rejects with `WINDOW_CLOSED` if needed.
+
+**Real-time:** after every inbound message the webhook emits `session_updated` (to `conversation-{id}` + per-user rooms) and `conversation_session_updated` (to `whatsapp-room`). Payload includes `sessionExpiresAt` and `lastCustomerMessageAt`. The client joins `conversation-{id}` via `join-conversation` when a thread is open (`useWhatsAppConversationRoom`), and `useSocketHandlers` patches session fields immediately — the composer unlocks and the "Template only" badge disappears without refresh. `whatsapp-new-message` also carries the same fields. `ChatHeader` re-evaluates the countdown on a 60-second tick.
+
+**Conversation creation:** `findOrCreateConversationWithSnapshot` accepts `inboundTimestampMs` on inbound webhooks so new conversations are created with `lastMessageTime` aligned to Meta's timestamp (not server `Date.now()`), pre-seeding window fields and eliminating the first-message race at the source.
+
+**Monitoring:** `GET /api/admin/session-health` (SuperAdmin) reports `inboundNoAnchor`, `anchorNoExpiry`, `recentBroken`, and `activeWindows`. All issue counts should be 0 after deploy + backfill.
 
 ---
 

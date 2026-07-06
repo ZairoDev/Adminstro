@@ -17,6 +17,7 @@ import { getPhoneIdsForUserAreasSync } from "@/lib/whatsapp/phoneAreaConfigServi
 import {
   canAccessWhatsAppAdminQueue,
   getUserScopedLocationKeys,
+  usesGlobalInboxLocationList,
 } from "@/lib/whatsapp/participantLocationPrivileges";
 import {
   buildRentalTypeVisibilityClause,
@@ -373,7 +374,7 @@ export function applyInboxLocationFilter(
   if (!key || key === SUPERADMIN_INBOX_LOCATION_ALL) return;
 
   const role = (user.role || "").trim();
-  if (role === "SuperAdmin") {
+  if (usesGlobalInboxLocationList(role)) {
     query.participantLocationKey = key;
     return;
   }

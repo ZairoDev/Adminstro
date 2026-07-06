@@ -143,3 +143,35 @@ export function useWhatsAppSocketRooms(
     };
   }, [socket, currentUserId, retargetPhoneId, roomKey, phoneConfigsReady]);
 }
+
+/** Join the active conversation room for targeted session_updated events. */
+export function useWhatsAppConversationRoom(
+  socket: Socket | null,
+  conversationId: string | null | undefined,
+): void {
+  const joinedIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!socket || !conversationId) return;
+
+    const id = String(conversationId);
+    if (joinedIdRef.current && joinedIdRef.current !== id) {
+      socket.emit("leave-conversation", joinedIdRef.current);
+    }
+    joinedIdRef.current = id;
+    socket.emit("join-conversation", id);
+
+    const onReconnect = () => {
+      socket.emit("join-conversation", id);
+    };
+    socket.on("connect", onReconnect);
+
+    return () => {
+      socket.off("connect", onReconnect);
+      socket.emit("leave-conversation", id);
+      if (joinedIdRef.current === id) {
+        joinedIdRef.current = null;
+      }
+    };
+  }, [socket, conversationId]);
+}

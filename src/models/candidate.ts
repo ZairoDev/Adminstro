@@ -11,6 +11,8 @@ const CandidateSchema = new Schema(
     gender: { type: String, enum: ["Male", "Female", "Other", "Prefer not to say"], default: null },
     country: { type: String, required: true },
     college: { type: String, required: true },
+    /** Preferred office location chosen on the public application form (e.g. Kanpur, Noida). */
+    officeLocation: { type: String, default: null },
     position: { type: String, required: true },
     employmentType: {
       type: String,

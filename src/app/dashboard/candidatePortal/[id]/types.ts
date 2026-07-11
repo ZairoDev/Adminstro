@@ -10,6 +10,7 @@ export interface Candidate {
   city: string;
   country: string;
   college?: string;
+  officeLocation?: string | null;
   coverLetter?: string;
   linkedin?: string;
   portfolio?: string;

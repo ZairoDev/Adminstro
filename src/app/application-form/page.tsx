@@ -23,6 +23,7 @@ import Image from "next/image";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { toast } from "@/hooks/use-toast";
 import axios from "@/util/axios";
+import { OFFICE_LOCATIONS } from "@/config/officeLocations";
 
 const positions = ["LeadGen", "Sales", "Developer", "Marketing", "HR"];
 const colleges = [
@@ -87,6 +88,7 @@ export default function JobApplicationForm() {
     gender: "",
     college: colleges[0],
     otherCollege: "",
+    officeLocation: "",
     position: positions[0],
     resume: "",
     photo: "",
@@ -297,6 +299,7 @@ export default function JobApplicationForm() {
       address: "Complete Address",
       college: "College/University",
       otherCollege: "College Name",
+      officeLocation: "Preferred Office Location",
       experience: "Years of Experience",
       resume: "Resume",
       photo: "Personal Photograph",
@@ -357,6 +360,11 @@ export default function JobApplicationForm() {
       if (!firstMissingField) firstMissingField = fieldLabels.otherCollege;
     }
 
+    if (!formData.officeLocation.trim()) {
+      newErrors.officeLocation = "Preferred office location is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.officeLocation;
+    }
+
     if (!formData.experience) {
       newErrors.experience = "Experience is required";
       if (!firstMissingField) firstMissingField = fieldLabels.experience;
@@ -415,40 +423,31 @@ export default function JobApplicationForm() {
     setLoading(true);
 
     try {
-      const submitData = new FormData();
-      submitData.append("name", formData.name);
-      submitData.append("email", formData.email);
-      submitData.append("phone", `${formData.countryCode}${formData.phone}`);
-      submitData.append("experience", formData.experience);
-      submitData.append("address", formData.address);
-      submitData.append("city", formData.city);
-      submitData.append("country", formData.country);
-      submitData.append("gender", formData.gender);
-      submitData.append("college", formData.college === "Other" ? formData.otherCollege : formData.college);
-      submitData.append("position", formData.position);
-      submitData.append("coverLetter", formData.coverLetter);
-      submitData.append("linkedin", formData.linkedin);
-      submitData.append("portfolio", formData.portfolio);
-      if (formData.resume) {
-        submitData.append("resume", formData.resume);
-      }
+      const resolvedCollege =
+        formData.college === "Other"
+          ? formData.otherCollege.trim()
+          : formData.college;
 
-      if (formData.photo) {
-        submitData.append("photo", formData.photo);
-      }
+      const payload = {
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        phone: `${formData.countryCode}${formData.phone}`,
+        experience: formData.experience,
+        address: formData.address.trim(),
+        city: formData.city.trim(),
+        country: formData.country.trim(),
+        gender: formData.gender,
+        college: resolvedCollege,
+        officeLocation: formData.officeLocation,
+        position: formData.position,
+        coverLetter: formData.coverLetter,
+        linkedin: formData.linkedin,
+        portfolio: formData.portfolio,
+        resume: formData.resume,
+        photo: formData.photo,
+      };
 
-      // const response = await fetch("/api/job-application/setInterview", {
-      //   method: "POST",
-      //   body: submitData,
-      // });
-
-      const response  = await axios.post("/api/job-application/setInterview", formData);
-
-      // const result = await response.json();
-
-      // if (!response.ok) {
-      //   throw new Error(result.error || "Failed to submit application");
-      // }
+      await axios.post("/api/job-application/setInterview", payload);
 
       setSubmitted(true);
       setIsFormSubmitted(true);
@@ -466,6 +465,7 @@ export default function JobApplicationForm() {
           gender: "",
           college: colleges[0],
           otherCollege: "",
+          officeLocation: "",
           position: availableRoles[0] ?? positions[0],
           resume: "",
           photo: "",
@@ -912,6 +912,36 @@ export default function JobApplicationForm() {
                   )}
                 </div>
               )}
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                  <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                  Preferred Office Location <span className="text-destructive">*</span>
+                </label>
+                <select
+                  name="officeLocation"
+                  value={formData.officeLocation}
+                  onChange={handleChange}
+                  className={`w-full bg-input border ${
+                    errors.officeLocation
+                      ? "border-destructive/50"
+                      : "border-transparent"
+                  } rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all`}
+                >
+                  <option value="">Select office location</option>
+                  {OFFICE_LOCATIONS.map((location) => (
+                    <option key={location} value={location}>
+                      {location}
+                    </option>
+                  ))}
+                </select>
+                {errors.officeLocation && (
+                  <p className="text-destructive text-xs flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {errors.officeLocation}
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Professional Information Section */}

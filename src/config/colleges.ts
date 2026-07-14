@@ -24,6 +24,5 @@ export const COLLEGES_LIST = [
   "Brahmanand College",
   "Jagran College of Arts Science and Commerce",
   "DAMS Kanpur",
-  "Other"
 ];
 

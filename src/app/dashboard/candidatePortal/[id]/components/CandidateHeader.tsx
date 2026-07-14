@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Download, Linkedin, Globe, Briefcase, Clock, MapPin, GraduationCap, IndianRupee } from "lucide-react";
+import { ArrowLeft, Download, Linkedin, Globe, Briefcase, Clock, MapPin, GraduationCap, IndianRupee, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Candidate } from "../types";
@@ -66,6 +66,12 @@ export function CandidateHeader({ candidate }: CandidateHeaderProps) {
                   <MapPin className="w-3.5 h-3.5" />
                   {candidate.city}, {candidate.country}
                 </span>
+                {candidate.officeLocation && (
+                  <span className="flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5" />
+                    Office: {candidate.officeLocation}
+                  </span>
+                )}
                 {candidate.college && (
                   <span className="flex items-center gap-1">
                     <GraduationCap className="w-3.5 h-3.5" />

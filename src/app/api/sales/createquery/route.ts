@@ -228,7 +228,7 @@ export async function POST(req: NextRequest) {
       leadDocuments,
     } = await req.json();
 
-    // ✅ Check for duplicates (within same area, less than 30 days old)
+    // ✅ Check for duplicates (phoneNo is globally unique)
     const existingQuery = await Query.findOne({ phoneNo });
     if (existingQuery) {
       const today = new Date();
@@ -243,6 +243,12 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
+
+      // Unique index on phoneNo — cannot insert another row for same phone
+      return NextResponse.json(
+        { error: "Phone number already exists" },
+        { status: 400 }
+      );
     }
 
     // ✅ Create new lead
@@ -296,17 +302,45 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error: unknown) {
-    const err = error as { status?: number; code?: string; message?: string };
-    if (err?.status === 401 || err?.code) {
+    const err = error as {
+      status?: number;
+      code?: string | number;
+      message?: string;
+      keyPattern?: Record<string, unknown>;
+    };
+
+    // Only real auth failures → 401 (axios interceptor logs the user out on 401).
+    // Never map Mongo/business errors (e.g. duplicate key code 11000) to 401.
+    const AUTH_CODES = new Set([
+      "NO_TOKEN",
+      "INVALID_TOKEN",
+      "USER_NOT_FOUND",
+      "SESSION_INVALID",
+      "AUTH_EXPIRED",
+      "AUTH_FAILED",
+    ]);
+    if (
+      err?.status === 401 ||
+      (typeof err?.code === "string" && AUTH_CODES.has(err.code))
+    ) {
       return NextResponse.json(
-        { code: err.code || "AUTH_FAILED" },
-        { status: err.status || 401 }
+        { code: typeof err.code === "string" ? err.code : "AUTH_FAILED" },
+        { status: 401 },
       );
     }
+
+    // Unique phone index collision
+    if (err?.code === 11000) {
+      return NextResponse.json(
+        { error: "Phone number already exists" },
+        { status: 400 },
+      );
+    }
+
     console.error("❌ Error creating lead:", error);
     return NextResponse.json(
       { error: err?.message || "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -14,6 +14,7 @@ import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversatio
 import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { leadGenCreateHandoffFields } from "@/lib/whatsapp/leadGenHandoff";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 import {
   explainOutboundSendCredentialsFailure,
@@ -354,6 +355,7 @@ export async function POST(req: NextRequest) {
         channelType: phoneChannel.channelType,
         rentalType: phoneChannel.rentalType,
         snapshotSource: isRetarget ? "untrusted" : "trusted",
+        ...leadGenCreateHandoffFields(userRole),
       });
 
       const convLean = conversation.toObject ? conversation.toObject() : conversation;

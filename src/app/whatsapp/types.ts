@@ -132,6 +132,11 @@ export interface Conversation {
   hasActiveReminder?: boolean;
   reminderAt?: Date | string;
   leadQueryId?: string;
+  /**
+   * LeadGen → Sales ownership.
+   * false = LeadGen working; true/undefined = Sales owns.
+   */
+  handedToSales?: boolean;
 }
 
 export interface Template {

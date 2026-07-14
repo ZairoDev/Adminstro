@@ -1218,6 +1218,20 @@ export function useSocketHandlers(params: UseSocketHandlersParams): void {
         }
 
         case "transfer": {
+          // LeadGen → Sales handoff: drop from LeadGen list immediately; Sales refetch picks it up.
+          if (data.handedToSales === true && conversationId) {
+            patchConversationsList((prev) =>
+              prev.filter(
+                (conv) => String(conv._id) !== String(conversationId),
+              ),
+            );
+            if (
+              selectedConversationRef.current?._id === conversationId
+            ) {
+              threadActionsRef.current.setSelectedConversation(null);
+              clearWhatsAppMessagesCache(queryClient, conversationId);
+            }
+          }
           scheduleConversationListRefetch();
           break;
         }

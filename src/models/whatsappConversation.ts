@@ -117,6 +117,15 @@ export interface IWhatsAppConversation extends Document {
   retargetTemplateName?: string;
   retargetAgentId?: mongoose.Types.ObjectId | null;
 
+  /**
+   * LeadGen → Sales ownership handoff.
+   * - false: LeadGen is working this guest chat (Sales cannot see it)
+   * - true / unset: Sales owns it (default — existing production chats = Sales)
+   */
+  handedToSales?: boolean;
+  handedToSalesAt?: Date | null;
+  handedToSalesBy?: mongoose.Types.ObjectId | null;
+
   // Multi-portfolio / multi-WABA routing (additive — populated from the
   // WhatsappChannel that owns this conversation's businessPhoneId).
   // These fields are FROZEN at creation; never updated when admin remaps channels.
@@ -424,6 +433,19 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
     },
     handoverCompletedAt: {
       type: Date,
+      default: null,
+    },
+    handedToSales: {
+      type: Boolean,
+      index: true,
+    },
+    handedToSalesAt: {
+      type: Date,
+      default: null,
+    },
+    handedToSalesBy: {
+      type: Schema.Types.ObjectId,
+      ref: "Employees",
       default: null,
     },
     retargetTemplateName: {

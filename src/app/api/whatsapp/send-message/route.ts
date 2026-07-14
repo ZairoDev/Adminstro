@@ -13,6 +13,7 @@ import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
 import crypto from "crypto";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
+import { leadGenCreateHandoffFields } from "@/lib/whatsapp/leadGenHandoff";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 import {
   assertCanInitiateGuestConversation,
@@ -630,6 +631,7 @@ export async function POST(req: NextRequest) {
           rentalType: phoneChannel.rentalType,
           channelType: phoneChannel.channelType,
           snapshotSource: "trusted",
+          ...leadGenCreateHandoffFields(userRole),
         });
       }
     }

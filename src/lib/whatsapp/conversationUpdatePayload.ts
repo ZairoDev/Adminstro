@@ -23,6 +23,8 @@ export type WhatsAppConversationUpdatePayload = {
   queryId?: string;
   merged?: boolean;
   sourceConversationId?: string;
+  /** LeadGen → Sales handoff flag (present on transfer emits). */
+  handedToSales?: boolean;
 };
 
 /** Infer update type for legacy emits that omit `type`. */

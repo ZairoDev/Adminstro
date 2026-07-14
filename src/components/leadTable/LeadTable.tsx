@@ -1063,27 +1063,25 @@ const handleSave = async (
                       }
                     }}
                   />
-                  {path?.toString().trim().split("/")[2] !== "createquery" ? (
-                    <Link
-                      target="_blank"
-                      href={buildWhatsAppLeadOpenUrl({
-                        phone: query?.phoneNo != null ? String(query.phoneNo) : "",
-                        name: query?.name,
-                        profilePic: (query as { profilePicture?: string }).profilePicture,
-                        location: query?.location,
-                        conversationType: "guest",
-                        bookingTerm: query?.bookingTerm,
-                      })}
-                      rel="noopener noreferrer"
-                      onClick={() => {
-                        if (query.isViewed === false) {
-                          IsView(query?._id, index);
-                        }
-                      }}
-                    >
-                      <FaWhatsapp className="cursor-pointer text-green-500" size={22} />
-                    </Link>
-                  ): null}
+                  <Link
+                    target="_blank"
+                    href={buildWhatsAppLeadOpenUrl({
+                      phone: query?.phoneNo != null ? String(query.phoneNo) : "",
+                      name: query?.name,
+                      profilePic: (query as { profilePicture?: string }).profilePicture,
+                      location: query?.location,
+                      conversationType: "guest",
+                      bookingTerm: query?.bookingTerm,
+                    })}
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      if (query.isViewed === false) {
+                        IsView(query?._id, index);
+                      }
+                    }}
+                  >
+                    <FaWhatsapp className="cursor-pointer text-green-500" size={22} />
+                  </Link>
                 </div>
               </TableCell>
               <TableCell>

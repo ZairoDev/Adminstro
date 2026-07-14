@@ -13,6 +13,7 @@ import { getChannelByPhoneNumberId, getOutboundTokenForPhoneId } from "@/lib/wha
 import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 import { buildWhatsAppRoomPayload } from "@/lib/whatsapp/socketPayload";
+import { leadGenCreateHandoffFields } from "@/lib/whatsapp/leadGenHandoff";
 
 connectDb();
 
@@ -177,6 +178,7 @@ export async function POST(req: NextRequest) {
         rentalType: phoneChannel.rentalType,
         channelType: phoneChannel.channelType,
         snapshotSource: "trusted",
+        ...leadGenCreateHandoffFields(userRole),
       });
     }
 

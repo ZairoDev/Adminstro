@@ -21,6 +21,7 @@ import {
   ListChecks,
   PanelRight,
   Webhook,
+  Handshake,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -54,6 +55,17 @@ import { toast } from "sonner";
 import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
 import type { ConversationReader } from "@/lib/whatsapp/conversationReaders";
 import { WebhookLogButton } from "./WebhookLogDialog";
+import { canForwardLeadToSales } from "@/lib/whatsapp/leadGenHandoff";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ChatHeaderProps {
   conversation: Conversation;
@@ -94,6 +106,7 @@ interface ChatHeaderProps {
   onOpenReminder?: () => void;
   onToggleCrmPanel?: () => void;
   crmPanelOpen?: boolean;
+  onForwardedToSales?: (conversationId: string) => void;
 }
 
 interface Reader extends ConversationReader {}
@@ -134,11 +147,14 @@ export const ChatHeader = memo(function ChatHeader({
   onOpenReminder,
   onToggleCrmPanel,
   crmPanelOpen = false,
+  onForwardedToSales,
 }: ChatHeaderProps) {
   const [isMounted, setIsMounted] = useState(false);
   const readers = readersProp;
   const [settingLocation, setSettingLocation] = useState(false);
   const [locationInput, setLocationInput] = useState("");
+  const [forwardConfirmOpen, setForwardConfirmOpen] = useState(false);
+  const [forwardingToSales, setForwardingToSales] = useState(false);
   const [assignableLocations, setAssignableLocations] = useState<
     Array<{ displayName: string; locationKey: string }>
   >([]);
@@ -249,6 +265,33 @@ export const ChatHeader = memo(function ChatHeader({
     }
   };
 
+  const canForwardToSales =
+    canForwardLeadToSales(userRole) &&
+    conversation.handedToSales === false &&
+    conversation.source !== "internal" &&
+    !conversation.isInternal;
+
+  const handleForwardToSales = async () => {
+    if (!conversation._id || forwardingToSales) return;
+    setForwardingToSales(true);
+    try {
+      await axios.post("/api/whatsapp/conversations/forward-to-sales", {
+        conversationId: conversation._id,
+      });
+      toast.success("Lead forwarded to Sales team");
+      setForwardConfirmOpen(false);
+      onForwardedToSales?.(conversation._id);
+    } catch (err: unknown) {
+      const message =
+        axios.isAxiosError(err) && err.response?.data?.error
+          ? String(err.response.data.error)
+          : "Failed to forward lead";
+      toast.error(message);
+    } finally {
+      setForwardingToSales(false);
+    }
+  };
+
   const canChangeType =
     !conversation.isInternal &&
     conversation.source !== "internal" &&
@@ -262,6 +305,7 @@ export const ChatHeader = memo(function ChatHeader({
         : phone;
 
   return (
+    <>
     <div className="flex flex-col bg-[#f0f2f5] dark:bg-[#06090a] border-b border-[#e9edef] dark:border-[#222d34]">
       <div
         className={cn(
@@ -496,6 +540,27 @@ export const ChatHeader = memo(function ChatHeader({
             </Button>
           )}
 
+          {canForwardToSales && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setForwardConfirmOpen(true)}
+              disabled={forwardingToSales}
+              title="Forward lead to Sales"
+              className={cn(
+                "text-[#008069] dark:text-[#00a884] hover:bg-[#e9edef] dark:hover:bg-[#374045] rounded-full",
+                "h-11 w-11 min-h-[44px] min-w-[44px]",
+                "md:h-10 md:w-10 md:min-h-0 md:min-w-0",
+              )}
+            >
+              {forwardingToSales ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Handshake className="h-5 w-5" />
+              )}
+            </Button>
+          )}
+
           {onTransferLead && availablePhoneConfigs.length > 1 && (
             <Button
               variant="ghost"
@@ -603,6 +668,12 @@ export const ChatHeader = memo(function ChatHeader({
                 <Phone className="h-4 w-4 mr-3" />
                 Copy phone number
               </DropdownMenuItem>
+              {canForwardToSales && (
+                <DropdownMenuItem onClick={() => setForwardConfirmOpen(true)}>
+                  <Handshake className="h-4 w-4 mr-3" />
+                  Forward to Sales
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={onRefreshTemplates}>
                 <RefreshCw className={cn("h-4 w-4 mr-3", templatesLoading && "animate-spin")} />
                 Refresh templates
@@ -680,5 +751,30 @@ export const ChatHeader = memo(function ChatHeader({
         </div>
       )}
     </div>
+
+    <AlertDialog open={forwardConfirmOpen} onOpenChange={setForwardConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Forward lead to Sales?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This hands the conversation to the Sales team. You will no longer
+            see this chat in your WhatsApp inbox.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={forwardingToSales}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => {
+              e.preventDefault();
+              void handleForwardToSales();
+            }}
+            disabled={forwardingToSales}
+          >
+            {forwardingToSales ? "Forwarding…" : "Forward to Sales"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 });

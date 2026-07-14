@@ -543,6 +543,13 @@ export const MessageThreadContainer = memo(function MessageThreadContainer({
                 showCrmActions && !isMobile ? () => setShowCrmPanel((p) => !p) : undefined
               }
               crmPanelOpen={showCrmPanel}
+              onForwardedToSales={(conversationId) => {
+                patchConversationsList((prev) =>
+                  prev.filter((c) => c._id !== conversationId),
+                );
+                threadActionsRef.current.setSelectedConversation(null);
+                if (isMobile) onMobileBack();
+              }}
             />
 
             <MessageList

@@ -32,6 +32,8 @@ import {
 import { IQuery } from "@/util/type";
 import Link from "next/link";
 import { ScrollArea } from "./ui/scroll-area";
+import { FaWhatsapp } from "react-icons/fa6";
+import { buildWhatsAppLeadOpenUrl } from "@/lib/whatsapp/leadOpenUrl";
 
 export default function QueryCard(query: IQuery) {
   const InfoItem = ({
@@ -146,17 +148,20 @@ export default function QueryCard(query: IQuery) {
                     {query.priority} Priority
                   </Badge>
                 </div>
-                <div className="flex  items-center text-sm text-muted-foreground mt-1">
+                <div className="flex items-center text-sm text-muted-foreground mt-1 gap-2">
                   <Link
-                    href={`https://wa.me/${query.phoneNo}?text=Hi%20${query.name}%2C%20my%20name%20is%20Myself%2C%20and%20how%20are%20you%20doing%3F`}
+                    href={buildWhatsAppLeadOpenUrl({
+                      phone: query.phoneNo != null ? String(query.phoneNo) : "",
+                      name: query.name,
+                      location: query.location,
+                      conversationType: "guest",
+                      bookingTerm: query.bookingTerm,
+                    })}
                     target="_blank"
                     rel="noopener noreferrer"
+                    title="Open in WhatsApp CRM"
                   >
-                    <img
-                      src="https://vacationsaga.b-cdn.net/assets/wsp.png"
-                      alt="icon image"
-                      className="h-10 w-10 mr-1"
-                    />
+                    <FaWhatsapp className="text-green-500" size={28} />
                   </Link>
                   {query.phoneNo}
                 </div>

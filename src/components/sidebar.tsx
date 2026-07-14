@@ -196,6 +196,12 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Property List",
       Icon: <List size={18} />,
     },
+    {
+      path: "/whatsapp",
+      label: "WhatsApp",
+      Icon: <MessageSquare size={18} />,
+      openInNewTab: true,
+    },
   ],
   "LeadGen-TeamLead": [
     {

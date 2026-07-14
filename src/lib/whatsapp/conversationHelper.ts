@@ -35,6 +35,11 @@ interface ConversationSnapshotInput {
   isInboundWebhook?: boolean;
   /** Meta inbound message time (ms) — used on create to avoid server-time race */
   inboundTimestampMs?: number;
+  /**
+   * LeadGen ownership. Only applied on NEW create — unset leaves Sales default.
+   * Pass `false` when LeadGen starts a guest chat.
+   */
+  handedToSales?: boolean;
 }
 
 function isDuplicateKeyError(err: unknown): boolean {
@@ -333,6 +338,7 @@ export async function findOrCreateConversationWithSnapshot(
           ...(rentalType ? { rentalType } : {}),
           ...(effectiveChannelType ? { channelType: effectiveChannelType } : {}),
         }),
+    ...(input.handedToSales === false ? { handedToSales: false } : {}),
   };
 
   try {

@@ -15,6 +15,7 @@ import crypto from "crypto";
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
 import { isSalesWhatsAppRole } from "@/lib/whatsapp/config";
+import { leadGenCreateHandoffFields } from "@/lib/whatsapp/leadGenHandoff";
 import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 import { getChannelByPhoneNumberId, getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
 import fs from "fs/promises";
@@ -427,6 +428,7 @@ export async function POST(req: NextRequest) {
           channelType: phoneChannel.channelType,
           rentalType: phoneChannel.rentalType,
           snapshotSource: "trusted",
+          ...leadGenCreateHandoffFields(userRole),
         });
       }
     }

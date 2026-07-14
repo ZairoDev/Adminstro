@@ -14,6 +14,7 @@ import {
   conversationMatchesStaffVisibilityAsync,
   getUserAreasFromToken,
 } from "./locationAccess";
+import { canAccessByLeadGenHandoff } from "./leadGenHandoff";
 
 type AccessUser = {
   id?: string;
@@ -37,6 +38,7 @@ export const CONVERSATION_ACCESS_SELECT = [
   "isRetarget",
   "retargetStage",
   "assignedAgent",
+  "handedToSales",
 ].join(" ");
 
 function parseUserAreas(user: AccessUser): string[] {
@@ -120,6 +122,10 @@ export function canAccessConversation(user: AccessUser, conversation: Record<str
     return evaluateRetargetAccess(user, conversation, hasPhoneAccess);
   }
 
+  if (!canAccessByLeadGenHandoff(userRole, conversation.handedToSales)) {
+    return false;
+  }
+
   return canUserSeeConversation(user, conversation);
 }
 
@@ -157,6 +163,10 @@ export async function canAccessConversationAsync(
       }
     }
     return evaluateRetargetAccess(normalized, conversation, hasPhoneAccess);
+  }
+
+  if (!canAccessByLeadGenHandoff(userRole, conversation.handedToSales)) {
+    return false;
   }
 
   return conversationMatchesStaffVisibilityAsync(normalized, conversation);

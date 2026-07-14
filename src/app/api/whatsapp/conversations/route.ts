@@ -40,6 +40,10 @@ import {
   resolveMaskRulesForToken,
 } from "@/lib/whatsapp/phoneMask";
 import {
+  isLeadGenInboxRestrictedRole,
+  leadGenCreateHandoffFields,
+} from "@/lib/whatsapp/leadGenHandoff";
+import {
   getGuestOutboundStatsByConversationIds,
   mergeGuestOutboundStats,
 } from "@/lib/whatsapp/guestOutboundStats";
@@ -631,6 +635,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (
+      existingSameAccount &&
+      isLeadGenInboxRestrictedRole(userRole) &&
+      (existingSameAccount as { handedToSales?: boolean }).handedToSales !== false
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This conversation belongs to the Sales team. LeadGen can only open chats they are still working on.",
+          code: "HANDED_TO_SALES",
+        },
+        { status: 403 },
+      );
+    }
+
     // Find or create conversation with snapshot semantics.
     // This path is considered a trusted creation flow (manual / lead).
     const conversation = await findOrCreateConversationWithSnapshot({
@@ -645,6 +664,7 @@ export async function POST(req: NextRequest) {
       rentalType: conversationRentalType,
       channelType: effectiveChannelType ?? undefined,
       snapshotSource: "trusted",
+      ...leadGenCreateHandoffFields(userRole),
     });
 
     return NextResponse.json({

@@ -11,6 +11,7 @@ import { canAccessWhatsAppAdminQueue } from "./participantLocationPrivileges";
 import { resolveLabelFilterMongo } from "./crmLabels";
 import type { WhatsAppToken } from "./apiContext";
 import { normalizeWhatsAppToken } from "./apiContext";
+import { applyLeadGenHandoffInboxFilter } from "./leadGenHandoff";
 
 export type InboxListParams = {
   status?: string;
@@ -91,6 +92,8 @@ export function buildInboxListQuery(
     });
     query.$and = and;
   }
+
+  applyLeadGenHandoffInboxFilter(query, userRole);
 
   return query;
 }
@@ -174,6 +177,8 @@ export async function buildInboxListQueryAsync(
     });
     query.$and = and;
   }
+
+  applyLeadGenHandoffInboxFilter(query, userRole);
 
   return query;
 }

@@ -34,6 +34,16 @@ import axios from "@/util/axios";
     position: string;
     status: string;
     employmentType?: "fulltime" | "intern" | null;
+    officeLocation?: string | null;
+    officeAddressId?:
+      | string
+      | {
+          _id: string;
+          name: string;
+          city: string;
+          formattedAddress?: string;
+        }
+      | null;
     selectionDetails?: {
       positionType: string;
       duration: string;
@@ -1055,13 +1065,13 @@ export default function OnboardingPage() {
         // Generate signed PDF with signature
         const agreementPayload = {
           agreementDate: new Date().toISOString(),
-          agreementCity: candidate.city ?? "Kanpur",
+          agreementCity: (candidate.officeAddressId && typeof candidate.officeAddressId === "object" && candidate.officeAddressId.city) || candidate.officeLocation || candidate.city || "",
           employeeName: candidate.name,
           fatherName: candidate.onboardingDetails?.personalDetails?.fatherName || personalDetails.fatherName || "",
           employeeAddress: candidate.address,
           designation: candidate.position,
           effectiveFrom: new Date().toISOString(),
-          postingLocation: candidate.city || "Kanpur",
+          postingLocation: (candidate.officeAddressId && typeof candidate.officeAddressId === "object" && (candidate.officeAddressId.formattedAddress || candidate.officeAddressId.city)) || candidate.officeLocation || candidate.city || "",
           salaryINR: candidate.selectionDetails?.salary 
             ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
             : "As per employment terms",
@@ -1175,7 +1185,7 @@ export default function OnboardingPage() {
       // This payload MUST include the signature URL to generate a properly signed document
       const agreementPayload = {
         agreementDate: new Date().toISOString(),
-        agreementCity: candidate.city ?? "Kanpur",
+        agreementCity: (candidate.officeAddressId && typeof candidate.officeAddressId === "object" && candidate.officeAddressId.city) || candidate.officeLocation || candidate.city || "",
 
         employeeName: candidate.name,
         fatherName: personalDetails.fatherName || candidate.fatherName,
@@ -1463,7 +1473,7 @@ export default function OnboardingPage() {
       
       const agreementPayload = {
         agreementDate: new Date().toISOString(),
-        agreementCity: candidate.city ?? "Kanpur",
+        agreementCity: (candidate.officeAddressId && typeof candidate.officeAddressId === "object" && candidate.officeAddressId.city) || candidate.officeLocation || candidate.city || "",
         employeeName: candidate.name,
         fatherName: fatherName,
         employeeAddress: candidate.address,

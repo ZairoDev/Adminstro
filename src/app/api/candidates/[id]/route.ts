@@ -11,7 +11,7 @@ export async function GET(
 
   try {
     const { id } = await params;
-    const candidate = await Candidate.findById(id);
+    const candidate = await Candidate.findById(id).populate("officeAddressId");
 
     if (!candidate) {
       return NextResponse.json(
@@ -59,6 +59,31 @@ export async function PATCH(
         updateData.interviewAttendance = body.interviewAttendance;
       }
     }
+    if (body.officeAddressId !== undefined) {
+      if (body.officeAddressId === null || body.officeAddressId === "") {
+        updateData.officeAddressId = null;
+      } else {
+        const OfficeAddress = (await import("@/models/officeAddress")).default;
+        const mongoose = await import("mongoose");
+        if (!mongoose.default.Types.ObjectId.isValid(String(body.officeAddressId))) {
+          return NextResponse.json(
+            { success: false, error: "Invalid office address id" },
+            { status: 400 },
+          );
+        }
+        const officeDoc = await OfficeAddress.findById(body.officeAddressId).select(
+          "_id city",
+        );
+        if (!officeDoc) {
+          return NextResponse.json(
+            { success: false, error: "Office address not found" },
+            { status: 404 },
+          );
+        }
+        updateData.officeAddressId = officeDoc._id;
+        updateData.officeLocation = officeDoc.city ?? null;
+      }
+    }
     // Handle additionalDocuments array
     if (body.additionalDocuments !== undefined) {
       updateData.additionalDocuments = body.additionalDocuments;
@@ -82,7 +107,7 @@ export async function PATCH(
       id,
       { $set: updateData },
       { new: true }
-    );
+    ).populate("officeAddressId");
 
     if (!candidate) {
       return NextResponse.json(

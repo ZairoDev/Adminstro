@@ -5,6 +5,11 @@ import path from "path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import Candidate from "@/models/candidate";
 import { connectDb } from "@/util/db";
+import {
+  MissingOfficeAddressError,
+  missingOfficeAddressResponse,
+  resolveCandidateOfficeAddress,
+} from "@/lib/officeAddress/resolveCandidateOfficeAddress";
 
 type Payload = {
   candidateName: string;
@@ -84,8 +89,24 @@ export async function POST(req: NextRequest) {
     // Defaults matching the original document
     const companyName = "ZAIRO INTERNATIONAL P. LTD.";
     const companyCIN = "U93090UP2017PTC089137";
-    const companyAddress =
-      "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, 208025 ";
+    if (!data.candidateId) {
+      return NextResponse.json(
+        { ...missingOfficeAddressResponse(), error: "candidateId is required to resolve office address" },
+        { status: 400 },
+      );
+    }
+    let companyAddress: string;
+    try {
+      const office = await resolveCandidateOfficeAddress({
+        candidateId: data.candidateId,
+      });
+      companyAddress = office.companyAddress;
+    } catch (err) {
+      if (err instanceof MissingOfficeAddressError) {
+        return NextResponse.json(missingOfficeAddressResponse(), { status: 400 });
+      }
+      throw err;
+    }
     const officeStart = "10:00 hrs ISD";
     const officeEnd = "18:30 hrs ISD";
 

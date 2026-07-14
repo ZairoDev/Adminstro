@@ -13,6 +13,13 @@ const CandidateSchema = new Schema(
     college: { type: String, required: true },
     /** Preferred office location chosen on the public application form (e.g. Kanpur, Noida). */
     officeLocation: { type: String, default: null },
+    /** Reference to managed OfficeAddress used in HR PDFs and interview emails. */
+    officeAddressId: {
+      type: Schema.Types.ObjectId,
+      ref: "OfficeAddress",
+      default: null,
+      index: true,
+    },
     position: { type: String, required: true },
     employmentType: {
       type: String,

@@ -5,6 +5,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { sendEmail } from "@/components/candidateEmail";
 import { type NextRequest, NextResponse } from "next/server";
 import { parseLocalDateString, normalizeToLocalMidnight, getTodayLocalMidnight } from "@/lib/utils";
+import { resolveOfficeAddressForEmail } from "@/lib/officeAddress/resolveOfficeAddressForEmail";
 
 // HR approves or rejects a reschedule request
 export async function PATCH(
@@ -109,6 +110,7 @@ export async function PATCH(
 
       // Send reschedule confirmation email
       try {
+        const officeAddress = await resolveOfficeAddressForEmail(id);
         await sendEmail({
           to: updatedCandidate.email,
           candidateName: updatedCandidate.name,
@@ -118,7 +120,7 @@ export async function PATCH(
           interviewDetails: {
             scheduledDate: rescheduleRequest.requestedDate as string,
             scheduledTime: requestedTime || "",
-            officeAddress: "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025",
+            officeAddress,
             googleMapsLink: "https://www.google.com/maps/place/Zairo+International+Private+Limited/@26.4774594,80.294648,19.7z/data=!4m14!1m7!3m6!1s0x399c393b0d80423f:0x5a0054d06432272d!2sZairo+International+Private+Limited!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg!3m5!1s0x399c393b0d80423f:0x5a0054d06432272d!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D",
           },
         });
@@ -180,7 +182,7 @@ export async function PATCH(
           interviewDetails: {
             scheduledDate: scheduledDateStr,
             scheduledTime: currentScheduledTime || "",
-            officeAddress: "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025",
+            officeAddress: await resolveOfficeAddressForEmail(id),
             googleMapsLink: "https://www.google.com/maps/place/Zairo+International+Private+Limited/@26.4774594,80.294648,19.7z/data=!4m14!1m7!3m6!1s0x399c393b0d80423f:0x5a0054d06432272d!2sZairo+International+Private+Limited!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg!3m5!1s0x399c393b0d80423f:0x5a0054d06432272d!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D",
           },
         });

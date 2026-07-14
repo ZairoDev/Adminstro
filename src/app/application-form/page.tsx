@@ -23,7 +23,7 @@ import Image from "next/image";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { toast } from "@/hooks/use-toast";
 import axios from "@/util/axios";
-import { OFFICE_LOCATIONS } from "@/config/officeLocations";
+// OFFICE_LOCATIONS replaced by DB-backed /api/office-addresses
 
 const positions = ["LeadGen", "Sales", "Developer", "Marketing", "HR"];
 const colleges = [
@@ -76,6 +76,9 @@ export default function JobApplicationForm() {
   const [resume, setResume] = useState<File | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const [availableRoles, setAvailableRoles] = useState<string[]>(positions);
+  const [officeOptions, setOfficeOptions] = useState<
+    { _id: string; name: string; city: string; formattedAddress: string }[]
+  >([]);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -88,7 +91,7 @@ export default function JobApplicationForm() {
     gender: "",
     college: colleges[0],
     otherCollege: "",
-    officeLocation: "",
+    officeAddressId: "",
     position: positions[0],
     resume: "",
     photo: "",
@@ -120,6 +123,22 @@ export default function JobApplicationForm() {
       }
     };
     fetchRoles();
+  }, []);
+
+  // Fetch active office addresses for preferred office select
+  useEffect(() => {
+    const fetchOffices = async () => {
+      try {
+        const res = await fetch("/api/office-addresses?active=1");
+        const result = await res.json();
+        if (result.success && Array.isArray(result.data)) {
+          setOfficeOptions(result.data);
+        }
+      } catch (error) {
+        console.error("Error fetching office addresses:", error);
+      }
+    };
+    fetchOffices();
   }, []);
 
   const handleChange = (
@@ -300,6 +319,7 @@ export default function JobApplicationForm() {
       college: "College/University",
       otherCollege: "College Name",
       officeLocation: "Preferred Office Location",
+      officeAddressId: "Preferred Office Location",
       experience: "Years of Experience",
       resume: "Resume",
       photo: "Personal Photograph",
@@ -360,9 +380,9 @@ export default function JobApplicationForm() {
       if (!firstMissingField) firstMissingField = fieldLabels.otherCollege;
     }
 
-    if (!formData.officeLocation.trim()) {
-      newErrors.officeLocation = "Preferred office location is required";
-      if (!firstMissingField) firstMissingField = fieldLabels.officeLocation;
+    if (!formData.officeAddressId.trim()) {
+      newErrors.officeAddressId = "Preferred office location is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.officeAddressId;
     }
 
     if (!formData.experience) {
@@ -438,7 +458,7 @@ export default function JobApplicationForm() {
         country: formData.country.trim(),
         gender: formData.gender,
         college: resolvedCollege,
-        officeLocation: formData.officeLocation,
+        officeAddressId: formData.officeAddressId,
         position: formData.position,
         coverLetter: formData.coverLetter,
         linkedin: formData.linkedin,
@@ -465,7 +485,7 @@ export default function JobApplicationForm() {
           gender: "",
           college: colleges[0],
           otherCollege: "",
-          officeLocation: "",
+          officeAddressId: "",
           position: availableRoles[0] ?? positions[0],
           resume: "",
           photo: "",
@@ -919,26 +939,26 @@ export default function JobApplicationForm() {
                   Preferred Office Location <span className="text-destructive">*</span>
                 </label>
                 <select
-                  name="officeLocation"
-                  value={formData.officeLocation}
+                  name="officeAddressId"
+                  value={formData.officeAddressId}
                   onChange={handleChange}
                   className={`w-full bg-input border ${
-                    errors.officeLocation
+                    errors.officeAddressId
                       ? "border-destructive/50"
                       : "border-transparent"
                   } rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all`}
                 >
                   <option value="">Select office location</option>
-                  {OFFICE_LOCATIONS.map((location) => (
-                    <option key={location} value={location}>
-                      {location}
+                  {officeOptions.map((office) => (
+                    <option key={office._id} value={office._id}>
+                      {office.name} — {office.city}
                     </option>
                   ))}
                 </select>
-                {errors.officeLocation && (
+                {errors.officeAddressId && (
                   <p className="text-destructive text-xs flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
-                    {errors.officeLocation}
+                    {errors.officeAddressId}
                   </p>
                 )}
               </div>

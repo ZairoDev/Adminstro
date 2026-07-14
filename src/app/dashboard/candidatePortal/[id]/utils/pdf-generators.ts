@@ -1,5 +1,9 @@
 import axios from "@/util/axios";
 import { Candidate } from "../types";
+import {
+  getCandidateOfficeCity,
+  getCandidateOfficePostingLocation,
+} from "./officeAddressFromCandidate";
 
 export const generateUnsignedTrainingAgreement = async (candidate: Candidate) => {
   if (!candidate || !candidate.name || !candidate.position) return null;
@@ -106,13 +110,13 @@ export const generateUnsignedOnboardingAgreement = async (candidate: Candidate) 
   try {
     const agreementPayload = {
       agreementDate: new Date().toISOString(),
-      agreementCity: candidate.city ?? "Kanpur",
+      agreementCity: getCandidateOfficeCity(candidate),
       employeeName: candidate.name,
       fatherName: candidate.onboardingDetails?.personalDetails?.fatherName || "",
       employeeAddress: candidate.address || "",
       designation: candidate.position,
       effectiveFrom: new Date().toISOString(),
-      postingLocation: candidate.city || "Kanpur",
+      postingLocation: getCandidateOfficePostingLocation(candidate),
       salaryINR: candidate.selectionDetails?.salary 
         ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
         : "As per employment terms",

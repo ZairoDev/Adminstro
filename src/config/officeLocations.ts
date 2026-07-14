@@ -1,4 +1,7 @@
-/** Preferred office locations shown on the public application form. */
+/**
+ * @deprecated Prefer DB-backed OfficeAddress via /api/office-addresses.
+ * Kept for reference / migration of legacy string officeLocation values.
+ */
 export const OFFICE_LOCATIONS = [
   "Kanpur",
   "Noida",

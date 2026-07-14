@@ -72,7 +72,7 @@ interface ChatHeaderProps {
   callPermissions: { canMakeCalls: boolean };
   callPermsFetched?: boolean;
   onFetchCallPermissions?: () => void;
-  callingAudio: boolean;
+  callingAudio: boolean;  
   onAudioCall: () => void;
   onRefreshTemplates: () => void;
   templatesLoading: boolean;

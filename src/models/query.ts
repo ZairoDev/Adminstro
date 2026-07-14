@@ -25,7 +25,7 @@ const querySchema = new Schema(
     phoneNo: {
       type: String,
       required: [true, "Phone number must be provided"],
-      unique: true,
+      index: true,
     },
     area: {
       type: String,

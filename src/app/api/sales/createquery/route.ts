@@ -228,7 +228,7 @@ export async function POST(req: NextRequest) {
       leadDocuments,
     } = await req.json();
 
-    // ✅ Check for duplicates (phoneNo is globally unique)
+    // ✅ Check for duplicates (within same area, less than 30 days old)
     const existingQuery = await Query.findOne({ phoneNo });
     if (existingQuery) {
       const today = new Date();
@@ -243,12 +243,6 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
-
-      // Unique index on phoneNo — cannot insert another row for same phone
-      return NextResponse.json(
-        { error: "Phone number already exists" },
-        { status: 400 }
-      );
     }
 
     // ✅ Create new lead
@@ -329,10 +323,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Unique phone index collision
     if (err?.code === 11000) {
       return NextResponse.json(
-        { error: "Phone number already exists" },
+        { error: "Duplicate record conflict" },
         { status: 400 },
       );
     }

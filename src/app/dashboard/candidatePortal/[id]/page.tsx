@@ -85,6 +85,10 @@ import { useCandidate } from "./hooks/useCandidate";
 import { useCandidateActions } from "./hooks/useCandidateActions";
 import { useCandidatePermissions } from "./hooks/useCandidatePermissions";
 import { convertTo24Hour, formatSalary } from "./utils/time-utils";
+import {
+  getCandidateOfficeCity,
+  getCandidateOfficePostingLocation,
+} from "./utils/officeAddressFromCandidate";
 import { CandidateHeader } from "./components/CandidateHeader";
 
 // Candidate interface is now imported from types.ts - removed duplicate definition
@@ -173,6 +177,10 @@ export default function CandidateDetailPage() {
   const [newRole, setNewRole] = useState("");
   const [updatingRole, setUpdatingRole] = useState(false);
   const [updatingEmploymentType, setUpdatingEmploymentType] = useState(false);
+  const [updatingOfficeAddress, setUpdatingOfficeAddress] = useState(false);
+  const [officeOptions, setOfficeOptions] = useState<
+    { _id: string; name: string; city: string }[]
+  >([]);
   const [availableRoles, setAvailableRoles] = useState<string[]>([...ROLE_OPTIONS]);
   const [unsignedTrainingAgreementUrl, setUnsignedTrainingAgreementUrl] = useState<string | null>(null);
   const [generatingUnsignedPdf, setGeneratingUnsignedPdf] = useState(false);
@@ -364,6 +372,28 @@ export default function CandidateDetailPage() {
     fetchRoles();
   }, []);
 
+  // Fetch active office addresses for HR assignment
+  useEffect(() => {
+    const fetchOffices = async () => {
+      try {
+        const response = await fetch("/api/office-addresses?active=1");
+        const result = await response.json();
+        if (result.success && Array.isArray(result.data)) {
+          setOfficeOptions(
+            result.data.map((o: { _id: string; name: string; city: string }) => ({
+              _id: o._id,
+              name: o.name,
+              city: o.city,
+            })),
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching office addresses:", error);
+      }
+    };
+    fetchOffices();
+  }, []);
+
   const generateUnsignedOfferLetter = async () => {
     if (!candidate || !candidate.name || !candidate.position) return;
     
@@ -411,13 +441,13 @@ export default function CandidateDetailPage() {
     try {
       const agreementPayload = {
         agreementDate: new Date().toISOString(),
-        agreementCity: candidate.city ?? "Kanpur",
+        agreementCity: getCandidateOfficeCity(candidate),
         employeeName: candidate.name,
         fatherName: candidate.onboardingDetails?.personalDetails?.fatherName || "",
         employeeAddress: candidate.address || "",
         designation: candidate.position,
         effectiveFrom: new Date().toISOString(),
-        postingLocation: candidate.city || "Kanpur",
+        postingLocation: getCandidateOfficePostingLocation(candidate),
         salaryINR: candidate.selectionDetails?.salary 
           ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
           : "As per employment terms",
@@ -551,6 +581,26 @@ export default function CandidateDetailPage() {
     const employmentType: EmploymentType | null =
       value === "fulltime" || value === "intern" ? value : null;
     await saveEmploymentType(employmentType);
+  };
+
+  const handleOfficeAddressChange = async (value: string) => {
+    if (!candidate || value === "unset") return;
+    setUpdatingOfficeAddress(true);
+    try {
+      const res = await axios.patch(`/api/candidates/${candidateId}`, {
+        officeAddressId: value,
+      });
+      if (res.data?.success && res.data?.data) {
+        setCandidate(res.data.data);
+        toast.success("Office address updated");
+      }
+    } catch (error: any) {
+      toast.error(
+        error?.response?.data?.error || "Failed to update office address",
+      );
+    } finally {
+      setUpdatingOfficeAddress(false);
+    }
   };
 
   const handleSelectForTrainingClick = () => {
@@ -966,6 +1016,42 @@ export default function CandidateDetailPage() {
                 <div className="flex items-start gap-2 text-sm">
                   <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                   <span className="text-foreground">{candidate?.address}</span>
+                </div>
+                <div className="space-y-2 pt-2 border-t">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                    Office Address
+                  </Label>
+                  <Select
+                    value={
+                      typeof candidate.officeAddressId === "object" &&
+                      candidate.officeAddressId?._id
+                        ? candidate.officeAddressId._id
+                        : typeof candidate.officeAddressId === "string"
+                          ? candidate.officeAddressId
+                          : "unset"
+                    }
+                    onValueChange={handleOfficeAddressChange}
+                    disabled={updatingOfficeAddress}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Select office address" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unset" disabled>
+                        Not set
+                      </SelectItem>
+                      {officeOptions.map((opt) => (
+                        <SelectItem key={opt._id} value={opt._id}>
+                          {opt.name} ({opt.city})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!candidate.officeAddressId && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      Required before generating Training / Onboarding PDFs
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2 pt-2 border-t">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wide">

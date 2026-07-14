@@ -6,6 +6,11 @@ import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import Candidate from "@/models/candidate";
 import Role from "@/models/role";
 import { connectDb } from "@/util/db";
+import {
+  MissingOfficeAddressError,
+  missingOfficeAddressResponse,
+  resolveCandidateOfficeAddress,
+} from "@/lib/officeAddress/resolveCandidateOfficeAddress";
 
 type Payload = {
   letterDate: string; // ISO date string
@@ -160,8 +165,33 @@ export async function POST(req: NextRequest) {
     // Defaults matching the original document
     const companyName = "ZAIRO INTERNATIONAL P. LTD.";
     const companyCIN = "U93090UP2017PTC089137";
-    const companyAddress =
-      "117/N/70, 3rd Floor, Kakadeo, Kanpur – 208025";
+    if (!data.candidateId) {
+      return NextResponse.json(
+        { ...missingOfficeAddressResponse(), error: "candidateId is required to resolve office address" },
+        { status: 400 },
+      );
+    }
+    let companyAddress: string;
+    let resolvedPostingLocation: string;
+    try {
+      const office = await resolveCandidateOfficeAddress({
+        candidateId: data.candidateId,
+      });
+      companyAddress = office.companyAddress;
+      const clientPosting = String(data.postingLocation || "").trim();
+      const isLegacyHardcode =
+        !clientPosting ||
+        /^117\/N\/70/i.test(clientPosting) ||
+        clientPosting.toLowerCase() === "kanpur";
+      resolvedPostingLocation = isLegacyHardcode
+        ? office.companyAddress
+        : clientPosting;
+    } catch (err) {
+      if (err instanceof MissingOfficeAddressError) {
+        return NextResponse.json(missingOfficeAddressResponse(), { status: 400 });
+      }
+      throw err;
+    }
     const officeStart = "10:00 hrs ISD";
     const officeEnd = "18:30 hrs ISD";
 
@@ -641,7 +671,7 @@ export async function POST(req: NextRequest) {
     // Section 2: Place of Posting / Transfer
     drawWrappedText("2. Place of Posting / Transfer", leftMargin, bodySize, true);
     yPosition -= paragraphSpacing;
-    const postingLocation = data.postingLocation || companyAddress;
+    const postingLocation = resolvedPostingLocation || companyAddress;
     drawWrappedText(`Your present place of work shall be ${postingLocation}. However, during the course of employment, you may be transferred or assigned to any location, project, or establishment of the Company in India or abroad at the sole discretion of the Management.`, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 

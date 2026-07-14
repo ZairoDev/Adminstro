@@ -7,6 +7,11 @@ import Candidate from "@/models/candidate";
 import Role from "@/models/role";
 import { connectDb } from "@/util/db";
 import {
+  MissingOfficeAddressError,
+  missingOfficeAddressResponse,
+  resolveCandidateOfficeAddress,
+} from "@/lib/officeAddress/resolveCandidateOfficeAddress";
+import {
   buildInternDesignation,
   formatInternStipend,
   buildInternTerms,
@@ -210,8 +215,26 @@ export async function POST(req: NextRequest) {
     // Defaults matching the original document
     const companyName = "ZAIRO INTERNATIONAL P. LTD.";
     const companyCIN = "U93090UP2017PTC089137";
-    const companyAddress =
-      "117/N/70, 3rd Floor, Kakadeo, Kanpur – 208025";
+    if (!data.candidateId) {
+      return NextResponse.json(
+        { ...missingOfficeAddressResponse(), error: "candidateId is required to resolve office address" },
+        { status: 400 },
+      );
+    }
+    let companyAddress: string;
+    let workLocation: string;
+    try {
+      const office = await resolveCandidateOfficeAddress({
+        candidateId: data.candidateId,
+      });
+      companyAddress = office.companyAddress;
+      workLocation = office.workLocation;
+    } catch (err) {
+      if (err instanceof MissingOfficeAddressError) {
+        return NextResponse.json(missingOfficeAddressResponse(), { status: 400 });
+      }
+      throw err;
+    }
     const officeStart = "10:00 hrs ISD"; 
     const officeEnd = "18:30 hrs ISD";
 
@@ -618,7 +641,7 @@ export async function POST(req: NextRequest) {
       const internProposedDetails = [
         `- Designation: ${internDesignation}`,
         `- Department: ${internDepartment}`,
-        `- Work Location: Kakadeo, Kanpur`,
+        `- Work Location: ${workLocation}`,
         `- Duration: ${internDuration}`,
         `- Stipend: ${formattedStipend}`,
       ];
@@ -792,7 +815,7 @@ export async function POST(req: NextRequest) {
     const proposedDetails = [
       `- Designation: ${designation}`,
       `- Department: ${department}`,
-      `- Work Location: Kakadeo, Kanpur`,
+      `- Work Location: ${workLocation}`,
       `- Proposed Start Date: ${formattedStartDate}`,
       `- Remuneration: ${formattedSalary}`
     ];

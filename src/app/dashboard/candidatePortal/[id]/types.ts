@@ -11,6 +11,16 @@ export interface Candidate {
   country: string;
   college?: string;
   officeLocation?: string | null;
+  officeAddressId?:
+    | string
+    | {
+        _id: string;
+        name: string;
+        city: string;
+        formattedAddress?: string;
+        addressLine1?: string;
+      }
+    | null;
   coverLetter?: string;
   linkedin?: string;
   portfolio?: string;

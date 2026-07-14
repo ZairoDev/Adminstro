@@ -42,6 +42,11 @@ import Role from "@/models/role";
 import { connectDb } from "@/util/db";
 import { resolveIsIntern } from "@/lib/pdf/letterOfIntentIntern";
 import {
+  MissingOfficeAddressError,
+  missingOfficeAddressResponse,
+  resolveCandidateOfficeAddress,
+} from "@/lib/officeAddress/resolveCandidateOfficeAddress";
+import {
   renderInternOnboardingNda,
   type OnboardingPdfWriter,
 } from "@/lib/pdf/renderInternOnboardingNda";
@@ -225,9 +230,26 @@ export async function POST(req: NextRequest) {
     // Defaults matching the original document
     const companyName = data.companyName ?? "ZAIRO INTERNATIONAL P. LTD.";
     const companyCIN = data.companyCIN ?? "U93090UP2017PTC089137";
-    const companyAddress =
-      data.companyAddress ??
-      "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025";
+    if (!data.candidateId) {
+      return NextResponse.json(
+        { ...missingOfficeAddressResponse(), error: "candidateId is required to resolve office address" },
+        { status: 400 },
+      );
+    }
+    let companyAddress: string;
+    let agreementCityResolved: string;
+    try {
+      const office = await resolveCandidateOfficeAddress({
+        candidateId: data.candidateId,
+      });
+      companyAddress = data.companyAddress?.trim() || office.companyAddress;
+      agreementCityResolved = data.agreementCity?.trim() || office.agreementCity;
+    } catch (err) {
+      if (err instanceof MissingOfficeAddressError) {
+        return NextResponse.json(missingOfficeAddressResponse(), { status: 400 });
+      }
+      throw err;
+    }
     const officeStart = data.officeStart ?? "10:00 hrs ISD";
     const officeEnd = data.officeEnd ?? "18:30 hrs ISD";
 
@@ -756,7 +778,7 @@ export async function POST(req: NextRequest) {
 
 
     const companyInfoLines = [
-      "117/N/70 3rd Floor, Kakadeo, Kanpur, U.P. 208025",
+      companyAddress,
       "www.zairointernational.com",
       "+91 95198 03665",
       "zairointernationalpvtltd@gmail.com",
@@ -881,7 +903,7 @@ export async function POST(req: NextRequest) {
         companyName,
         companyCIN,
         companyAddress,
-        agreementCity: data.agreementCity || "Kanpur",
+        agreementCity: agreementCityResolved,
         day,
         monthName,
         year,
@@ -893,7 +915,7 @@ export async function POST(req: NextRequest) {
         roleName,
         position: data.designation || "",
         formattedEffectiveFrom,
-        jurisdictionCity: data.agreementCity || "Kanpur",
+        jurisdictionCity: agreementCityResolved,
       });
 
       yPosition -= paragraphSpacing * 3;
@@ -901,7 +923,7 @@ export async function POST(req: NextRequest) {
     // First paragraph
     drawWrappedText(
       `This Service Agreement Bond is made and executed at ${
-        data.agreementCity || "Kanpur"
+        agreementCityResolved
       } on this ${day} of ${monthName}, ${year} (hereinafter referred to as "Bond") between ${companyName} (CIN: ${companyCIN}), a company incorporated under the Companies Act, 1956 and having its registered office at ${companyAddress} (hereinafter referred to as the "Company", which expression shall be deemed to include their executors, successors and permitted assigns) of the first part.`,
       leftMargin,
       bodySize

@@ -1,11 +1,14 @@
 import Candidate from "@/models/candidate";
 import { connectDb } from "@/util/db";
 import { NextResponse } from "next/server";
-import { OFFICE_LOCATIONS } from "@/config/officeLocations";
+import mongoose from "mongoose";
+import OfficeAddress from "@/models/officeAddress";
+import { seedDefaultOffices } from "@/lib/officeAddress/seedDefaultOffices";
 
 export async function POST(req: Request) {
   try {
     await connectDb();
+    await seedDefaultOffices();
     const data = await req.json();
 
     // Persist the real college name when applicant selects "Other"
@@ -24,17 +27,26 @@ export async function POST(req: Request) {
       );
     }
 
-    const officeLocationRaw =
-      typeof data.officeLocation === "string" ? data.officeLocation.trim() : "";
-    const officeLocation = (OFFICE_LOCATIONS as readonly string[]).includes(
-      officeLocationRaw,
-    )
-      ? officeLocationRaw
-      : null;
+    const officeAddressIdRaw =
+      typeof data.officeAddressId === "string"
+        ? data.officeAddressId.trim()
+        : "";
 
-    if (!officeLocation) {
+    if (!officeAddressIdRaw || !mongoose.Types.ObjectId.isValid(officeAddressIdRaw)) {
       return NextResponse.json(
-        { error: "Please select a preferred office location" },
+        { error: "Please select a preferred office address" },
+        { status: 400 },
+      );
+    }
+
+    const officeDoc = await OfficeAddress.findOne({
+      _id: officeAddressIdRaw,
+      isActive: true,
+    }).select("_id city");
+
+    if (!officeDoc) {
+      return NextResponse.json(
+        { error: "Selected office address is invalid or inactive" },
         { status: 400 },
       );
     }
@@ -54,7 +66,9 @@ export async function POST(req: Request) {
       country: data.country,
       gender: data.gender || null,
       college,
-      officeLocation,
+      officeAddressId: officeDoc._id,
+      officeLocation: officeDoc.city,
+
       position: data.position,
       coverLetter: data.coverLetter,
       linkedin: data.linkedin,

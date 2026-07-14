@@ -52,6 +52,7 @@ import {
   User,
   Plus,
   Mail,
+  Building2,
 } from "lucide-react";
 
 import {
@@ -470,6 +471,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/candidatePortal",
       label: "Register Candidate",
       Icon: <Speech size={18} />,
+    },
+    {
+      path: "/dashboard/office-addresses",
+      label: "Office Addresses",
+      Icon: <Building2 size={18} />,
     },
     // {
     //   path: "/dashboard/leftoverCandidate",
@@ -927,6 +933,11 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Register Candidate",
       Icon: <Speech size={18} />,
     },
+    {
+      path: "/dashboard/office-addresses",
+      label: "Office Addresses",
+      Icon: <Building2 size={18} />,
+    },
     // {
     //   path: "/dashboard/leftoverCandidate",
     //   label: "Leftover Candidate",
@@ -1290,6 +1301,11 @@ const candidateRoutes = [
     path: "/dashboard/candidatePortal",
     label: "Register Candidate",
     Icon: <Speech size={18} />,
+  },
+  {
+    path: "/dashboard/office-addresses",
+    label: "Office Addresses",
+    Icon: <Building2 size={18} />,
   },
   {
     path: "/dashboard/leftoverCandidate",

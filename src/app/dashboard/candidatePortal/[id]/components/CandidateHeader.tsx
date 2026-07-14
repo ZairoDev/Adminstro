@@ -66,12 +66,21 @@ export function CandidateHeader({ candidate }: CandidateHeaderProps) {
                   <MapPin className="w-3.5 h-3.5" />
                   {candidate.city}, {candidate.country}
                 </span>
-                {candidate.officeLocation && (
+                {candidate.officeAddressId &&
+                typeof candidate.officeAddressId === "object" ? (
+                  <span className="flex items-center gap-1">
+                    <Building2 className="w-3.5 h-3.5" />
+                    Office: {candidate.officeAddressId.name}
+                    {candidate.officeAddressId.city
+                      ? ` (${candidate.officeAddressId.city})`
+                      : ""}
+                  </span>
+                ) : candidate.officeLocation ? (
                   <span className="flex items-center gap-1">
                     <Building2 className="w-3.5 h-3.5" />
                     Office: {candidate.officeLocation}
                   </span>
-                )}
+                ) : null}
                 {candidate.college && (
                   <span className="flex items-center gap-1">
                     <GraduationCap className="w-3.5 h-3.5" />

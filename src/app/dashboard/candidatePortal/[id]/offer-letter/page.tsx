@@ -22,6 +22,16 @@ interface Candidate {
   position: string;
   status: string;
   city?: string;
+  officeLocation?: string | null;
+  officeAddressId?:
+    | string
+    | {
+        _id: string;
+        name: string;
+        city: string;
+        formattedAddress?: string;
+      }
+    | null;
   selectionDetails?: {
     positionType: string;
     duration: string;
@@ -171,7 +181,7 @@ export default function OfferLetterPage() {
         dateOfJoining: candidate.selectionDetails?.trainingDate
           ? String(candidate.selectionDetails.trainingDate)
           : new Date().toISOString().slice(0, 10),
-        postingLocation: candidate.city || "117/N/70 3rd Floor Kakadeo, Kanpur 208025",
+        postingLocation: (candidate.officeAddressId && typeof candidate.officeAddressId === "object" && (candidate.officeAddressId.formattedAddress || candidate.officeAddressId.city)) || candidate.officeLocation || candidate.city || "",
         annualCTC: annualCTC,
         workingHoursStart: "11:30 AM",
         workingHoursEnd: "8:30 PM",
@@ -424,7 +434,7 @@ export default function OfferLetterPage() {
         dateOfJoining: candidate.selectionDetails?.trainingDate
           ? String(candidate.selectionDetails.trainingDate)
           : new Date().toISOString().slice(0, 10),
-        postingLocation: candidate.city || "117/N/70 3rd Floor Kakadeo, Kanpur 208025",
+        postingLocation: (candidate.officeAddressId && typeof candidate.officeAddressId === "object" && (candidate.officeAddressId.formattedAddress || candidate.officeAddressId.city)) || candidate.officeLocation || candidate.city || "",
         annualCTC: annualCTC,
         workingHoursStart: "11:30 AM",
         workingHoursEnd: "8:30 PM",

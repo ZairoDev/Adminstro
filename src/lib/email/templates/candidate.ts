@@ -391,7 +391,7 @@ export const getCandidateEmailTemplate = (
           <div style="margin: 30px 0;">
             <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Office Location</h3>
             <p style="font-size: 16px; margin-bottom: 15px; line-height: 1.6;">
-              ${interviewDetails?.officeAddress || "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025"}
+              ${interviewDetails?.officeAddress || "Office address will be shared by HR before your visit."}
             </p>
             ${
               interviewDetails?.googleMapsLink
@@ -497,7 +497,7 @@ export const getCandidateEmailTemplate = (
           </p>
     
           <p><strong>Office Address:</strong><br/>
-            ${interviewDetails?.officeAddress || "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025"}
+            ${interviewDetails?.officeAddress || "Office address will be shared by HR before your visit."}
           </p>
     
           ${
@@ -595,7 +595,7 @@ export const getCandidateEmailTemplate = (
           <div style="margin: 30px 0;">
             <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Office Location</h3>
             <p style="font-size: 16px; margin-bottom: 15px; line-height: 1.6;">
-              ${interviewDetails?.officeAddress || "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025"}
+              ${interviewDetails?.officeAddress || "Office address will be shared by HR before your visit."}
             </p>
             ${
               interviewDetails?.googleMapsLink
@@ -665,7 +665,7 @@ export const getCandidateEmailTemplate = (
           </div>
     
           <p><strong>Office Address:</strong><br/>
-            ${interviewDetails?.officeAddress || "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025"}
+            ${interviewDetails?.officeAddress || "Office address will be shared by HR before your visit."}
           </p>
     
           ${
@@ -743,7 +743,7 @@ export const getCandidateEmailTemplate = (
           <div style="margin: 30px 0;">
             <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Office Location</h3>
             <p style="font-size: 16px; margin-bottom: 15px; line-height: 1.6;">
-              ${interviewDetails?.officeAddress || "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025"}
+              ${interviewDetails?.officeAddress || "Office address will be shared by HR before your visit."}
             </p>
             ${
               interviewDetails?.googleMapsLink
@@ -825,7 +825,7 @@ export const getCandidateEmailTemplate = (
           </div>
     
           <p><strong>Office Address:</strong><br/>
-            ${interviewDetails?.officeAddress || "117/N/70, Kakadeo Rd, Near Manas Park, Ambedkar Nagar, Navin Nagar, Kakadeo, Kanpur, Uttar Pradesh 208025"}
+            ${interviewDetails?.officeAddress || "Office address will be shared by HR before your visit."}
           </p>
     
           ${

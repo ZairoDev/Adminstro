@@ -276,12 +276,6 @@ export async function POST(req: NextRequest) {
       leadStatus: "fresh",
     });
 
-    // Socket emit is now handled client-side via "new-lead-created" event
-    // (the client emits through its socket connection after receiving this response)
-
-    // ✅ Send WhatsApp guest_greeting template to lead (Thessaloniki only)
-    // Only send when lead is created by test_email: abhaytripathi6969@gmail.com
-    // This runs asynchronously - don't await to avoid blocking the response
     if (token.email === "abhaytripathi6969@gmail.com") {
       sendGuestGreetingTemplate(phoneNo, name, location, profilePicture).catch((err) => {
         console.error("❌ Failed to send WhatsApp template:", err);

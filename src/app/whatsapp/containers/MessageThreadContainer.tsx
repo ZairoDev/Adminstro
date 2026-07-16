@@ -675,6 +675,7 @@ export const MessageThreadContainer = memo(function MessageThreadContainer({
         <CrmPanel
           isOpen={showCrmPanel}
           conversation={selectedConversation}
+          availablePhoneConfigs={allowedPhoneConfigs}
           onClose={() => setShowCrmPanel(false)}
           onOpenDisposition={openDispositionDialog}
           onOpenSetVisit={() => setShowVisitDialog(true)}

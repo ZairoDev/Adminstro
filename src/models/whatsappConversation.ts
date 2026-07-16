@@ -125,6 +125,8 @@ export interface IWhatsAppConversation extends Document {
   handedToSales?: boolean;
   handedToSalesAt?: Date | null;
   handedToSalesBy?: mongoose.Types.ObjectId | null;
+  /** Denormalized display name of LeadGen who forwarded (avoids extra lookups in UI). */
+  handedToSalesByName?: string | null;
 
   // Multi-portfolio / multi-WABA routing (additive — populated from the
   // WhatsappChannel that owns this conversation's businessPhoneId).
@@ -446,6 +448,10 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
     handedToSalesBy: {
       type: Schema.Types.ObjectId,
       ref: "Employees",
+      default: null,
+    },
+    handedToSalesByName: {
+      type: String,
       default: null,
     },
     retargetTemplateName: {

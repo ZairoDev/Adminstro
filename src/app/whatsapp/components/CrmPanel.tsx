@@ -36,6 +36,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Conversation } from "../types";
+import type { WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
+import {
+  formatPhoneDisplayWithLocation,
+  getPhoneConfigById,
+} from "@/lib/whatsapp/config";
 
 function primaryLabelsOnConversation(labelList: string[]): string[] {
   const allowed = new Set<string>(PRIMARY_DISPOSITION_CRM_LABELS);
@@ -112,6 +117,7 @@ interface SharedProperty {
 interface CrmPanelProps {
   isOpen?: boolean;
   conversation: Conversation | null;
+  availablePhoneConfigs?: WhatsAppPhoneConfig[];
   onClose: () => void;
   onOpenDisposition: (action?: CoreWhatsAppDispositionAction) => void;
   onOpenSetVisit: () => void;
@@ -124,6 +130,7 @@ interface CrmPanelProps {
 export function CrmPanel({
   isOpen = true,
   conversation,
+  availablePhoneConfigs = [],
   onClose,
   onOpenDisposition,
   onOpenSetVisit,
@@ -657,6 +664,19 @@ export function CrmPanel({
                     : undefined,
                 },
                 {
+                  label: "Biz line",
+                  value: (() => {
+                    const phoneId = conversation.businessPhoneId?.trim();
+                    if (!phoneId) return undefined;
+                    const config =
+                      availablePhoneConfigs.find(
+                        (c) => c.phoneNumberId === phoneId,
+                      ) || getPhoneConfigById(phoneId);
+                    if (config) return formatPhoneDisplayWithLocation(config);
+                    return phoneId;
+                  })(),
+                },
+                {
                   label: "Location",
                   value: conversation.participantLocation,
                 },
@@ -672,6 +692,24 @@ export function CrmPanel({
                   value:
                     conversation.labels?.join(", ") || undefined,
                 },
+                ...(conversation.handedToSales === true
+                  ? [
+                      {
+                        label: "Forwarded",
+                        value: conversation.handedToSalesByName?.trim()
+                          ? `By ${conversation.handedToSalesByName.trim()}`
+                          : "By LeadGen",
+                      },
+                      {
+                        label: "At",
+                        value: conversation.handedToSalesAt
+                          ? new Date(
+                              conversation.handedToSalesAt,
+                            ).toLocaleString()
+                          : undefined,
+                      },
+                    ]
+                  : []),
               ] as Array<{
                 label: string;
                 value: string | undefined;

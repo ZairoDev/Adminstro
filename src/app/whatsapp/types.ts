@@ -137,6 +137,9 @@ export interface Conversation {
    * false = LeadGen working; true/undefined = Sales owns.
    */
   handedToSales?: boolean;
+  handedToSalesAt?: Date | string | null;
+  handedToSalesBy?: string | null;
+  handedToSalesByName?: string | null;
 }
 
 export interface Template {

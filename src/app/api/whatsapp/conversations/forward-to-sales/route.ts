@@ -85,6 +85,10 @@ export async function POST(req: NextRequest) {
     const agentId = normalized.id
       ? new mongoose.Types.ObjectId(normalized.id)
       : null;
+    const agentName =
+      (typeof normalized.name === "string" && normalized.name.trim()) ||
+      (typeof normalized.email === "string" && normalized.email.trim()) ||
+      "LeadGen";
 
     const updated = (await WhatsAppConversation.findOneAndUpdate(
       { _id: conversation._id, handedToSales: false },
@@ -93,6 +97,7 @@ export async function POST(req: NextRequest) {
           handedToSales: true,
           handedToSalesAt: new Date(),
           ...(agentId ? { handedToSalesBy: agentId } : {}),
+          handedToSalesByName: agentName,
         },
       },
       { new: true },
@@ -100,6 +105,8 @@ export async function POST(req: NextRequest) {
       _id: mongoose.Types.ObjectId;
       businessPhoneId?: string;
       whatsappChannelId?: mongoose.Types.ObjectId;
+      handedToSalesAt?: Date;
+      handedToSalesByName?: string;
       [key: string]: unknown;
     } | null;
 
@@ -117,6 +124,8 @@ export async function POST(req: NextRequest) {
         type: "transfer",
         conversationId: String(updated._id),
         handedToSales: true,
+        handedToSalesAt: updated.handedToSalesAt,
+        handedToSalesByName: updated.handedToSalesByName,
         businessPhoneId: updated.businessPhoneId,
       }),
     );

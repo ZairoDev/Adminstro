@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import type { JSX } from "react";
 import { useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { useTravellerBookingsPoll } from "@/hooks/useTravellerBookingsPoll";
 
 type Route = {
   path: string;
@@ -13,6 +14,28 @@ type Route = {
   openInNewTab?: boolean;
   disabled?: boolean;
 };
+
+function MobileBookingsBadge({ active }: { active: boolean }) {
+  const { newCount, clearNewBadge } = useTravellerBookingsPoll({
+    enableNotifications: !active,
+    markSeenOnLoad: false,
+  });
+
+  if (active || newCount <= 0) return null;
+
+  return (
+    <span
+      className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 text-[10px] font-bold text-white"
+      onClick={(e) => {
+        e.preventDefault();
+        clearNewBadge();
+      }}
+      title="Clear new bookings badge"
+    >
+      {newCount > 9 ? "9+" : newCount}
+    </span>
+  );
+}
 
 export default function SidebarSection({
   title,
@@ -60,13 +83,18 @@ export default function SidebarSection({
         >
           {routes.map(({ path, label, Icon, openInNewTab, disabled }) => {
             const active = currentPath === path;
-            
+            const isMobileBookings = path === "/dashboard/traveller-bookings";
+
             const linkClassName = cn(
               "flex items-center gap-2 py-2 px-3 rounded-l-sm transition-colors",
               active
                 ? "bg-primary/10 text-primary border-r-4 border-primary"
-                : "hover:bg-accent"
+                : "hover:bg-accent",
             );
+
+            const badge = isMobileBookings ? (
+              <MobileBookingsBadge active={active} />
+            ) : null;
 
             return (
               <li key={path}>
@@ -78,6 +106,7 @@ export default function SidebarSection({
                   >
                     {Icon}
                     {showText && <span className="text-sm">{label}</span>}
+                    {badge}
                   </div>
                 ) : openInNewTab ? (
                   <a
@@ -89,6 +118,7 @@ export default function SidebarSection({
                   >
                     {Icon}
                     {showText && <span className="text-sm">{label}</span>}
+                    {badge}
                   </a>
                 ) : (
                   <Link
@@ -97,7 +127,8 @@ export default function SidebarSection({
                     className={linkClassName}
                   >
                     {Icon}
-                    {showText && <span className="text-sm">{label}</span>}
+                    {showText && <span className="text-sm flex-1">{label}</span>}
+                    {badge}
                   </Link>
                 )}
               </li>

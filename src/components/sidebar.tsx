@@ -41,6 +41,7 @@ import {
 
   Target,
   Hotel,
+  Smartphone,
   Sprout,
   CornerLeftUp,
   Rocket,
@@ -448,6 +449,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <Hotel size={18} />,
     },
     {
+      path: "/dashboard/traveller-bookings",
+      label: "Mobile Bookings",
+      Icon: <Smartphone size={18} />,
+    },
+    {
       path: "/dashboard/aliases",
       label: "Aliases",
       Icon: <UserRoundCog size={18} />,
@@ -783,6 +789,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/bookings",
       label: "Bookings",
       Icon: <Hotel size={18} />,
+    },
+    {
+      path: "/dashboard/traveller-bookings",
+      label: "Mobile Bookings",
+      Icon: <Smartphone size={18} />,
     },
     {
       path: "/whatsapp",
@@ -1218,6 +1229,11 @@ const bookingsManagementRoutes = [
     path: "/dashboard/bookings",
     label: "Bookings",
     Icon: <Hotel size={18} />,
+  },
+  {
+    path: "/dashboard/traveller-bookings",
+    label: "Mobile Bookings",
+    Icon: <Smartphone size={18} />,
   },
 ];
 const ownerManagementRoutes = [

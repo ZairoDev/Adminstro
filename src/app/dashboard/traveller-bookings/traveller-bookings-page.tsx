@@ -62,12 +62,20 @@ function BookingRow({ booking }: { booking: TravellerBookingListItem }) {
     <tr className="border-b border-stone-100 hover:bg-stone-50/80 transition-colors">
       <td className="px-4 py-3">
         <div className="font-medium text-stone-900">{guest}</div>
+        {booking.traveller?.phone ? (
+          <div className="text-xs text-stone-600 mt-0.5">{booking.traveller.phone}</div>
+        ) : null}
         {booking.traveller?.email ? (
           <div className="text-xs text-stone-500 mt-0.5">{booking.traveller.email}</div>
         ) : null}
       </td>
       <td className="px-4 py-3">
         <div className="text-stone-800">{service}</div>
+        {booking.property?.VSID ? (
+          <div className="text-xs font-medium text-stone-600 mt-0.5">
+            VSID: {booking.property.VSID}
+          </div>
+        ) : null}
         {(booking.property?.city || booking.property?.country) && (
           <div className="text-xs text-stone-500 mt-0.5">
             {[booking.property?.city, booking.property?.country]

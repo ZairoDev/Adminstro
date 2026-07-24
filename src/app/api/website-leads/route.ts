@@ -487,12 +487,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       {
         $unionWith: {
           coll: "travellerBookings",
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           pipeline: mobileBookingsPipeline(
             searchTerm,
             searchType,
             includeTaken
-          ) as any,
+          ) as Exclude<
+            mongoose.PipelineStage,
+            mongoose.PipelineStage.Merge | mongoose.PipelineStage.Out
+          >[],
         },
       },
       { $sort: { createdAt: -1 } },

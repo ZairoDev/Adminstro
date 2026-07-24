@@ -41,7 +41,6 @@ import {
 
   Target,
   Hotel,
-  Smartphone,
   Sprout,
   CornerLeftUp,
   Rocket,
@@ -449,11 +448,6 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <Hotel size={18} />,
     },
     {
-      path: "/dashboard/traveller-bookings",
-      label: "Mobile Bookings",
-      Icon: <Smartphone size={18} />,
-    },
-    {
       path: "/dashboard/aliases",
       label: "Aliases",
       Icon: <UserRoundCog size={18} />,
@@ -609,7 +603,7 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/website-leads",
-      label: "Website Leads",
+      label: "Web & Mobile Leads",
       Icon: <Globe size={18} />,
     },
     {
@@ -791,18 +785,13 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <Hotel size={18} />,
     },
     {
-      path: "/dashboard/traveller-bookings",
-      label: "Mobile Bookings",
-      Icon: <Smartphone size={18} />,
-    },
-    {
       path: "/whatsapp",
       label: "WhatsApp",
       Icon: <MessageSquare size={18} />,
     },
     {
       path: "/dashboard/website-leads",
-      label: "Website Leads",
+      label: "Web & Mobile Leads",
       Icon: <Globe size={18} />,
     },
     {
@@ -1213,7 +1202,7 @@ const leadManagementRoutes = [
   },
   {
     path: "/dashboard/website-leads",
-    label: "Website Leads",
+    label: "Web & Mobile Leads",
     Icon: <Globe size={18} />,
   },
 ];
@@ -1229,11 +1218,6 @@ const bookingsManagementRoutes = [
     path: "/dashboard/bookings",
     label: "Bookings",
     Icon: <Hotel size={18} />,
-  },
-  {
-    path: "/dashboard/traveller-bookings",
-    label: "Mobile Bookings",
-    Icon: <Smartphone size={18} />,
   },
 ];
 const ownerManagementRoutes = [

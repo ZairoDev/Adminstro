@@ -272,6 +272,14 @@ const querySchema = new Schema(
       ref: "bookings",
       default: null,
     },
+    /** Origin when created via Take Lead from Web & Mobile Leads */
+    inboundSource: {
+      type: String,
+      enum: ["website", "mobile"],
+    },
+    inboundSourceId: {
+      type: String,
+    },
     profilePicture: {
       type: String,
       default: "",

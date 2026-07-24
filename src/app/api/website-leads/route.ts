@@ -3,10 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import WebsiteLeads from "@/models/websiteLeads";
+import TravellerBookings from "@/models/travellerBooking";
 import { Properties } from "@/models/property";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import type { NotesInterface } from "@/util/type";
+
+type LeadSource = "all" | "web" | "mobile";
 
 connectDb();
 export const dynamic = "force-dynamic";
@@ -161,6 +164,209 @@ async function migrateLegacyNoteIfNeeded(leadId: string): Promise<void> {
   );
 }
 
+function unclaimedWebMatch(): Record<string, unknown> {
+  return {
+    $or: [{ queryId: null }, { queryId: { $exists: false } }],
+  };
+}
+
+function unclaimedMobileMatch(): Record<string, unknown> {
+  return {
+    $or: [
+      { salesLeadQueryId: null },
+      { salesLeadQueryId: { $exists: false } },
+    ],
+  };
+}
+
+function buildWebMatch(
+  searchTerm: string,
+  searchType: string
+): Record<string, unknown> {
+  if (!searchTerm) return {};
+  const regex = new RegExp(searchTerm, "i");
+  if (searchType === "name") {
+    return { $or: [{ firstName: regex }, { lastName: regex }] };
+  }
+  if (searchType === "telephone" || searchType === "email" || searchType === "VSID") {
+    return { [searchType]: regex };
+  }
+  return { $or: [{ firstName: regex }, { lastName: regex }] };
+}
+
+function mobileSearchMatch(
+  searchTerm: string,
+  searchType: string
+): Record<string, unknown> | null {
+  if (!searchTerm) return null;
+  const regex = new RegExp(searchTerm, "i");
+  if (searchType === "name") {
+    return {
+      $or: [
+        { "travellers.name": regex },
+        { "travellerDoc.name": regex },
+        { primaryGuestName: regex },
+      ],
+    };
+  }
+  if (searchType === "telephone") {
+    return { "travellerDoc.phone": regex };
+  }
+  if (searchType === "email") {
+    return { "travellerDoc.email": regex };
+  }
+  if (searchType === "VSID") {
+    return { "propertyDoc.VSID": regex };
+  }
+  return {
+    $or: [
+      { "travellers.name": regex },
+      { "travellerDoc.name": regex },
+      { primaryGuestName: regex },
+    ],
+  };
+}
+
+function mobileBookingsPipeline(
+  searchTerm: string,
+  searchType: string,
+  includeTaken: boolean
+): mongoose.PipelineStage[] {
+  const pipeline: mongoose.PipelineStage[] = [];
+
+  if (!includeTaken) {
+    pipeline.push({ $match: unclaimedMobileMatch() });
+  }
+
+  pipeline.push(
+    {
+      $lookup: {
+        from: "travellers",
+        localField: "travellerId",
+        foreignField: "_id",
+        as: "travellerDoc",
+      },
+    },
+    {
+      $lookup: {
+        from: "properties",
+        localField: "propertyId",
+        foreignField: "_id",
+        as: "propertyDoc",
+      },
+    },
+    {
+      $addFields: {
+        travellerDoc: { $arrayElemAt: ["$travellerDoc", 0] },
+        propertyDoc: { $arrayElemAt: ["$propertyDoc", 0] },
+        primaryGuestName: {
+          $ifNull: [
+            { $arrayElemAt: ["$travellers.name", 0] },
+            { $ifNull: ["$travellerDoc.name", "Guest"] },
+          ],
+        },
+      },
+    },
+  );
+
+  const searchMatch = mobileSearchMatch(searchTerm, searchType);
+  if (searchMatch) {
+    pipeline.push({ $match: searchMatch });
+  }
+
+  pipeline.push({
+    $project: {
+      _id: 1,
+      source: { $literal: "mobile" },
+      firstName: {
+        $let: {
+          vars: {
+            parts: { $split: [{ $ifNull: ["$primaryGuestName", "Guest"] }, " "] },
+          },
+          in: { $arrayElemAt: ["$$parts", 0] },
+        },
+      },
+      lastName: {
+        $let: {
+          vars: {
+            parts: { $split: [{ $ifNull: ["$primaryGuestName", "Guest"] }, " "] },
+          },
+          in: {
+            $cond: [
+              { $gt: [{ $size: "$$parts" }, 1] },
+              {
+                $reduce: {
+                  input: { $slice: ["$$parts", 1, { $size: "$$parts" }] },
+                  initialValue: "",
+                  in: {
+                    $concat: [
+                      "$$value",
+                      { $cond: [{ $eq: ["$$value", ""] }, "", " "] },
+                      "$$this",
+                    ],
+                  },
+                },
+              },
+              "",
+            ],
+          },
+        },
+      },
+      telephone: { $ifNull: ["$travellerDoc.phone", ""] },
+      email: { $ifNull: ["$travellerDoc.email", ""] },
+      VSID: { $ifNull: ["$propertyDoc.VSID", ""] },
+      propertyMongoId: {
+        $cond: [
+          { $ifNull: ["$propertyId", false] },
+          { $toString: "$propertyId" },
+          null,
+        ],
+      },
+      message: {
+        $concat: [
+          "Mobile booking · ",
+          { $ifNull: ["$bookingStatus", "pending"] },
+          " · pay ",
+          { $ifNull: ["$paymentStatus", "pending"] },
+        ],
+      },
+      note: { $literal: [] },
+      bookingStatus: 1,
+      paymentStatus: 1,
+      price: 1,
+      startDate: 1,
+      endDate: 1,
+      totalNights: 1,
+      propertyLabel: {
+        $ifNull: [
+          "$propertyDoc.placeName",
+          {
+            $ifNull: [
+              "$propertyDoc.propertyName",
+              { $ifNull: ["$propertyDoc.VSID", "Property"] },
+            ],
+          },
+        ],
+      },
+      propertyCity: { $ifNull: ["$propertyDoc.city", ""] },
+      propertyCountry: { $ifNull: ["$propertyDoc.country", ""] },
+      claimedBy: { $ifNull: ["$salesLeadClaimedBy", null] },
+      claimedAt: { $ifNull: ["$salesLeadClaimedAt", null] },
+      queryId: {
+        $cond: [
+          { $ifNull: ["$salesLeadQueryId", false] },
+          { $toString: "$salesLeadQueryId" },
+          null,
+        ],
+      },
+      createdAt: 1,
+      updatedAt: 1,
+    },
+  });
+
+  return pipeline;
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     await migrateLegacyStringNotesBatch();
@@ -170,38 +376,163 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const limit = Number(url.searchParams.get("limit")) || 50;
     const skip = (page - 1) * limit;
     const searchTerm = url.searchParams.get("searchTerm") || "";
-    const searchType = url.searchParams.get("searchType") || "firstName";
+    const searchType = url.searchParams.get("searchType") || "name";
+    const sourceParam = (url.searchParams.get("source") || "all").toLowerCase();
+    const source: LeadSource =
+      sourceParam === "web" || sourceParam === "mobile" ? sourceParam : "all";
+    const includeTaken =
+      url.searchParams.get("includeTaken") === "1" ||
+      url.searchParams.get("includeTaken") === "true";
 
-    let query: Record<string, unknown> = {};
+    const searchMatch = buildWebMatch(searchTerm, searchType);
+    const webMatch: Record<string, unknown> = includeTaken
+      ? { ...searchMatch }
+      : Object.keys(searchMatch).length > 0
+        ? { $and: [searchMatch, unclaimedWebMatch()] }
+        : unclaimedWebMatch();
 
-    if (searchTerm) {
-      const regex = new RegExp(searchTerm, "i");
-      if (searchType === "name") {
-        query.$or = [{ firstName: regex }, { lastName: regex }];
-      } else {
-        query[searchType] = regex;
-      }
+    // Web-only: keep the original simple path (notes + property enrich).
+    if (source === "web") {
+      const leadsRaw = await WebsiteLeads.find(webMatch)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+      const serialized = leadsRaw.map((l) => ({
+        ...serializeWebsiteLead(l as Record<string, unknown>),
+        source: "web" as const,
+        queryId: l.queryId ? String(l.queryId) : null,
+        claimedBy: (l as { claimedBy?: string }).claimedBy ?? null,
+        claimedAt: (l as { claimedAt?: Date }).claimedAt ?? null,
+      }));
+      const leads = await enrichLeadsWithPropertyMongoId(serialized);
+      const totalLeads = await WebsiteLeads.countDocuments(webMatch);
+      const totalPages = Math.ceil(totalLeads / limit) || 1;
+
+      return NextResponse.json({
+        data: leads,
+        page,
+        totalPages,
+        totalLeads,
+        includeTaken,
+        counts: { web: totalLeads, mobile: 0, all: totalLeads },
+      });
     }
 
-    const leadsRaw = await WebsiteLeads.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    // Mobile-only
+    if (source === "mobile") {
+      const pipeline = [
+        ...mobileBookingsPipeline(searchTerm, searchType, includeTaken),
+        {
+          $facet: {
+            data: [
+              { $sort: { createdAt: -1 as const } },
+              { $skip: skip },
+              { $limit: limit },
+            ],
+            total: [{ $count: "count" }],
+          },
+        },
+      ];
+      const [facet] = await TravellerBookings.aggregate(pipeline).exec();
+      const leads = facet?.data ?? [];
+      const totalLeads = facet?.total?.[0]?.count ?? 0;
+      const totalPages = Math.ceil(totalLeads / limit) || 1;
 
-    const serialized = leadsRaw.map((l) =>
-      serializeWebsiteLead(l as Record<string, unknown>)
+      return NextResponse.json({
+        data: leads,
+        page,
+        totalPages,
+        totalLeads,
+        includeTaken,
+        counts: { web: 0, mobile: totalLeads, all: totalLeads },
+      });
+    }
+
+    // All: union website leads + mobile bookings, sort by createdAt.
+    const pipeline: mongoose.PipelineStage[] = [
+      { $match: webMatch },
+      {
+        $addFields: {
+          source: "web",
+          propertyMongoId: null,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          source: 1,
+          firstName: 1,
+          lastName: 1,
+          telephone: 1,
+          email: 1,
+          VSID: 1,
+          message: 1,
+          note: 1,
+          propertyMongoId: 1,
+          claimedBy: 1,
+          claimedAt: 1,
+          queryId: {
+            $cond: [
+              { $ifNull: ["$queryId", false] },
+              { $toString: "$queryId" },
+              null,
+            ],
+          },
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+      {
+        $unionWith: {
+          coll: "travellerBookings",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          pipeline: mobileBookingsPipeline(
+            searchTerm,
+            searchType,
+            includeTaken
+          ) as any,
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $facet: {
+          data: [{ $skip: skip }, { $limit: limit }],
+          total: [{ $count: "count" }],
+          webCount: [
+            { $match: { source: "web" } },
+            { $count: "count" },
+          ],
+          mobileCount: [
+            { $match: { source: "mobile" } },
+            { $count: "count" },
+          ],
+        },
+      },
+    ];
+
+    const [facet] = await WebsiteLeads.aggregate(pipeline).exec();
+    const rawData = (facet?.data ?? []) as Record<string, unknown>[];
+    const serialized = rawData.map((l) =>
+      l.source === "web"
+        ? { ...serializeWebsiteLead(l), source: "web" }
+        : { ...l, note: normalizeNotes(l.note) }
     );
     const leads = await enrichLeadsWithPropertyMongoId(serialized);
 
-    const totalLeads = await WebsiteLeads.countDocuments(query);
-    const totalPages = Math.ceil(totalLeads / limit);
+    const totalLeads = facet?.total?.[0]?.count ?? 0;
+    const webCount = facet?.webCount?.[0]?.count ?? 0;
+    const mobileCount = facet?.mobileCount?.[0]?.count ?? 0;
+    const totalPages = Math.ceil(totalLeads / limit) || 1;
 
     return NextResponse.json({
       data: leads,
       page,
       totalPages,
       totalLeads,
+      includeTaken,
+      counts: { web: webCount, mobile: mobileCount, all: totalLeads },
     });
   } catch (error: unknown) {
     console.error("Error fetching website leads:", error);

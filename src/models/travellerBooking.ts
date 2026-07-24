@@ -69,6 +69,14 @@ const travellerBookingSchema = new Schema(
       paidAt: { type: Date },
     },
     notes: { type: String },
+    /** Adminstro Take Lead — optional; mobile app ignores these */
+    salesLeadClaimedBy: { type: String },
+    salesLeadClaimedAt: { type: Date },
+    salesLeadQueryId: {
+      type: Schema.Types.ObjectId,
+      ref: "Query",
+      default: null,
+    },
   },
   { timestamps: true, collection: "travellerBookings" },
 );

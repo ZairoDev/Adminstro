@@ -217,8 +217,8 @@ export const DASHBOARD_SECTIONS_CONFIG: DashboardSectionConfig[] = [
   },
   {
     id: "websiteLeads",
-    title: "Website Leads",
-    description: "Leads from website sources",
+    title: "Website & Mobile Leads",
+    description: "Leads from website and mobile app sources",
     team: "LeadGeneration",
     requiresLocationFilter: false,
     order: 5,

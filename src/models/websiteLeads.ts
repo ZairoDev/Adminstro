@@ -18,6 +18,14 @@ const WebsiteLeadsSchema = new mongoose.Schema(
     email: { type: String },
     message: { type: String, required: true },
     note: { type: [WebsiteLeadNoteSchema], default: [] },
+    /** Set when converted into a Fresh Query via Take Lead */
+    claimedBy: { type: String },
+    claimedAt: { type: Date },
+    queryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Query",
+      default: null,
+    },
   },
   { timestamps: true }
 );

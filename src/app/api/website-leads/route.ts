@@ -275,21 +275,34 @@ function mobileBookingsPipeline(
   }
 
   pipeline.push({
+    $addFields: {
+      primaryGuestNameStr: {
+        $convert: {
+          input: "$primaryGuestName",
+          to: "string",
+          onError: "Guest",
+          onNull: "Guest",
+        },
+      },
+    },
+  });
+
+  pipeline.push({
     $project: {
       _id: 1,
       source: { $literal: "mobile" },
       firstName: {
         $let: {
           vars: {
-            parts: { $split: [{ $ifNull: ["$primaryGuestName", "Guest"] }, " "] },
+            parts: { $split: ["$primaryGuestNameStr", " "] },
           },
-          in: { $arrayElemAt: ["$$parts", 0] },
+          in: { $ifNull: [{ $arrayElemAt: ["$$parts", 0] }, "Guest"] },
         },
       },
       lastName: {
         $let: {
           vars: {
-            parts: { $split: [{ $ifNull: ["$primaryGuestName", "Guest"] }, " "] },
+            parts: { $split: ["$primaryGuestNameStr", " "] },
           },
           in: {
             $cond: [
@@ -312,9 +325,30 @@ function mobileBookingsPipeline(
           },
         },
       },
-      telephone: { $ifNull: ["$travellerDoc.phone", ""] },
-      email: { $ifNull: ["$travellerDoc.email", ""] },
-      VSID: { $ifNull: ["$propertyDoc.VSID", ""] },
+      telephone: {
+        $convert: {
+          input: { $ifNull: ["$travellerDoc.phone", ""] },
+          to: "string",
+          onError: "",
+          onNull: "",
+        },
+      },
+      email: {
+        $convert: {
+          input: { $ifNull: ["$travellerDoc.email", ""] },
+          to: "string",
+          onError: "",
+          onNull: "",
+        },
+      },
+      VSID: {
+        $convert: {
+          input: { $ifNull: ["$propertyDoc.VSID", ""] },
+          to: "string",
+          onError: "",
+          onNull: "",
+        },
+      },
       propertyMongoId: {
         $cond: [
           { $ifNull: ["$propertyId", false] },
@@ -325,9 +359,23 @@ function mobileBookingsPipeline(
       message: {
         $concat: [
           "Mobile booking · ",
-          { $ifNull: ["$bookingStatus", "pending"] },
+          {
+            $convert: {
+              input: { $ifNull: ["$bookingStatus", "pending"] },
+              to: "string",
+              onError: "pending",
+              onNull: "pending",
+            },
+          },
           " · pay ",
-          { $ifNull: ["$paymentStatus", "pending"] },
+          {
+            $convert: {
+              input: { $ifNull: ["$paymentStatus", "pending"] },
+              to: "string",
+              onError: "pending",
+              onNull: "pending",
+            },
+          },
         ],
       },
       note: { $literal: [] },
@@ -399,12 +447,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         .limit(limit)
         .lean();
 
-      const serialized = leadsRaw.map((l) => ({
-        ...serializeWebsiteLead(l as Record<string, unknown>),
+      const rows = (Array.isArray(leadsRaw) ? leadsRaw : [leadsRaw]).filter(
+        Boolean
+      ) as Record<string, unknown>[];
+
+      const serialized = rows.map((l) => ({
+        ...serializeWebsiteLead(l),
         source: "web" as const,
         queryId: l.queryId ? String(l.queryId) : null,
-        claimedBy: (l as { claimedBy?: string }).claimedBy ?? null,
-        claimedAt: (l as { claimedAt?: Date }).claimedAt ?? null,
+        claimedBy: (l.claimedBy as string | undefined) ?? null,
+        claimedAt: (l.claimedAt as Date | undefined) ?? null,
       }));
       const leads = await enrichLeadsWithPropertyMongoId(serialized);
       const totalLeads = await WebsiteLeads.countDocuments(webMatch);
@@ -450,82 +502,66 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    // All: union website leads + mobile bookings, sort by createdAt.
-    const pipeline: mongoose.PipelineStage[] = [
-      { $match: webMatch },
-      {
-        $addFields: {
-          source: "web",
-          propertyMongoId: null,
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          source: 1,
-          firstName: 1,
-          lastName: 1,
-          telephone: 1,
-          email: 1,
-          VSID: 1,
-          message: 1,
-          note: 1,
-          propertyMongoId: 1,
-          claimedBy: 1,
-          claimedAt: 1,
-          queryId: {
-            $cond: [
-              { $ifNull: ["$queryId", false] },
-              { $toString: "$queryId" },
-              null,
-            ],
-          },
-          createdAt: 1,
-          updatedAt: 1,
-        },
-      },
-      {
-        $unionWith: {
-          coll: "travellerBookings",
-          pipeline: mobileBookingsPipeline(
-            searchTerm,
-            searchType,
-            includeTaken
-          ) as Exclude<
-            mongoose.PipelineStage,
-            mongoose.PipelineStage.Merge | mongoose.PipelineStage.Out
-          >[],
-        },
-      },
-      { $sort: { createdAt: -1 } },
-      {
-        $facet: {
-          data: [{ $skip: skip }, { $limit: limit }],
-          total: [{ $count: "count" }],
-          webCount: [
-            { $match: { source: "web" } },
-            { $count: "count" },
-          ],
-          mobileCount: [
-            { $match: { source: "mobile" } },
-            { $count: "count" },
-          ],
-        },
-      },
-    ];
+    // All: fetch web + mobile separately, merge in memory.
+    // Avoids $unionWith type/version issues seen on some production clusters.
+    const fetchCap = Math.min(skip + limit, 500);
 
-    const [facet] = await WebsiteLeads.aggregate(pipeline).exec();
-    const rawData = (facet?.data ?? []) as Record<string, unknown>[];
-    const serialized = rawData.map((l) =>
-      l.source === "web"
-        ? { ...serializeWebsiteLead(l), source: "web" }
-        : { ...l, note: normalizeNotes(l.note) }
+    const [webRaw, mobileRaw, webCount, mobileFacet] = await Promise.all([
+      WebsiteLeads.find(webMatch)
+        .sort({ createdAt: -1 })
+        .limit(fetchCap)
+        .lean(),
+      TravellerBookings.aggregate([
+        ...mobileBookingsPipeline(searchTerm, searchType, includeTaken),
+        { $sort: { createdAt: -1 } },
+        { $limit: fetchCap },
+      ]).exec(),
+      WebsiteLeads.countDocuments(webMatch),
+      TravellerBookings.aggregate([
+        ...mobileBookingsPipeline(searchTerm, searchType, includeTaken),
+        { $count: "count" },
+      ]).exec(),
+    ]);
+
+    const mobileCount = mobileFacet?.[0]?.count ?? 0;
+
+    const webSerialized = (Array.isArray(webRaw) ? webRaw : [webRaw])
+      .filter(Boolean)
+      .map((l) => {
+        const doc = l as Record<string, unknown>;
+        return {
+          ...serializeWebsiteLead(doc),
+          source: "web" as const,
+          queryId: doc.queryId ? String(doc.queryId) : null,
+          claimedBy: (doc.claimedBy as string | undefined) ?? null,
+          claimedAt: (doc.claimedAt as Date | undefined) ?? null,
+        };
+      });
+
+    const mobileSerialized = (mobileRaw as Record<string, unknown>[]).map(
+      (l) => ({
+        ...l,
+        note: normalizeNotes(l.note),
+        source: "mobile" as const,
+      })
     );
-    const leads = await enrichLeadsWithPropertyMongoId(serialized);
 
-    const totalLeads = facet?.total?.[0]?.count ?? 0;
-    const webCount = facet?.webCount?.[0]?.count ?? 0;
-    const mobileCount = facet?.mobileCount?.[0]?.count ?? 0;
+    const merged = [...webSerialized, ...mobileSerialized].sort((a, b) => {
+      const aTime = new Date(
+        String((a as { createdAt?: unknown }).createdAt ?? 0)
+      ).getTime();
+      const bTime = new Date(
+        String((b as { createdAt?: unknown }).createdAt ?? 0)
+      ).getTime();
+      return bTime - aTime;
+    });
+
+    const pageRows = merged.slice(skip, skip + limit) as Record<
+      string,
+      unknown
+    >[];
+    const leads = await enrichLeadsWithPropertyMongoId(pageRows);
+    const totalLeads = webCount + mobileCount;
     const totalPages = Math.ceil(totalLeads / limit) || 1;
 
     return NextResponse.json({

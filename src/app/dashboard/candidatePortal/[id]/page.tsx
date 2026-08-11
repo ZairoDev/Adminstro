@@ -3026,8 +3026,9 @@ export default function CandidateDetailPage() {
           } : undefined,
         }}
         onCreated={() => {
-          // Optionally refresh candidate after creation
           setCreateEmployeeDialogOpen(false);
+          toast.success("Employee created successfully");
+          void refreshCandidate();
         }}
       />
 

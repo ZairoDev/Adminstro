@@ -340,6 +340,14 @@ const CandidateSchema = new Schema(
       enum: ["appeared", "not_appeared", null],
       default: null,
     },
+    /** Set when HR creates an employee record from this candidate */
+    employeeId: {
+      type: Schema.Types.ObjectId,
+      ref: "Employees",
+      default: null,
+      index: true,
+    },
+    employedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

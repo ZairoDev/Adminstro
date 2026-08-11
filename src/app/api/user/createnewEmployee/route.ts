@@ -128,9 +128,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
     const createUser = await newUser.save();
 
+    // Link candidate → employee when created from onboarding / candidate portal
+    const candidateId =
+      typeof reqBody.candidateId === "string" ? reqBody.candidateId.trim() : "";
+    if (candidateId) {
+      try {
+        const Candidate = (await import("@/models/candidate")).default;
+        await Candidate.findByIdAndUpdate(candidateId, {
+          $set: {
+            employeeId: createUser._id,
+            employedAt: new Date(),
+          },
+        });
+      } catch (linkError) {
+        console.error(
+          "Employee created but failed to link candidate:",
+          candidateId,
+          linkError
+        );
+      }
+    }
+
     return NextResponse.json({
       message: "Employee created successfully.",
       success: true,
+      data: createUser,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {

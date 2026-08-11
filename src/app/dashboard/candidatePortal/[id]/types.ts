@@ -30,6 +30,9 @@ export interface Candidate {
   createdAt: string;
   isImportant?: boolean;
   interviewAttendance?: "appeared" | "not_appeared" | null;
+  /** Present after Create Employee succeeds */
+  employeeId?: string | null;
+  employedAt?: string | null;
   // Additional documents uploaded by HR/admin
   additionalDocuments?: Array<{
     name: string;

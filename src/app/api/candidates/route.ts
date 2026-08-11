@@ -114,7 +114,9 @@ export async function GET(request: NextRequest) {
         const onboardingDetails = candidate.onboardingDetails || {};
         const documents = onboardingDetails.documents || {};
         const documentVerification = onboardingDetails.documentVerification || {};
-        
+        const isEmployed = Boolean(candidate.employeeId);
+        const onboardingComplete = onboardingDetails.onboardingComplete === true;
+
         // Get list of document keys that have actual document values (not null/empty)
         const documentKeys = Object.keys(documents).filter((key) => {
           const docValue = documents[key];
@@ -127,11 +129,6 @@ export async function GET(request: NextRequest) {
         // Check if documents exist (has at least one document uploaded)
         const hasDocuments = documentKeys.length > 0;
         
-        // Check if any document is verified
-        const hasVerifiedDocuments = Object.values(documentVerification).some(
-          (verification: any) => verification && verification.verified === true
-        );
-
         // Check if ALL documents are verified
         const allDocumentsVerified = documentKeys.length > 0 && documentKeys.every((docKey) => {
           const verification = documentVerification[docKey];
@@ -141,14 +138,24 @@ export async function GET(request: NextRequest) {
         // Check HR verification status
         const hrVerified = onboardingDetails.verifiedByHR?.verified === true;
 
+        if (onboardingStatus === "employed") {
+          // Employed: onboarding finished and employee record created
+          return onboardingComplete && isEmployed;
+        }
+
+        // Other tabs exclude candidates already hired as employees
+        if (isEmployed) {
+          return false;
+        }
+
         if (onboardingStatus === "pending") {
           // Pending: onboarding not complete OR no documents uploaded
-          return !onboardingDetails.onboardingComplete || !hasDocuments;
+          return !onboardingComplete || !hasDocuments;
         } else if (onboardingStatus === "uploaded-not-verified") {
           // Documents uploaded but not all verified (or HR not verified)
           return hasDocuments && (!allDocumentsVerified || !hrVerified);
         } else if (onboardingStatus === "verified") {
-          // ALL documents verified AND HR verification complete
+          // ALL documents verified AND HR verification complete (not yet employed)
           return allDocumentsVerified && hrVerified;
         }
         

@@ -16,6 +16,7 @@ import {
   CheckCircle,
   UserPlus,
   Ban,
+  Briefcase,
 } from "lucide-react";
 import axios from "@/util/axios";
 import { CreateEmployeeDialog } from "../candidatePortal/components/createEmployee";
@@ -57,15 +58,20 @@ interface Candidate {
   experience: number;
   status: "pending" | "shortlisted" | "selected" | "rejected" | "onboarding";
   createdAt: string;
+  employeeId?: string | null;
+  employedAt?: string | null;
   onboardingDetails?: {
     onboardingComplete?: boolean;
     completedAt?: string;
     documents?: Record<string, string | string[]>;
-    documentVerification?: Record<string, {
-      verified?: boolean;
-      verifiedBy?: string;
-      verifiedAt?: string;
-    }>;
+    documentVerification?: Record<
+      string,
+      {
+        verified?: boolean;
+        verifiedBy?: string;
+        verifiedAt?: string;
+      }
+    >;
     verifiedByHR?: {
       verified?: boolean;
       verifiedBy?: string;
@@ -75,13 +81,7 @@ interface Candidate {
   };
 }
 
-const ROLE_OPTIONS = [
-  "Developer",
-  "LeadGen",
-  "Sales",
-  "Marketing",
-  "HR",
-];
+const ROLE_OPTIONS = ["Developer", "LeadGen", "Sales", "Marketing", "HR"];
 
 interface PaginationData {
   total: number;
@@ -89,6 +89,12 @@ interface PaginationData {
   limit: number;
   pages: number;
 }
+
+type OnboardingTab =
+  | "pending"
+  | "uploaded-not-verified"
+  | "verified"
+  | "employed";
 
 export default function OnboardedCandidatesPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -101,9 +107,10 @@ export default function OnboardedCandidatesPage() {
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [experienceFilter, setExperienceFilter] = useState<string>("all");
   const [availableRoles, setAvailableRoles] = useState<string[]>(ROLE_OPTIONS);
-  const [activeTab, setActiveTab] = useState<"pending" | "uploaded-not-verified" | "verified">("pending");
+  const [activeTab, setActiveTab] = useState<OnboardingTab>("pending");
   const [createEmployeeDialogOpen, setCreateEmployeeDialogOpen] = useState(false);
-  const [createEmployeeCandidate, setCreateEmployeeCandidate] = useState<CandidateLite | null>(null);
+  const [createEmployeeCandidate, setCreateEmployeeCandidate] =
+    useState<CandidateLite | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectCandidateId, setRejectCandidateId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -156,9 +163,12 @@ export default function OnboardedCandidatesPage() {
       if (result.success) {
         setCandidates(result.data);
         setPagination(result.pagination);
+      } else {
+        toast.error(result.error || "Failed to load candidates");
       }
     } catch (error) {
       console.error("Error fetching candidates:", error);
+      toast.error("Failed to load candidates");
     } finally {
       setLoading(false);
     }
@@ -175,6 +185,7 @@ export default function OnboardedCandidatesPage() {
 
   useEffect(() => {
     fetchCandidates(search, page, selectedRole, experienceFilter, activeTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
   const getStatusColor = (status: string) => {
@@ -216,6 +227,11 @@ export default function OnboardedCandidatesPage() {
         return;
       }
       const c = result.data;
+      if (c.employeeId) {
+        toast.error("This candidate is already employed");
+        fetchCandidates(search, page, selectedRole, experienceFilter, activeTab);
+        return;
+      }
       const candidateLite: CandidateLite = {
         _id: c._id,
         name: c.name,
@@ -239,7 +255,8 @@ export default function OnboardedCandidatesPage() {
                     gender: c.onboardingDetails.personalDetails.gender,
                     nationality: c.onboardingDetails.personalDetails.nationality,
                     fatherName: c.onboardingDetails.personalDetails.fatherName,
-                    aadhaarNumber: c.onboardingDetails.personalDetails.aadhaarNumber,
+                    aadhaarNumber:
+                      c.onboardingDetails.personalDetails.aadhaarNumber,
                     panNumber: c.onboardingDetails.personalDetails.panNumber,
                   }
                 : undefined,
@@ -248,7 +265,8 @@ export default function OnboardedCandidatesPage() {
                     accountNumber: c.onboardingDetails.bankDetails.accountNumber,
                     ifscCode: c.onboardingDetails.bankDetails.ifscCode,
                     bankName: c.onboardingDetails.bankDetails.bankName,
-                    accountHolderName: c.onboardingDetails.bankDetails.accountHolderName,
+                    accountHolderName:
+                      c.onboardingDetails.bankDetails.accountHolderName,
                   }
                 : undefined,
               documents: c.onboardingDetails.documents
@@ -282,10 +300,13 @@ export default function OnboardedCandidatesPage() {
     if (!rejectCandidateId) return;
     setActionLoading(true);
     try {
-      const response = await axios.post(`/api/candidates/${rejectCandidateId}/action`, {
-        status: "rejected",
-        rejectionDetails: { reason: data.reason },
-      });
+      const response = await axios.post(
+        `/api/candidates/${rejectCandidateId}/action`,
+        {
+          status: "rejected",
+          rejectionDetails: { reason: data.reason },
+        }
+      );
       const result = response.data;
       if (result.success) {
         toast.success("Candidate rejected");
@@ -326,7 +347,7 @@ export default function OnboardedCandidatesPage() {
               Status
             </th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-              Onboarded
+              {activeTab === "employed" ? "Employed" : "Onboarded"}
             </th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
               Actions
@@ -338,7 +359,7 @@ export default function OnboardedCandidatesPage() {
             <tr>
               <td colSpan={8} className="px-6 py-8 text-center">
                 <div className="flex justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
                 </div>
               </td>
             </tr>
@@ -348,7 +369,9 @@ export default function OnboardedCandidatesPage() {
                 colSpan={8}
                 className="px-6 py-8 text-center text-muted-foreground"
               >
-                No onboarded candidates found
+                {activeTab === "employed"
+                  ? "No employed candidates found"
+                  : "No onboarded candidates found"}
               </td>
             </tr>
           ) : (
@@ -394,29 +417,45 @@ export default function OnboardedCandidatesPage() {
                   <div className="text-sm text-foreground">
                     {candidate.experience === 0
                       ? "Fresher"
-                      : `${candidate.experience} ${candidate.experience === 1 ? "year" : "years"}`}
+                      : `${candidate.experience} ${
+                          candidate.experience === 1 ? "year" : "years"
+                        }`}
                   </div>
                 </td>
                 <td className="px-6 py-4">
-                  <Badge className={getStatusColor(candidate.status)}>
-                    {candidate.status === "selected"
-                      ? "Selected for Training"
-                      : candidate.status === "onboarding"
-                      ? "Onboarding"
-                      : candidate?.status?.charAt(0).toUpperCase() +
-                        candidate?.status?.slice(1)}
-                  </Badge>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge className={getStatusColor(candidate.status)}>
+                      {candidate.status === "selected"
+                        ? "Selected for Training"
+                        : candidate.status === "onboarding"
+                          ? "Onboarding"
+                          : candidate?.status?.charAt(0).toUpperCase() +
+                            candidate?.status?.slice(1)}
+                    </Badge>
+                    {candidate.employeeId ? (
+                      <Badge
+                        variant="outline"
+                        className="text-xs font-normal border-emerald-200 bg-emerald-50 text-emerald-800"
+                      >
+                        Employed
+                      </Badge>
+                    ) : null}
+                  </div>
                 </td>
                 <td className="px-6 py-4 text-sm text-muted-foreground">
-                  {candidate.onboardingDetails?.completedAt
-                    ? formatDate(candidate.onboardingDetails.completedAt)
-                    : "N/A"}
+                  {activeTab === "employed"
+                    ? candidate.employedAt
+                      ? formatDate(candidate.employedAt)
+                      : "N/A"
+                    : candidate.onboardingDetails?.completedAt
+                      ? formatDate(candidate.onboardingDetails.completedAt)
+                      : "N/A"}
                 </td>
                 <td className="px-6 py-4">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <span className="sr-only">Open menu</span>  
+                        <span className="sr-only">Open menu</span>
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -437,7 +476,7 @@ export default function OnboardedCandidatesPage() {
                         <FileText className="mr-2 h-4 w-4" />
                         Add Note
                       </DropdownMenuItem>
-                      {activeTab === "verified" && (
+                      {activeTab === "verified" && !candidate.employeeId && (
                         <>
                           <DropdownMenuItem
                             onClick={() => handleCreateEmployeeClick(candidate)}
@@ -457,6 +496,17 @@ export default function OnboardedCandidatesPage() {
                           </DropdownMenuItem>
                         </>
                       )}
+                      {activeTab === "employed" && candidate.employeeId ? (
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/dashboard/employee"
+                            className="flex items-center cursor-pointer"
+                          >
+                            <Briefcase className="mr-2 h-4 w-4" />
+                            Open Employees
+                          </Link>
+                        </DropdownMenuItem>
+                      ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </td>
@@ -471,18 +521,17 @@ export default function OnboardedCandidatesPage() {
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="mx-auto">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2 flex items-center gap-2">
             <CheckCircle2 className="h-8 w-8" />
             Onboarded Candidates
           </h1>
           <p className="text-muted-foreground">
-            View and manage candidates who have completed onboarding
+            Track onboarding progress and candidates who have been converted to
+            employees
           </p>
         </div>
 
-        {/* Search Bar */}
         <Card className="mb-6 p-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
@@ -495,28 +544,43 @@ export default function OnboardedCandidatesPage() {
           </div>
         </Card>
 
-        {/* Tabs and Filters */}
         <Tabs
           value={activeTab}
           onValueChange={(value) => {
-            setActiveTab(value as typeof activeTab);
+            setActiveTab(value as OnboardingTab);
             setPage(1);
           }}
           className="w-full"
         >
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 gap-4">
             <TabsList className="flex flex-wrap h-auto p-1 gap-1">
-              <TabsTrigger value="pending" className="flex items-center gap-1.5 px-3 py-1.5">
+              <TabsTrigger
+                value="pending"
+                className="flex items-center gap-1.5 px-3 py-1.5"
+              >
                 <Clock className="h-4 w-4" />
                 Pending
               </TabsTrigger>
-              <TabsTrigger value="uploaded-not-verified" className="flex items-center gap-1.5 px-3 py-1.5">
+              <TabsTrigger
+                value="uploaded-not-verified"
+                className="flex items-center gap-1.5 px-3 py-1.5"
+              >
                 <Upload className="h-4 w-4" />
                 Documents Uploaded (Not Verified)
               </TabsTrigger>
-              <TabsTrigger value="verified" className="flex items-center gap-1.5 px-3 py-1.5">
+              <TabsTrigger
+                value="verified"
+                className="flex items-center gap-1.5 px-3 py-1.5"
+              >
                 <CheckCircle className="h-4 w-4" />
                 Documents Verified
+              </TabsTrigger>
+              <TabsTrigger
+                value="employed"
+                className="flex items-center gap-1.5 px-3 py-1.5"
+              >
+                <Briefcase className="h-4 w-4" />
+                Employed
               </TabsTrigger>
             </TabsList>
             <div className="flex gap-2 w-full lg:w-auto flex-wrap">
@@ -559,8 +623,10 @@ export default function OnboardedCandidatesPage() {
             <TabsContent value="verified" className="m-0">
               <CandidateTable />
             </TabsContent>
+            <TabsContent value="employed" className="m-0">
+              <CandidateTable />
+            </TabsContent>
 
-            {/* Pagination */}
             {pagination && pagination.pages > 1 && (
               <div className="px-6 py-4 border-t border-border flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
@@ -570,86 +636,97 @@ export default function OnboardedCandidatesPage() {
                   {activeTab === "pending"
                     ? "pending"
                     : activeTab === "uploaded-not-verified"
-                    ? "with uploaded documents (not verified)"
-                    : "with verified documents"}{" "}
+                      ? "with uploaded documents (not verified)"
+                      : activeTab === "verified"
+                        ? "with verified documents"
+                        : "employed"}{" "}
                   candidates
                 </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(page - 1)}
-                  disabled={page === 1}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, pagination.pages) }).map(
-                    (_, i) => {
-                      let pageNum;
-                      if (pagination.pages <= 5) {
-                        pageNum = i + 1;
-                      } else if (page <= 3) {
-                        pageNum = i + 1;
-                      } else if (page >= pagination.pages - 2) {
-                        pageNum = pagination.pages - 4 + i;
-                      } else {
-                        pageNum = page - 2 + i;
-                      }
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page - 1)}
+                    disabled={page === 1}
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, pagination.pages) }).map(
+                      (_, i) => {
+                        let pageNum;
+                        if (pagination.pages <= 5) {
+                          pageNum = i + 1;
+                        } else if (page <= 3) {
+                          pageNum = i + 1;
+                        } else if (page >= pagination.pages - 2) {
+                          pageNum = pagination.pages - 4 + i;
+                        } else {
+                          pageNum = page - 2 + i;
+                        }
 
-                      return (
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={page === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setPage(pageNum)}
+                            className="w-8"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      }
+                    )}
+                    {pagination.pages > 5 && page < pagination.pages - 2 && (
+                      <>
+                        <span className="px-2">...</span>
                         <Button
-                          key={pageNum}
-                          variant={page === pageNum ? "default" : "outline"}
+                          variant="outline"
                           size="sm"
-                          onClick={() => setPage(pageNum)}
+                          onClick={() => setPage(pagination.pages)}
                           className="w-8"
                         >
-                          {pageNum}
+                          {pagination.pages}
                         </Button>
-                      );
-                    }
-                  )}
-                  {pagination.pages > 5 && page < pagination.pages - 2 && (
-                    <>
-                      <span className="px-2">...</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(pagination.pages)}
-                        className="w-8"
-                      >
-                        {pagination.pages}
-                      </Button>
-                    </>
-                  )}
+                      </>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(page + 1)}
+                    disabled={page === pagination.pages}
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(page + 1)}
-                  disabled={page === pagination.pages}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
               </div>
-            </div>
-          )}
+            )}
           </Card>
         </Tabs>
       </div>
 
-      {/* Notes Modal */}
       {notesCandidate && (
         <NotesModal
           open={notesDialogOpen}
           onOpenChange={setNotesDialogOpen}
           candidateId={notesCandidate._id}
           candidateName={notesCandidate.name}
+          onUpdate={() => {
+            fetchCandidates(
+              search,
+              page,
+              selectedRole,
+              experienceFilter,
+              activeTab
+            );
+          }}
         />
       )}
 
-      {/* Create Employee Dialog - same as candidate portal detail page */}
       <CreateEmployeeDialog
         open={createEmployeeDialogOpen}
         onClose={() => {
@@ -660,12 +737,13 @@ export default function OnboardedCandidatesPage() {
         onCreated={() => {
           setCreateEmployeeDialogOpen(false);
           setCreateEmployeeCandidate(null);
-          toast.success("Employee created successfully");
-          fetchCandidates(search, page, selectedRole, experienceFilter, activeTab);
+          toast.success("Employee created — moved to Employed");
+          setActiveTab("employed");
+          setPage(1);
+          fetchCandidates(search, 1, selectedRole, experienceFilter, "employed");
         }}
       />
 
-      {/* Reject Candidate Dialog */}
       <RejectCandidateDialog
         open={rejectDialogOpen}
         onClose={() => {
@@ -680,4 +758,3 @@ export default function OnboardedCandidatesPage() {
     </div>
   );
 }
-

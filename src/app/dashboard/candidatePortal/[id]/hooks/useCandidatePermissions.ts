@@ -51,7 +51,11 @@ export function useCandidatePermissions(candidate: Candidate | null) {
   };
 
   const canCreateEmployee = () => {
-    return candidate?.status === "onboarding" && candidate?.onboardingDetails?.onboardingComplete === true;
+    return (
+      candidate?.status === "onboarding" &&
+      candidate?.onboardingDetails?.onboardingComplete === true &&
+      !candidate?.employeeId
+    );
   };
 
   const canScheduleInterview = () => {

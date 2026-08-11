@@ -11,6 +11,9 @@ import {
   ExternalLink,
   Smartphone,
   UserPlus,
+  Copy,
+  Check,
+  MessageCircle,
 } from "lucide-react";
 
 import {
@@ -128,6 +131,8 @@ function LeadRow({
   creatingNote,
   resolvingLeadId,
   canTakeLead,
+  copiedId,
+  onCopyPhone,
   onAddNote,
   onOpenListing,
   onTakeLead,
@@ -138,6 +143,8 @@ function LeadRow({
   creatingNote: boolean;
   resolvingLeadId: string | null;
   canTakeLead: boolean;
+  copiedId: string | null;
+  onCopyPhone: (phone: string, id: string) => void;
   onAddNote: (leadId: string) => void;
   onOpenListing: (lead: WebsiteLead) => void;
   onTakeLead: (lead: WebsiteLead) => void;
@@ -152,37 +159,73 @@ function LeadRow({
   const location = [lead.propertyCity, lead.propertyCountry]
     .filter(Boolean)
     .join(", ");
+  const phoneDigits = String(lead.telephone || "").replace(/\D/g, "");
+  const whatsappHref = phoneDigits
+    ? `https://wa.me/${phoneDigits}`
+    : null;
 
   return (
     <tr className="border-b border-stone-100 hover:bg-stone-50/80 transition-colors">
       <td className="px-4 py-3">
         <div className="font-medium text-stone-900">{guest}</div>
-        {lead.telephone ? (
-          <div className="text-xs text-stone-600 mt-0.5">{lead.telephone}</div>
+        {phoneDigits ? (
+          <div className="mt-1 flex items-center gap-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs"
+              asChild
+            >
+              <a
+                href={whatsappHref!}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open WhatsApp"
+              >
+                <MessageCircle className="h-3.5 w-3.5 text-emerald-600" />
+                WhatsApp
+              </a>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              title="Copy phone"
+              onClick={() => onCopyPhone(lead.telephone, `phone-${lead._id}`)}
+            >
+              {copiedId === `phone-${lead._id}` ? (
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         ) : null}
         {lead.email ? (
           <div className="text-xs text-stone-500 mt-0.5">{lead.email}</div>
         ) : null}
-        <div className="mt-1.5">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                            isMobile
-                              ? "border-sky-200 bg-sky-50 text-sky-800"
-                              : "border-violet-200 bg-violet-50 text-violet-800"
-                          }`}
-                        >
-                          {isMobile ? (
-                            <Smartphone className="h-3 w-3" />
-                          ) : (
-                            <Globe className="h-3 w-3" />
-                          )}
-                          {isMobile ? "Mobile" : "Web"}
-                        </span>
-                        {isTaken ? (
-                          <span className="inline-flex items-center rounded-full border border-stone-200 bg-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-600">
-                            Taken
-                          </span>
-                        ) : null}
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <span
+            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+              isMobile
+                ? "border-sky-200 bg-sky-50 text-sky-800"
+                : "border-violet-200 bg-violet-50 text-violet-800"
+            }`}
+          >
+            {isMobile ? (
+              <Smartphone className="h-3 w-3" />
+            ) : (
+              <Globe className="h-3 w-3" />
+            )}
+            {isMobile ? "Mobile" : "Web"}
+          </span>
+          {isTaken ? (
+            <span className="inline-flex items-center rounded-full border border-stone-200 bg-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-600">
+              Taken
+            </span>
+          ) : null}
         </div>
       </td>
       <td className="px-4 py-3">
@@ -356,10 +399,29 @@ const WebsiteLeadsPage = () => {
   const [creatingNote, setCreatingNote] = useState(false);
   const [resolvingLeadId, setResolvingLeadId] = useState<string | null>(null);
   const [includeTaken, setIncludeTaken] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [takeTarget, setTakeTarget] = useState<{
     source: "web" | "mobile";
     id: string;
   } | null>(null);
+
+  const handleCopyPhone = useCallback(
+    async (phone: string, id: string) => {
+      try {
+        await navigator.clipboard.writeText(phone);
+        setCopiedId(id);
+        toast({ title: "Phone copied" });
+        window.setTimeout(() => setCopiedId(null), 1500);
+      } catch {
+        toast({
+          title: "Copy failed",
+          description: "Could not copy phone number.",
+          variant: "destructive",
+        });
+      }
+    },
+    [toast]
+  );
 
   const [page, setPage] = useState(
     Number.parseInt(searchParams?.get("page") ?? "1")
@@ -702,6 +764,8 @@ const WebsiteLeadsPage = () => {
                     creatingNote={creatingNote}
                     resolvingLeadId={resolvingLeadId}
                     canTakeLead={canTakeLead}
+                    copiedId={copiedId}
+                    onCopyPhone={handleCopyPhone}
                     onAddNote={handleAddNote}
                     onOpenListing={openVacationSagaListing}
                     onTakeLead={(l) =>

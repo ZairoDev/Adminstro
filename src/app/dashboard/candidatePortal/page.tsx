@@ -86,6 +86,9 @@ interface Candidate {
   interviewDetails?: {
     scheduledDate?: string;
     scheduledTime?: string;
+    interviewMode?: "physical" | "virtual" | null;
+    officeAddressId?: string | null;
+    officeName?: string | null;
     scheduledBy?: string;
     scheduledAt?: string;
     notes?: string;
@@ -103,6 +106,9 @@ interface Candidate {
   secondRoundInterviewDetails?: {
     scheduledDate?: string;
     scheduledTime?: string;
+    interviewMode?: "physical" | "virtual" | null;
+    officeAddressId?: string | null;
+    officeName?: string | null;
     scheduledBy?: string;
     scheduledAt?: string;
     notes?: string;
@@ -229,6 +235,13 @@ function CandidatesPageContent() {
   const [interviewMinute, setInterviewMinute] = useState<string>("00");
   const [interviewAmPm, setInterviewAmPm] = useState<"AM" | "PM">("PM");
   const [interviewNotes, setInterviewNotes] = useState("");
+  const [interviewMode, setInterviewMode] = useState<"physical" | "virtual" | "">(
+    ""
+  );
+  const [interviewOfficeId, setInterviewOfficeId] = useState<string>("");
+  const [officeOptions, setOfficeOptions] = useState<
+    { _id: string; name: string; city: string; formattedAddress?: string }[]
+  >([]);
   const [schedulingInterview, setSchedulingInterview] = useState(false);
   const [interviewRound, setInterviewRound] = useState<"first" | "second">("first");
   const [viewedCandidates, setViewedCandidates] = useState<Set<string>>(new Set());
@@ -342,6 +355,33 @@ function CandidatesPageContent() {
     
     fetchRoles();
     fetchColleges();
+
+    const fetchOffices = async () => {
+      try {
+        const response = await fetch("/api/office-addresses?active=1");
+        const result = await response.json();
+        if (result.success && Array.isArray(result.data)) {
+          setOfficeOptions(
+            result.data.map(
+              (o: {
+                _id: string;
+                name: string;
+                city: string;
+                formattedAddress?: string;
+              }) => ({
+                _id: String(o._id),
+                name: o.name,
+                city: o.city,
+                formattedAddress: o.formattedAddress,
+              })
+            )
+          );
+        }
+      } catch (error) {
+        console.error("Error fetching offices:", error);
+      }
+    };
+    fetchOffices();
   }, []);
 
   // Fetch user role
@@ -775,19 +815,42 @@ function CandidatesPageContent() {
     }
   };
 
-  const formatDate = (date: string) => {
-    const dateObj = new Date(date);
-    const dateStr = dateObj.toLocaleDateString("en-US", {
+  const formatAppliedDate = (date: string) =>
+    new Date(date).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
     });
-    const timeStr = dateObj.toLocaleTimeString("en-US", {
+
+  const formatAppliedTime = (date: string) =>
+    new Date(date).toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     });
-    return `${dateStr} ${timeStr}`;
+
+  const interviewModeBadge = (mode?: "physical" | "virtual" | null) => {
+    if (mode === "virtual") {
+      return (
+        <Badge
+          variant="outline"
+          className="text-xs font-normal bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800"
+        >
+          Virtual
+        </Badge>
+      );
+    }
+    if (mode === "physical") {
+      return (
+        <Badge
+          variant="outline"
+          className="text-xs font-normal bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800"
+        >
+          Physical
+        </Badge>
+      );
+    }
+    return null;
   };
 
    /**
@@ -986,13 +1049,23 @@ function CandidatesPageContent() {
     setInterviewMinute("00");
     setInterviewAmPm("PM");
     setInterviewNotes("");
+    setInterviewMode("");
+    setInterviewOfficeId("");
     setInterviewRound("first"); // Default to first round
     setScheduleInterviewDialogOpen(true);
   };
 
   const handleScheduleInterview = async () => {
     if (!interviewCandidate || !interviewDate) {
-      toast.error("Please select both date and time");
+      toast.error("Please select an interview date");
+      return;
+    }
+    if (!interviewMode) {
+      toast.error("Please select Physical or Virtual interview");
+      return;
+    }
+    if (interviewMode === "physical" && !interviewOfficeId) {
+      toast.error("Please select an office for the physical interview");
       return;
     }
 
@@ -1014,6 +1087,9 @@ function CandidatesPageContent() {
         body: JSON.stringify({
           scheduledDate: dateString,
           scheduledTime: time24Hour,
+          interviewMode,
+          officeAddressId:
+            interviewMode === "physical" ? interviewOfficeId : undefined,
           notes: interviewNotes || undefined,
         }),
       });
@@ -1027,6 +1103,8 @@ function CandidatesPageContent() {
         setInterviewMinute("00");
         setInterviewAmPm("PM");
         setInterviewNotes("");
+        setInterviewMode("");
+        setInterviewOfficeId("");
         setInterviewRound("first");
         setInterviewCandidate(null);
         // Refresh candidates list
@@ -1383,6 +1461,16 @@ function CandidatesPageContent() {
                               <Badge variant="outline" className="text-xs font-normal bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800">
                                 First Round
                               </Badge>
+                              {interviewModeBadge(candidate.interviewDetails.interviewMode)}
+                              {candidate.interviewDetails.interviewMode === "physical" &&
+                              candidate.interviewDetails.officeName ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs font-normal"
+                                >
+                                  {candidate.interviewDetails.officeName}
+                                </Badge>
+                              ) : null}
                             {(() => {
                               const category = categorizeInterviewDate(candidate.interviewDetails.scheduledDate);
                               if (category === "today") {
@@ -1420,6 +1508,17 @@ function CandidatesPageContent() {
                               <Badge variant="outline" className="text-xs font-normal bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800">
                                 Second Round
                               </Badge>
+                              {interviewModeBadge(candidate.secondRoundInterviewDetails.interviewMode)}
+                              {candidate.secondRoundInterviewDetails.interviewMode ===
+                                "physical" &&
+                              candidate.secondRoundInterviewDetails.officeName ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs font-normal"
+                                >
+                                  {candidate.secondRoundInterviewDetails.officeName}
+                                </Badge>
+                              ) : null}
                               {(() => {
                                 const category = categorizeInterviewDate(candidate.secondRoundInterviewDetails.scheduledDate);
                                 if (category === "today") {
@@ -1505,7 +1604,18 @@ function CandidatesPageContent() {
                   </>
                 )}
                 <td className="px-6 py-4 text-sm text-muted-foreground">
-                  {formatDate(candidate.createdAt)}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-default border-b border-dotted border-muted-foreground/40">
+                          {formatAppliedDate(candidate.createdAt)}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{formatAppliedTime(candidate.createdAt)}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </td>
                 <td className="px-6 py-4 text-center">
                   <TooltipProvider>
@@ -1947,6 +2057,68 @@ function CandidatesPageContent() {
               </div>
             </div>
             <div>
+              <Label className="text-sm font-medium mb-2 block">
+                Interview Mode *
+              </Label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setInterviewMode("physical")}
+                  className={`flex-1 py-2 px-3 rounded border transition ${
+                    interviewMode === "physical"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-muted text-muted-foreground hover:border-primary"
+                  }`}
+                >
+                  Physical
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInterviewMode("virtual");
+                    setInterviewOfficeId("");
+                  }}
+                  className={`flex-1 py-2 px-3 rounded border transition ${
+                    interviewMode === "virtual"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-muted text-muted-foreground hover:border-primary"
+                  }`}
+                >
+                  Virtual
+                </button>
+              </div>
+            </div>
+            {interviewMode === "physical" ? (
+              <div>
+                <Label className="text-sm font-medium mb-2 block">
+                  Office *
+                </Label>
+                <Select
+                  value={interviewOfficeId || undefined}
+                  onValueChange={setInterviewOfficeId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select office for interview" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {officeOptions.map((office) => (
+                      <SelectItem key={office._id} value={office._id}>
+                        {office.name} ({office.city})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {interviewOfficeId ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {
+                      officeOptions.find((o) => o._id === interviewOfficeId)
+                        ?.formattedAddress
+                    }
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+            <div>
               <Label htmlFor="interview-date" className="text-sm font-medium mb-2 block">
                 Interview Date *
               </Label>
@@ -2018,7 +2190,15 @@ function CandidatesPageContent() {
             >
               Cancel
             </Button>
-            <Button onClick={handleScheduleInterview} disabled={schedulingInterview}>
+            <Button
+              onClick={handleScheduleInterview}
+              disabled={
+                schedulingInterview ||
+                !interviewDate ||
+                !interviewMode ||
+                (interviewMode === "physical" && !interviewOfficeId)
+              }
+            >
               {schedulingInterview ? "Scheduling..." : "Schedule Interview"}
             </Button>
           </DialogFooter>

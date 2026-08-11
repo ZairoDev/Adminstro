@@ -42,6 +42,20 @@ const CandidateSchema = new Schema(
     interviewDetails: {
       scheduledDate: { type: Date, default: null },
       scheduledTime: { type: String, default: null },
+      /** physical = in-office, virtual = online */
+      interviewMode: {
+        type: String,
+        enum: ["physical", "virtual"],
+        default: null,
+      },
+      /** Office for physical interviews (ref OfficeAddress) */
+      officeAddressId: {
+        type: Schema.Types.ObjectId,
+        ref: "OfficeAddress",
+        default: null,
+      },
+      /** Snapshot of office name at schedule time (for display/email history) */
+      officeName: { type: String, default: null },
       scheduledBy: { type: String, default: null },
       scheduledAt: { type: Date, default: null },
       notes: { type: String, default: null },
@@ -74,6 +88,20 @@ const CandidateSchema = new Schema(
     secondRoundInterviewDetails: {
       scheduledDate: { type: Date, default: null },
       scheduledTime: { type: String, default: null },
+      /** physical = in-office, virtual = online */
+      interviewMode: {
+        type: String,
+        enum: ["physical", "virtual"],
+        default: null,
+      },
+      /** Office for physical interviews (ref OfficeAddress) */
+      officeAddressId: {
+        type: Schema.Types.ObjectId,
+        ref: "OfficeAddress",
+        default: null,
+      },
+      /** Snapshot of office name at schedule time (for display/email history) */
+      officeName: { type: String, default: null },
       scheduledBy: { type: String, default: null },
       scheduledAt: { type: Date, default: null },
       notes: { type: String, default: null },

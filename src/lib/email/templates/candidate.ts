@@ -3,6 +3,106 @@ import { CandidateEmailPayload, EmailTemplate } from "../types";
 import { getEmailSignature, EmailSignatureConfig } from "../signature";
 import { parseLocalDateString } from "@/lib/utils";
 
+function interviewModeLabel(mode?: "physical" | "virtual") {
+  if (mode === "virtual") return "Virtual";
+  if (mode === "physical") return "Physical (In-office)";
+  return null;
+}
+
+/** Mode line + location / join section for interview emails */
+function renderInterviewVenueHtml(
+  interviewDetails: CandidateEmailPayload["interviewDetails"],
+  style: "card" | "plain" = "card"
+) {
+  const mode = interviewDetails?.interviewMode;
+  const modeText = interviewModeLabel(mode);
+  const modeLine = modeText
+    ? style === "card"
+      ? `<p style="font-size: 16px; margin-bottom: 20px;"><strong>Mode:</strong> ${modeText}</p>`
+      : `<br/><strong>Mode:</strong> ${modeText}`
+    : "";
+
+  if (mode === "virtual") {
+    if (style === "plain") {
+      return `${modeLine}
+          <p><strong>How to Join:</strong><br/>
+            This is a <strong>virtual</strong> interview. Meeting link or dial-in details will be shared by HR before your scheduled time.
+          </p>`;
+    }
+    return `
+          ${modeLine}
+          <div style="margin: 30px 0;">
+            <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">How to Join</h3>
+            <p style="font-size: 16px; margin-bottom: 15px; line-height: 1.6;">
+              This is a <strong>virtual</strong> interview. Meeting link or dial-in details will be shared by HR before your scheduled time.
+            </p>
+          </div>`;
+  }
+
+  const address =
+    interviewDetails?.officeAddress ||
+    "Office address will be shared by HR before your visit.";
+  const officeName = interviewDetails?.officeName?.trim();
+  const maps = interviewDetails?.googleMapsLink;
+
+  if (style === "plain") {
+    return `${modeLine}
+          <p><strong>Office${officeName ? ` (${officeName})` : ""}:</strong><br/>
+            ${address}
+          </p>
+          ${
+            maps
+              ? `<p><a href="${maps}">View location on Google Maps</a></p>`
+              : ""
+          }`;
+  }
+
+  return `
+          ${modeLine}
+          <div style="margin: 30px 0;">
+            <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Office Location${
+              officeName ? ` — ${officeName}` : ""
+            }</h3>
+            <p style="font-size: 16px; margin-bottom: 15px; line-height: 1.6;">
+              ${address}
+            </p>
+            ${
+              maps
+                ? `
+                <div style="margin: 20px 0;">
+                  <a href="${maps}" 
+                     style="display: inline-block; background: #3b82f6; color: #ffffff; padding: 12px 24px; 
+                            border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;
+                            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);">
+                    📍 View on Google Maps
+                  </a>
+                </div>`
+                : ""
+            }
+          </div>`;
+}
+
+function interviewRemindersHtml(mode?: "physical" | "virtual") {
+  if (mode === "virtual") {
+    return `
+            <ul style="font-size: 16px; line-height: 1.8; padding-left: 20px; margin: 0;">
+              <li style="margin-bottom: 10px;">Join a few minutes early and test your camera and microphone</li>
+              <li style="margin-bottom: 10px;">Keep a copy of your resume and any relevant documents handy</li>
+              <li style="margin-bottom: 10px;">If you need to reschedule, please contact us at least 24 hours in advance</li>
+              <li style="margin-bottom: 10px;">Dress professionally and join from a quiet, well-lit space</li>
+              <li style="margin-bottom: 10px;">Be prepared to discuss your experience, skills, and how you can contribute to our team</li>
+            </ul>`;
+  }
+  return `
+            <ul style="font-size: 16px; line-height: 1.8; padding-left: 20px; margin: 0;">
+              <li style="margin-bottom: 10px;">Please arrive 10-15 minutes early for your interview</li>
+              <li style="margin-bottom: 10px;">Bring a copy of your resume and any relevant documents (certificates, portfolio, etc.)</li>
+              <li style="margin-bottom: 10px;">If you need to reschedule, please contact us at least 24 hours in advance</li>
+              <li style="margin-bottom: 10px;">Dress professionally for the interview</li>
+              <li style="margin-bottom: 10px;">Be prepared to discuss your experience, skills, and how you can contribute to our team</li>
+            </ul>`;
+}
+
 export const getCandidateEmailTemplate = (
   payload: CandidateEmailPayload,
   hrEmployee?: EmailSignatureConfig
@@ -388,35 +488,11 @@ export const getCandidateEmailTemplate = (
             </p>
           </div>
           
-          <div style="margin: 30px 0;">
-            <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Office Location</h3>
-            <p style="font-size: 16px; margin-bottom: 15px; line-height: 1.6;">
-              ${interviewDetails?.officeAddress || "Office address will be shared by HR before your visit."}
-            </p>
-            ${
-              interviewDetails?.googleMapsLink
-                ? `
-                <div style="margin: 20px 0;">
-                  <a href="${interviewDetails.googleMapsLink}" 
-                     style="display: inline-block; background: #3b82f6; color: #ffffff; padding: 12px 24px; 
-                            border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;
-                            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);">
-                    📍 View on Google Maps
-                  </a>
-                </div>`
-                : ""
-            }
-          </div>
+          ${renderInterviewVenueHtml(interviewDetails, "card")}
           
           <div style="margin: 30px 0;">
             <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Important Reminders</h3>
-            <ul style="font-size: 16px; line-height: 1.8; padding-left: 20px; margin: 0;">
-              <li style="margin-bottom: 10px;">Please arrive 10-15 minutes early for your interview</li>
-              <li style="margin-bottom: 10px;">Bring a copy of your resume and any relevant documents (certificates, portfolio, etc.)</li>
-              <li style="margin-bottom: 10px;">If you need to reschedule, please contact us at least 24 hours in advance</li>
-              <li style="margin-bottom: 10px;">Dress professionally for the interview</li>
-              <li style="margin-bottom: 10px;">Be prepared to discuss your experience, skills, and how you can contribute to our team</li>
-            </ul>
+            ${interviewRemindersHtml(interviewDetails?.interviewMode)}
           </div>
           
           <p style="font-size: 16px; margin-bottom: 20px; line-height: 1.6;">
@@ -496,28 +572,23 @@ export const getCandidateEmailTemplate = (
             <strong>Time:</strong> ${interviewDetails?.scheduledTime || "TBD"}
           </p>
     
-          <p><strong>Office Address:</strong><br/>
-            ${interviewDetails?.officeAddress || "Office address will be shared by HR before your visit."}
-          </p>
-    
-          ${
-            interviewDetails?.googleMapsLink
-              ? `
-                <p>
-                  <a href="${interviewDetails.googleMapsLink}">
-                    View location on Google Maps
-                  </a>
-                </p>
-              `
-              : ""
-          }
+          ${renderInterviewVenueHtml(interviewDetails, "plain")}
     
           <p><strong>Please note:</strong></p>
           <ul>
+            ${
+              interviewDetails?.interviewMode === "virtual"
+                ? `
+            <li>Join a few minutes early and test your camera and microphone.</li>
+            <li>Keep a copy of your resume and any relevant documents handy.</li>
+            <li>Dress professionally and join from a quiet space.</li>
+            <li>If you are unable to attend, inform us at least 24 hours in advance.</li>`
+                : `
             <li>Please arrive 10–15 minutes before the scheduled time.</li>
             <li>Carry a copy of your resume and any relevant documents.</li>
             <li>Dress professionally.</li>
-            <li>If you are unable to attend, inform us at least 24 hours in advance.</li>
+            <li>If you are unable to attend, inform us at least 24 hours in advance.</li>`
+            }
           </ul>
     
           <p>

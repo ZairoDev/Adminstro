@@ -110,7 +110,18 @@ export async function PATCH(
 
       // Send reschedule confirmation email
       try {
-        const officeAddress = await resolveOfficeAddressForEmail(id);
+        const storedOfficeId =
+          interviewType === "first"
+            ? updatedCandidate.interviewDetails?.officeAddressId
+            : updatedCandidate.secondRoundInterviewDetails?.officeAddressId;
+        const officeResolution = await resolveOfficeAddressForEmail(
+          id,
+          storedOfficeId ? String(storedOfficeId) : null
+        );
+        const mode =
+          interviewType === "first"
+            ? updatedCandidate.interviewDetails?.interviewMode
+            : updatedCandidate.secondRoundInterviewDetails?.interviewMode;
         await sendEmail({
           to: updatedCandidate.email,
           candidateName: updatedCandidate.name,
@@ -120,8 +131,14 @@ export async function PATCH(
           interviewDetails: {
             scheduledDate: rescheduleRequest.requestedDate as string,
             scheduledTime: requestedTime || "",
-            officeAddress,
-            googleMapsLink: "https://www.google.com/maps/place/Zairo+International+Private+Limited/@26.4774594,80.294648,19.7z/data=!4m14!1m7!3m6!1s0x399c393b0d80423f:0x5a0054d06432272d!2sZairo+International+Private+Limited!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg!3m5!1s0x399c393b0d80423f:0x5a0054d06432272d!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D",
+            interviewMode:
+              mode === "physical" || mode === "virtual" ? mode : undefined,
+            officeName: officeResolution.officeName || undefined,
+            officeAddress: officeResolution.address,
+            googleMapsLink:
+              mode === "virtual"
+                ? undefined
+                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(officeResolution.address)}`,
           },
         });
         // console.log(`✅ Reschedule confirmation email sent successfully to ${updatedCandidate.email}`);
@@ -182,7 +199,7 @@ export async function PATCH(
           interviewDetails: {
             scheduledDate: scheduledDateStr,
             scheduledTime: currentScheduledTime || "",
-            officeAddress: await resolveOfficeAddressForEmail(id),
+            officeAddress: (await resolveOfficeAddressForEmail(id)).address,
             googleMapsLink: "https://www.google.com/maps/place/Zairo+International+Private+Limited/@26.4774594,80.294648,19.7z/data=!4m14!1m7!3m6!1s0x399c393b0d80423f:0x5a0054d06432272d!2sZairo+International+Private+Limited!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg!3m5!1s0x399c393b0d80423f:0x5a0054d06432272d!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D",
           },
         });

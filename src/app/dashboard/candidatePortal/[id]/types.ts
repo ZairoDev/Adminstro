@@ -40,6 +40,9 @@ export interface Candidate {
   interviewDetails?: {
     scheduledDate?: string;
     scheduledTime?: string;
+    interviewMode?: "physical" | "virtual" | null;
+    officeAddressId?: string | null;
+    officeName?: string | null;
     scheduledBy?: string;
     scheduledAt?: string;
     notes?: string;
@@ -72,6 +75,9 @@ export interface Candidate {
   secondRoundInterviewDetails?: {
     scheduledDate?: string;
     scheduledTime?: string;
+    interviewMode?: "physical" | "virtual" | null;
+    officeAddressId?: string | null;
+    officeName?: string | null;
     scheduledBy?: string;
     scheduledAt?: string;
     notes?: string;

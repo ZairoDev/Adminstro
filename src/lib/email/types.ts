@@ -37,8 +37,12 @@ export interface CandidateEmailPayload {
   interviewDetails?: {
     scheduledDate: string;
     scheduledTime: string;
+    /** physical = in-office visit; virtual = online interview */
+    interviewMode?: "physical" | "virtual";
+    /** Display name of selected office (physical interviews) */
+    officeName?: string;
     officeAddress: string;
-    googleMapsLink: string;
+    googleMapsLink?: string;
     candidateId?: string;
     interviewType?: "first" | "second";
     rescheduleLink?: string;

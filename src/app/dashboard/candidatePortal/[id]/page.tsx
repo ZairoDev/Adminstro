@@ -156,6 +156,10 @@ export default function CandidateDetailPage() {
   const [interviewMinute, setInterviewMinute] = useState<string>("00");
   const [interviewAmPm, setInterviewAmPm] = useState<"AM" | "PM">("PM");
   const [interviewNotes, setInterviewNotes] = useState("");
+  const [interviewMode, setInterviewMode] = useState<"physical" | "virtual" | "">(
+    ""
+  );
+  const [interviewOfficeId, setInterviewOfficeId] = useState<string>("");
   const [schedulingInterview, setSchedulingInterview] = useState(false);
 
   // Second Round Interview states
@@ -166,6 +170,10 @@ export default function CandidateDetailPage() {
   const [secondRoundMinute, setSecondRoundMinute] = useState<string>("00");
   const [secondRoundAmPm, setSecondRoundAmPm] = useState<"AM" | "PM">("PM");
   const [secondRoundNotes, setSecondRoundNotes] = useState("");
+  const [secondRoundInterviewMode, setSecondRoundInterviewMode] = useState<
+    "physical" | "virtual" | ""
+  >("");
+  const [secondRoundOfficeId, setSecondRoundOfficeId] = useState<string>("");
   const [schedulingSecondRound, setSchedulingSecondRound] = useState(false);
 
   // convertTo24Hour is now imported from utils/time-utils
@@ -763,7 +771,15 @@ export default function CandidateDetailPage() {
 
   const handleScheduleInterview = async () => {
     if (!candidate || !interviewDate) {
-      toast.error("Please select both date and time");
+      toast.error("Please select an interview date");
+      return;
+    }
+    if (!interviewMode) {
+      toast.error("Please select Physical or Virtual interview");
+      return;
+    }
+    if (interviewMode === "physical" && !interviewOfficeId) {
+      toast.error("Please select an office for the physical interview");
       return;
     }
 
@@ -783,6 +799,9 @@ export default function CandidateDetailPage() {
           body: JSON.stringify({
             scheduledDate: dateString,
             scheduledTime: time24Hour,
+            interviewMode,
+            officeAddressId:
+              interviewMode === "physical" ? interviewOfficeId : undefined,
             notes: interviewNotes || undefined,
           }),
         }
@@ -797,6 +816,8 @@ export default function CandidateDetailPage() {
         setInterviewMinute("00");
         setInterviewAmPm("PM");
         setInterviewNotes("");
+        setInterviewMode("");
+        setInterviewOfficeId("");
         // Refresh candidate data
         await refreshCandidate();
       } else {
@@ -814,7 +835,15 @@ export default function CandidateDetailPage() {
 
   const handleScheduleSecondRound = async () => {
     if (!candidate || !secondRoundDate) {
-      toast.error("Please select both date and time");
+      toast.error("Please select an interview date");
+      return;
+    }
+    if (!secondRoundInterviewMode) {
+      toast.error("Please select Physical or Virtual interview");
+      return;
+    }
+    if (secondRoundInterviewMode === "physical" && !secondRoundOfficeId) {
+      toast.error("Please select an office for the physical interview");
       return;
     }
 
@@ -839,6 +868,11 @@ export default function CandidateDetailPage() {
           body: JSON.stringify({
             scheduledDate: dateString,
             scheduledTime: time24Hour,
+            interviewMode: secondRoundInterviewMode,
+            officeAddressId:
+              secondRoundInterviewMode === "physical"
+                ? secondRoundOfficeId
+                : undefined,
             notes: secondRoundNotes || undefined,
           }),
         }
@@ -853,6 +887,8 @@ export default function CandidateDetailPage() {
         setSecondRoundMinute("00");
         setSecondRoundAmPm("PM");
         setSecondRoundNotes("");
+        setSecondRoundInterviewMode("");
+        setSecondRoundOfficeId("");
         setShowSecondRoundConfirmation(false);
         await refreshCandidate();
       } else {
@@ -925,6 +961,8 @@ export default function CandidateDetailPage() {
       return;
     }
     setShowSecondRoundConfirmation(false);
+    setSecondRoundInterviewMode("");
+    setSecondRoundOfficeId("");
     setScheduleSecondRoundDialogOpen(true);
   };
 
@@ -1112,6 +1150,23 @@ export default function CandidateDetailPage() {
                       </span>
                     </div>
                   )}
+                  {candidate.interviewDetails.interviewMode && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Mode</span>
+                      <span className="text-foreground font-medium capitalize">
+                        {candidate.interviewDetails.interviewMode}
+                      </span>
+                    </div>
+                  )}
+                  {candidate.interviewDetails.interviewMode === "physical" &&
+                    candidate.interviewDetails.officeName && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground shrink-0">Office</span>
+                      <span className="text-foreground font-medium text-right">
+                        {candidate.interviewDetails.officeName}
+                      </span>
+                    </div>
+                  )}
                   {candidate.interviewDetails.scheduledBy && (
                     <div className="pt-2 mt-2 border-t text-xs text-muted-foreground">
                       Scheduled by {candidate.interviewDetails.scheduledBy}
@@ -1212,6 +1267,24 @@ export default function CandidateDetailPage() {
                       <span className="text-muted-foreground">Time</span>
                       <span className="text-foreground font-medium">
                         {candidate.secondRoundInterviewDetails.scheduledTime}
+                      </span>
+                    </div>
+                  )}
+                  {candidate.secondRoundInterviewDetails.interviewMode && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Mode</span>
+                      <span className="text-foreground font-medium capitalize">
+                        {candidate.secondRoundInterviewDetails.interviewMode}
+                      </span>
+                    </div>
+                  )}
+                  {candidate.secondRoundInterviewDetails.interviewMode ===
+                    "physical" &&
+                    candidate.secondRoundInterviewDetails.officeName && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground shrink-0">Office</span>
+                      <span className="text-foreground font-medium text-right">
+                        {candidate.secondRoundInterviewDetails.officeName}
                       </span>
                     </div>
                   )}
@@ -1316,6 +1389,8 @@ export default function CandidateDetailPage() {
                             setInterviewMinute("00");
                             setInterviewAmPm("PM");
                             setInterviewNotes("");
+                            setInterviewMode("");
+                            setInterviewOfficeId("");
                           }}
                           disabled={actionLoading || !canScheduleInterview}
                           variant={candidate.status === "interview" ? "default" : "outline"}
@@ -3030,6 +3105,70 @@ export default function CandidateDetailPage() {
               </Label>
             </div>
             <div>
+              <Label className="text-sm font-medium mb-2 block">
+                Interview Mode *
+              </Label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInterviewMode("physical");
+                    if (!interviewOfficeId && candidate) {
+                      const assigned =
+                        typeof candidate.officeAddressId === "object" &&
+                        candidate.officeAddressId?._id
+                          ? candidate.officeAddressId._id
+                          : typeof candidate.officeAddressId === "string"
+                            ? candidate.officeAddressId
+                            : "";
+                      if (assigned) setInterviewOfficeId(assigned);
+                    }
+                  }}
+                  className={`flex-1 py-2 px-3 rounded border transition ${
+                    interviewMode === "physical"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-muted text-muted-foreground hover:border-primary"
+                  }`}
+                >
+                  Physical
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInterviewMode("virtual");
+                    setInterviewOfficeId("");
+                  }}
+                  className={`flex-1 py-2 px-3 rounded border transition ${
+                    interviewMode === "virtual"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-muted text-muted-foreground hover:border-primary"
+                  }`}
+                >
+                  Virtual
+                </button>
+              </div>
+            </div>
+            {interviewMode === "physical" ? (
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Office *</Label>
+                <Select
+                  value={interviewOfficeId || undefined}
+                  onValueChange={setInterviewOfficeId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select office for interview" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {officeOptions.map((opt) => (
+                      <SelectItem key={opt._id} value={opt._id}>
+                        {opt.name} ({opt.city})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+            <div>
               <Label htmlFor="interview-date" className="text-sm font-medium mb-2 block">
                 Interview Date *
               </Label>
@@ -3101,7 +3240,15 @@ export default function CandidateDetailPage() {
             >
               Cancel
             </Button>
-            <Button onClick={handleScheduleInterview} disabled={schedulingInterview}>
+            <Button
+              onClick={handleScheduleInterview}
+              disabled={
+                schedulingInterview ||
+                !interviewDate ||
+                !interviewMode ||
+                (interviewMode === "physical" && !interviewOfficeId)
+              }
+            >
               {schedulingInterview ? "Scheduling..." : "Schedule Interview"}
             </Button>
           </DialogFooter>
@@ -3120,6 +3267,70 @@ export default function CandidateDetailPage() {
                 Candidate: {candidate?.name}
               </Label>
             </div>
+            <div>
+              <Label className="text-sm font-medium mb-2 block">
+                Interview Mode *
+              </Label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSecondRoundInterviewMode("physical");
+                    if (!secondRoundOfficeId && candidate) {
+                      const assigned =
+                        typeof candidate.officeAddressId === "object" &&
+                        candidate.officeAddressId?._id
+                          ? candidate.officeAddressId._id
+                          : typeof candidate.officeAddressId === "string"
+                            ? candidate.officeAddressId
+                            : "";
+                      if (assigned) setSecondRoundOfficeId(assigned);
+                    }
+                  }}
+                  className={`flex-1 py-2 px-3 rounded border transition ${
+                    secondRoundInterviewMode === "physical"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-muted text-muted-foreground hover:border-primary"
+                  }`}
+                >
+                  Physical
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSecondRoundInterviewMode("virtual");
+                    setSecondRoundOfficeId("");
+                  }}
+                  className={`flex-1 py-2 px-3 rounded border transition ${
+                    secondRoundInterviewMode === "virtual"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-muted text-muted-foreground hover:border-primary"
+                  }`}
+                >
+                  Virtual
+                </button>
+              </div>
+            </div>
+            {secondRoundInterviewMode === "physical" ? (
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Office *</Label>
+                <Select
+                  value={secondRoundOfficeId || undefined}
+                  onValueChange={setSecondRoundOfficeId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select office for interview" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {officeOptions.map((opt) => (
+                      <SelectItem key={opt._id} value={opt._id}>
+                        {opt.name} ({opt.city})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <div>
               <Label className="text-sm font-medium mb-2 block">
                 Select Date
@@ -3190,7 +3401,15 @@ export default function CandidateDetailPage() {
             >
               Cancel
             </Button>
-            <Button onClick={handleScheduleSecondRound} disabled={schedulingSecondRound}>
+            <Button
+              onClick={handleScheduleSecondRound}
+              disabled={
+                schedulingSecondRound ||
+                !secondRoundDate ||
+                !secondRoundInterviewMode ||
+                (secondRoundInterviewMode === "physical" && !secondRoundOfficeId)
+              }
+            >
               {schedulingSecondRound ? "Scheduling..." : "Schedule Second Round"}
             </Button>
           </DialogFooter>

@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import OfficeAddress from "@/models/officeAddress";
+import OfficeAddress, { type IOfficeAddress } from "@/models/officeAddress";
 import {
   MissingOfficeAddressError,
   resolveCandidateOfficeAddress,
@@ -7,6 +7,11 @@ import {
 
 const FALLBACK_OFFICE_ADDRESS =
   "Office address will be shared by HR before your visit.";
+
+type OfficeAddressLean = Pick<
+  IOfficeAddress,
+  "_id" | "name" | "formattedAddress"
+>;
 
 export type EmailOfficeResolution = {
   address: string;
@@ -28,10 +33,13 @@ export async function resolveOfficeAddressForEmail(
       interviewOfficeAddressId &&
       mongoose.Types.ObjectId.isValid(String(interviewOfficeAddressId))
     ) {
-      const office = await OfficeAddress.findById(interviewOfficeAddressId).lean();
+      const office = await OfficeAddress.findById(interviewOfficeAddressId)
+        .lean<OfficeAddressLean>()
+        .exec();
       if (office) {
         const address =
-          String(office.formattedAddress || "").trim() || FALLBACK_OFFICE_ADDRESS;
+          String(office.formattedAddress || "").trim() ||
+          FALLBACK_OFFICE_ADDRESS;
         return {
           address,
           officeName: String(office.name || "").trim() || null,

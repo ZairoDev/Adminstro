@@ -1,5 +1,6 @@
 import Candidate from "@/models/candidate";
 import { connectDb } from "@/util/db";
+import { parseLocalDateString } from "@/lib/utils";
 import { type NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,8 @@ export async function GET(request: NextRequest) {
     const collegeFilter = searchParams.get("college") || "";
     const onboarded = searchParams.get("onboarded") === "true";
     const onboardingStatus = searchParams.get("onboardingStatus") || "";
+    const appliedFrom = searchParams.get("appliedFrom") || "";
+    const appliedTo = searchParams.get("appliedTo") || "";
 
     const skip = (page - 1) * limit;
 
@@ -90,6 +93,24 @@ export async function GET(request: NextRequest) {
       const escapedCollege = trimmedCollege.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       // Match exact string with optional leading/trailing whitespace, case-insensitive
       query.college = { $regex: `^\\s*${escapedCollege}\\s*$`, $options: "i" };
+    }
+
+    // Applied date filter on createdAt (local calendar days)
+    const dateYmd = /^\d{4}-\d{2}-\d{2}$/;
+    if (
+      (appliedFrom && dateYmd.test(appliedFrom)) ||
+      (appliedTo && dateYmd.test(appliedTo))
+    ) {
+      const createdAt: { $gte?: Date; $lte?: Date } = {};
+      if (appliedFrom && dateYmd.test(appliedFrom)) {
+        createdAt.$gte = parseLocalDateString(appliedFrom);
+      }
+      if (appliedTo && dateYmd.test(appliedTo)) {
+        const end = parseLocalDateString(appliedTo);
+        end.setHours(23, 59, 59, 999);
+        createdAt.$lte = end;
+      }
+      query.createdAt = createdAt;
     }
 
     // Combine $or conditions with $and, and merge other filters

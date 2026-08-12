@@ -164,6 +164,41 @@ interface PaginationData {
   pages: number;
 }
 
+type AppliedDatePreset = "all" | "today" | "7d" | "30d" | "custom";
+
+function resolveAppliedDateRange(
+  preset: AppliedDatePreset,
+  customFrom: string,
+  customTo: string
+): { from?: string; to?: string } {
+  if (preset === "all") return {};
+
+  const today = getTodayLocalMidnight();
+  const todayStr = formatDateToLocalString(today);
+
+  if (preset === "today") {
+    return { from: todayStr, to: todayStr };
+  }
+
+  if (preset === "7d") {
+    const from = new Date(today);
+    from.setDate(from.getDate() - 6);
+    return { from: formatDateToLocalString(from), to: todayStr };
+  }
+
+  if (preset === "30d") {
+    const from = new Date(today);
+    from.setDate(from.getDate() - 29);
+    return { from: formatDateToLocalString(from), to: todayStr };
+  }
+
+  // custom
+  return {
+    from: customFrom || undefined,
+    to: customTo || undefined,
+  };
+}
+
 function CandidatesPageContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -219,6 +254,32 @@ function CandidatesPageContent() {
     }
     return "all";
   });
+  const [appliedDatePreset, setAppliedDatePreset] = useState<AppliedDatePreset>(
+    () => {
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem("candidatePortalAppliedDatePreset");
+        if (
+          saved &&
+          ["all", "today", "7d", "30d", "custom"].includes(saved)
+        ) {
+          return saved as AppliedDatePreset;
+        }
+      }
+      return "all";
+    }
+  );
+  const [appliedFrom, setAppliedFrom] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("candidatePortalAppliedFrom") || "";
+    }
+    return "";
+  });
+  const [appliedTo, setAppliedTo] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("candidatePortalAppliedTo") || "";
+    }
+    return "";
+  });
   const [trainingDocumentFilter, setTrainingDocumentFilter] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("candidatePortalTrainingDocumentFilter") || "all";
@@ -267,6 +328,9 @@ function CandidatesPageContent() {
     selectedRole: "all",
     experienceFilter: "all",
     collegeFilter: "all",
+    appliedDatePreset: "all" as AppliedDatePreset,
+    appliedFrom: "",
+    appliedTo: "",
   });
 
   // Convert 12-hour format to 24-hour format (HH:MM)
@@ -624,6 +688,18 @@ function CandidatesPageContent() {
         params.append("college", collegeFilterParam);
       }
 
+      const range = resolveAppliedDateRange(
+        appliedDatePreset,
+        appliedFrom,
+        appliedTo
+      );
+      if (range.from) {
+        params.append("appliedFrom", range.from);
+      }
+      if (range.to) {
+        params.append("appliedTo", range.to);
+      }
+
       const response = await fetch(`/api/candidates?${params}`);
       const result = await response.json();
 
@@ -648,6 +724,9 @@ function CandidatesPageContent() {
         selectedRole,
         experienceFilter,
         collegeFilter,
+        appliedDatePreset,
+        appliedFrom,
+        appliedTo,
       };
       // Fetch with the current page (loaded from localStorage)
       fetchCandidates(search, page, activeTab, selectedRole, experienceFilter, collegeFilter);
@@ -660,7 +739,10 @@ function CandidatesPageContent() {
       prevFilters.current.activeTab !== activeTab ||
       prevFilters.current.selectedRole !== selectedRole ||
       prevFilters.current.experienceFilter !== experienceFilter ||
-      prevFilters.current.collegeFilter !== collegeFilter;
+      prevFilters.current.collegeFilter !== collegeFilter ||
+      prevFilters.current.appliedDatePreset !== appliedDatePreset ||
+      prevFilters.current.appliedFrom !== appliedFrom ||
+      prevFilters.current.appliedTo !== appliedTo;
 
     if (filtersChanged) {
       // Only reset page to 1 if filters changed
@@ -673,13 +755,16 @@ function CandidatesPageContent() {
           selectedRole,
           experienceFilter,
           collegeFilter,
+          appliedDatePreset,
+          appliedFrom,
+          appliedTo,
         };
       }, 500);
 
       return () => clearTimeout(timer);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, activeTab, selectedRole, experienceFilter, collegeFilter]);
+  }, [search, activeTab, selectedRole, experienceFilter, collegeFilter, appliedDatePreset, appliedFrom, appliedTo]);
 
   // Reset training document filter when switching away from selected tab
   useEffect(() => {
@@ -781,6 +866,15 @@ function CandidatesPageContent() {
       localStorage.setItem("candidatePortalCollegeFilter", collegeFilter);
     }
   }, [collegeFilter]);
+
+  // Persist applied date filters to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("candidatePortalAppliedDatePreset", appliedDatePreset);
+      localStorage.setItem("candidatePortalAppliedFrom", appliedFrom);
+      localStorage.setItem("candidatePortalAppliedTo", appliedTo);
+    }
+  }, [appliedDatePreset, appliedFrom, appliedTo]);
 
   // Persist trainingDocumentFilter to localStorage
   useEffect(() => {
@@ -1796,7 +1890,7 @@ function CandidatesPageContent() {
                 Rejected
               </TabsTrigger>
             </TabsList>
-            <div className="flex gap-1 w-full lg:w-auto lg:max-w-2xl flex-wrap">
+            <div className="flex gap-1 w-full lg:w-auto lg:max-w-4xl flex-wrap">
               <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger className="h-10 w-full lg:w-[150px]">
                   <SelectValue placeholder="Filter by Role" />
@@ -1839,6 +1933,49 @@ function CandidatesPageContent() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select
+                value={appliedDatePreset}
+                onValueChange={(value) => {
+                  const preset = value as AppliedDatePreset;
+                  setAppliedDatePreset(preset);
+                  if (preset !== "custom") {
+                    // Clear custom inputs when using a preset
+                    setAppliedFrom("");
+                    setAppliedTo("");
+                  }
+                }}
+              >
+                <SelectTrigger className="h-10 w-full lg:w-[170px]">
+                  <SelectValue placeholder="Applied date" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Applied Dates</SelectItem>
+                  <SelectItem value="today">Applied Today</SelectItem>
+                  <SelectItem value="7d">Last 7 Days</SelectItem>
+                  <SelectItem value="30d">Last 30 Days</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
+                </SelectContent>
+              </Select>
+              {appliedDatePreset === "custom" && (
+                <div className="flex items-center gap-1 w-full lg:w-auto flex-wrap">
+                  <Input
+                    type="date"
+                    aria-label="Applied from date"
+                    value={appliedFrom}
+                    onChange={(e) => setAppliedFrom(e.target.value)}
+                    className="h-10 w-full lg:w-[150px]"
+                  />
+                  <span className="text-xs text-muted-foreground px-0.5">to</span>
+                  <Input
+                    type="date"
+                    aria-label="Applied to date"
+                    value={appliedTo}
+                    min={appliedFrom || undefined}
+                    onChange={(e) => setAppliedTo(e.target.value)}
+                    className="h-10 w-full lg:w-[150px]"
+                  />
+                </div>
+              )}
               {activeTab === "selected" && (
                 <Select
                   value={trainingDocumentFilter}

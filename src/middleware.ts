@@ -89,6 +89,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/propertyBoost/list",
     /^\/dashboard\/propertyBoost\/list\/.*$/,
     "/whatsapp",
+    "/dashboard/finance",
+    /^\/dashboard\/finance(\/.*)?$/,
   ],
   "LeadGen-TeamLead": [
     "/",
@@ -162,6 +164,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/sales-offer\/.*$/,
     "/dashboard/geo-search",
     /^\/dashboard\/geo-search\/.*$/,
+    "/dashboard/finance",
+    /^\/dashboard\/finance(\/.*)?$/,
   ],
   "Sales-TeamLead": [
     "/",

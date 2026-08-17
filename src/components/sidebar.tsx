@@ -53,6 +53,9 @@ import {
   Plus,
   Mail,
   Building2,
+  Wallet,
+  Receipt,
+  ScrollText,
 } from "lucide-react";
 
 import {
@@ -202,6 +205,21 @@ const roleRoutes: Record<string, Route[]> = {
       label: "WhatsApp",
       Icon: <MessageSquare size={18} />,
       openInNewTab: true,
+    },
+    {
+      path: "/dashboard/finance",
+      label: "Finance Overview",
+      Icon: <Wallet size={18} />,
+    },
+    {
+      path: "/dashboard/finance/transactions",
+      label: "Transactions",
+      Icon: <Receipt size={18} />,
+    },
+    {
+      path: "/dashboard/finance/webhook-logs",
+      label: "Webhook Logs",
+      Icon: <ScrollText size={18} />,
     },
   ],
   "LeadGen-TeamLead": [
@@ -446,6 +464,21 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/bookings",
       label: "Bookings",
       Icon: <Hotel size={18} />,
+    },
+    {
+      path: "/dashboard/finance",
+      label: "Finance Overview",
+      Icon: <Wallet size={18} />,
+    },
+    {
+      path: "/dashboard/finance/transactions",
+      label: "Transactions",
+      Icon: <Receipt size={18} />,
+    },
+    {
+      path: "/dashboard/finance/webhook-logs",
+      label: "Webhook Logs",
+      Icon: <ScrollText size={18} />,
     },
     {
       path: "/dashboard/aliases",
@@ -783,6 +816,21 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/bookings",
       label: "Bookings",
       Icon: <Hotel size={18} />,
+    },
+    {
+      path: "/dashboard/finance",
+      label: "Finance Overview",
+      Icon: <Wallet size={18} />,
+    },
+    {
+      path: "/dashboard/finance/transactions",
+      label: "Transactions",
+      Icon: <Receipt size={18} />,
+    },
+    {
+      path: "/dashboard/finance/webhook-logs",
+      label: "Webhook Logs",
+      Icon: <ScrollText size={18} />,
     },
     {
       path: "/whatsapp",
@@ -1220,6 +1268,23 @@ const bookingsManagementRoutes = [
     Icon: <Hotel size={18} />,
   },
 ];
+const financeManagementRoutes = [
+  {
+    path: "/dashboard/finance",
+    label: "Overview",
+    Icon: <Wallet size={18} />,
+  },
+  {
+    path: "/dashboard/finance/transactions",
+    label: "Transactions",
+    Icon: <Receipt size={18} />,
+  },
+  {
+    path: "/dashboard/finance/webhook-logs",
+    label: "Webhook Logs",
+    Icon: <ScrollText size={18} />,
+  },
+];
 const ownerManagementRoutes = [
   {
     path: "/spreadsheet",
@@ -1559,6 +1624,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const leadRoute = inGroup(leadManagementRoutes);
     const visitsManagementRoute = inGroup(visitsManagementRoutes);
     const bookingsManagementRoute = inGroup(bookingsManagementRoutes);
+    const financeManagementRoute = inGroup(financeManagementRoutes);
     const ownerManagementRoute = inGroup(ownerManagementRoutes);
     // const propertyManagementRoute = inGroup(propertyManagementRoutes);
     const contentRoute = inGroup(contentRoutes);
@@ -1664,6 +1730,14 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
         <SidebarSection
           title="Booking Management"
           routes={bookingsManagementRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
+        />
+        <SidebarSection
+          title="Finance"
+          routes={financeManagementRoute}
           showText={showText}
           currentPath={pathname}
           defaultOpen={defaultOpen}

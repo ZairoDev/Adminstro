@@ -70,6 +70,8 @@ const bookingSchema = new Schema(
             enum: ["pending", "partial", "paid"],
             default: "pending",
           },
+          discountGiven: { type: Number, default: 0 },
+          discountReason: { type: String },
           documents: [String],          
 
 

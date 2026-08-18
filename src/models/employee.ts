@@ -224,7 +224,7 @@ const employeeSchema = new Schema<IEmployee>(
     },
     inactiveReason: {
       type: String,
-      enum: ["terminated", "suspended", "abscond", null],
+      enum: ["terminated", "suspended", "abscond", "resigned", null],
       default: null,
     },
     inactiveDate: {

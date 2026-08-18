@@ -136,6 +136,7 @@ export async function GET(request: NextRequest) {
         const documents = onboardingDetails.documents || {};
         const documentVerification = onboardingDetails.documentVerification || {};
         const isEmployed = Boolean(candidate.employeeId);
+        const isExited = Boolean(candidate.exitedAt);
         const onboardingComplete = onboardingDetails.onboardingComplete === true;
 
         // Get list of document keys that have actual document values (not null/empty)
@@ -159,12 +160,17 @@ export async function GET(request: NextRequest) {
         // Check HR verification status
         const hrVerified = onboardingDetails.verifiedByHR?.verified === true;
 
-        if (onboardingStatus === "employed") {
-          // Employed: onboarding finished and employee record created
-          return onboardingComplete && isEmployed;
+        if (onboardingStatus === "exited") {
+          // Exited: was hired, then resigned / separated
+          return isEmployed && isExited;
         }
 
-        // Other tabs exclude candidates already hired as employees
+        if (onboardingStatus === "employed") {
+          // Employed: onboarding finished, employee created, still active
+          return onboardingComplete && isEmployed && !isExited;
+        }
+
+        // Other tabs exclude candidates already hired as employees (active or exited)
         if (isEmployed) {
           return false;
         }

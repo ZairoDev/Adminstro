@@ -348,6 +348,14 @@ const CandidateSchema = new Schema(
       index: true,
     },
     employedAt: { type: Date, default: null },
+    /** Set when the linked employee resigns / is separated (Exited tab) */
+    exitedAt: { type: Date, default: null, index: true },
+    exitReason: {
+      type: String,
+      enum: ["resigned", "terminated", "suspended", "abscond", null],
+      default: null,
+    },
+    exitNotes: { type: String, default: null },
   },
   { timestamps: true }
 );

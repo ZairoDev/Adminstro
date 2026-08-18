@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Seed defaults when collection is empty so the form always has options
+    // Seed defaults only when the collection is empty (first bootstrap)
     const count = await OfficeAddress.countDocuments();
     if (count === 0) {
       await seedDefaultOffices();

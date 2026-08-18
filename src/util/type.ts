@@ -65,7 +65,7 @@ export interface AppreciationRecord {
   notes?: string;
 }
 
-export type SeparationType = "terminated" | "suspended" | "abscond";
+export type SeparationType = "terminated" | "suspended" | "abscond" | "resigned";
 
 export interface EmployeeInterface {
   _id: string;

@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import Candidate from "@/models/candidate";
 import OfficeAddress, { type IOfficeAddress } from "@/models/officeAddress";
-import { seedDefaultOffices } from "./seedDefaultOffices";
 
 export class MissingOfficeAddressError extends Error {
   constructor(message = "Candidate has no office address assigned") {
@@ -81,10 +80,9 @@ export async function resolveCandidateOfficeAddress(params: {
     }
   }
 
-  // Legacy fallback: match denormalized officeLocation (Kanpur / Noida) to seeded offices
+  // Legacy fallback: match denormalized officeLocation (Kanpur / Noida) to existing offices
   const locationLabel = String((candidate as any).officeLocation || "").trim();
   if (locationLabel) {
-    await seedDefaultOffices();
     const byCity = await OfficeAddress.findOne({
       isActive: true,
       $or: [

@@ -4,7 +4,7 @@ import { HREmployee } from "../getHREmployee";
 import { getEmailSignature, EmailSignatureConfig } from "../signature";
 import { DEFAULT_COMPANY_NAME } from "../transporter";
 
-export type SeparationType = "terminated" | "suspended" | "abscond";
+export type SeparationType = "terminated" | "suspended" | "abscond" | "resigned";
 
 export interface SeparationEmailPayload {
   to: string;
@@ -24,6 +24,7 @@ export const SEPARATION_TYPE_LABELS: Record<SeparationType, string> = {
   terminated: "Termination",
   suspended: "Suspension",
   abscond: "Absconding",
+  resigned: "Resignation",
 };
 
 // Get termination email template
@@ -240,6 +241,70 @@ const getAbscondTemplate = (
   };
 };
 
+// Get resignation email template
+const getResignationTemplate = (
+  employeeName: string,
+  effectiveDate: string,
+  reason: string,
+  companyName: string,
+  hrEmployee: EmailSignatureConfig
+): SeparationEmailTemplate => {
+  const signature = getEmailSignature(hrEmployee);
+
+  return {
+    subject: `Resignation Acknowledgement – ${employeeName}`,
+    html: `
+    <div style="font-family:'Segoe UI',Arial,sans-serif; max-width:600px; margin:0 auto; background:#ffffff;">
+      
+      <div style="background: linear-gradient(135deg,#475569,#334155); padding:40px 30px; text-align:center; border-radius:8px 8px 0 0;">
+        <h1 style="color:#ffffff; margin:0; font-size:26px; font-weight:600;">Resignation Acknowledgement</h1>
+      </div>
+
+      <div style="padding:35px 30px; line-height:1.7; color:#333;">
+        
+        <p style="font-size:17px;">
+          Dear <strong>${employeeName}</strong>,
+        </p>
+
+        <p style="font-size:15px;">
+          This is to acknowledge that your resignation from <strong>${companyName}</strong> has been
+          accepted, effective <strong>${effectiveDate}</strong>.
+        </p>
+
+        ${
+          reason
+            ? `<p style="font-size:15px;"><strong>Notes:</strong> ${reason}</p>`
+            : ""
+        }
+
+        <div style="background:#f8fafc; border-left:4px solid #475569; padding:16px 18px; margin:22px 0; border-radius:4px;">
+          <p style="margin:0; font-size:14px; color:#334155;">
+            <strong>Full & Final Settlement:</strong><br/>
+            Your Full & Final (FNF) settlement, if applicable, will be processed as per company policy
+            after your last working date.
+          </p>
+        </div>
+
+        <p style="font-size:15px;">
+          Please return all company assets, documents, and access credentials to the HR department.
+        </p>
+
+        <p style="font-size:15px;">
+          We thank you for your contributions and wish you the best in your future endeavors.
+        </p>
+        
+        ${signature}
+        
+        <div style="background:#f1f5f9; padding:20px; text-align:center; border-radius:0 0 8px 8px;">
+          <p style="margin:0; font-size:12px; color:#64748b;">
+            This is an official communication from ${companyName} HR Department.
+          </p>
+        </div>
+      </div>
+    `,
+  };
+};
+
 // Main function to get separation email template
 export const getSeparationEmailTemplate = (
   payload: SeparationEmailPayload,
@@ -258,6 +323,14 @@ export const getSeparationEmailTemplate = (
     );
   } else if (payload.separationType === "abscond") {
     return getAbscondTemplate(
+      payload.employeeName,
+      payload.effectiveDate,
+      reason,
+      companyName,
+      hrEmployee
+    );
+  } else if (payload.separationType === "resigned") {
+    return getResignationTemplate(
       payload.employeeName,
       payload.effectiveDate,
       reason,

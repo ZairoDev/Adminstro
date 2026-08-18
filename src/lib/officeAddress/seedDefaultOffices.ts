@@ -22,25 +22,25 @@ const DEFAULT_OFFICES = [
 ] as const;
 
 /**
- * Ensures Kanpur + Noida seed offices exist. Idempotent.
- * Returns the offices after seeding (existing or newly created).
+ * Bootstrap defaults only when the collection is empty.
+ * Never recreates offices that were renamed or deleted — callers used to
+ * upsert-by-name on every list load, which made delete/rename look broken.
  */
 export async function seedDefaultOffices() {
+  const count = await OfficeAddress.countDocuments();
+  if (count > 0) {
+    return [];
+  }
+
   const results = [];
   for (const office of DEFAULT_OFFICES) {
     const formattedAddress = formatOfficeAddress(office);
-    const doc = await OfficeAddress.findOneAndUpdate(
-      { name: office.name },
-      {
-        $setOnInsert: {
-          ...office,
-          addressLine2: office.addressLine2 || null,
-          formattedAddress,
-          isActive: true,
-        },
-      },
-      { upsert: true, new: true },
-    );
+    const doc = await OfficeAddress.create({
+      ...office,
+      addressLine2: office.addressLine2 || null,
+      formattedAddress,
+      isActive: true,
+    });
     results.push(doc);
   }
   return results;

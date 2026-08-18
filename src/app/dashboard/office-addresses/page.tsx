@@ -25,6 +25,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -69,6 +79,11 @@ const EMPTY_FORM: OfficeFormValues = {
 
 const MANAGE_ROLES = new Set(["SuperAdmin", "Admin", "HR", "HAdmin"]);
 
+function officeId(office: OfficeAddress | null | undefined): string {
+  if (!office?._id) return "";
+  return String(office._id);
+}
+
 export default function OfficeAddressesPage() {
   const token = useAuthStore((s) => s.token);
   const canManage = MANAGE_ROLES.has(String(token?.role || ""));
@@ -81,19 +96,22 @@ export default function OfficeAddressesPage() {
   );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState<OfficeAddress | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<OfficeFormValues>(EMPTY_FORM);
+  const [deleteTarget, setDeleteTarget] = useState<OfficeAddress | null>(null);
 
   const fetchOffices = useCallback(async () => {
     setLoading(true);
     try {
       const res = await axios.get("/api/office-addresses");
       setOffices(Array.isArray(res.data?.data) ? res.data.data : []);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
       toast({
         variant: "destructive",
         title: "Failed to load offices",
-        description: error?.response?.data?.error || "Please try again",
+        description: err?.response?.data?.error || "Please try again",
       });
     } finally {
       setLoading(false);
@@ -118,14 +136,32 @@ export default function OfficeAddressesPage() {
     });
   }, [offices, searchTerm, statusFilter]);
 
-  const openCreate = () => {
-    setEditing(null);
+  const resetFormState = () => {
+    setEditingId(null);
     setForm(EMPTY_FORM);
+  };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open) resetFormState();
+  };
+
+  const openCreate = () => {
+    resetFormState();
     setDialogOpen(true);
   };
 
   const openEdit = (office: OfficeAddress) => {
-    setEditing(office);
+    const id = officeId(office);
+    if (!id) {
+      toast({
+        variant: "destructive",
+        title: "Invalid office",
+        description: "This office is missing an id and cannot be edited.",
+      });
+      return;
+    }
+    setEditingId(id);
     setForm({
       name: office.name,
       addressLine1: office.addressLine1,
@@ -155,51 +191,71 @@ export default function OfficeAddressesPage() {
       return;
     }
 
+    const payload = {
+      name: form.name.trim(),
+      addressLine1: form.addressLine1.trim(),
+      addressLine2: form.addressLine2.trim() || null,
+      city: form.city.trim(),
+      state: form.state.trim(),
+      pincode: form.pincode.trim(),
+      country: form.country.trim() || "India",
+      isActive: form.isActive,
+    };
+
+    // Capture before any state resets from dialog close
+    const idToUpdate = editingId;
+
     setSaving(true);
     try {
-      const payload = {
-        name: form.name.trim(),
-        addressLine1: form.addressLine1.trim(),
-        addressLine2: form.addressLine2.trim() || null,
-        city: form.city.trim(),
-        state: form.state.trim(),
-        pincode: form.pincode.trim(),
-        country: form.country.trim() || "India",
-        isActive: form.isActive,
-      };
-
-      if (editing) {
-        await axios.patch(`/api/office-addresses/${editing._id}`, payload);
+      if (idToUpdate) {
+        await axios.patch(`/api/office-addresses/${idToUpdate}`, payload);
         toast({ title: "Office address updated" });
       } else {
         await axios.post("/api/office-addresses", payload);
         toast({ title: "Office address created" });
       }
-      setDialogOpen(false);
+      handleDialogOpenChange(false);
       await fetchOffices();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
       toast({
         variant: "destructive",
         title: "Save failed",
-        description: error?.response?.data?.error || "Please try again",
+        description: err?.response?.data?.error || "Please try again",
       });
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (office: OfficeAddress) => {
-    if (!confirm(`Delete office "${office.name}"? This cannot be undone.`)) return;
-    try {
-      await axios.delete(`/api/office-addresses/${office._id}`);
-      toast({ title: "Office address deleted" });
-      await fetchOffices();
-    } catch (error: any) {
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    const id = officeId(deleteTarget);
+    if (!id) {
       toast({
         variant: "destructive",
         title: "Delete failed",
-        description: error?.response?.data?.error || "Please try again",
+        description: "This office is missing an id.",
       });
+      setDeleteTarget(null);
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await axios.delete(`/api/office-addresses/${id}`);
+      toast({ title: "Office address deleted" });
+      setDeleteTarget(null);
+      await fetchOffices();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      toast({
+        variant: "destructive",
+        title: "Delete failed",
+        description: err?.response?.data?.error || "Please try again",
+      });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -225,7 +281,7 @@ export default function OfficeAddressesPage() {
             </p>
           </div>
         </div>
-        <Button onClick={openCreate} className="gap-2">
+        <Button type="button" onClick={openCreate} className="gap-2">
           <Plus className="h-4 w-4" />
           Add Office
         </Button>
@@ -282,7 +338,7 @@ export default function OfficeAddressesPage() {
               </TableRow>
             ) : (
               filtered.map((office) => (
-                <TableRow key={office._id}>
+                <TableRow key={officeId(office) || office.name}>
                   <TableCell className="font-medium">{office.name}</TableCell>
                   <TableCell className="max-w-md text-sm text-muted-foreground">
                     {office.formattedAddress}
@@ -296,6 +352,7 @@ export default function OfficeAddressesPage() {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
                         onClick={() => openEdit(office)}
@@ -304,9 +361,10 @@ export default function OfficeAddressesPage() {
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
+                        type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(office)}
+                        onClick={() => setDeleteTarget(office)}
                         aria-label="Delete"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -320,11 +378,11 @@ export default function OfficeAddressesPage() {
         </Table>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editing ? "Edit Office Address" : "Add Office Address"}
+              {editingId ? "Edit Office Address" : "Add Office Address"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -411,15 +469,50 @@ export default function OfficeAddressesPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleDialogOpenChange(false)}
+            >
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Saving…" : editing ? "Update" : "Create"}
+            <Button type="button" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving…" : editingId ? "Update" : "Create"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete office address?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget
+                ? `Delete "${deleteTarget.name}"? This cannot be undone.`
+                : "This cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDeleteConfirm();
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

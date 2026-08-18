@@ -6,14 +6,19 @@ import { requireOfficeAddressManager } from "@/lib/officeAddress/auth";
 
 export const dynamic = "force-dynamic";
 
-type RouteContext = { params: Promise<{ id: string }> };
+type RouteContext = { params: { id: string } | Promise<{ id: string }> };
+
+async function resolveId(context: RouteContext): Promise<string> {
+  const params = await context.params;
+  return String(params?.id || "");
+}
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
     const auth = await requireOfficeAddressManager(request);
     if (!auth.ok) return auth.response;
 
-    const { id } = await context.params;
+    const id = await resolveId(context);
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid office address id" },
@@ -45,7 +50,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const auth = await requireOfficeAddressManager(request);
     if (!auth.ok) return auth.response;
 
-    const { id } = await context.params;
+    const id = await resolveId(context);
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid office address id" },
@@ -85,7 +90,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Unique name check
     const clash = await OfficeAddress.findOne({
       name: office.name,
       _id: { $ne: office._id },
@@ -122,7 +126,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const auth = await requireOfficeAddressManager(request);
     if (!auth.ok) return auth.response;
 
-    const { id } = await context.params;
+    const id = await resolveId(context);
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         { success: false, error: "Invalid office address id" },

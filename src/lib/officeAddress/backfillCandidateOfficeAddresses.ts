@@ -1,15 +1,14 @@
 import Candidate from "@/models/candidate";
 import OfficeAddress from "@/models/officeAddress";
-import { seedDefaultOffices } from "./seedDefaultOffices";
 
 /**
  * Backfill officeAddressId for candidates that only have officeLocation (Kanpur/Noida).
+ * Uses existing offices only — does not recreate deleted/renamed defaults.
  */
 export async function backfillCandidateOfficeAddresses(): Promise<{
   matched: number;
   updated: number;
 }> {
-  await seedDefaultOffices();
   const offices = await OfficeAddress.find({ isActive: true }).lean();
   let matched = 0;
   let updated = 0;

@@ -6,10 +6,19 @@ import { SeparationType } from "@/lib/email/templates/separation";
 import { getActiveHREmployee } from "@/lib/email/getHREmployee";
 import { DEFAULT_COMPANY_NAME } from "@/lib/email/transporter";
 import { getDataFromToken } from "@/util/getDataFromToken";
+import { markCandidateExitedByEmployeeId } from "@/lib/candidate/markCandidateExited";
+import type { CandidateExitReason } from "@/lib/candidate/markCandidateExited";
 
 // Force dynamic rendering - disable caching
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+const SEPARATION_TYPES: SeparationType[] = [
+  "terminated",
+  "suspended",
+  "abscond",
+  "resigned",
+];
 
 // Update employee status and optionally send separation email
 export async function POST(request: NextRequest) {
@@ -34,9 +43,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!["terminated", "suspended", "abscond"].includes(separationType)) {
+    if (!SEPARATION_TYPES.includes(separationType)) {
       return NextResponse.json(
-        { error: "Invalid separation type. Must be 'terminated', 'suspended', or 'abscond'" },
+        {
+          error:
+            "Invalid separation type. Must be 'terminated', 'suspended', 'abscond', or 'resigned'",
+        },
         { status: 400 }
       );
     }
@@ -47,14 +59,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 });
     }
 
+    const inactiveDate = effectiveDate ? new Date(effectiveDate) : new Date();
+
     // Update employee status
     const updateData = {
       isActive: false,
       inactiveReason: separationType,
-      inactiveDate: effectiveDate ? new Date(effectiveDate) : new Date(),
+      inactiveDate,
     };
 
     await Employees.findByIdAndUpdate(employeeId, updateData, { new: true });
+
+    // Keep onboarded → Exited tab in sync when employee is separated
+    await markCandidateExitedByEmployeeId(
+      String(employeeId),
+      separationType as CandidateExitReason,
+      {
+        exitedAt: inactiveDate,
+        exitNotes: typeof reason === "string" ? reason : null,
+      },
+    ).catch((err) =>
+      console.warn("[separation] candidate exit sync skipped:", err),
+    );
 
     // Send email if requested
     let emailSent = false;

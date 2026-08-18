@@ -259,7 +259,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
 
   // Separation (Termination/Suspension/Abscond) State
   const [separationDialogOpen, setSeparationDialogOpen] = useState(false);
-  const [separationType, setSeparationType] = useState<"terminated" | "suspended" | "abscond" | "">("");
+  const [separationType, setSeparationType] = useState<"terminated" | "suspended" | "abscond" | "resigned" | "">("");
   const [separationReason, setSeparationReason] = useState("");
   const [separationDate, setSeparationDate] = useState("");
   const [sendSeparationEmail, setSendSeparationEmail] = useState(true);
@@ -2518,9 +2518,18 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               </Label>
               <RadioGroup
                 value={separationType}
-                onValueChange={(value) => setSeparationType(value as "terminated" | "suspended" | "abscond")}
+                onValueChange={(value) => setSeparationType(value as "terminated" | "suspended" | "abscond" | "resigned")}
                 className="flex flex-col space-y-3"
               >
+                <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                  <RadioGroupItem value="resigned" id="resigned" />
+                  <Label htmlFor="resigned" className="flex-1 cursor-pointer">
+                    <div className="font-medium text-slate-700">Resigned</div>
+                    <div className="text-xs text-muted-foreground">
+                      Employee voluntarily left the organization
+                    </div>
+                  </Label>
+                </div>
                 <div className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
                   <RadioGroupItem value="terminated" id="terminated" />
                   <Label htmlFor="terminated" className="flex-1 cursor-pointer">
@@ -2614,7 +2623,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                     Processing...
                   </>
                 ) : (
-                  `Confirm ${separationType === "terminated" ? "Termination" : separationType === "suspended" ? "Suspension" : separationType === "abscond" ? "Absconding" : "Deactivation"}`
+                  `Confirm ${separationType === "terminated" ? "Termination" : separationType === "suspended" ? "Suspension" : separationType === "abscond" ? "Absconding" : separationType === "resigned" ? "Resignation" : "Deactivation"}`
                 )}
               </Button>
             </div>

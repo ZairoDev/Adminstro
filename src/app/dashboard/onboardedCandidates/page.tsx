@@ -17,6 +17,8 @@ import {
   UserPlus,
   Ban,
   Briefcase,
+  UserMinus,
+  LogOut,
 } from "lucide-react";
 import axios from "@/util/axios";
 import { CreateEmployeeDialog } from "../candidatePortal/components/createEmployee";
@@ -24,9 +26,19 @@ import type { CandidateLite } from "../candidatePortal/components/new-user";
 import { RejectCandidateDialog, RejectionData } from "../candidatePortal/components/reject-candidate-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,6 +72,9 @@ interface Candidate {
   createdAt: string;
   employeeId?: string | null;
   employedAt?: string | null;
+  exitedAt?: string | null;
+  exitReason?: "resigned" | "terminated" | "suspended" | "abscond" | null;
+  exitNotes?: string | null;
   onboardingDetails?: {
     onboardingComplete?: boolean;
     completedAt?: string;
@@ -94,7 +109,15 @@ type OnboardingTab =
   | "pending"
   | "uploaded-not-verified"
   | "verified"
-  | "employed";
+  | "employed"
+  | "exited";
+
+const EXIT_REASON_LABELS: Record<string, string> = {
+  resigned: "Resigned",
+  terminated: "Terminated",
+  suspended: "Suspended",
+  abscond: "Absconded",
+};
 
 export default function OnboardedCandidatesPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -114,6 +137,12 @@ export default function OnboardedCandidatesPage() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectCandidateId, setRejectCandidateId] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [exitDialogOpen, setExitDialogOpen] = useState(false);
+  const [exitCandidate, setExitCandidate] = useState<Candidate | null>(null);
+  const [exitNotes, setExitNotes] = useState("");
+  const [exitEffectiveDate, setExitEffectiveDate] = useState("");
+  const [exitSendEmail, setExitSendEmail] = useState(false);
+  const [exiting, setExiting] = useState(false);
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -323,6 +352,59 @@ export default function OnboardedCandidatesPage() {
     }
   };
 
+  const openExitDialog = (candidate: Candidate) => {
+    setExitCandidate(candidate);
+    setExitNotes("");
+    setExitEffectiveDate(new Date().toISOString().slice(0, 10));
+    setExitSendEmail(false);
+    setExitDialogOpen(true);
+  };
+
+  const handleMarkExited = async () => {
+    if (!exitCandidate) return;
+    setExiting(true);
+    try {
+      const response = await axios.post(
+        `/api/candidates/${exitCandidate._id}/exit`,
+        {
+          exitReason: "resigned",
+          exitNotes: exitNotes.trim() || undefined,
+          effectiveDate: exitEffectiveDate || undefined,
+          sendEmail: exitSendEmail,
+        },
+      );
+      if (response.data?.success) {
+        toast.success("Moved to Exited (Resigned)");
+        setExitDialogOpen(false);
+        setExitCandidate(null);
+        setActiveTab("exited");
+        setPage(1);
+        fetchCandidates(search, 1, selectedRole, experienceFilter, "exited");
+      } else {
+        toast.error(response.data?.error || "Failed to mark as exited");
+      }
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } } };
+      toast.error(error.response?.data?.error || "Failed to mark as exited");
+    } finally {
+      setExiting(false);
+    }
+  };
+
+  const dateColumnLabel =
+    activeTab === "exited"
+      ? "Exited"
+      : activeTab === "employed"
+        ? "Employed"
+        : "Onboarded";
+
+  const emptyStateLabel =
+    activeTab === "exited"
+      ? "No exited employees found"
+      : activeTab === "employed"
+        ? "No employed candidates found"
+        : "No onboarded candidates found";
+
   const CandidateTable = () => (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -347,7 +429,7 @@ export default function OnboardedCandidatesPage() {
               Status
             </th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-              {activeTab === "employed" ? "Employed" : "Onboarded"}
+              {dateColumnLabel}
             </th>
             <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
               Actions
@@ -369,9 +451,7 @@ export default function OnboardedCandidatesPage() {
                 colSpan={8}
                 className="px-6 py-8 text-center text-muted-foreground"
               >
-                {activeTab === "employed"
-                  ? "No employed candidates found"
-                  : "No onboarded candidates found"}
+                {emptyStateLabel}
               </td>
             </tr>
           ) : (
@@ -432,7 +512,15 @@ export default function OnboardedCandidatesPage() {
                           : candidate?.status?.charAt(0).toUpperCase() +
                             candidate?.status?.slice(1)}
                     </Badge>
-                    {candidate.employeeId ? (
+                    {candidate.exitedAt ? (
+                      <Badge
+                        variant="outline"
+                        className="text-xs font-normal border-slate-300 bg-slate-100 text-slate-800"
+                      >
+                        {EXIT_REASON_LABELS[candidate.exitReason || ""] ||
+                          "Exited"}
+                      </Badge>
+                    ) : candidate.employeeId ? (
                       <Badge
                         variant="outline"
                         className="text-xs font-normal border-emerald-200 bg-emerald-50 text-emerald-800"
@@ -443,13 +531,17 @@ export default function OnboardedCandidatesPage() {
                   </div>
                 </td>
                 <td className="px-6 py-4 text-sm text-muted-foreground">
-                  {activeTab === "employed"
-                    ? candidate.employedAt
-                      ? formatDate(candidate.employedAt)
+                  {activeTab === "exited"
+                    ? candidate.exitedAt
+                      ? formatDate(candidate.exitedAt)
                       : "N/A"
-                    : candidate.onboardingDetails?.completedAt
-                      ? formatDate(candidate.onboardingDetails.completedAt)
-                      : "N/A"}
+                    : activeTab === "employed"
+                      ? candidate.employedAt
+                        ? formatDate(candidate.employedAt)
+                        : "N/A"
+                      : candidate.onboardingDetails?.completedAt
+                        ? formatDate(candidate.onboardingDetails.completedAt)
+                        : "N/A"}
                 </td>
                 <td className="px-6 py-4">
                   <DropdownMenu>
@@ -496,16 +588,27 @@ export default function OnboardedCandidatesPage() {
                           </DropdownMenuItem>
                         </>
                       )}
-                      {activeTab === "employed" && candidate.employeeId ? (
-                        <DropdownMenuItem asChild>
-                          <Link
-                            href="/dashboard/employee"
-                            className="flex items-center cursor-pointer"
+                      {activeTab === "employed" &&
+                      candidate.employeeId &&
+                      !candidate.exitedAt ? (
+                        <>
+                          <DropdownMenuItem
+                            onClick={() => openExitDialog(candidate)}
+                            className="flex items-center cursor-pointer text-slate-700 focus:text-slate-900"
                           >
-                            <Briefcase className="mr-2 h-4 w-4" />
-                            Open Employees
-                          </Link>
-                        </DropdownMenuItem>
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Mark as Exited (Resigned)
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link
+                              href="/dashboard/employee"
+                              className="flex items-center cursor-pointer"
+                            >
+                              <Briefcase className="mr-2 h-4 w-4" />
+                              Open Employees
+                            </Link>
+                          </DropdownMenuItem>
+                        </>
                       ) : null}
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -527,8 +630,8 @@ export default function OnboardedCandidatesPage() {
             Onboarded Candidates
           </h1>
           <p className="text-muted-foreground">
-            Track onboarding progress and candidates who have been converted to
-            employees
+            Track onboarding, active employees, and people who have exited
+            (resigned or separated)
           </p>
         </div>
 
@@ -582,6 +685,13 @@ export default function OnboardedCandidatesPage() {
                 <Briefcase className="h-4 w-4" />
                 Employed
               </TabsTrigger>
+              <TabsTrigger
+                value="exited"
+                className="flex items-center gap-1.5 px-3 py-1.5"
+              >
+                <UserMinus className="h-4 w-4" />
+                Exited
+              </TabsTrigger>
             </TabsList>
             <div className="flex gap-2 w-full lg:w-auto flex-wrap">
               <Select value={selectedRole} onValueChange={setSelectedRole}>
@@ -626,6 +736,9 @@ export default function OnboardedCandidatesPage() {
             <TabsContent value="employed" className="m-0">
               <CandidateTable />
             </TabsContent>
+            <TabsContent value="exited" className="m-0">
+              <CandidateTable />
+            </TabsContent>
 
             {pagination && pagination.pages > 1 && (
               <div className="px-6 py-4 border-t border-border flex items-center justify-between">
@@ -639,7 +752,9 @@ export default function OnboardedCandidatesPage() {
                       ? "with uploaded documents (not verified)"
                       : activeTab === "verified"
                         ? "with verified documents"
-                        : "employed"}{" "}
+                        : activeTab === "exited"
+                          ? "exited"
+                          : "employed"}{" "}
                   candidates
                 </div>
                 <div className="flex gap-2">
@@ -755,6 +870,72 @@ export default function OnboardedCandidatesPage() {
         title="Reject Candidate"
         submitButtonText="Reject"
       />
+
+      <Dialog
+        open={exitDialogOpen}
+        onOpenChange={(open) => {
+          setExitDialogOpen(open);
+          if (!open) setExitCandidate(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Mark as Exited (Resigned)</DialogTitle>
+            <DialogDescription>
+              {exitCandidate
+                ? `Move ${exitCandidate.name} from Employed to Exited. Their employee login will be deactivated.`
+                : "Move this person from Employed to Exited."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="exit-effective-date">Last working date</Label>
+              <Input
+                id="exit-effective-date"
+                type="date"
+                value={exitEffectiveDate}
+                onChange={(e) => setExitEffectiveDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="exit-notes">Notes (optional)</Label>
+              <Textarea
+                id="exit-notes"
+                value={exitNotes}
+                onChange={(e) => setExitNotes(e.target.value)}
+                placeholder="Reason or handover notes…"
+                rows={3}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                className="rounded border-input"
+                checked={exitSendEmail}
+                onChange={(e) => setExitSendEmail(e.target.checked)}
+              />
+              Send resignation acknowledgement email
+            </label>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setExitDialogOpen(false)}
+              disabled={exiting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleMarkExited()}
+              disabled={exiting}
+            >
+              {exiting ? "Saving…" : "Confirm Exit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

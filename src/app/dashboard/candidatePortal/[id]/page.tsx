@@ -91,6 +91,9 @@ import {
 } from "./utils/officeAddressFromCandidate";
 import { CandidateHeader } from "./components/CandidateHeader";
 
+// During transition, optionally redirect to unified page:
+// redirect(`/dashboard/people/${candidateId}`);
+
 // Candidate interface is now imported from types.ts - removed duplicate definition
 
 /**
@@ -457,7 +460,7 @@ export default function CandidateDetailPage() {
         effectiveFrom: new Date().toISOString(),
         postingLocation: getCandidateOfficePostingLocation(candidate),
         salaryINR: candidate.selectionDetails?.salary 
-          ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
+          ? `${candidate.selectionDetails.salary} per month`
           : "As per employment terms",
         witness1: "____________________",
         witness2: "____________________",
@@ -1377,7 +1380,7 @@ export default function CandidateDetailPage() {
                       <div>
                         <Button
                           onClick={(e) => {
-                            if (!canScheduleInterview) {
+                            if (!canScheduleInterview()) {
                               e.preventDefault();
                               e.stopPropagation();
                               toast.error("Interview is already scheduled");
@@ -1392,7 +1395,7 @@ export default function CandidateDetailPage() {
                             setInterviewMode("");
                             setInterviewOfficeId("");
                           }}
-                          disabled={actionLoading || !canScheduleInterview}
+                          disabled={actionLoading || !canScheduleInterview()}
                           variant={candidate.status === "interview" ? "default" : "outline"}
                           size="sm"
                           className="w-full justify-start h-8 text-xs"
@@ -1450,14 +1453,14 @@ export default function CandidateDetailPage() {
                       <div>
                         <Button
                           onClick={(e) => {
-                            if (!canScheduleSecondRound) {
+                            if (!canScheduleSecondRound()) {
                               e.preventDefault();
                               e.stopPropagation();
                               return;
                             }
                             openSecondRoundDialog();
                           }}
-                          disabled={actionLoading || !canScheduleSecondRound}
+                          disabled={actionLoading || !canScheduleSecondRound()}
                           variant={candidate.secondRoundInterviewDetails?.scheduledDate ? "default" : "outline"}
                           size="sm"
                           className="w-full justify-start h-8 text-xs"
@@ -1476,7 +1479,7 @@ export default function CandidateDetailPage() {
                       <div>
                         <Button
                           onClick={() => setShortlistDialogOpen(true)}
-                          disabled={actionLoading || !canShortlist}
+                          disabled={actionLoading || !canShortlist()}
                           variant={candidate.status === "shortlisted" ? "default" : "outline"}
                           size="sm"
                           className="w-full justify-start h-8 text-xs"
@@ -1512,7 +1515,7 @@ export default function CandidateDetailPage() {
                       <div>
                         <Button
                           onClick={() => setRejectDialogOpen(true)}
-                          disabled={actionLoading || !canReject}
+                          disabled={actionLoading || !canReject()}
                           variant={candidate.status === "rejected" ? "destructive" : "outline"}
                           size="sm"
                           className="w-full justify-start h-8 text-xs"
@@ -1534,7 +1537,7 @@ export default function CandidateDetailPage() {
                       <div>
                         <Button
                           onClick={handleOnboardingWrapper}
-                          disabled={actionLoading || !canStartOnboarding}
+                          disabled={actionLoading || !canStartOnboarding()}
                           variant={
                             candidate.status === "onboarding"
                               ? candidate.onboardingDetails?.onboardingComplete
@@ -1634,7 +1637,7 @@ export default function CandidateDetailPage() {
                         <div>
                           <Button
                             onClick={() => setRejectAfterTrainingDialogOpen(true)}
-                            disabled={actionLoading || !canDiscontinueTraining}
+                            disabled={actionLoading || !canDiscontinueTraining()}
                             variant="destructive"
                             size="sm"
                             className="w-full justify-start h-8 text-xs"
@@ -1664,6 +1667,15 @@ export default function CandidateDetailPage() {
                     </TooltipTrigger>
                     <TooltipContent><p>{getButtonTooltip("employee")}</p></TooltipContent>
                   </Tooltip>
+
+                  {candidate.employeeId && (
+                    <Link href={`/dashboard/employeedetails/${candidate.employeeId}`}>
+                      <Button variant="outline" size="sm" className="w-full justify-start h-8 text-xs">
+                        <Briefcase className="h-4 w-4 mr-2" />
+                        View Employee Profile
+                      </Button>
+                    </Link>
+                  )}
                 </div>
               </TooltipProvider>
             </Card>
@@ -3025,10 +3037,10 @@ export default function CandidateDetailPage() {
             positionType: candidate.selectionDetails.positionType,
           } : undefined,
         }}
-        onCreated={() => {
+        onCreated={async () => {
           setCreateEmployeeDialogOpen(false);
+          await refreshCandidate();
           toast.success("Employee created successfully");
-          void refreshCandidate();
         }}
       />
 

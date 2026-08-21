@@ -1,9 +1,10 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 
 import { EmployeeSchema } from "@/schemas/employee.schema";
 import { DEFAULT_ORGANIZATION, ORGANIZATIONS } from "@/util/organizationConstants";
 
 interface IEmployee extends Document, EmployeeSchema {
+  candidateId?: Types.ObjectId | null;
   pricingRule: {
     enabled: boolean;
     min: number | null;
@@ -221,6 +222,12 @@ const employeeSchema = new Schema<IEmployee>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    candidateId: {
+      type: Schema.Types.ObjectId,
+      ref: "Candidate",
+      default: null,
+      index: true,
     },
     inactiveReason: {
       type: String,

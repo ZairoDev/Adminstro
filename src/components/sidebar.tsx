@@ -50,6 +50,7 @@ import {
   Globe,
   Activity,
   User,
+  Users,
   Plus,
   Mail,
   Building2,
@@ -501,9 +502,9 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <FileSpreadsheet size={18} />,
     },
     {
-      path: "/dashboard/candidatePortal",
-      label: "Register Candidate",
-      Icon: <Speech size={18} />,
+      path: "/dashboard/people",
+      label: "People",
+      Icon: <Users size={18} />,
     },
     {
       path: "/dashboard/office-addresses",
@@ -638,11 +639,6 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/website-leads",
       label: "Web & Mobile Leads",
       Icon: <Globe size={18} />,
-    },
-    {
-      path: "/dashboard/onboardedCandidates",
-      label: "Onboarded Candidates",
-      Icon: <CheckCheck size={18} />,
     },
     {
       path: "/holidaysera/properties",
@@ -977,9 +973,9 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <IdCardIcon size={18} />,
     },
     {
-      path: "/dashboard/candidatePortal",
-      label: "Register Candidate",
-      Icon: <Speech size={18} />,
+      path: "/dashboard/people",
+      label: "People",
+      Icon: <Users size={18} />,
     },
     {
       path: "/dashboard/office-addresses",
@@ -1000,11 +996,6 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/compareLeads",
       label: "Compare Leads",
       Icon: <PencilLine size={18} />,
-    },
-    {
-      path: "/dashboard/onboardedCandidates",
-      label: "Onboarded Candidates",
-      Icon: <CheckCheck size={18} />,
     },
   ],
   Agent: [
@@ -1124,6 +1115,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/sales-offer/templates",
       label: "Offer Templates",
       Icon: <Mail size={18} />,
+    },
+    {
+      path: "/dashboard/people",
+      label: "People",
+      Icon: <Users size={18} />,
     },
     {
       path: "/dashboard/employee",
@@ -1348,6 +1344,11 @@ const contentRoutes = [
 ];
 const candidateRoutes = [
   {
+    path: "/dashboard/people",
+    label: "People",
+    Icon: <Users size={18} />,
+  },
+  {
     path: "/dashboard/employee",
     label: "Manage Employee",
     Icon: <User2Icon size={18} />,
@@ -1361,11 +1362,6 @@ const candidateRoutes = [
     path: "/dashboard/employee/employeeList",
     label: "All Employees",
     Icon: <IdCardIcon size={18} />,
-  },
-  {
-    path: "/dashboard/candidatePortal",
-    label: "Register Candidate",
-    Icon: <Speech size={18} />,
   },
   {
     path: "/dashboard/office-addresses",
@@ -1382,12 +1378,6 @@ const candidateRoutes = [
     label: "Attended Candidate",
     Icon: <PersonStanding size={18} />,
   },
-  {
-    path: "/dashboard/onboardedCandidates",
-    label: "Onboarded Candidates",
-    Icon: <CheckCheck size={18} />,
-  },
-
   {
     path: "/dashboard/aliases",
     label: "Aliases",

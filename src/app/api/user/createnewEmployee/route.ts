@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import { z } from "zod";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
+import Candidate from "@/models/candidate";
 import bcryptjs from "bcryptjs";
 import { employeeSchema } from "@/schemas/employee.schema";
 import { getDataFromToken } from "@/util/getDataFromToken";
@@ -76,6 +77,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       profilePic,
       organization: requestedOrganization,
     } = parsedBody;
+    const force = reqBody.force === true;
+    if (!force) {
+      const existingCandidate = await Candidate.findOne({
+        email,
+        employeeId: { $ne: null },
+      }).select("_id");
+      if (existingCandidate) {
+        return NextResponse.json(
+          { success: false, message: "A candidate with this email is already employed" },
+          { status: 400 }
+        );
+      }
+    }
     const existingUser = await Employees.findOne({ email });
     if (existingUser) {
       return NextResponse.json(
@@ -133,7 +147,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       typeof reqBody.candidateId === "string" ? reqBody.candidateId.trim() : "";
     if (candidateId) {
       try {
-        const Candidate = (await import("@/models/candidate")).default;
+        // set reverse link on employee
+        await Employees.findByIdAndUpdate(createUser._id, {
+          $set: { candidateId: candidateId },
+        });
+        // existing candidate update:
         await Candidate.findByIdAndUpdate(candidateId, {
           $set: {
             employeeId: createUser._id,

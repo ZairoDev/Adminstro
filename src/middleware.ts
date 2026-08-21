@@ -20,6 +20,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/spreadsheet",
     "/spreadsheet-short-term",
     "/dashboard",
+    "/dashboard/people",
+    /^\/dashboard\/people\/.*$/,
     "/holidaysera",
     /^\/holidaysera(\/.*)?$/,
     "/dashboard/website-leads",
@@ -219,6 +221,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/office-addresses",
     "/dashboard/onboardedCandidates",
     /^\/dashboard\/onboardedCandidates\/.*$/,
+    "/dashboard/people",
+    /^\/dashboard\/people\/.*$/,
   ],
   Developer: [
     "/",
@@ -299,6 +303,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/employee\/.*$/,
     "/dashboard/createnewEmployee",
     "/dashboard/aliases",
+    "/dashboard/people",
+    /^\/dashboard\/people\/.*$/,
   ],
 };
 

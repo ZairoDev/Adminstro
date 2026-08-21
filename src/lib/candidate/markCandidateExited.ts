@@ -41,3 +41,25 @@ export async function markCandidateExitedByEmployeeId(
 
   return { matched: Boolean(result) };
 }
+
+/**
+ * Clear the linked candidate's exited fields when an employee is reactivated.
+ * Safe no-op when no linked candidate exists.
+ */
+export async function clearCandidateExit(
+  employeeId: string,
+): Promise<{ matched: boolean }> {
+  const candidate = await Candidate.findOne({ employeeId });
+
+  if (!candidate) {
+    return { matched: false };
+  }
+
+  candidate.exitedAt = null;
+  candidate.exitReason = null;
+  candidate.exitNotes = null;
+
+  await candidate.save();
+
+  return { matched: true };
+}

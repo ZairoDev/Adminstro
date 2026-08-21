@@ -8,6 +8,8 @@ import {
   FileText,
   Camera,
   Plus,
+  Search,
+  X,
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -71,6 +73,7 @@ export type CandidateLite = {
     accountHolderName?: string;
   };
   aadhar?: string;
+  employeeId?: string | null;
   onboardingDetails?: {
     personalDetails?: {
       dateOfBirth?: string | Date;
@@ -92,23 +95,37 @@ export type CandidateLite = {
   };
   employmentType?: "fulltime" | "intern" | null;
   selectionDetails?: {
-    salary?: number;
+    salary?: string;
     role?: string;
     positionType?: "fulltime" | "intern";
   };
 };
 
+export type CreateEmployeeFormMode = "candidate" | "standalone";
+
 export interface NewUserProps {
   candidateId?: string;
   candidate?: CandidateLite | null;
-  onCreated?: (payload: { employeeId?: string; employee?: any }) => void;
+  onCreated?: (payload: { employeeId?: string; employee?: unknown }) => void;
+  mode?: CreateEmployeeFormMode;
 }
+
+type CandidateSearchHit = {
+  _id: string;
+  name: string;
+  email: string;
+  position?: string;
+  employeeId?: string | null;
+};
 
 const NewUser: React.FC<NewUserProps> = ({
   candidateId,
   candidate: candidateProp = null,
   onCreated,
+  mode,
 }) => {
+  const resolvedMode: CreateEmployeeFormMode =
+    mode ?? (candidateId || candidateProp ? "candidate" : "standalone");
 
   const { uploadFiles } = useBunnyUpload();
 
@@ -118,6 +135,15 @@ const NewUser: React.FC<NewUserProps> = ({
   const [locationsCity, setLocationsCity] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [prefillLoading, setPrefillLoading] = useState(false);
+  const [linkedCandidateId, setLinkedCandidateId] = useState("");
+  const [linkedCandidate, setLinkedCandidate] = useState<CandidateLite | null>(
+    null
+  );
+  const [candidateSearch, setCandidateSearch] = useState("");
+  const [candidateResults, setCandidateResults] = useState<CandidateSearchHit[]>(
+    []
+  );
+  const [searchingCandidates, setSearchingCandidates] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
@@ -163,9 +189,10 @@ const NewUser: React.FC<NewUserProps> = ({
 
   // --- Prefill logic ---
   const prefillFrom = useMemo<CandidateLite | null>(
-    () => candidateProp || null,
-    [candidateProp]
+    () => candidateProp || linkedCandidate || null,
+    [candidateProp, linkedCandidate]
   );
+  const resolvedCandidateId = candidateId || linkedCandidateId || "";
 
   useEffect(() => {
     // Fetch locations
@@ -185,12 +212,53 @@ const NewUser: React.FC<NewUserProps> = ({
   }, []);
 
   useEffect(() => {
+    if (resolvedMode !== "standalone") {
+      return;
+    }
+
+    const term = candidateSearch.trim();
+    if (term.length < 2) {
+      setCandidateResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearchingCandidates(true);
+      try {
+        const params = new URLSearchParams({
+          search: term,
+          page: "1",
+          limit: "8",
+        });
+        const res = await axios.get(`/api/candidates?${params.toString()}`);
+        const rows: CandidateSearchHit[] = Array.isArray(res?.data?.data)
+          ? res.data.data
+          : [];
+        setCandidateResults(
+          rows.filter((row) => row._id && !row.employeeId)
+        );
+      } catch (error) {
+        console.error("Failed to search candidates:", error);
+        setCandidateResults([]);
+      } finally {
+        setSearchingCandidates(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [candidateSearch, resolvedMode]);
+
+  useEffect(() => {
     const prefill = async () => {
+      if (!prefillFrom && !resolvedCandidateId) {
+        return;
+      }
+
       let data: CandidateLite | null = prefillFrom;
-      if (!data && candidateId) {
+      if (!data && resolvedCandidateId) {
         try {
           setPrefillLoading(true);
-          const res = await axios.get(`/api/candidate/${candidateId}`);
+          const res = await axios.get(`/api/candidates/${resolvedCandidateId}`);
           data = res?.data?.data || null;
         } catch (e) {
           toast({
@@ -365,7 +433,10 @@ const NewUser: React.FC<NewUserProps> = ({
 
       // Salary - from selectionDetails
       if (data.selectionDetails?.salary) {
-        setValue("salary", data.selectionDetails.salary);
+        const parsedSalary = parseFloat(data.selectionDetails.salary);
+        if (!isNaN(parsedSalary)) {
+          setValue("salary", parsedSalary);
+        }
       }
 
       // Profile Picture - prefer photoUrl over resumeUrl
@@ -379,7 +450,7 @@ const NewUser: React.FC<NewUserProps> = ({
     };
 
     prefill();
-  }, [candidateId, prefillFrom, setValue, toast]);
+  }, [resolvedCandidateId, prefillFrom, setValue, toast]);
 
   // --- Handlers ---
   const handleImageClick = () => fileInputRef.current?.click();
@@ -481,7 +552,7 @@ const NewUser: React.FC<NewUserProps> = ({
       dateOfBirth: dateOfBirth instanceof Date ? dateOfBirth : cleanedData.dateOfBirth,
       dateOfJoining: dateOfJoining instanceof Date ? dateOfJoining : cleanedData.dateOfJoining,
       profilePic,
-      candidateId: candidateProp?._id || candidateId || null,
+      candidateId: candidateProp?._id || candidateId || linkedCandidateId || null,
     };
 
     console.log("Final userData:", userData);
@@ -524,17 +595,113 @@ const NewUser: React.FC<NewUserProps> = ({
     }
   }, [selectedEmpType, setValue]);
 
+  const handleSelectLinkedCandidate = async (id: string) => {
+    try {
+      setPrefillLoading(true);
+      const res = await axios.get(`/api/candidates/${id}`);
+      const data = (res?.data?.data || null) as CandidateLite | null;
+      if (!data?._id) {
+        toast({
+          variant: "destructive",
+          description: "Failed to load candidate details.",
+        });
+        return;
+      }
+      setLinkedCandidateId(data._id);
+      setLinkedCandidate(data);
+      setCandidateSearch("");
+      setCandidateResults([]);
+    } catch {
+      toast({
+        variant: "destructive",
+        description: "Failed to load candidate details.",
+      });
+    } finally {
+      setPrefillLoading(false);
+    }
+  };
+
+  const handleClearLinkedCandidate = () => {
+    setLinkedCandidateId("");
+    setLinkedCandidate(null);
+  };
+
   return (
     <div className="min-h-screen bg-white dark:bg-stone-950 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <Heading
           heading="Create New Employee"
           subheading={
-            candidateId || candidateProp
+            resolvedCandidateId || candidateProp || linkedCandidate
               ? "Auto-filled from candidate details"
               : "Register a new employee"
           }
         />
+
+        {resolvedMode === "standalone" && (
+          <div className="mt-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-stone-950 p-4 space-y-3">
+            <Label>Link existing candidate (optional)</Label>
+            {linkedCandidate ? (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {linkedCandidate.name || "Linked candidate"}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {linkedCandidate.email}
+                    {linkedCandidate.position
+                      ? ` · ${linkedCandidate.position}`
+                      : ""}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearLinkedCandidate}
+                >
+                  <X className="h-4 w-4" />
+                  Clear
+                </Button>
+              </div>
+            ) : (
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={candidateSearch}
+                  onChange={(e) => setCandidateSearch(e.target.value)}
+                  placeholder="Search by name, email, or phone"
+                  className="pl-9"
+                />
+                {(searchingCandidates || candidateResults.length > 0) &&
+                  candidateSearch.trim().length >= 2 && (
+                    <div className="absolute z-20 mt-1 w-full rounded-md border bg-background shadow-md max-h-56 overflow-y-auto">
+                      {searchingCandidates ? (
+                        <p className="px-3 py-2 text-sm text-muted-foreground">
+                          Searching…
+                        </p>
+                      ) : (
+                        candidateResults.map((row) => (
+                          <button
+                            key={row._id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                            onClick={() => void handleSelectLinkedCandidate(row._id)}
+                          >
+                            <span className="font-medium">{row.name}</span>
+                            <span className="block text-xs text-muted-foreground">
+                              {row.email}
+                              {row.position ? ` · ${row.position}` : ""}
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="mt-8">
           <div className="bg-white dark:bg-stone-950 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -1100,3 +1267,4 @@ const NewUser: React.FC<NewUserProps> = ({
 };
 
 export default NewUser;
+export const CreateEmployeeForm = NewUser;

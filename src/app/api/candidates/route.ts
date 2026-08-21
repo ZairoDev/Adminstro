@@ -5,6 +5,155 @@ import { type NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+const ONBOARDING_DOCUMENT_FIELDS = [
+  "aadharCard",
+  "aadharCardFront",
+  "aadharCardBack",
+  "panCard",
+  "highSchoolMarksheet",
+  "interMarksheet",
+  "graduationMarksheet",
+  "experienceLetter",
+  "relievingLetter",
+] as const;
+
+type OnboardingStatusTab =
+  | "employed"
+  | "exited"
+  | "pending"
+  | "uploaded-not-verified"
+  | "verified";
+
+function isOnboardingStatusTab(value: string): value is OnboardingStatusTab {
+  return (
+    value === "employed" ||
+    value === "exited" ||
+    value === "pending" ||
+    value === "uploaded-not-verified" ||
+    value === "verified"
+  );
+}
+
+function notEmployedQuery(): Record<string, unknown> {
+  return {
+    $or: [{ employeeId: null }, { employeeId: { $exists: false } }],
+  };
+}
+
+function hasUploadedDocumentsQuery(): Record<string, unknown> {
+  return {
+    $or: [
+      ...ONBOARDING_DOCUMENT_FIELDS.map((field) => ({
+        [`onboardingDetails.documents.${field}`]: { $nin: [null, ""] },
+      })),
+      { "onboardingDetails.documents.salarySlips.0": { $nin: [null, ""] } },
+    ],
+  };
+}
+
+function hasNoUploadedDocumentsQuery(): Record<string, unknown> {
+  return {
+    $and: [
+      ...ONBOARDING_DOCUMENT_FIELDS.map((field) => ({
+        $or: [
+          { [`onboardingDetails.documents.${field}`]: null },
+          { [`onboardingDetails.documents.${field}`]: { $exists: false } },
+          { [`onboardingDetails.documents.${field}`]: "" },
+        ],
+      })),
+      {
+        $or: [
+          { "onboardingDetails.documents.salarySlips": { $exists: false } },
+          { "onboardingDetails.documents.salarySlips": null },
+          { "onboardingDetails.documents.salarySlips": { $size: 0 } },
+        ],
+      },
+    ],
+  };
+}
+
+function onboardingStatusMongoQuery(
+  onboardingStatus: OnboardingStatusTab
+): Record<string, unknown>[] {
+  if (onboardingStatus === "employed") {
+    return [
+      {
+        employeeId: { $ne: null },
+        exitedAt: null,
+        "onboardingDetails.onboardingComplete": true,
+      },
+    ];
+  }
+
+  if (onboardingStatus === "exited") {
+    return [{ exitedAt: { $ne: null } }];
+  }
+
+  if (onboardingStatus === "pending") {
+    return [
+      notEmployedQuery(),
+      {
+        $or: [
+          { "onboardingDetails.onboardingComplete": { $ne: true } },
+          hasNoUploadedDocumentsQuery(),
+        ],
+      },
+    ];
+  }
+
+  if (onboardingStatus === "verified") {
+    return [
+      {
+        "onboardingDetails.verifiedByHR.verified": true,
+        employeeId: null,
+      },
+    ];
+  }
+
+  // uploaded-not-verified: document-count check stays partial in-memory
+  return [notEmployedQuery(), hasUploadedDocumentsQuery()];
+}
+
+function documentHasValue(docValue: unknown): boolean {
+  if (Array.isArray(docValue)) {
+    return docValue.some(
+      (item) => item !== null && item !== undefined && item !== ""
+    );
+  }
+  return docValue !== null && docValue !== undefined && docValue !== "";
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
+function matchesUploadedNotVerified(candidate: {
+  onboardingDetails?: unknown;
+}): boolean {
+  const onboardingDetails = asRecord(candidate.onboardingDetails);
+  if (!onboardingDetails) {
+    return false;
+  }
+  const documents = asRecord(onboardingDetails.documents) ?? {};
+  const documentVerification =
+    asRecord(onboardingDetails.documentVerification) ?? {};
+  const documentKeys = Object.keys(documents).filter((key) =>
+    documentHasValue(documents[key])
+  );
+  const allDocumentsVerified =
+    documentKeys.length > 0 &&
+    documentKeys.every((docKey) => {
+      const verification = asRecord(documentVerification[docKey]);
+      return verification?.verified === true;
+    });
+  const verifiedByHR = asRecord(onboardingDetails.verifiedByHR);
+  const hrVerified = verifiedByHR?.verified === true;
+  return !allDocumentsVerified || !hrVerified;
+}
+
 export async function GET(request: NextRequest) {
   await connectDb();
 
@@ -24,15 +173,55 @@ export async function GET(request: NextRequest) {
     const onboardingStatus = searchParams.get("onboardingStatus") || "";
     const appliedFrom = searchParams.get("appliedFrom") || "";
     const appliedTo = searchParams.get("appliedTo") || "";
+    const phaseRaw = searchParams.get("phase") || "";
+    const phase =
+      phaseRaw === "applicant" ||
+      phaseRaw === "onboarding" ||
+      phaseRaw === "active" ||
+      phaseRaw === "exited"
+        ? phaseRaw
+        : "";
 
     const skip = (page - 1) * limit;
 
     // Build the query object
-    let query: any = {};
-    const andConditions: any[] = [];
+    let query: Record<string, unknown> = {};
+    const andConditions: Record<string, unknown>[] = [];
+
+    // Phase is additive and independent of existing onboarded/status callers.
+    // Map:
+    // applicant  → not onboarded, status in pipeline
+    // onboarding → onboarded, not employed/exited
+    // active     → has employeeId, no exitedAt
+    // exited     → has exitedAt
+    if (phase === "applicant") {
+      andConditions.push({
+        status: { $in: ["pending", "interview", "shortlisted", "selected"] },
+      });
+    } else if (phase === "onboarding") {
+      andConditions.push({
+        $or: [
+          { "onboardingDetails.onboardingComplete": true },
+          { status: "onboarding" },
+        ],
+      });
+      andConditions.push({
+        $or: [{ employeeId: null }, { employeeId: { $exists: false } }],
+      });
+      andConditions.push({
+        $or: [{ exitedAt: null }, { exitedAt: { $exists: false } }],
+      });
+    } else if (phase === "active") {
+      andConditions.push({ employeeId: { $ne: null } });
+      andConditions.push({
+        $or: [{ exitedAt: null }, { exitedAt: { $exists: false } }],
+      });
+    } else if (phase === "exited") {
+      andConditions.push({ exitedAt: { $ne: null } });
+    }
 
     // Add onboarded filter - includes both completed and pending onboarding
-    if (onboarded) {
+    if (onboarded && !phase) {
       andConditions.push({
         $or: [
           { "onboardingDetails.onboardingComplete": true },
@@ -41,9 +230,10 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Add onboarding status filter for onboarded candidates
-    // Note: We'll filter in memory after fetching for more reliable results
-    // This is because document verification structure can be complex
+    // Legacy onboarding status filters (kept for backwards compatibility if needed)
+    if (onboarded && isOnboardingStatusTab(onboardingStatus) && !phase) {
+      andConditions.push(...onboardingStatusMongoQuery(onboardingStatus));
+    }
 
     // Add search conditions if search term exists
     if (search) {
@@ -58,7 +248,7 @@ export async function GET(request: NextRequest) {
 
     // Add status filter if status is provided and not "all"
     // Note: Don't override status if onboarded filter is active
-    if (status && status !== "all" && !onboarded) {
+    if (status && status !== "all" && !onboarded && !phase) {
       // Special handling for interview status: include candidates with second round interviews
       if (status === "interview") {
         // Add to andConditions to properly combine with other filters
@@ -124,77 +314,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch all candidates matching the base query (for onboarding status filtering)
-    let allCandidates = await Candidate.find(query)
+    // Fetch candidates with standard pagination
+    const total = await Candidate.countDocuments(query);
+    const candidates = await Candidate.find(query)
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .lean();
-
-    // Filter by onboarding status if specified
-    if (onboarded && onboardingStatus) {
-      allCandidates = allCandidates.filter((candidate: any) => {
-        const onboardingDetails = candidate.onboardingDetails || {};
-        const documents = onboardingDetails.documents || {};
-        const documentVerification = onboardingDetails.documentVerification || {};
-        const isEmployed = Boolean(candidate.employeeId);
-        const isExited = Boolean(candidate.exitedAt);
-        const onboardingComplete = onboardingDetails.onboardingComplete === true;
-
-        // Get list of document keys that have actual document values (not null/empty)
-        const documentKeys = Object.keys(documents).filter((key) => {
-          const docValue = documents[key];
-          if (Array.isArray(docValue)) {
-            return docValue.length > 0 && docValue.some((item: any) => item !== null && item !== undefined && item !== "");
-          }
-          return docValue !== null && docValue !== undefined && docValue !== "";
-        });
-        
-        // Check if documents exist (has at least one document uploaded)
-        const hasDocuments = documentKeys.length > 0;
-        
-        // Check if ALL documents are verified
-        const allDocumentsVerified = documentKeys.length > 0 && documentKeys.every((docKey) => {
-          const verification = documentVerification[docKey];
-          return verification && verification.verified === true;
-        });
-
-        // Check HR verification status
-        const hrVerified = onboardingDetails.verifiedByHR?.verified === true;
-
-        if (onboardingStatus === "exited") {
-          // Exited: was hired, then resigned / separated
-          return isEmployed && isExited;
-        }
-
-        if (onboardingStatus === "employed") {
-          // Employed: onboarding finished, employee created, still active
-          return onboardingComplete && isEmployed && !isExited;
-        }
-
-        // Other tabs exclude candidates already hired as employees (active or exited)
-        if (isEmployed) {
-          return false;
-        }
-
-        if (onboardingStatus === "pending") {
-          // Pending: onboarding not complete OR no documents uploaded
-          return !onboardingComplete || !hasDocuments;
-        } else if (onboardingStatus === "uploaded-not-verified") {
-          // Documents uploaded but not all verified (or HR not verified)
-          return hasDocuments && (!allDocumentsVerified || !hrVerified);
-        } else if (onboardingStatus === "verified") {
-          // ALL documents verified AND HR verification complete (not yet employed)
-          return allDocumentsVerified && hrVerified;
-        }
-        
-        return true;
-      });
-    }
-
-    // Get total count after filtering
-    const total = allCandidates.length;
-
-    // Apply pagination
-    const candidates = allCandidates.slice(skip, skip + limit);
 
     // console.log("Query:", query);
     // console.log("Fetched Candidates:", candidates);

@@ -1,5 +1,6 @@
-
 import Candidate from "@/models/candidate";
+// Register OfficeAddress so populate("officeAddressId") works on every request.
+import "@/models/officeAddress";
 import { connectDb } from "@/util/db";
 import { type NextRequest, NextResponse } from "next/server";
 

@@ -24,6 +24,7 @@ import {
   Award,
   Star,
   Trophy,
+  FileText,
 } from "lucide-react";
 import axios from "@/util/axios";
 import { format } from "date-fns";
@@ -1278,12 +1279,22 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               heading="Employee Details"
               subheading="You can generate a new password for the employee"
             />
-            <Link href={`/dashboard/editemployeedetails/${userId}`}>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Pencil className="h-4 w-4" />
-                Edit profile
-              </Button>
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              {user?.candidateId && (
+                <Link href={`/dashboard/candidatePortal/${user.candidateId}`}>
+                  <Button variant="outline" size="sm">
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Hiring Record
+                  </Button>
+                </Link>
+              )}
+              <Link href={`/dashboard/editemployeedetails/${userId}`}>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Pencil className="h-4 w-4" />
+                  Edit profile
+                </Button>
+              </Link>
+            </div>
           </div>
 
           {activeOverduePIP && (

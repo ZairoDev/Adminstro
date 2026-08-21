@@ -60,9 +60,9 @@ const routes = [
   { name: "Read Blogs", icon: BookPlus, path: "/dashboard/allblogs" },
   { name: "Create Blog", icon: PackagePlus, path: "/dashboard/createblog" },
   {
-    name: "Register Candidate",
+    name: "People",
     icon: Speech,
-    path: "/dashboard/candidatePortal",
+    path: "/dashboard/people",
   },
   {
     name: "Leftover Candidate",

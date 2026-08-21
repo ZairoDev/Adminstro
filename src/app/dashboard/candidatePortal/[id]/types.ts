@@ -102,7 +102,7 @@ export interface Candidate {
     trainingPeriod: string;
     trainingDate?: string; // Training start date (YYYY-MM-DD format)
     role: string;
-    salary?: number;
+    salary?: string;
     offerLetterSent?: boolean;
     offerLetterSentAt?: string;
     offerLetterSigningLink?: string;

@@ -1,84 +1,32 @@
 import { Candidate } from "../types";
+import * as LC from "@/lib/people/lifecycle";
+
+type PermissionCandidate = LC.MinimalCandidate & {
+  interviewDetails?: {
+    scheduledDate?: string | null;
+    remarks?: { evaluatedBy?: string };
+  };
+  secondRoundInterviewDetails?: { scheduledDate?: string | null };
+};
 
 export function useCandidatePermissions(candidate: Candidate | null) {
-  const hasInterviewRemarks = () => {
-    return !!candidate?.interviewDetails?.remarks?.evaluatedBy;
-  };
-
-  const hasAnyInterviewScheduled = () => {
-    return !!(
-      candidate?.interviewDetails?.scheduledDate ||
-      candidate?.secondRoundInterviewDetails?.scheduledDate
-    );
-  };
-
-  const hasEmploymentType = () => {
-    return (
-      candidate?.employmentType === "fulltime" ||
-      candidate?.employmentType === "intern"
-    );
-  };
-
-  const canShortlist = () => {
-    return candidate?.status === "pending";
-  };
-
-  const canSelect = () => {
-    const status = candidate?.status;
-    if (status === "interview") {
-      return hasInterviewRemarks();
-    }
-    if (status === "pending" || status === "shortlisted") {
-      return true;
-    }
-    return false;
-  };
-
-  const canReject = () => {
-    const status = candidate?.status;
-    if (status === "interview") {
-      return hasInterviewRemarks();
-    }
-    return status !== "rejected" && status !== "onboarding";
-  };
-
-  const canDiscontinueTraining = () => {
-    return candidate?.status === "selected";
-  };
-
-  const canStartOnboarding = () => {
-    return candidate?.status === "selected";
-  };
-
-  const canCreateEmployee = () => {
-    return (
-      candidate?.status === "onboarding" &&
-      candidate?.onboardingDetails?.onboardingComplete === true &&
-      !candidate?.employeeId
-    );
-  };
-
-  const canScheduleInterview = () => {
-    return candidate?.status === "pending" && !candidate?.interviewDetails?.scheduledDate;
-  };
-
-  const canScheduleSecondRound = () => {
-    const hasSecondRound = candidate?.secondRoundInterviewDetails?.scheduledDate;
-    return !hasSecondRound;
-  };
+  const c = candidate as PermissionCandidate;
 
   return {
-    hasInterviewRemarks,
-    hasAnyInterviewScheduled,
-    hasEmploymentType,
-    canShortlist,
-    canSelect,
-    canReject,
-    canDiscontinueTraining,
-    canStartOnboarding,
-    canCreateEmployee,
-    canScheduleInterview,
-    canScheduleSecondRound,
+    hasInterviewRemarks: () => !!candidate?.interviewDetails?.remarks?.evaluatedBy,
+    hasAnyInterviewScheduled: () =>
+      !!(candidate?.interviewDetails?.scheduledDate || candidate?.secondRoundInterviewDetails?.scheduledDate),
+    hasEmploymentType: () =>
+      candidate?.employmentType === "fulltime" || candidate?.employmentType === "intern",
+    canShortlist: () => (candidate ? LC.canShortlist(c) : false),
+    canSelect: () => (candidate ? LC.canSelect(c) : false),
+    canReject: () => (candidate ? LC.canReject(c) : false),
+    canDiscontinueTraining: () => (candidate ? LC.canDiscontinueTraining(c) : false),
+    canStartOnboarding: () => (candidate ? LC.canStartOnboarding(c) : false),
+    canCreateEmployee: () => (candidate ? LC.canCreateEmployee(c) : false),
+    canScheduleInterview: () => (candidate ? LC.canScheduleInterview(c) : false),
+    canScheduleSecondRound: () =>
+      !candidate?.secondRoundInterviewDetails?.scheduledDate,
+    canSeparate: () => (candidate ? LC.canSeparate(c) : false),
   };
 }
-

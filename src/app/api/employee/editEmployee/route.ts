@@ -6,6 +6,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 import { normalizeAllotedArea } from "@/util/location";
 import { normalizeEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
+import { clearCandidateExit } from "@/lib/candidate/markCandidateExited";
 
 connectDb();
 
@@ -35,6 +36,8 @@ interface RequestBody {
   empType?: string;
   duration?: string;
   isLocked?: boolean;
+  inactiveReason?: string | null;
+  inactiveDate?: Date | string | null;
   password?: string;
   passwordExpiresAt?: Date;
 }
@@ -107,6 +110,19 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     if (Object.keys(updateFields).includes("isLocked")) {
       updateData.isLocked = updateFields.isLocked;
     }
+    if (Object.keys(updateFields).includes("inactiveReason")) {
+      updateData.inactiveReason = updateFields.inactiveReason;
+    }
+    if (Object.keys(updateFields).includes("inactiveDate")) {
+      if (updateFields.inactiveDate === null) {
+        updateData.inactiveDate = null;
+      } else if (typeof updateFields.inactiveDate === "string") {
+        const parsed = new Date(updateFields.inactiveDate);
+        updateData.inactiveDate = parsed;
+      } else if (updateFields.inactiveDate instanceof Date) {
+        updateData.inactiveDate = updateFields.inactiveDate;
+      }
+    }
     if (updateFields.password) {
       updateData.password = updateFields.password;
       updateData.passwordExpiresAt = computePasswordExpiryDate();
@@ -120,6 +136,20 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+
+    // Reactivate guard:
+    // Only clear candidate exit fields when the request explicitly reactivates the employee
+    // and explicitly clears inactiveReason to null.
+    const shouldClearCandidateExit =
+      Object.keys(updateFields).includes("isActive") &&
+      updateFields.isActive === true &&
+      Object.keys(updateFields).includes("inactiveReason") &&
+      updateFields.inactiveReason === null;
+
+    if (shouldClearCandidateExit) {
+      await clearCandidateExit(_id);
+    }
+
     return NextResponse.json({
       message: "User profile updated successfully",
       success: true,

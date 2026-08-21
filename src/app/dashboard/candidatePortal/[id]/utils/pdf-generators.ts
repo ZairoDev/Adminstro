@@ -118,7 +118,7 @@ export const generateUnsignedOnboardingAgreement = async (candidate: Candidate) 
       effectiveFrom: new Date().toISOString(),
       postingLocation: getCandidateOfficePostingLocation(candidate),
       salaryINR: candidate.selectionDetails?.salary 
-        ? `${candidate.selectionDetails.salary.toLocaleString("en-IN")} per month`
+        ? `${candidate.selectionDetails.salary} per month`
         : "As per employment terms",
       witness1: "____________________",
       witness2: "____________________",

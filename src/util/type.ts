@@ -91,6 +91,7 @@ export interface EmployeeInterface {
   address: string;
   isVerified: boolean;
   isActive?: boolean;
+  candidateId?: string | null;
   inactiveReason?: SeparationType | null;
   inactiveDate?: string | null;
   lastLogin?: string;

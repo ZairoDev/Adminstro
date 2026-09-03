@@ -100,7 +100,7 @@ export function DocumentVerification({
       <div className="group relative flex flex-col border rounded-lg overflow-hidden bg-card hover:shadow-md transition-shadow">
         {/* Thumbnail Preview */}
         <DialogTrigger asChild>
-          <button className="relative aspect-[4/3] bg-muted/50 overflow-hidden cursor-pointer">
+          <button type="button" className="relative aspect-[4/3] bg-muted/50 overflow-hidden cursor-pointer">
             {isPdf ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/20">
                 <FileIcon className="h-10 w-10 text-red-500/70 mb-1" />
@@ -158,8 +158,13 @@ export function DocumentVerification({
             </TooltipProvider>
           ) : canVerify ? (
             <Button
+              type="button"
               size="sm"
-              onClick={() => handleVerify()}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void handleVerify();
+              }}
               disabled={isUpdating}
               className="w-full h-7 text-xs"
             >
@@ -275,7 +280,12 @@ export function DocumentVerification({
           
           {canVerify && !verified && (
             <Button
-              onClick={() => handleVerify(true)}
+              type="button"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                void handleVerify(true);
+              }}
               disabled={isUpdating}
               className="min-w-[120px] h-8"
             >

@@ -15,6 +15,7 @@ import {
   PenLine,
   Download,
   Eye,
+  EyeOff,
   RefreshCw,
   Mail,
   Copy,
@@ -156,6 +157,38 @@ function InfoRow({ label, value, mono = false }: { label: string; value: string 
   );
 }
 
+function maskAccountNumber(accountNumber: string): string {
+  const cleaned = accountNumber.replace(/\s+/g, "");
+  if (cleaned.length <= 4) return "****";
+  return `****${cleaned.slice(-4)}`;
+}
+
+function MaskedInfoRow({ label, value }: { label: string; value: string | undefined }) {
+  const [revealed, setRevealed] = useState(false);
+
+  if (!value) return null;
+
+  return (
+    <div className="flex items-center justify-between py-1.5 border-b border-dashed last:border-0 gap-2">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <button
+        type="button"
+        onClick={() => setRevealed((prev) => !prev)}
+        className="inline-flex min-h-8 items-center gap-1.5 rounded-sm text-sm font-medium font-mono cursor-pointer hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        aria-label={revealed ? `Hide ${label}` : `Show ${label}`}
+        aria-pressed={revealed}
+      >
+        <span>{revealed ? value : maskAccountNumber(value)}</span>
+        {revealed ? (
+          <EyeOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        ) : (
+          <Eye className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        )}
+      </button>
+    </div>
+  );
+}
+
 export function OnboardingDetailsView({
   onboardingDetails,
   selectionDetails,
@@ -166,6 +199,9 @@ export function OnboardingDetailsView({
   const [hrVerificationDialogOpen, setHrVerificationDialogOpen] = useState(false);
   const [hrVerificationNotes, setHrVerificationNotes] = useState("");
   const [isUpdatingHR, setIsUpdatingHR] = useState(false);
+  const [verificationMap, setVerificationMap] = useState(
+    onboardingDetails?.documentVerification
+  );
 
   // Re-upload request state
   const [reuploadDialogOpen, setReuploadDialogOpen] = useState(false);
@@ -180,15 +216,22 @@ export function OnboardingDetailsView({
     }
   }, [onboardingDetails]);
 
+  useEffect(() => {
+    setVerificationMap(onboardingDetails?.documentVerification);
+  }, [onboardingDetails?.documentVerification]);
+
+  const documentVerification =
+    verificationMap ?? onboardingDetails?.documentVerification;
+
   // Get unverified documents
   const getUnverifiedDocuments = () => {
-    if (!onboardingDetails?.documents || !onboardingDetails?.documentVerification) {
+    if (!onboardingDetails?.documents || !documentVerification) {
       return [];
     }
     return Object.keys(onboardingDetails.documents).filter(
       (key) => 
         onboardingDetails.documents?.[key as keyof typeof onboardingDetails.documents] &&
-        !onboardingDetails.documentVerification?.[key]?.verified
+        !documentVerification?.[key]?.verified
     );
   };
 
@@ -279,11 +322,33 @@ export function OnboardingDetailsView({
         body: JSON.stringify({ documentType, verified }),
       });
 
-      const result = await response.json();
-      if (result.success) {
-        if (onUpdate) await onUpdate();
-      } else {
+      const result = (await response.json()) as {
+        success: boolean;
+        error?: string;
+        data?: {
+          onboardingDetails?: {
+            documentVerification?: OnboardingDetails["documentVerification"];
+          };
+        };
+      };
+
+      if (!result.success) {
         throw new Error(result.error || "Failed to update verification");
+      }
+
+      const updatedEntry =
+        result.data?.onboardingDetails?.documentVerification?.[documentType];
+      setVerificationMap((prev) => ({
+        ...(prev ?? onboardingDetails?.documentVerification ?? {}),
+        [documentType]: updatedEntry ?? {
+          verified,
+          verifiedBy: null,
+          verifiedAt: verified ? new Date().toISOString() : null,
+        },
+      }));
+
+      if (onUpdate) {
+        void onUpdate();
       }
     } catch (error: unknown) {
       console.error("Error updating document verification:", error);
@@ -343,7 +408,7 @@ export function OnboardingDetailsView({
   const hasDigitalSignature = () => !!onboardingDetails.eSign?.signatureImage;
 
   const allDocumentsVerified = () => {
-    if (!onboardingDetails.documentVerification) {
+    if (!documentVerification) {
       return false;
     }
     // All uploaded file documents must be verified
@@ -361,13 +426,13 @@ export function OnboardingDetailsView({
       });
 
       const allFileDocsVerified = documentTypes.every(
-        (docType) => onboardingDetails.documentVerification?.[docType]?.verified === true
+        (docType) => documentVerification?.[docType]?.verified === true
       );
       if (!allFileDocsVerified) return false;
     }
     // Digital signature must be verified when candidate has uploaded one
     if (hasDigitalSignature()) {
-      if (onboardingDetails.documentVerification?.sign?.verified !== true) return false;
+      if (documentVerification?.sign?.verified !== true) return false;
     }
     return true;
   };
@@ -376,7 +441,7 @@ export function OnboardingDetailsView({
     let verified = 0;
     let total = 0;
 
-    if (onboardingDetails.documents && onboardingDetails.documentVerification) {
+    if (onboardingDetails.documents && documentVerification) {
       const docs = onboardingDetails.documents;
       const hasOldAadhar = !!docs.aadharCard;
       const hasNewAadhar = !!(docs.aadharCardFront || docs.aadharCardBack);
@@ -391,14 +456,14 @@ export function OnboardingDetailsView({
 
       total = documentTypes.length;
       verified = documentTypes.filter(
-        (docType) => onboardingDetails.documentVerification?.[docType]?.verified === true
+        (docType) => documentVerification?.[docType]?.verified === true
       ).length;
     }
 
     // Include digital signature in count when candidate has uploaded one
     if (hasDigitalSignature()) {
       total += 1;
-      if (onboardingDetails.documentVerification?.sign?.verified === true) verified += 1;
+      if (documentVerification?.sign?.verified === true) verified += 1;
     }
 
     return { verified, total };
@@ -633,10 +698,9 @@ export function OnboardingDetailsView({
               </div>
               <div className="space-y-0">
                 <InfoRow label="Account Holder" value={onboardingDetails.bankDetails.accountHolderName} />
-                <InfoRow 
-                  label="Account Number" 
-                  value={onboardingDetails.bankDetails.accountNumber ? `****${onboardingDetails.bankDetails.accountNumber.slice(-4)}` : undefined} 
-                  mono 
+                <MaskedInfoRow
+                  label="Account Number"
+                  value={onboardingDetails.bankDetails.accountNumber}
                 />
                 <InfoRow label="IFSC Code" value={onboardingDetails.bankDetails.ifscCode} mono />
                 <InfoRow label="Bank Name" value={onboardingDetails.bankDetails.bankName} />
@@ -796,9 +860,9 @@ export function OnboardingDetailsView({
                       key={key}
                       documentType={key}
                       documentUrl={value || null}
-                      verified={onboardingDetails.documentVerification?.[key]?.verified || false}
-                      verifiedBy={onboardingDetails.documentVerification?.[key]?.verifiedBy || null}
-                      verifiedAt={onboardingDetails.documentVerification?.[key]?.verifiedAt || null}
+                      verified={documentVerification?.[key]?.verified || false}
+                      verifiedBy={documentVerification?.[key]?.verifiedBy || null}
+                      verifiedAt={documentVerification?.[key]?.verifiedAt || null}
                       canVerify={canVerify}
                       onVerifyChange={handleDocumentVerify}
                       label={DOCUMENT_LABELS[key] || key}
@@ -811,9 +875,9 @@ export function OnboardingDetailsView({
                     key="sign"
                     documentType="sign"
                     documentUrl={onboardingDetails.eSign?.signatureImage || null}
-                    verified={onboardingDetails.documentVerification?.sign?.verified || false}
-                    verifiedBy={onboardingDetails.documentVerification?.sign?.verifiedBy || null}
-                    verifiedAt={onboardingDetails.documentVerification?.sign?.verifiedAt || null}
+                    verified={documentVerification?.sign?.verified || false}
+                    verifiedBy={documentVerification?.sign?.verifiedBy || null}
+                    verifiedAt={documentVerification?.sign?.verifiedAt || null}
                     canVerify={canVerify}
                     onVerifyChange={handleDocumentVerify}
                     label={DOCUMENT_LABELS.sign || "Digital Signature"}
@@ -938,23 +1002,23 @@ export function OnboardingDetailsView({
                         if (key === "aadharCard") {
                           // Replace old aadharCard with front and back options
                           // Check if old aadharCard is verified - if so, both front/back are considered verified
-                          const oldAadharVerified = onboardingDetails.documentVerification?.aadharCard?.verified || false;
+                          const oldAadharVerified = documentVerification?.aadharCard?.verified || false;
                           
                           docOptions.push({
                             key: "aadharCardFront",
                             label: DOCUMENT_LABELS.aadharCardFront || "Aadhaar Card - Front",
-                            isVerified: oldAadharVerified || (onboardingDetails.documentVerification?.aadharCardFront?.verified || false),
+                            isVerified: oldAadharVerified || (documentVerification?.aadharCardFront?.verified || false),
                           });
                           docOptions.push({
                             key: "aadharCardBack",
                             label: DOCUMENT_LABELS.aadharCardBack || "Aadhaar Card - Back",
-                            isVerified: oldAadharVerified || (onboardingDetails.documentVerification?.aadharCardBack?.verified || false),
+                            isVerified: oldAadharVerified || (documentVerification?.aadharCardBack?.verified || false),
                           });
                         } else {
                           docOptions.push({
                             key,
                             label: DOCUMENT_LABELS[key] || key,
-                            isVerified: onboardingDetails.documentVerification?.[key]?.verified || false,
+                            isVerified: documentVerification?.[key]?.verified || false,
                           });
                         }
                       });

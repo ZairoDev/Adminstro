@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Candidate } from "../types";
 
 export function useCandidate(candidateId: string) {
@@ -6,38 +6,43 @@ export function useCandidate(candidateId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCandidate = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/candidates/${candidateId}`);
-      const result = await response.json();
+  const fetchCandidate = useCallback(
+    async (mode: "initial" | "refresh" = "refresh") => {
+      if (!candidateId) return;
 
-      if (result.success) {
-        setCandidate(result.data);
-        setError(null);
-      } else {
-        setError(result.error || "Failed to fetch candidate");
+      const showSpinner = mode === "initial";
+      try {
+        if (showSpinner) setLoading(true);
+        const response = await fetch(`/api/candidates/${candidateId}`);
+        const result = await response.json();
+
+        if (result.success) {
+          setCandidate(result.data);
+          setError(null);
+        } else if (showSpinner) {
+          setError(result.error || "Failed to fetch candidate");
+        }
+      } catch (err) {
+        console.error("Error fetching candidate:", err);
+        if (showSpinner) {
+          setError("Failed to fetch candidate");
+        }
+      } finally {
+        if (showSpinner) setLoading(false);
       }
-    } catch (err) {
-      console.error("Error fetching candidate:", err);
-      setError("Failed to fetch candidate");
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [candidateId]
+  );
 
   useEffect(() => {
-    if (candidateId) {
-      fetchCandidate();
-    }
-  }, [candidateId]);
+    void fetchCandidate("initial");
+  }, [fetchCandidate]);
 
   return {
     candidate,
     loading,
     error,
-    refreshCandidate: fetchCandidate,
+    refreshCandidate: () => fetchCandidate("refresh"),
     setCandidate,
   };
 }
-

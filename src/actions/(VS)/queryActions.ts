@@ -1597,9 +1597,18 @@ export const getMonthlyVisitStats = async (
             $cond: [{ $eq: ["$visitStatus", "completed"] }, 1, 0],
           },
         },
+        rescheduled: {
+          $sum: {
+            $cond: [{ $eq: ["$visitStatus", "rescheduled"] }, 1, 0],
+          },
+        },
         pending: {
           $sum: {
-            $cond: [{ $ne: ["$visitStatus", "completed"] }, 1, 0],
+            $cond: [
+              { $in: ["$visitStatus", ["scheduled", "rescheduled"]] },
+              1,
+              0,
+            ],
           },
         },
         completedPitch: {
@@ -1614,7 +1623,7 @@ export const getMonthlyVisitStats = async (
         pendingPitch: {
           $sum: {
             $cond: [
-              { $ne: ["$visitStatus", "completed"] },
+              { $in: ["$visitStatus", ["scheduled", "rescheduled"]] },
               { $ifNull: ["$pitchAmount", 0] },
               0,
             ],
@@ -1633,6 +1642,7 @@ export const getMonthlyVisitStats = async (
           ],
         },
         completed: 1,
+        rescheduled: 1,
         pending: 1,
         completedPitch: 1,
         pendingPitch: 1,

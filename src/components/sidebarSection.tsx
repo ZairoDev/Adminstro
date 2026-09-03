@@ -12,6 +12,7 @@ type Route = {
   Icon?: JSX.Element;
   openInNewTab?: boolean;
   disabled?: boolean;
+  badge?: number;
 };
 
 export default function SidebarSection({
@@ -58,7 +59,7 @@ export default function SidebarSection({
           id={`section-${title}`}
           className={cn("overflow-y-auto", showText ? "pl-2" : "")}
         >
-          {routes.map(({ path, label, Icon, openInNewTab, disabled }) => {
+          {routes.map(({ path, label, Icon, openInNewTab, disabled, badge }) => {
             const active = currentPath === path;
 
             const linkClassName = cn(
@@ -67,6 +68,16 @@ export default function SidebarSection({
                 ? "bg-primary/10 text-primary border-r-4 border-primary"
                 : "hover:bg-accent",
             );
+
+            const badgeNode =
+              typeof badge === "number" && badge > 0 ? (
+                <span
+                  className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+                  aria-label={`${badge} overdue visits`}
+                >
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              ) : null;
 
             return (
               <li key={path}>
@@ -78,6 +89,7 @@ export default function SidebarSection({
                   >
                     {Icon}
                     {showText && <span className="text-sm">{label}</span>}
+                    {badgeNode}
                   </div>
                 ) : openInNewTab ? (
                   <a
@@ -89,6 +101,7 @@ export default function SidebarSection({
                   >
                     {Icon}
                     {showText && <span className="text-sm">{label}</span>}
+                    {badgeNode}
                   </a>
                 ) : (
                   <Link
@@ -98,6 +111,7 @@ export default function SidebarSection({
                   >
                     {Icon}
                     {showText && <span className="text-sm flex-1">{label}</span>}
+                    {badgeNode}
                   </Link>
                 )}
               </li>

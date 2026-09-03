@@ -1,0 +1,37 @@
+import { type NextRequest, NextResponse } from "next/server";
+import { getDataFromToken } from "@/util/getDataFromToken";
+import { CompleteVisitSchema } from "@/schemas/visit.schema";
+import { completeVisit } from "@/services/visits/visitService";
+import { handleVisitServiceError } from "@/lib/visits/visitApiErrors";
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  try {
+    const token = await getDataFromToken(req);
+    const body = await req.json();
+    const parsed = CompleteVisitSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.flatten().fieldErrors },
+        { status: 400 },
+      );
+    }
+
+    const visit = await completeVisit({
+      visitId: params.id,
+      reason: parsed.data.reason,
+      actor: {
+        email: String(token.email),
+        role: String(token.role),
+      },
+      source: "manual",
+    });
+
+    return NextResponse.json({ success: true, data: visit }, { status: 200 });
+  } catch (error) {
+    return handleVisitServiceError(error);
+  }
+}

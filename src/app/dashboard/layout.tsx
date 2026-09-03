@@ -18,6 +18,8 @@ import { useSocket } from "@/hooks/useSocket";
 import axios from "@/util/axios";
 import { useRouter } from "next/navigation";
 import { MonthlyTargetGate } from "@/components/monthly-target/MonthlyTargetGate";
+import { VisitOverdueProvider } from "@/components/visits/VisitOverdueContext";
+import { VisitStatusGate } from "@/components/visits/VisitStatusGate";
 import { PersonalReminderNavBell } from "@/components/reminders/PersonalReminderBanner";
 import { QueryProvider } from "@/providers/QueryProvider";
 
@@ -123,6 +125,7 @@ export default function DashboardLayout({
   }
   return (
     <QueryProvider>
+    <VisitOverdueProvider>
     <div className="flex">
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       <main
@@ -171,7 +174,9 @@ export default function DashboardLayout({
         <div>
           <div>
             <div className="pb-16 lg:pb-0">
-              <MonthlyTargetGate>{children}</MonthlyTargetGate>
+              <MonthlyTargetGate>
+                <VisitStatusGate>{children}</VisitStatusGate>
+              </MonthlyTargetGate>
             </div>
           </div>
         </div>
@@ -180,6 +185,7 @@ export default function DashboardLayout({
       {/* Global System Notification Toast - Visible on all pages (includes WhatsApp messages) */}
       {token && <SystemNotificationToast />}
     </div>
+    </VisitOverdueProvider>
     </QueryProvider>
   );
 }

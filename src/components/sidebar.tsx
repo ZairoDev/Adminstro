@@ -75,6 +75,7 @@ import axios from "@/util/axios";
 import { AiFillDashboard } from "react-icons/ai";
 import { IoMdPaper } from "react-icons/io";
 import { canAccessOwnerSheetVariant } from "@/util/employeeRentalTypeAccess";
+import { useVisitOverdue } from "@/components/visits/VisitOverdueContext";
 
 const isActive = (currentPath: string, path: string): boolean => {
   const routeBase = path.split("?")[0];
@@ -90,6 +91,7 @@ type Route = {
   label: string;
   Icon?: JSX.Element;
    openInNewTab?: boolean;
+  badge?: number;
 };
 
 const filterOwnerSheetRoutes = (
@@ -1543,6 +1545,7 @@ const otherSettingsRoutes = [
 export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setCollapsed:Function}) {
   const pathname = usePathname() ?? "";
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { count: overdueVisitCount } = useVisitOverdue();
   // const [collapsed, setCollapsed] = useState(false);
 
   const [role, setRole] = useState<string | null>(null);
@@ -1612,7 +1615,11 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
       },
     ];
     const leadRoute = inGroup(leadManagementRoutes);
-    const visitsManagementRoute = inGroup(visitsManagementRoutes);
+    const visitsManagementRoute = inGroup(visitsManagementRoutes).map((route) =>
+      route.path === "/dashboard/visits" && overdueVisitCount > 0
+        ? { ...route, badge: overdueVisitCount }
+        : route,
+    );
     const bookingsManagementRoute = inGroup(bookingsManagementRoutes);
     const financeManagementRoute = inGroup(financeManagementRoutes);
     const ownerManagementRoute = inGroup(ownerManagementRoutes);

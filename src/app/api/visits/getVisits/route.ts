@@ -3,14 +3,35 @@ import { Types } from "mongoose";
 import Visits from "@/models/visit";
 import Query from "@/models/query";
 import Users from "@/models/user";
+import Employees from "@/models/employee";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { applyLocationFilter, isLocationExempt } from "@/util/apiSecurity";
+import {
+  applyLocationFilter,
+  isLocationExempt,
+  isSalesTeamRestricted,
+} from "@/util/apiSecurity";
+import {
+  matchesVisitCategory,
+} from "@/services/visits/visitService";
+import {
+  ACTIVE_VISIT_STATUSES,
+  getVisitCloseCutoffDate,
+  normalizeLegacyVisitStatus,
+  VISIT_STATUS_LOCK_START,
+} from "@/lib/visits/visitStatus";
+
+interface VisitScheduleSlot {
+  date?: Date;
+  time?: string;
+}
 
 interface VisitLean {
   _id: Types.ObjectId;
   lead?: Types.ObjectId | { _id?: string; name?: string; phoneNo?: string; email?: string };
   visitStatus?: string;
-  scheduledDate?: Date;
+  schedule?: VisitScheduleSlot[];
+  createdBy?: string;
+  createdByName?: string;
   [key: string]: unknown;
 }
 
@@ -31,6 +52,8 @@ export async function POST(req: NextRequest) {
     }
 
     const role: string = (token.role || "") as string;
+    const userEmail: string =
+      typeof token.email === "string" ? token.email : "";
     const assignedArea: string | string[] | undefined = 
       token.allotedArea 
         ? (Array.isArray(token.allotedArea) 
@@ -50,11 +73,35 @@ export async function POST(req: NextRequest) {
       vsid = "",
       commissionFrom = "",
       commissionTo = "",
-      visitCategory = "scheduled",
+      visitCategory = "all",
+      page = 1,
+      limit = 50,
       location, // Optional location filter from request
+      overdueOnly = false,
     } = body;
 
+    const currentPage = Math.max(1, Number(page) || 1);
+    const pageLimit = Math.max(1, Math.min(100, Number(limit) || 50));
+
     const filterQuery: Record<string, any> = {};
+
+    // Sales users only see visits they created; SuperAdmin/other exempt roles see all
+    if (isSalesTeamRestricted(role)) {
+      if (!userEmail) {
+        return NextResponse.json(
+          {
+            data: [],
+            page: 1,
+            limit: pageLimit,
+            totalPages: 0,
+            totalVisits: 0,
+            updatedCount: 0,
+          },
+          { status: 200 }
+        );
+      }
+      filterQuery.createdBy = userEmail;
+    }
 
     // Apply location filtering for Sales users (non-exempt roles)
     // NOTE: Visits don't have a location field - location is on the lead (Query model)
@@ -79,6 +126,8 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(
             {
               data: [],
+              page: 1,
+              limit: pageLimit,
               totalPages: 0,
               totalVisits: 0,
               updatedCount: 0,
@@ -105,6 +154,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             data: [],
+            page: 1,
+            limit: pageLimit,
             totalPages: 0,
             totalVisits: 0,
             updatedCount: 0,
@@ -153,6 +204,8 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(
             {
               data: [],
+              page: 1,
+              limit: pageLimit,
               totalPages: 0,
               totalVisits: 0,
               updatedCount: 0,
@@ -168,6 +221,8 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(
             {
               data: [],
+              page: 1,
+              limit: pageLimit,
               totalPages: 0,
               totalVisits: 0,
               updatedCount: 0,
@@ -181,6 +236,12 @@ export async function POST(req: NextRequest) {
 
     if (vsid) {
       filterQuery.VSID = { $regex: vsid, $options: "i" };
+    }
+
+    if (overdueOnly === true) {
+      filterQuery.visitStatus = { $in: ACTIVE_VISIT_STATUSES };
+      filterQuery.createdAt = { $gte: VISIT_STATUS_LOCK_START };
+      filterQuery["schedule.date"] = { $lte: getVisitCloseCutoffDate() };
     }
 
     if (commissionFrom || commissionTo) {
@@ -297,70 +358,74 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const currentDate = new Date();
-    const visitsToUpdate = [];
-    const categorizedVisits = [];
+    const categorizedVisits: VisitLean[] = [];
 
-    // Categorize visits and identify visits to update
     for (const visit of allVisits) {
-      let shouldUpdate = false;
-      let newStatus = visit.visitStatus;
+      visit.visitStatus = normalizeLegacyVisitStatus(visit.visitStatus ?? "scheduled");
 
-      // Check if visit has a scheduled date
-      if (visit.scheduledDate) {
-        const scheduledDate = new Date(visit.scheduledDate);
-        // If scheduled date has passed and visit is still "scheduled"
-        // If 4 days have passed since the scheduled date and visit is still "scheduled"
-        const diffInMs = currentDate.getTime() - scheduledDate.getTime();
-        const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
-
-        if (diffInDays >= 4 && visit.visitStatus === "scheduled") {
-          newStatus = "completed";
-          shouldUpdate = true;
-        }
-      }
-
-      // Update visit status if needed
-      if (shouldUpdate) {
-        visitsToUpdate.push({
-          _id: visit._id,
-          visitStatus: newStatus,
-        });
-        visit.visitStatus = newStatus; // Update the current object
-      }
-
-      // Filter based on category
-      if (visitCategory === "scheduled" && visit.visitStatus === "scheduled") {
-        categorizedVisits.push(visit);
-      } else if (
-        visitCategory === "completed" &&
-        visit.visitStatus === "completed"
-      ) {
+      if (matchesVisitCategory(visit.visitStatus ?? "scheduled", visitCategory)) {
         categorizedVisits.push(visit);
       }
-    }
-
-    // Bulk update visits that need status change
-    if (visitsToUpdate.length > 0) {
-      const bulkOps = visitsToUpdate.map((v) => ({
-        updateOne: {
-          filter: { _id: v._id },
-          update: { $set: { visitStatus: v.visitStatus } },
-        },
-      }));
-
-      await Visits.bulkWrite(bulkOps);
     }
 
     const totalVisits = categorizedVisits.length;
-    const totalPages = Math.ceil(totalVisits / 50);
+    const totalPages = totalVisits === 0 ? 0 : Math.ceil(totalVisits / pageLimit);
+    const safePage =
+      totalPages === 0 ? 1 : Math.min(currentPage, totalPages);
+    const startIndex = (safePage - 1) * pageLimit;
+    const paginatedVisits = categorizedVisits.slice(
+      startIndex,
+      startIndex + pageLimit
+    );
+
+    // Resolve createdBy emails to employee names for the current page
+    const creatorEmails = Array.from(
+      new Set(
+        paginatedVisits
+          .map((visit) => visit.createdBy)
+          .filter(
+            (email): email is string =>
+              typeof email === "string" && email.includes("@"),
+          )
+      )
+    );
+
+    if (creatorEmails.length > 0) {
+      const employees = await Employees.find({
+        email: { $in: creatorEmails },
+      })
+        .select("email name")
+        .lean<{ email?: string; name?: string }[]>();
+
+      const emailToName = new Map<string, string>();
+      for (const employee of employees) {
+        if (employee.email && employee.name) {
+          emailToName.set(employee.email, employee.name);
+        }
+      }
+
+      for (const visit of paginatedVisits) {
+        if (visit.createdBy) {
+          visit.createdByName =
+            emailToName.get(visit.createdBy) || visit.createdBy;
+        }
+      }
+    } else {
+      for (const visit of paginatedVisits) {
+        if (visit.createdBy) {
+          visit.createdByName = visit.createdBy;
+        }
+      }
+    }
 
     return NextResponse.json(
       {
-        data: categorizedVisits,
+        data: paginatedVisits,
+        page: safePage,
+        limit: pageLimit,
         totalPages,
         totalVisits,
-        updatedCount: visitsToUpdate.length,
+        updatedCount: 0,
       },
       { status: 200 }
     );

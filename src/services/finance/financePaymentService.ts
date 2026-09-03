@@ -176,7 +176,12 @@ export async function getTransactionByPublicId(params: {
 }
 
 export type GuestSuggestion = {
-  confidence: "exact_phone" | "name_email" | "manual_search";
+  confidence:
+    | "exact_link"
+    | "exact_booking_notes"
+    | "exact_phone"
+    | "name_email"
+    | "manual_search";
   guestId: string;
   guestName: string;
   guestEmail: string;
@@ -192,7 +197,85 @@ type GuestDoc = {
   name?: string;
   email?: string;
   phone?: string;
+  payments?: Array<{ linkId?: string }>;
 };
+
+async function findGuestsByPaymentLinkId(
+  paymentLinkId: string,
+): Promise<GuestSuggestion[]> {
+  if (!paymentLinkId) return [];
+
+  const bookings = await Bookings.find({
+    $or: [
+      { "travellerPayment.guests.payments.linkId": paymentLinkId },
+      { "travellerPayment.history.linkId": paymentLinkId },
+    ],
+  })
+    .select("bookingId propertyName address travellerPayment.guests")
+    .limit(20)
+    .lean();
+
+  const out: GuestSuggestion[] = [];
+  for (const booking of bookings) {
+    const guests = (booking.travellerPayment?.guests ?? []) as GuestDoc[];
+    for (const guest of guests) {
+      const hasLink = guest.payments?.some((p) => p.linkId === paymentLinkId);
+      if (!hasLink && guests.length > 1) continue;
+      out.push({
+        confidence: "exact_link",
+        guestId: guest._id?.toString() ?? `${guest.email}-${guest.phone}`,
+        guestName: guest.name ?? "",
+        guestEmail: guest.email ?? "",
+        guestPhone: guest.phone ?? "",
+        bookingId: booking.bookingId ?? "",
+        bookingObjectId: String(booking._id),
+        propertyName: booking.propertyName ?? "",
+        address: booking.address ?? "",
+      });
+    }
+  }
+  return out;
+}
+
+async function findGuestsByBookingObjectId(
+  bookingObjectId: string,
+  preferredEmail?: string | null,
+): Promise<GuestSuggestion[]> {
+  if (!bookingObjectId.match(/^[a-f\d]{24}$/i)) return [];
+
+  const booking = (await Bookings.findById(bookingObjectId)
+    .select("bookingId propertyName address travellerPayment.guests")
+    .lean()) as {
+    _id: { toString(): string };
+    bookingId?: string;
+    propertyName?: string;
+    address?: string;
+    travellerPayment?: { guests?: GuestDoc[] };
+  } | null;
+  if (!booking) return [];
+
+  const guests = booking.travellerPayment?.guests ?? [];
+  const preferred = preferredEmail?.trim().toLowerCase();
+
+  const ranked = [...guests].sort((a, b) => {
+    if (!preferred) return 0;
+    const aMatch = (a.email ?? "").toLowerCase() === preferred ? 0 : 1;
+    const bMatch = (b.email ?? "").toLowerCase() === preferred ? 0 : 1;
+    return aMatch - bMatch;
+  });
+
+  return ranked.map((guest) => ({
+    confidence: "exact_booking_notes" as const,
+    guestId: guest._id?.toString() ?? `${guest.email}-${guest.phone}`,
+    guestName: guest.name ?? "",
+    guestEmail: guest.email ?? "",
+    guestPhone: guest.phone ?? "",
+    bookingId: booking.bookingId ?? "",
+    bookingObjectId: String(booking._id),
+    propertyName: booking.propertyName ?? "",
+    address: booking.address ?? "",
+  }));
+}
 
 export async function suggestGuestsForPayment(params: {
   paymentId?: string;
@@ -214,6 +297,31 @@ export async function suggestGuestsForPayment(params: {
 
   if (!payment) {
     return { payment: null, suggestions: [] };
+  }
+
+  // Exact match: payment link was created for a booking guest
+  if (payment.paymentLinkId) {
+    const byLink = await findGuestsByPaymentLinkId(payment.paymentLinkId);
+    if (byLink.length > 0) {
+      return { payment, suggestions: byLink };
+    }
+  }
+
+  // Notes from payment-link create often include bookingObjectId
+  const notesBookingObjectId =
+    payment.notes &&
+    typeof payment.notes === "object" &&
+    typeof (payment.notes as Record<string, unknown>).bookingObjectId === "string"
+      ? String((payment.notes as Record<string, unknown>).bookingObjectId)
+      : null;
+  if (notesBookingObjectId) {
+    const byNotes = await findGuestsByBookingObjectId(
+      notesBookingObjectId,
+      payment.customerEmail,
+    );
+    if (byNotes.length > 0) {
+      return { payment, suggestions: byNotes };
+    }
   }
 
   const phoneSuggestions = await findGuestsByPhone(payment.customerPhone);

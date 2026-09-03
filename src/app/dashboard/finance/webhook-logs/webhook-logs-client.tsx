@@ -201,8 +201,29 @@ export default function WebhookLogsClient() {
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      No webhook logs
+                    <TableCell
+                      colSpan={7}
+                      className="py-8 text-sm text-muted-foreground"
+                    >
+                      <p className="text-center font-medium text-foreground">
+                        No webhook deliveries yet
+                      </p>
+                      <p className="mx-auto mt-2 max-w-xl text-center">
+                        Logs appear only when Razorpay POSTs to this app. On
+                        localhost, forward port 3000 with a{" "}
+                        <span className="font-medium">Public</span> Dev Tunnel,
+                        then in Razorpay (Test) → Settings → Webhooks set
+                        <code className="mx-1 rounded bg-muted px-1">
+                          https://&lt;tunnel&gt;/api/razorpay/webhook
+                        </code>
+                        with secret matching{" "}
+                        <code className="rounded bg-muted px-1">
+                          RAZORPAY_WEBHOOK_SECRET
+                        </code>
+                        . Open that URL in a browser first — you should see{" "}
+                        <code className="rounded bg-muted px-1">ok: true</code>.
+                        Then pay again.
+                      </p>
                     </TableCell>
                   </TableRow>
                 ) : (

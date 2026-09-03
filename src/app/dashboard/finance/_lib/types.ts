@@ -68,7 +68,12 @@ export type FinanceTransaction = {
 };
 
 export type GuestSuggestion = {
-  confidence: "exact_phone" | "name_email" | "manual_search";
+  confidence:
+    | "exact_link"
+    | "exact_booking_notes"
+    | "exact_phone"
+    | "name_email"
+    | "manual_search";
   guestId: string;
   guestName: string;
   guestEmail: string;

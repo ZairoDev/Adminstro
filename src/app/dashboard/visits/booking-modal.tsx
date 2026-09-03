@@ -9,6 +9,7 @@ import {
   SelectGroup,
   SelectTrigger,
   SelectContent,
+  SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,6 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { InfinityLoader } from "@/components/Loaders";
 import { Textarea } from "@/components/ui/textarea";
-import { set } from "mongoose";
 import { VisitInterface } from "@/util/type";
 
 interface BookingFormSchema {
@@ -34,6 +34,7 @@ interface BookingFormSchema {
   finalAmount: number;
   contract?: string;
   closingBy?: string;
+  leadClosingBy?: string;
   ownerPayment: {
     finalAmount: number;
     amountRecieved: number;
@@ -53,82 +54,95 @@ interface BookingFormSchema {
 }
 
 interface PageProps {
-  lead: string;
-  visit: string;
+  visit: VisitInterface;
   onOpenChange: () => void;
 }
 
-const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
-  
-  const [bookingFormValues, setBookingFormValues] = useState<BookingFormSchema>(
-    {
-      lead: lead,
-      visit: visit,
-      checkIn: {
-        date: new Date(),
-        time: "",
-      },
-      checkOut: {
-        date: new Date(),
-        time: "",
-      },
-      paymentStatus: "",
-      finalAmount: 0,
-      contract: "",
-      closingBy:"",
-      ownerPayment: {
-        finalAmount: 0,
-        amountRecieved: 0,
-      },
-      travellerPayment: {
-        finalAmount: 0,
-        amountRecieved: 0,
-      },
-      payment: {
-        orderId: "",
-        paymentId: "",
-        status: "pending",
-        remainingAmount: 0,
-        paidAt: new Date(),
-      },
-      note: "",
-    }
-  );
+const emptyForm = (): BookingFormSchema => ({
+  lead: "",
+  visit: "",
+  checkIn: {
+    date: new Date(),
+    time: "",
+  },
+  checkOut: {
+    date: new Date(),
+    time: "",
+  },
+  paymentStatus: "",
+  finalAmount: 0,
+  contract: "",
+  closingBy: "",
+  leadClosingBy: "",
+  ownerPayment: {
+    finalAmount: 0,
+    amountRecieved: 0,
+  },
+  travellerPayment: {
+    finalAmount: 0,
+    amountRecieved: 0,
+  },
+  payment: {
+    orderId: "",
+    paymentId: "",
+    status: "pending",
+    remainingAmount: 0,
+    paidAt: new Date(),
+  },
+  note: "",
+});
+
+function formFromVisit(visit: VisitInterface): BookingFormSchema {
+  return {
+    ...emptyForm(),
+    visit: visit._id,
+    lead: visit.lead?._id ?? "",
+  };
+}
+
+const BookingModal = ({ visit, onOpenChange }: PageProps) => {
+  const [bookingFormValues, setBookingFormValues] =
+    useState<BookingFormSchema>(() => formFromVisit(visit));
   const [isLoading, setIsLoading] = useState(false);
   const [contractStatus, setContractStatus] = useState(false);
-  const [visits, setVisits] = useState<VisitInterface | null>(null)
-  const [employees, setEmployees] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<
+    Array<{ _id: string; name: string }>
+  >([]);
 
-  const getVisitData = async()=>{
+  const getEmpData = async () => {
     try {
-      const response = await axios.post(`/api/visits/getVisitById`, {visitId: visit});
-
-      setVisits(response.data.data);
+      const response = await axios.get("/api/employee/getSalesEmployee");
+      setEmployees(response.data.emp ?? []);
     } catch (error) {
       console.log(error);
     }
-  }
-  const getEmpData = async()=>{
-    try {
-      const response = await axios.get(`/api/employee/getSalesEmployee`);
-      setEmployees(response.data.emp);
+  };
 
-    } catch (error) {
-      console.log(error);
-    }
-  }
   useEffect(() => {
-    getVisitData();
-    getEmpData();
+    void getEmpData();
   }, []);
 
+  useEffect(() => {
+    setBookingFormValues(formFromVisit(visit));
+    setContractStatus(false);
+  }, [visit]);
+
   const handleSubmit = async () => {
+    if (!bookingFormValues.visit || !bookingFormValues.lead) {
+      toast({
+        title: "This visit has no linked lead",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       await axios.post("/api/bookings/addBooking", bookingFormValues);
       toast({
         title: "Booking scheduled successfully",
       });
+      onOpenChange();
     } catch (err) {
       toast({
         title: "Unable to schedule booking",
@@ -136,13 +150,12 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
       });
     } finally {
       setIsLoading(false);
-      onOpenChange();
     }
   };
 
   const handleChange = (
     key: keyof BookingFormSchema,
-    value: string | number
+    value: string | number,
   ) => {
     setBookingFormValues((prev) => ({
       ...prev,
@@ -150,18 +163,23 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
     }));
   };
 
-
   return (
-    <div className=" flex flex-col gap-y-2">
-      <div className=" flex justify-between items-center mb-2">
-        <h2 className=" font-semibold text-lg">Booking Modal</h2>
-        <Button variant={"outline"} onClick={onOpenChange}>
+    <div className="flex flex-col gap-y-2">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Create Booking</h2>
+        <Button variant="outline" onClick={onOpenChange} aria-label="Close">
           <X />
         </Button>
       </div>
 
-      {/* CheckIn-CheckOut */}
-      <div className=" flex justify-between items-center gap-x-2">
+      <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+        <p className="font-medium">{visit.lead?.name || "Guest"}</p>
+        <p className="text-muted-foreground">
+          {visit.VSID || "No VSID"} · {visit.ownerName}
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between gap-x-2">
         <div>
           <Label>Check In</Label>
           <Input
@@ -198,8 +216,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         </div>
       </div>
 
-      {/* Payment Status */}
-      <div className=" flex justify-between items-center gap-x-2">
+      <div className="flex items-center justify-between gap-x-2">
         <Label>Payment Status</Label>
         <Select
           onValueChange={(value) => {
@@ -223,7 +240,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         </Select>
       </div>
 
-      <div className=" flex justify-between items-center gap-x-2">
+      <div className="flex items-center justify-between gap-x-2">
         <Label>Lead Closing By </Label>
         <Select
           onValueChange={(value) => {
@@ -236,21 +253,24 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
           <SelectTrigger>Select Employee</SelectTrigger>
           <SelectContent>
             <SelectGroup>
-              {
-                employees.map((emp: any) => (
-                  <SelectItem key={emp._id} value={emp.name}>{emp.name}</SelectItem>
-                ))
-              }
+              {employees.map((emp) => (
+                <SelectItem key={emp._id} value={emp.name}>
+                  {emp.name}
+                </SelectItem>
+              ))}
             </SelectGroup>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Negotiated Amount */}
-      <div className=" grid grid-cols-2 items-center gap-x-2">
+      <div className="grid grid-cols-2 items-center gap-x-2">
         <div>
           <Label>Pitched Amount</Label>
-          <Input type="number" value={visits?.pitchAmount} disabled />
+          <Input
+            type="number"
+            value={visit.pitchAmount ?? ""}
+            disabled
+          />
         </div>
         <div>
           <Label>Final Amount</Label>
@@ -262,8 +282,7 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         </div>
       </div>
 
-      {/* Contract */}
-      <div className=" grid grid-cols-2 gap-x-2">
+      <div className="grid grid-cols-2 gap-x-2">
         <div>
           <Label>Contract Signed ?</Label>
           <Select
@@ -292,12 +311,15 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         )}
       </div>
 
-      {/* Owner Payment */}
-      <div className=" grid grid-cols-4 gap-x-2 items-center">
+      <div className="grid grid-cols-4 items-center gap-x-2">
         <p>Owner</p>
         <div>
           <Label>Pitched Amt.</Label>
-          <Input type="number" value={visits?.ownerCommission} disabled />
+          <Input
+            type="number"
+            value={visit.ownerCommission ?? ""}
+            disabled
+          />
         </div>
         <div>
           <Label>Final Amt.</Label>
@@ -333,12 +355,15 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         </div>
       </div>
 
-      {/* Traveller Payment */}
-      <div className=" grid grid-cols-4 gap-x-2 items-center">
+      <div className="grid grid-cols-4 items-center gap-x-2">
         <p>Traveller</p>
         <div>
           <Label>Pitched Amt.</Label>
-          <Input type="number" value={visits?.travellerCommission} disabled />
+          <Input
+            type="number"
+            value={visit.travellerCommission ?? ""}
+            disabled
+          />
         </div>
         <div>
           <Label>Final Amt.</Label>
@@ -379,9 +404,9 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
         <Textarea onChange={(e) => handleChange("note", e.target.value)} />
       </div>
 
-      <Button onClick={handleSubmit} className=" mt-1">
+      <Button onClick={() => void handleSubmit()} className="mt-1">
         {isLoading ? (
-          <InfinityLoader className=" h-12 w-16" strokeColor="black" />
+          <InfinityLoader className="h-12 w-16" strokeColor="black" />
         ) : (
           "Create Booking"
         )}
@@ -389,4 +414,5 @@ const BookingModal = ({ lead, visit, onOpenChange }: PageProps) => {
     </div>
   );
 };
+
 export default BookingModal;

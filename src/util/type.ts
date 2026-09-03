@@ -1,6 +1,7 @@
 import mongoose, { ObjectId, Types } from "mongoose";
 
 import type { OwnerJourneyPayload } from "@/lib/owner-journey";
+import type { VisitStatus, VisitOutcome } from "@/lib/visits/visitStatus";
 
 export interface MiddlweareInterface {
   name: string;
@@ -503,6 +504,23 @@ export interface IQuery {
   leadDocuments?: Record<string, string>;
 }
 
+export interface VisitScheduleHistoryEntry {
+  date: Date;
+  time: string;
+  changedAt: Date;
+  changedBy: string;
+  reason?: string;
+}
+
+export interface VisitStatusHistoryEntry {
+  from: string;
+  to: VisitStatus;
+  at: Date;
+  by: string;
+  source: "manual" | "auto" | "system";
+  reason?: string;
+}
+
 export interface VisitInterface {
   _id: string;
   lead?: {
@@ -520,6 +538,7 @@ export interface VisitInterface {
     date: Date;
     time: string;
   }[];
+  scheduleHistory?: VisitScheduleHistoryEntry[];
   visitType: "physical" | "virtual";
   agentName: string;
   agentPhone: string;
@@ -528,11 +547,19 @@ export interface VisitInterface {
   travellerCommission: number;
   agentCommission: number;
   documentationCharges: number;
-  visitStatus: string;
+  visitStatus: VisitStatus;
+  statusHistory?: VisitStatusHistoryEntry[];
+  outcome?: VisitOutcome;
+  outcomeReason?: string;
+  completedAt?: Date;
+  completedBy?: string;
+  completionSource?: "manual" | "auto" | "system";
   rejectionReason?: string;
   reason: string;
   note: string;
   createdBy: string;
+  createdByName?: string;
+  createdAt?: Date;
 }
 
 

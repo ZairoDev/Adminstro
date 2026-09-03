@@ -1,26 +1,44 @@
 "use client"
 
 import axios from "axios"
-import { SlidersHorizontal, X } from "lucide-react"
+import { X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Pagination,
   PaginationLink,
   PaginationItem,
   PaginationContent,
   PaginationEllipsis,
+  PaginationPrevious,
+  PaginationNext,
 } from "@/components/ui/pagination"
 import Heading from "@/components/Heading"
 import { useToast } from "@/hooks/use-toast"
-import { Button } from "@/components/ui/button"
 import HandLoader from "@/components/HandLoader"
 import { Toaster } from "@/components/ui/toaster"
-import { VisitFilter, SearchBar, type VisitFilterState } from "@/app/dashboard/visits/visit-filter"
+import {
+  SearchBar,
+  PhoneSearchBar,
+  VisitStatusFilter,
+  type VisitFilterState,
+  type VisitSearchType,
+  type VisitPhoneSearchType,
+} from "@/app/dashboard/visits/visit-filter"
 import type { VisitInterface } from "@/util/type"
 import VisitTable from "./visit-table"
+import {
+  VISIT_CATEGORY_FILTER_OPTIONS,
+  isVisitCategoryFilter,
+  type VisitCategoryFilter,
+} from "@/lib/visits/visitStatus"
+
+const PAGE_LIMIT = 50
+
+function getInitialStatusFilter(searchParams: URLSearchParams | null): VisitCategoryFilter {
+  const status = searchParams?.get("status") ?? "all"
+  return isVisitCategoryFilter(status) ? status : "all"
+}
 
 const VisitsPage = () => {
   const router = useRouter()
@@ -30,11 +48,11 @@ const VisitsPage = () => {
   const [visits, setVisits] = useState<VisitInterface[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [totalVisits, setTotalVisits] = useState<number>(0)
-  const [totalPages, setTotalPages] = useState<number>(1)
-  const [activeTab, setActiveTab] = useState<string>("scheduled")
+  const [totalPages, setTotalPages] = useState<number>(0)
 
-  const [page, setPage] = useState<number>(Number.parseInt(searchParams?.get("page") ?? "1"))
-  const [allotedArea, setAllotedArea] = useState("")
+  const [page, setPage] = useState<number>(
+    Math.max(1, Number.parseInt(searchParams?.get("page") ?? "1") || 1)
+  )
 
   const defaultFilters: VisitFilterState = {
     ownerName: "",
@@ -44,18 +62,57 @@ const VisitsPage = () => {
     vsid: "",
     commissionFrom: "",
     commissionTo: "",
+    visitStatus: getInitialStatusFilter(searchParams),
   }
 
   const [filters, setFilters] = useState<VisitFilterState>({ ...defaultFilters })
 
-  const handlePageChange = (newPage: number) => {
+  const updatePageInUrl = (newPage: number) => {
     const params = new URLSearchParams(searchParams ?? undefined)
-    params.set("page", newPage.toString())
-    router.push(`?${params.toString()}`)
+    if (newPage <= 1) {
+      params.delete("page")
+    } else {
+      params.set("page", newPage.toString())
+    }
+    syncUrlParams(params)
+  }
+
+  const syncUrlParams = (params: URLSearchParams) => {
+    const query = params.toString()
+    router.push(query ? `?${query}` : "?")
+  }
+
+  const updateStatusInUrl = (status: VisitCategoryFilter) => {
+    const params = new URLSearchParams(searchParams ?? undefined)
+    if (status === "all") {
+      params.delete("status")
+    } else {
+      params.set("status", status)
+    }
+    params.delete("page")
+    syncUrlParams(params)
+  }
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || (totalPages > 0 && newPage > totalPages) || newPage === page) {
+      return
+    }
     setPage(newPage)
+    updatePageInUrl(newPage)
+  }
+
+  const applyFilters = (nextFilters: VisitFilterState) => {
+    setFilters(nextFilters)
+    updateStatusInUrl(nextFilters.visitStatus)
+    if (page !== 1) {
+      setPage(1)
+      updatePageInUrl(1)
+    }
   }
 
   const renderPaginationItems = () => {
+    if (totalPages <= 1) return null
+
     const items = []
     const maxVisiblePages = 5
     let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2))
@@ -63,13 +120,29 @@ const VisitsPage = () => {
     if (endPage - startPage + 1 < maxVisiblePages) {
       startPage = Math.max(1, endPage - maxVisiblePages + 1)
     }
+
+    items.push(
+      <PaginationItem key="prev">
+        <PaginationPrevious
+          href="#"
+          aria-disabled={page <= 1}
+          className={page <= 1 ? "pointer-events-none opacity-50" : undefined}
+          onClick={(e) => {
+            e.preventDefault()
+            handlePageChange(page - 1)
+          }}
+        />
+      </PaginationItem>
+    )
+
     if (startPage > 1) {
       items.push(
         <PaginationItem key="start-ellipsis">
           <PaginationEllipsis />
-        </PaginationItem>,
+        </PaginationItem>
       )
     }
+
     for (let i = startPage; i <= endPage; i++) {
       items.push(
         <PaginationItem key={i}>
@@ -83,29 +156,59 @@ const VisitsPage = () => {
           >
             {i}
           </PaginationLink>
-        </PaginationItem>,
+        </PaginationItem>
       )
     }
+
     if (endPage < totalPages) {
       items.push(
         <PaginationItem key="end-ellipsis">
           <PaginationEllipsis />
-        </PaginationItem>,
+        </PaginationItem>
       )
     }
+
+    items.push(
+      <PaginationItem key="next">
+        <PaginationNext
+          href="#"
+          aria-disabled={page >= totalPages}
+          className={page >= totalPages ? "pointer-events-none opacity-50" : undefined}
+          onClick={(e) => {
+            e.preventDefault()
+            handlePageChange(page + 1)
+          }}
+        />
+      </PaginationItem>
+    )
+
     return items
   }
+
+  const overdueOnly = searchParams?.get("overdue") === "1"
 
   const filterVisits = async () => {
     try {
       setLoading(true)
       const response = await axios.post("/api/visits/getVisits", {
         ...filters,
-        visitCategory: activeTab,
+        visitCategory: filters.visitStatus,
+        overdueOnly,
+        page,
+        limit: PAGE_LIMIT,
       })
-      setVisits(response.data.data)
-      setTotalPages(response.data.totalPages)
-      setTotalVisits(response.data.totalVisits)
+
+      const nextTotalPages = response.data.totalPages ?? 0
+      const safePage = response.data.page ?? page
+
+      setVisits(response.data.data ?? [])
+      setTotalPages(nextTotalPages)
+      setTotalVisits(response.data.totalVisits ?? 0)
+
+      if (safePage !== page) {
+        setPage(safePage)
+        updatePageInUrl(safePage)
+      }
     } catch (err) {
       toast({
         title: "Unable to fetch visits",
@@ -116,242 +219,216 @@ const VisitsPage = () => {
     }
   }
 
-  const handleSearch = (searchType: 'customerName' | 'vsid', searchValue: string) => {
-    setFilters({
+  const handleSearch = (searchType: VisitSearchType, searchValue: string) => {
+    applyFilters({
       ...filters,
-      customerName: searchType === 'customerName' ? searchValue : '',
-      vsid: searchType === 'vsid' ? searchValue : '',
+      customerName: searchType === "customerName" ? searchValue : "",
+      vsid: searchType === "vsid" ? searchValue : "",
+      ownerName: searchType === "ownerName" ? searchValue : "",
     })
   }
 
+  const handlePhoneSearch = (searchType: VisitPhoneSearchType, searchValue: string) => {
+    applyFilters({
+      ...filters,
+      ownerPhone: searchType === "ownerPhone" ? searchValue : "",
+      customerPhone: searchType === "customerPhone" ? searchValue : "",
+    })
+  }
+
+  const getSearchType = (): VisitSearchType => {
+    if (filters.vsid) return "vsid"
+    if (filters.ownerName) return "ownerName"
+    return "customerName"
+  }
+
+  const getSearchValue = () => filters.vsid || filters.ownerName || filters.customerName
+
+  const getPhoneSearchType = (): VisitPhoneSearchType =>
+    filters.customerPhone ? "customerPhone" : "ownerPhone"
+
+  const getPhoneSearchValue = () => filters.ownerPhone || filters.customerPhone
+
   const getActiveFilters = () => {
     const active: Array<{ key: keyof VisitFilterState; label: string; value: string }> = []
-    
+
+    if (filters.visitStatus !== "all") {
+      active.push({
+        key: "visitStatus",
+        label: "Status",
+        value:
+          VISIT_CATEGORY_FILTER_OPTIONS.find((o) => o.value === filters.visitStatus)?.label ??
+          filters.visitStatus,
+      })
+    }
+    if (filters.customerName) {
+      active.push({ key: "customerName", label: "Guest", value: filters.customerName })
+    }
+    if (filters.vsid) {
+      active.push({ key: "vsid", label: "VSID", value: filters.vsid })
+    }
     if (filters.ownerName) {
-      active.push({ key: "ownerName", label: "Owner Name", value: filters.ownerName })
+      active.push({ key: "ownerName", label: "Owner", value: filters.ownerName })
     }
     if (filters.ownerPhone) {
-      active.push({ key: "ownerPhone", label: "Owner Phone", value: filters.ownerPhone })
+      active.push({ key: "ownerPhone", label: "Owner phone", value: filters.ownerPhone })
     }
     if (filters.customerPhone) {
-      active.push({ key: "customerPhone", label: "Customer Phone", value: filters.customerPhone })
+      active.push({ key: "customerPhone", label: "Customer phone", value: filters.customerPhone })
     }
     if (filters.commissionFrom || filters.commissionTo) {
-      const commissionValue = `₹${filters.commissionFrom || "0"} - ₹${filters.commissionTo || "∞"}`
+      const commissionValue = `₹${filters.commissionFrom || "0"}–${filters.commissionTo || "∞"}`
       active.push({ key: "commissionFrom", label: "Commission", value: commissionValue })
     }
-    
+
     return active
   }
 
   const removeFilter = (key: keyof VisitFilterState) => {
     const newFilters = { ...filters }
-    
+
     if (key === "commissionFrom") {
       newFilters.commissionFrom = ""
       newFilters.commissionTo = ""
+    } else if (key === "visitStatus") {
+      newFilters.visitStatus = "all"
+    } else if (
+      key === "customerName" ||
+      key === "vsid" ||
+      key === "ownerName" ||
+      key === "ownerPhone" ||
+      key === "customerPhone"
+    ) {
+      newFilters[key] = ""
     } else {
       newFilters[key] = ""
     }
-    
-    setFilters(newFilters)
+
+    applyFilters(newFilters)
   }
 
   const clearAllFilters = () => {
-    setFilters({ ...defaultFilters })
-  }
-
-  const clearSearch = () => {
-    setFilters({
-      ...filters,
-      customerName: '',
-      vsid: '',
-    })
+    applyFilters({ ...defaultFilters, visitStatus: "all" })
   }
 
   useEffect(() => {
-    setPage(Number.parseInt(searchParams?.get("page") ?? "1"))
-    const getAllotedArea = async () => {
-      try {
-        const response = await axios.get("/api/getAreaFromToken")
-        setAllotedArea(response.data.area)
-      } catch (err: any) {
-        console.log("error in getting area: ", err)
-        toast({
-          title: "Unable to Apply Filters",
-          variant: "destructive",
-        })
-      }
-    }
-    getAllotedArea()
-  }, [])
+    const urlPage = Math.max(1, Number.parseInt(searchParams?.get("page") ?? "1") || 1)
+    setPage((prev) => (prev !== urlPage ? urlPage : prev))
+
+    const urlStatus = getInitialStatusFilter(searchParams)
+    setFilters((prev) =>
+      prev.visitStatus !== urlStatus ? { ...prev, visitStatus: urlStatus } : prev
+    )
+  }, [searchParams])
 
   useEffect(() => {
     filterVisits()
-  }, [filters, activeTab])
+  }, [filters, page, overdueOnly])
 
   const activeFilters = getActiveFilters()
-  const hasActiveSearch = filters.customerName || filters.vsid
+  const rangeStart = totalVisits === 0 ? 0 : (page - 1) * PAGE_LIMIT + 1
+  const rangeEnd = Math.min(page * PAGE_LIMIT, totalVisits)
 
   return (
     <div className="w-full">
       <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full gap-4">
         <div className="w-full">
-          <Heading heading="All Leads" subheading="You will get the list of leads that created till now" />
+          <Heading
+            heading={overdueOnly ? "Overdue Visits" : "All Visits"}
+            subheading={
+              overdueOnly
+                ? "Visits past the 4-day close-out window that still need a final status"
+                : "View and manage all visits created till now"
+            }
+          />
         </div>
       </div>
 
-      <div className="mt-4 flex flex-col md:flex-row gap-2 items-start md:items-center justify-between">
-        <SearchBar 
-          onSearch={handleSearch}
-          initialSearchType={filters.vsid ? 'vsid' : 'customerName'}
-          initialSearchValue={filters.vsid || filters.customerName}
-        />
-        
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline">
-              <SlidersHorizontal size={18} />
-              <span className="ml-2">Filters</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent>
-            <div className="flex flex-col items-center">
-              <VisitFilter filters={filters} setFilters={setFilters} />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </div>
-
-      {hasActiveSearch && (
-        <div className="mt-3 flex flex-wrap gap-2 items-center">
-          <span className="text-sm font-medium text-gray-700">Active Search:</span>
-          {filters.customerName && (
-            <div className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-              <span className="font-medium">Customer Name:</span>
-              <span>{filters.customerName}</span>
-              <button
-                onClick={clearSearch}
-                className="ml-1 hover:bg-green-200 rounded-full p-0.5 transition-colors"
-                aria-label="Clear search"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          )}
-          {filters.vsid && (
-            <div className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-              <span className="font-medium">VSID:</span>
-              <span>{filters.vsid}</span>
-              <button
-                onClick={clearSearch}
-                className="ml-1 hover:bg-green-200 rounded-full p-0.5 transition-colors"
-                aria-label="Clear search"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          )}
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap flex-1">
+          <SearchBar
+            onSearch={handleSearch}
+            initialSearchType={getSearchType()}
+            initialSearchValue={getSearchValue()}
+          />
+          <PhoneSearchBar
+            onSearch={handlePhoneSearch}
+            initialSearchType={getPhoneSearchType()}
+            initialSearchValue={getPhoneSearchValue()}
+          />
         </div>
-      )}
+        <div className="flex items-center gap-2 shrink-0">
+          <VisitStatusFilter
+            value={filters.visitStatus}
+            onChange={(visitStatus) => applyFilters({ ...filters, visitStatus })}
+          />
+        </div>
+      </div>
 
       {activeFilters.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2 items-center">
-          <span className="text-sm font-medium text-gray-700">Active Filters:</span>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {activeFilters.map((filter) => (
-            <div
+            <button
               key={filter.key}
-              className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+              type="button"
+              onClick={() => removeFilter(filter.key)}
+              className="inline-flex items-center gap-1 rounded-full border bg-muted/50 px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
             >
-              <span className="font-medium">{filter.label}:</span>
+              <span className="text-foreground">{filter.label}:</span>
               <span>{filter.value}</span>
-              <button
-                onClick={() => removeFilter(filter.key)}
-                className="ml-1 hover:bg-blue-200 rounded-full p-0.5 transition-colors"
-                aria-label={`Remove ${filter.label} filter`}
-              >
-                <X size={14} />
-              </button>
-            </div>
+              <X size={12} />
+            </button>
           ))}
           <button
+            type="button"
             onClick={clearAllFilters}
-            className="text-sm text-red-600 hover:text-red-800 font-medium underline"
+            className="text-xs text-muted-foreground underline hover:text-foreground"
           >
-            Clear All
+            Clear all
           </button>
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-4">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="scheduled">
-          {loading ? (
-            <div className="flex mt-2 min-h-screen items-center justify-center">
-              <HandLoader />
+      <div className="w-full mt-3">
+        {loading ? (
+          <div className="flex mt-2 min-h-screen items-center justify-center">
+            <HandLoader />
+          </div>
+        ) : (
+          <div>
+            <div className="mt-2 border rounded-lg min-h-[90vh]">
+              {visits.length > 0 ? (
+                <VisitTable
+                  visits={visits}
+                  page={page}
+                  pageSize={PAGE_LIMIT}
+                  onVisitUpdated={filterVisits}
+                />
+              ) : (
+                <div className="flex items-center justify-center min-h-[400px] text-gray-500">
+                  No visits found
+                </div>
+              )}
             </div>
-          ) : (
-            <div>
-              <div className="mt-2 border rounded-lg min-h-[90vh]">
-                {visits.length > 0 ? (
-                  <VisitTable visits={visits} />
-                ) : (
-                  <div className="flex items-center justify-center min-h-[400px] text-gray-500">
-                    No scheduled visits found
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-between p-2 w-full">
-                <p className="text-xs">
-                  Page {page} of {totalPages} — {totalVisits} total results
-                </p>
-                <Pagination className="flex justify-end">
-                  <PaginationContent className="text-xs flex flex-wrap justify-end w-full md:w-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-2 w-full">
+              <p className="text-xs text-muted-foreground">
+                {totalVisits === 0
+                  ? "0 results"
+                  : `Showing ${rangeStart}–${rangeEnd} of ${totalVisits} results`}
+                {totalPages > 0 ? ` · Page ${page} of ${totalPages}` : ""}
+              </p>
+              {totalPages > 1 && (
+                <Pagination className="flex justify-end mx-0 w-auto">
+                  <PaginationContent className="text-xs flex flex-wrap justify-end">
                     {renderPaginationItems()}
                   </PaginationContent>
                 </Pagination>
-              </div>
+              )}
             </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="completed">
-          {loading ? (
-            <div className="flex mt-2 min-h-screen items-center justify-center">
-              <HandLoader />
-            </div>
-          ) : (
-            <div>
-              <div className="mt-2 border rounded-lg min-h-[90vh]">
-                {visits.length > 0 ? (
-                  <VisitTable visits={visits} />
-                ) : (
-                  <div className="flex items-center justify-center min-h-[400px] text-gray-500">
-                    No completed visits found
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-between p-2 w-full">
-                <p className="text-xs">
-                  Page {page} of {totalPages} — {totalVisits} total results
-                </p>
-                <Pagination className="flex justify-end">
-                  <PaginationContent className="text-xs flex flex-wrap justify-end w-full md:w-auto">
-                    {renderPaginationItems()}
-                  </PaginationContent>
-                </Pagination>
-              </div>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
-
-      <div className="text-xs flex items-end justify-end"></div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

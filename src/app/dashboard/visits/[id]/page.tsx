@@ -19,7 +19,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import axios from "@/util/axios";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   Card,
@@ -35,21 +35,23 @@ import { Button } from "@/components/ui/button";
 import HandLoader from "@/components/HandLoader";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
-
-const getStatusColor = (status: string) => {
-  switch (status.toLowerCase()) {
-    case "scheduled":
-      return "bg-blue-100 text-blue-800 hover:bg-blue-100";
-    case "completed":
-      return "bg-green-100 text-green-800 hover:bg-green-100";
-    case "cancelled":
-      return "bg-red-100 text-red-800 hover:bg-red-100";
-    case "in-progress":
-      return "bg-yellow-100 text-yellow-800 hover:bg-yellow-100";
-    default:
-      return "bg-gray-100 text-gray-800 hover:bg-gray-100";
-  }
-};
+import { VisitStatusBadge } from "../visit-status-badge";
+import { RescheduleVisitModal } from "../reschedule-visit-modal";
+import BookingModal from "../booking-modal";
+import { AlertDialog, AlertDialogContent } from "@/components/ui/alert-dialog";
+import { useVisitCloseActions } from "@/hooks/useVisitCloseActions";
+import {
+  VISIT_CANCEL_REASONS,
+  VISIT_NO_SHOW_REASONS,
+  getVisitDaysOverdue,
+  isVisitOverdue,
+} from "@/lib/visits/visitStatus";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-US", {
@@ -69,25 +71,49 @@ const formatDate = (dateString: Date) => {
 const DetailedVisit = ({ params }: { params: { id: string } }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [visitData, setVisitData] = useState<VisitInterface>();
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [bookingOpen, setBookingOpen] = useState(false);
 
-  const getVisit = async (visitId: string) => {
-    if (!visitId) return;
+  const getVisit = useCallback(async (showLoader = true) => {
+    if (!params.id) return;
     try {
-      setIsLoading(true);
+      if (showLoader) setIsLoading(true);
       const response = await axios.post("/api/visits/getVisitById", {
         visitId: params.id,
       });
       setVisitData(response.data.data);
-    } catch (err: any) {
+    } catch {
       toast({ title: "Unable to fetch Visit", variant: "destructive" });
     } finally {
-      setIsLoading(false);
+      if (showLoader) setIsLoading(false);
     }
-  };
+  }, [params.id]);
+
+  const { loadingId, complete, cancel, noShow } = useVisitCloseActions(() =>
+    getVisit(false),
+  );
 
   useEffect(() => {
-    getVisit(params.id);
-  }, [params.id]);
+    void getVisit(true);
+  }, [getVisit]);
+
+  const isActionable =
+    visitData?.visitStatus === "scheduled" ||
+    visitData?.visitStatus === "rescheduled";
+  const overdue = visitData
+    ? isVisitOverdue(
+        visitData.visitStatus,
+        visitData.schedule,
+        visitData.createdAt,
+      )
+    : false;
+  const daysOverdue = visitData
+    ? getVisitDaysOverdue(
+        visitData.visitStatus,
+        visitData.schedule,
+        visitData.createdAt,
+      )
+    : 0;
 
   if (isLoading) {
     return (
@@ -147,10 +173,15 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                   </CardDescription>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Badge className={getStatusColor(visitData.visitStatus)}>
-                    {visitData.visitStatus.charAt(0).toUpperCase() +
-                      visitData.visitStatus.slice(1)}
-                  </Badge>
+                  <VisitStatusBadge
+                    status={visitData.visitStatus}
+                    outcome={visitData.outcome}
+                  />
+                  {overdue && (
+                    <span className="text-xs font-medium text-amber-800 dark:text-amber-200">
+                      {daysOverdue} {daysOverdue === 1 ? "day" : "days"} overdue
+                    </span>
+                  )}
                   <Badge
                     variant="outline"
                     className="flex items-center space-x-1"
@@ -191,6 +222,55 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
               </div>
             </CardContent>
           </Card>
+
+          {isActionable && (
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => setRescheduleOpen(true)}>Reschedule</Button>
+              <Button
+                variant="secondary"
+                disabled={loadingId === visitData._id}
+                onClick={() => void complete(visitData._id)}
+              >
+                Mark Completed
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" disabled={loadingId === visitData._id}>
+                    Cancel Visit
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {VISIT_CANCEL_REASONS.map((reason) => (
+                    <DropdownMenuItem
+                      key={reason}
+                      className="cursor-pointer"
+                      onClick={() => void cancel(visitData._id, reason)}
+                    >
+                      {reason}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" disabled={loadingId === visitData._id}>
+                    Mark No-show
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {VISIT_NO_SHOW_REASONS.map((reason) => (
+                    <DropdownMenuItem
+                      key={reason}
+                      className="cursor-pointer"
+                      onClick={() => void noShow(visitData._id, reason)}
+                    >
+                      {reason}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Owner Information */}
@@ -234,11 +314,23 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
             {/* Customer Information */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <User className="h-5 w-5" />
-                  <span>Customer Information</span>
-                </CardTitle>
-                <CardDescription>Customer contact details</CardDescription>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <CardTitle className="flex items-center space-x-2">
+                      <User className="h-5 w-5" />
+                      <span>Customer Information</span>
+                    </CardTitle>
+                    <CardDescription>Customer contact details</CardDescription>
+                  </div>
+                  {visitData.lead?._id && (
+                    <Button
+                      size="sm"
+                      onClick={() => setBookingOpen(true)}
+                    >
+                      Create Booking
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
@@ -338,6 +430,26 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
               </div>
             </CardContent>
           </Card>
+
+          {visitData.scheduleHistory && visitData.scheduleHistory.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Schedule History</CardTitle>
+                <CardDescription>Previous visit dates before rescheduling</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {visitData.scheduleHistory.map((entry, index) => (
+                  <div key={index} className="flex items-center gap-4 text-sm">
+                    <span>{formatDate(new Date(entry.date))}</span>
+                    <span>{entry.time}</span>
+                    {entry.reason && (
+                      <span className="text-muted-foreground">{entry.reason}</span>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Financial Details */}
           <Card>
@@ -453,6 +565,24 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
           )}
         </div>
       )}
+
+      <RescheduleVisitModal
+        visit={visitData ?? null}
+        open={rescheduleOpen}
+        onOpenChange={setRescheduleOpen}
+        onSuccess={() => void getVisit(false)}
+      />
+
+      <AlertDialog open={bookingOpen} onOpenChange={setBookingOpen}>
+        <AlertDialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          {visitData && (
+            <BookingModal
+              visit={visitData}
+              onOpenChange={() => setBookingOpen(false)}
+            />
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

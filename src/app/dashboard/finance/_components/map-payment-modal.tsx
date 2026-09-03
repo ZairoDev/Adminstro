@@ -121,6 +121,8 @@ export default function MapPaymentModal({
   };
 
   const confidenceLabel = (c: GuestSuggestion["confidence"]) => {
+    if (c === "exact_link") return "Exact payment link";
+    if (c === "exact_booking_notes") return "From payment link booking";
     if (c === "exact_phone") return "Exact phone";
     if (c === "name_email") return "Name / email";
     return "Search";

@@ -318,6 +318,14 @@ export async function POST(req: Request) {
     const razorpay = getRazorpay();
     const transporter = createTransporter();
 
+    const bookingDoc = await Bookings.findById(bookingId)
+      .select("bookingId")
+      .lean<{ bookingId?: string } | null>();
+    const humanBookingId =
+      (typeof body.booking_Id === "string" && body.booking_Id.trim()) ||
+      bookingDoc?.bookingId ||
+      "";
+
     // Compute finalAmount for this link
     let finalAmount = amount;
     if (paymentType === "partial") {
@@ -355,7 +363,13 @@ export async function POST(req: Request) {
           },
           notify: { sms: true, email: true },
           reminder_enable: true,
-          notes: { purpose: "split" },
+          notes: {
+            purpose: "split",
+            bookingObjectId: String(bookingId),
+            ...(humanBookingId ? { bookingId: humanBookingId } : {}),
+            guestEmail: guest.email,
+            guestName: guest.name,
+          },
         });
         const shortUrl = resp.short_url ?? resp.url ?? "";
         if (!shortUrl) continue;
@@ -522,7 +536,13 @@ export async function POST(req: Request) {
       },
       notify: { sms: true, email: true },
       reminder_enable: true,
-      notes: { purpose: paymentType },
+      notes: {
+        purpose: paymentType ?? "full",
+        bookingObjectId: String(bookingId),
+        ...(humanBookingId ? { bookingId: humanBookingId } : {}),
+        guestEmail: mainGuest.email,
+        guestName: mainGuest.name,
+      },
     });
 
     const link = resp.short_url ?? resp.url ?? "";

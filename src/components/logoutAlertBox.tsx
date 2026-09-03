@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 
 import { useAuthStore } from "@/AuthStore";
 import { clearMonthlyTargetGateSkip } from "@/lib/monthly-target-gate-skip";
+import { clearVisitStatusGateSkip } from "@/lib/visits/visit-status-gate-skip";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -44,6 +45,7 @@ export function LogoutButton() {
       });
       if (token?.id) {
         clearMonthlyTargetGateSkip(String(token.id));
+        clearVisitStatusGateSkip(String(token.id));
       }
       clearToken();
       setOpen(false);

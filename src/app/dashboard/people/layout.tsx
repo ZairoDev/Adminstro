@@ -8,10 +8,6 @@ export default function PeopleLayout({
       <div className="mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">People</h1>
-          <p className="text-muted-foreground">
-            Pipeline candidates, onboarding, active employees, and people who
-            have exited
-          </p>
         </div>
         {children}
       </div>

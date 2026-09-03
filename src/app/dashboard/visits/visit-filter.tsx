@@ -1,8 +1,7 @@
 "use client"
 
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Search } from "lucide-react"
 import {
   Select,
@@ -11,6 +10,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  VISIT_CATEGORY_FILTER_OPTIONS,
+  type VisitCategoryFilter,
+} from "@/lib/visits/visitStatus"
 
 export interface VisitFilterState {
   ownerName: string
@@ -20,156 +23,183 @@ export interface VisitFilterState {
   vsid: string
   commissionFrom: string
   commissionTo: string
+  visitStatus: VisitCategoryFilter
 }
 
-interface VisitFilterProps {
+const inputClass = "h-9 text-sm"
+
+interface VisitStatusFilterProps {
+  value: VisitCategoryFilter
+  onChange: (value: VisitCategoryFilter) => void
+}
+
+export function VisitStatusFilter({ value, onChange }: VisitStatusFilterProps) {
+  const selectedLabel =
+    value === "all"
+      ? "Visit Status"
+      : (VISIT_CATEGORY_FILTER_OPTIONS.find((option) => option.value === value)?.label ??
+        "Visit Status")
+
+  return (
+    <Select value={value} onValueChange={(next: VisitCategoryFilter) => onChange(next)}>
+      <SelectTrigger className={`w-[150px] ${inputClass}`}>
+        <span className="truncate">{selectedLabel}</span>
+      </SelectTrigger>
+      <SelectContent>
+        {VISIT_CATEGORY_FILTER_OPTIONS.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  )
+}
+
+interface VisitFiltersBarProps {
   filters: VisitFilterState
-  setFilters: (filters: VisitFilterState) => void
+  onChange: (filters: VisitFilterState) => void
 }
 
-// Updated VisitFilter component (without customer name and VSID)
-export function VisitFilter({ filters, setFilters }: VisitFilterProps) {
-  const [inputValues, setInputValues] = useState<VisitFilterState>(filters)
+export function VisitFiltersBar({ filters, onChange }: VisitFiltersBarProps) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {/* Commission range filters — hidden for now
+      <Input
+        className={`w-full sm:w-[100px] ${inputClass}`}
+        placeholder="₹ Min"
+        type="number"
+        value={filters.commissionFrom}
+        onChange={(e) => onChange({ ...filters, commissionFrom: e.target.value })}
+      />
+      <Input
+        className={`w-full sm:w-[100px] ${inputClass}`}
+        placeholder="₹ Max"
+        type="number"
+        value={filters.commissionTo}
+        onChange={(e) => onChange({ ...filters, commissionTo: e.target.value })}
+      />
+      */}
+    </div>
+  )
+}
 
-  const handleInputChange = (field: keyof VisitFilterState, value: string) => {
-    setInputValues({
-      ...inputValues,
-      [field]: value,
-    })
-  }
+export type VisitSearchType = "customerName" | "vsid" | "ownerName"
 
-  const handleApply = () => {
-    setFilters(inputValues)
-  }
+interface SearchBarProps {
+  onSearch: (searchType: VisitSearchType, searchValue: string) => void
+  initialSearchType?: VisitSearchType
+  initialSearchValue?: string
+}
 
-  const handleReset = () => {
-    const emptyFilters: VisitFilterState = {
-      ownerName: "",
-      ownerPhone: "",
-      customerName: filters.customerName, // Preserve search bar filters
-      customerPhone: "",
-      vsid: filters.vsid, // Preserve search bar filters
-      commissionFrom: "",
-      commissionTo: "",
-    }
-    setInputValues(emptyFilters)
-    setFilters(emptyFilters)
+export function SearchBar({
+  onSearch,
+  initialSearchType = "customerName",
+  initialSearchValue = "",
+}: SearchBarProps) {
+  const [searchType, setSearchType] = useState<VisitSearchType>(initialSearchType)
+  const [searchValue, setSearchValue] = useState(initialSearchValue)
+
+  useEffect(() => {
+    setSearchType(initialSearchType)
+    setSearchValue(initialSearchValue)
+  }, [initialSearchType, initialSearchValue])
+
+  const handleSearch = () => {
+    onSearch(searchType, searchValue)
   }
 
   return (
-    <div className="w-full space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="ownerName">Owner Name</Label>
+    <div className="flex gap-2 w-full sm:w-auto">
+      <Select
+        value={searchType}
+        onValueChange={(value: VisitSearchType) => setSearchType(value)}
+      >
+        <SelectTrigger className="h-9 w-[130px] text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="customerName">Guest</SelectItem>
+          <SelectItem value="vsid">VSID</SelectItem>
+          <SelectItem value="ownerName">Owner</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <div className="relative flex-1 sm:w-[220px]">
         <Input
-          id="ownerName"
-          placeholder="Search by owner name..."
-          value={inputValues.ownerName}
-          onChange={(e) => handleInputChange("ownerName", e.target.value)}
+          placeholder="Search..."
+          value={searchValue}
+          onChange={(e) => setSearchValue(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          className="h-9 pr-9 text-sm"
         />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="ownerPhone">Owner Phone</Label>
-        <Input
-          id="ownerPhone"
-          placeholder="Search by owner phone..."
-          value={inputValues.ownerPhone}
-          onChange={(e) => handleInputChange("ownerPhone", e.target.value)}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="customerPhone">Customer Phone</Label>
-        <Input
-          id="customerPhone"
-          placeholder="Search by customer phone..."
-          value={inputValues.customerPhone}
-          onChange={(e) => handleInputChange("customerPhone", e.target.value)}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Commission Range (₹)</Label>
-        <div className="flex gap-2">
-          <Input
-            placeholder="From"
-            type="number"
-            value={inputValues.commissionFrom}
-            onChange={(e) => handleInputChange("commissionFrom", e.target.value)}
-          />
-          <Input
-            placeholder="To"
-            type="number"
-            value={inputValues.commissionTo}
-            onChange={(e) => handleInputChange("commissionTo", e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="flex gap-2 pt-4">
         <button
-          onClick={handleApply}
-          className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+          type="button"
+          onClick={handleSearch}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         >
-          Apply Filters
-        </button>
-        <button
-          onClick={handleReset}
-          className="flex-1 bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition"
-        >
-          Reset
+          <Search size={16} />
         </button>
       </div>
     </div>
   )
 }
 
-// New SearchBar component
-interface SearchBarProps {
-  onSearch: (searchType: 'customerName' | 'vsid', searchValue: string) => void
-  initialSearchType?: 'customerName' | 'vsid'
+export type VisitPhoneSearchType = "ownerPhone" | "customerPhone"
+
+interface PhoneSearchBarProps {
+  onSearch: (searchType: VisitPhoneSearchType, searchValue: string) => void
+  initialSearchType?: VisitPhoneSearchType
   initialSearchValue?: string
 }
 
-export function SearchBar({ onSearch, initialSearchType = 'customerName', initialSearchValue = '' }: SearchBarProps) {
-  const [searchType, setSearchType] = useState<'customerName' | 'vsid'>(initialSearchType)
+export function PhoneSearchBar({
+  onSearch,
+  initialSearchType = "ownerPhone",
+  initialSearchValue = "",
+}: PhoneSearchBarProps) {
+  const [searchType, setSearchType] = useState<VisitPhoneSearchType>(initialSearchType)
   const [searchValue, setSearchValue] = useState(initialSearchValue)
+
+  useEffect(() => {
+    setSearchType(initialSearchType)
+    setSearchValue(initialSearchValue)
+  }, [initialSearchType, initialSearchValue])
 
   const handleSearch = () => {
     onSearch(searchType, searchValue)
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSearch()
-    }
-  }
-
   return (
-    <div className="flex gap-2 w-full md:w-auto">
-      <Select value={searchType} onValueChange={(value: 'customerName' | 'vsid') => setSearchType(value)}>
-        <SelectTrigger className="w-[160px]">
+    <div className="flex gap-2 w-full sm:w-auto">
+      <Select
+        value={searchType}
+        onValueChange={(value: VisitPhoneSearchType) => setSearchType(value)}
+      >
+        <SelectTrigger className="h-9 w-[150px] text-sm">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="customerName">Guest Name</SelectItem>
-          <SelectItem value="vsid">VSID</SelectItem>
+          <SelectItem value="ownerPhone">Owner phone</SelectItem>
+          <SelectItem value="customerPhone">Customer phone</SelectItem>
         </SelectContent>
       </Select>
-      
-      <div className="relative flex-1 md:w-[300px]">
+
+      <div className="relative flex-1 sm:w-[180px]">
         <Input
-          placeholder={`Search by ${searchType === 'customerName' ? 'guest' : 'VSID'}...`}
+          placeholder="Phone..."
+          type="tel"
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
-          onKeyPress={handleKeyPress}
-          className="pr-10"
+          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          className="h-9 pr-9 text-sm"
         />
         <button
+          type="button"
           onClick={handleSearch}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition"
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         >
-          <Search size={18} />
+          <Search size={16} />
         </button>
       </div>
     </div>

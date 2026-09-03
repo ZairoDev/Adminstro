@@ -5,6 +5,7 @@ import Bookings from "@/models/booking";
 import { connectDb } from "@/util/db";
 import Invoice from "@/models/invoice";
 import { generateInvoicePdfBuffer } from "@/components/generatePdfBuffer";
+import { processRazorpayWebhook } from "@/services/finance/razorpayWebhookService";
 
 export async function POST(req: Request) {
   try {
@@ -12,6 +13,21 @@ export async function POST(req: Request) {
 
     const body = await req.text();
     const signature = req.headers.get("x-razorpay-signature") as string;
+
+    // Always ingest + log first (Finance → Transactions / Webhook Logs).
+    try {
+      await processRazorpayWebhook({
+        rawBody: body,
+        signature,
+        headers: req.headers,
+        skipBookingSync: true,
+      });
+    } catch (financeError) {
+      console.error(
+        "⚠️ Finance ingest from payment-link webhook failed (booking update continues):",
+        financeError,
+      );
+    }
 
     if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
       return NextResponse.json(
@@ -138,10 +154,14 @@ export async function POST(req: Request) {
           const previousPaymentAmount = Number(
             guest.payments[paymentIndex].amount || 0
           );
+          const wasAlreadyPaid =
+            guest.payments[paymentIndex].status === "paid";
 
-          // Add the difference (in case amount changed)
-          booking.travellerPayment.guests[guestIndex].amountPaid =
-            previousPaid - previousPaymentAmount + amountPaid;
+          // Pending entries store the expected amount but guest.amountPaid stays 0
+          // until paid — only subtract previous amount when replacing an already-paid entry.
+          booking.travellerPayment.guests[guestIndex].amountPaid = wasAlreadyPaid
+            ? previousPaid - previousPaymentAmount + amountPaid
+            : previousPaid + amountPaid;
 
           // Update guest status
           const guestAmountPaid =

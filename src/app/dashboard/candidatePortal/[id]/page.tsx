@@ -89,6 +89,7 @@ import {
   getCandidateOfficeCity,
   getCandidateOfficePostingLocation,
 } from "./utils/officeAddressFromCandidate";
+import { generateUnsignedOfferLetter as requestUnsignedOfferLetter } from "./utils/pdf-generators";
 import { CandidateHeader } from "./components/CandidateHeader";
 
 // During transition, optionally redirect to unified page:
@@ -406,37 +407,28 @@ export default function CandidateDetailPage() {
   }, []);
 
   const generateUnsignedOfferLetter = async () => {
-    if (!candidate || !candidate.name || !candidate.position) return;
-    
+    if (!candidate?.name) {
+      toast.error("Candidate name is required to generate the offer letter");
+      return;
+    }
+
+    if (!candidate.officeAddressId && !candidate.officeLocation) {
+      toast.error("Assign an office address before generating the offer letter");
+      return;
+    }
+
     setGeneratingUnsignedOfferLetterPdf(true);
     try {
-      // Use ISO date string format for proper parsing
-      const agreementDate = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const offerLetterPayload = {
-        candidateName: candidate.name,
-        position: candidate.position,
-        date: agreementDate,
-        candidateId: candidate._id,
-        // No signature for unsigned PDF
-      };
-
-      const pdfResponse = await axios.post(
-        "/api/candidates/offerLetter",
-        offerLetterPayload,
-        {
-          responseType: "arraybuffer",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-
-      const pdfBlob = new Blob([pdfResponse.data], {
-        type: "application/pdf",
-      });
-      const url = URL.createObjectURL(pdfBlob);
+      const url = await requestUnsignedOfferLetter(candidate);
       setUnsignedOfferLetterUrl(url);
-    } catch (error: any) {
+      setShowUnsignedOfferLetterPdfDialog(true);
+    } catch (error: unknown) {
       console.error("Error generating unsigned offer letter PDF:", error);
-      toast.error("Failed to generate offer letter PDF");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to generate offer letter PDF",
+      );
     } finally {
       setGeneratingUnsignedOfferLetterPdf(false);
     }
@@ -1090,7 +1082,7 @@ export default function CandidateDetailPage() {
                   </Select>
                   {!candidate.officeAddressId && (
                     <p className="text-xs text-amber-600 dark:text-amber-400">
-                      Required before generating Training / Onboarding PDFs
+                      Required before generating Training / Onboarding / Offer Letter PDFs
                     </p>
                   )}
                 </div>
@@ -2356,12 +2348,14 @@ export default function CandidateDetailPage() {
                           </div>
                         </div>
                       ) : (
-                        <div 
+                        <button
+                          type="button"
                           onClick={generateUnsignedOfferLetter}
-                          className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
+                          disabled={generatingUnsignedOfferLetterPdf}
+                          className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-primary transition-colors disabled:cursor-wait"
                         >
                           <p className="text-xs text-muted-foreground text-center px-2">Click to generate</p>
-                        </div>
+                        </button>
                       )}
                     </div>
                   </div>

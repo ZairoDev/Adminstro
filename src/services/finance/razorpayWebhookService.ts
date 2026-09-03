@@ -6,6 +6,7 @@ import {
   isSupportedEvent,
   parseWebhookPayload,
 } from "@/services/finance/razorpayWebhookParser";
+import { syncBookingFromPaymentLink } from "@/services/finance/syncBookingFromPaymentLink";
 
 type HeaderMap = Record<string, string>;
 
@@ -69,9 +70,10 @@ function verifySignature(
   return { ok: false, candidates: candidateMeta };
 }
 
-async function upsertFinancePayment(
+export async function upsertFinancePayment(
   event: string,
   payload: unknown,
+  source: "webhook" | "sync" | "manual" = "webhook",
 ): Promise<{ upserted: boolean; ignored?: boolean }> {
   const parsed = parseWebhookPayload(
     event,
@@ -85,7 +87,7 @@ async function upsertFinancePayment(
   const setFields: Record<string, unknown> = {
     ...parsed,
     lastEvent: event,
-    source: "webhook",
+    source,
     rawPayload: payload,
   };
 
@@ -146,6 +148,8 @@ export async function processRazorpayWebhook(params: {
   rawBody: string;
   signature: string | null;
   headers: Headers;
+  /** When true, only write FinancePayment (booking path handles ledger separately). */
+  skipBookingSync?: boolean;
 }): Promise<ProcessWebhookResult> {
   await connectDb();
 
@@ -267,6 +271,24 @@ export async function processRazorpayWebhook(params: {
 
   try {
     const result = await upsertFinancePayment(event, parsedJson);
+
+    // Keep booking ledger in sync when finance webhook receives payment-link events
+    // (covers setups that only point Razorpay at /api/razorpay/webhook).
+    if (!params.skipBookingSync) {
+      try {
+        await syncBookingFromPaymentLink({
+          event,
+          linkId: paymentLinkEntity?.id ?? null,
+          payment: paymentEntity ?? null,
+        });
+      } catch (syncError) {
+        console.warn(
+          "[razorpay/webhook] Booking sync skipped/failed:",
+          syncError,
+        );
+      }
+    }
+
     await RazorpayWebhookLog.findByIdAndUpdate(log._id, {
       status: result.ignored ? "ignored" : "processed",
       processed: true,

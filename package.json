@@ -16,6 +16,7 @@
     "seed:finance": "tsx src/scripts/seedFinanceTestData.ts",
     "seed:finance-walkthrough": "tsx src/scripts/seedFinanceWalkthrough.ts",
     "seed:finance-walkthrough:auto": "tsx src/scripts/seedFinanceWalkthrough.ts --auto",
+    "seed:overdue-visits": "tsx src/scripts/backdateOverdueVisits.ts",
     "test": "jest --config jest.config.cjs",
     "test:finance": "jest --config jest.config.cjs --testPathPattern=src/services/finance/__tests__",
     "seed:whatsapp-phone-locations": "tsx src/scripts/seedWhatsAppPhoneLocations.ts",

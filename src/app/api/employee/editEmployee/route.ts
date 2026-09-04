@@ -6,7 +6,11 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 import { normalizeAllotedArea } from "@/util/location";
 import { normalizeEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
-import { clearCandidateExit } from "@/lib/candidate/markCandidateExited";
+import {
+  asCandidateExitReason,
+  clearCandidateExit,
+  markCandidateExitedByEmployeeId,
+} from "@/lib/candidate/markCandidateExited";
 
 connectDb();
 
@@ -148,6 +152,25 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
     if (shouldClearCandidateExit) {
       await clearCandidateExit(_id);
+    }
+
+    // Deactivate / Inactive Anyway: keep People Exited tab in sync even when
+    // no formal separation reason is chosen.
+    const shouldMarkCandidateExited =
+      Object.keys(updateFields).includes("isActive") &&
+      updateFields.isActive === false;
+
+    if (shouldMarkCandidateExited) {
+      const exitedAt =
+        user.inactiveDate instanceof Date &&
+        !Number.isNaN(user.inactiveDate.getTime())
+          ? user.inactiveDate
+          : new Date();
+      await markCandidateExitedByEmployeeId(
+        _id,
+        asCandidateExitReason(user.inactiveReason),
+        { exitedAt }
+      );
     }
 
     return NextResponse.json({

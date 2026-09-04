@@ -94,6 +94,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmailPreviewDialog } from "@/components/EmailPreviewDialog";
+import { hiringWorkspacePath } from "@/features/people/navigation";
 
 interface PageProps {
   params: {
@@ -1281,7 +1282,9 @@ export default function EmployeeProfilePage({ params }: PageProps) {
             />
             <div className="flex flex-wrap items-center gap-2">
               {user?.candidateId && (
-                <Link href={`/dashboard/candidatePortal/${user.candidateId}`}>
+                <Link href={hiringWorkspacePath(String(user.candidateId), {
+                  returnTo: `/dashboard/employeedetails/${userId}`,
+                })}>
                   <Button variant="outline" size="sm">
                     <FileText className="h-4 w-4 mr-2" />
                     View Hiring Record

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -29,10 +29,19 @@ import {
   Send,
   Upload,
   Trash2,
+  MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -128,6 +137,7 @@ function checkOfferLetterAvailability(updatedAt: string | undefined): {
 export default function CandidateDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const candidateId = params?.id as string;
 
   // Use refactored hooks
@@ -198,15 +208,15 @@ export default function CandidateDetailPage() {
   const [generatingUnsignedPdf, setGeneratingUnsignedPdf] = useState(false);
   const [showSignedPdfDialog, setShowSignedPdfDialog] = useState(false);
   const [showUnsignedPdfDialog, setShowUnsignedPdfDialog] = useState(false);
-  const [onboardingAgreementExpanded, setOnboardingAgreementExpanded] = useState(true);
+  const [onboardingAgreementExpanded, setOnboardingAgreementExpanded] = useState(false);
   const [unsignedOnboardingAgreementUrl, setUnsignedOnboardingAgreementUrl] = useState<string | null>(null);
   const [generatingUnsignedOnboardingPdf, setGeneratingUnsignedOnboardingPdf] = useState(false);
   const [showSignedOnboardingPdfDialog, setShowSignedOnboardingPdfDialog] = useState(false);
   const [showUnsignedOnboardingPdfDialog, setShowUnsignedOnboardingPdfDialog] = useState(false);
   
   // HR Policies and Letter of Intent states
-  const [hrPoliciesExpanded, setHrPoliciesExpanded] = useState(true);
-  const [letterOfIntentExpanded, setLetterOfIntentExpanded] = useState(true);
+  const [hrPoliciesExpanded, setHrPoliciesExpanded] = useState(false);
+  const [letterOfIntentExpanded, setLetterOfIntentExpanded] = useState(false);
   const [unsignedHrPoliciesUrl, setUnsignedHrPoliciesUrl] = useState<string | null>(null);
   const [unsignedLetterOfIntentUrl, setUnsignedLetterOfIntentUrl] = useState<string | null>(null);
   const [generatingHrPoliciesPdf, setGeneratingHrPoliciesPdf] = useState(false);
@@ -227,7 +237,7 @@ export default function CandidateDetailPage() {
   const [sendingOfferLetter, setSendingOfferLetter] = useState(false);
   
   // Offer Letter PDF states
-  const [offerLetterExpanded, setOfferLetterExpanded] = useState(true);
+  const [offerLetterExpanded, setOfferLetterExpanded] = useState(false);
   const [unsignedOfferLetterUrl, setUnsignedOfferLetterUrl] = useState<string | null>(null);
   const [generatingUnsignedOfferLetterPdf, setGeneratingUnsignedOfferLetterPdf] = useState(false);
   const [showSignedOfferLetterPdfDialog, setShowSignedOfferLetterPdfDialog] = useState(false);
@@ -235,7 +245,7 @@ export default function CandidateDetailPage() {
   
   // Additional Documents states
   const [uploadingDocuments, setUploadingDocuments] = useState(false);
-  const [additionalDocumentsExpanded, setAdditionalDocumentsExpanded] = useState(true);
+  const [additionalDocumentsExpanded, setAdditionalDocumentsExpanded] = useState(false);
   const { uploadFiles } = useBunnyUpload();
 
   const generateUnsignedTrainingAgreement = async () => {

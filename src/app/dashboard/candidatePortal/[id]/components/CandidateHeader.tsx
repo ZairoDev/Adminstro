@@ -2,36 +2,71 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Download, Linkedin, Globe, Briefcase, Clock, MapPin, GraduationCap, IndianRupee, Building2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  Linkedin,
+  Globe,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Candidate } from "../types";
 import { formatEmploymentType, getStatusColor, getStatusLabel } from "../constants";
-import { formatSalary } from "../utils/time-utils";
 
 interface CandidateHeaderProps {
   candidate: Candidate;
+  showBack?: boolean;
+  backHref?: string | null;
+  backLabel?: string;
+  trailing?: React.ReactNode;
 }
 
-export function CandidateHeader({ candidate }: CandidateHeaderProps) {
+function initials(name: string): string {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+export function CandidateHeader({
+  candidate,
+  showBack = true,
+  backHref,
+  backLabel = "Back to profile",
+  trailing,
+}: CandidateHeaderProps) {
+  const href = backHref ?? null;
+  const shouldShowBack = showBack && Boolean(href);
+  const meta = [
+    candidate.position,
+    formatEmploymentType(candidate.employmentType) !== "—"
+      ? formatEmploymentType(candidate.employmentType)
+      : null,
+    candidate.experience === 0
+      ? "Fresher"
+      : `${candidate.experience} ${candidate.experience === 1 ? "year" : "years"}`,
+    [candidate.city, candidate.country].filter(Boolean).join(", ") || null,
+  ].filter(Boolean);
+
   return (
-    <div className="border-b bg-card sticky top-0 z-10">
-      <div className="max-w-[1600px] mx-auto px-6 py-3">
-        <div className="flex items-center justify-between mb-2">
-          <Link href="/dashboard/candidatePortal">
-            <Button variant="ghost" size="sm" className="gap-1.5 h-8">
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Back
-            </Button>
+    <header className="border-b border-border/60 bg-background/80 backdrop-blur-md">
+      <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6">
+        {shouldShowBack && href ? (
+          <Link
+            href={href}
+            className="mb-4 inline-flex h-9 items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            {backLabel}
           </Link>
-          <Badge className={`${getStatusColor(candidate.status)} text-xs px-3 py-1`}>
-            {getStatusLabel(candidate.status)}
-          </Badge>
-        </div>
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-4">
-            {candidate.photoUrl && (
-              <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-border flex-shrink-0">
+        ) : null}
+
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-4">
+            {candidate.photoUrl ? (
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-border/70">
                 <Image
                   src={candidate.photoUrl}
                   alt={candidate.name}
@@ -39,105 +74,74 @@ export function CandidateHeader({ candidate }: CandidateHeaderProps) {
                   className="object-cover"
                 />
               </div>
-            )}
-            <div>
-              <h1 className="text-2xl font-bold text-foreground leading-tight">
-                {candidate.name}
-              </h1>
-              <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Briefcase className="w-3.5 h-3.5" />
-                  {candidate.position}
-                </span>
-                {candidate.employmentType && (
-                  <span className="flex items-center gap-1">
-                    <Badge variant="outline" className="text-xs font-normal">
-                      {formatEmploymentType(candidate.employmentType)}
-                    </Badge>
-                  </span>
-                )}
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5" />
-                  {candidate.experience === 0
-                    ? "Fresher"
-                    : `${candidate.experience} ${candidate.experience === 1 ? "year" : "years"} exp`}
-                </span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5" />
-                  {candidate.city}, {candidate.country}
-                </span>
-                {candidate.officeAddressId &&
-                typeof candidate.officeAddressId === "object" ? (
-                  <span className="flex items-center gap-1">
-                    <Building2 className="w-3.5 h-3.5" />
-                    Office: {candidate.officeAddressId.name}
-                    {candidate.officeAddressId.city
-                      ? ` (${candidate.officeAddressId.city})`
-                      : ""}
-                  </span>
-                ) : candidate.officeLocation ? (
-                  <span className="flex items-center gap-1">
-                    <Building2 className="w-3.5 h-3.5" />
-                    Office: {candidate.officeLocation}
-                  </span>
-                ) : null}
-                {candidate.college && (
-                  <span className="flex items-center gap-1">
-                    <GraduationCap className="w-3.5 h-3.5" />
-                    {candidate.college}
-                  </span>
-                )}
-                {candidate.selectionDetails?.salary && (
-                  <span className="flex items-center gap-1">
-                    <IndianRupee className="w-3.5 h-3.5" />
-                    {formatSalary(candidate.selectionDetails.salary)}
-                  </span>
-                )}
+            ) : (
+              <div
+                aria-hidden
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-muted text-sm font-medium text-muted-foreground"
+              >
+                {initials(candidate.name)}
               </div>
+            )}
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                  {candidate.name}
+                </h1>
+                <Badge
+                  variant="outline"
+                  className={`${getStatusColor(candidate.status)} font-medium`}
+                >
+                  {getStatusLabel(candidate.status)}
+                </Badge>
+              </div>
+              {meta.length > 0 ? (
+                <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+                  {meta.join("  ·  ")}
+                </p>
+              ) : null}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex shrink-0 items-center gap-1">
+            {trailing}
             <a
               href={candidate.resumeUrl}
               download
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Button variant="outline" size="sm" className="gap-1.5 h-8">
-                <Download className="w-3.5 h-3.5" />
+              <Button variant="outline" size="sm" className="h-9 gap-1.5">
+                <Download className="h-3.5 w-3.5" />
                 Resume
               </Button>
             </a>
-            {(candidate.linkedin || candidate.portfolio) && (
-              <div className="flex gap-1">
-                {candidate.linkedin && (
-                  <a
-                    href={candidate.linkedin}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <Linkedin className="w-4 h-4" />
-                    </Button>
-                  </a>
-                )}
-                {candidate.portfolio && (
-                  <a
-                    href={candidate.portfolio}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                      <Globe className="w-4 h-4" />
-                    </Button>
-                  </a>
-                )}
-              </div>
-            )}
+            {candidate.linkedin ? (
+              <a
+                href={candidate.linkedin}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="LinkedIn profile"
+              >
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Linkedin className="h-4 w-4" />
+                </Button>
+              </a>
+            ) : null}
+            {candidate.portfolio ? (
+              <a
+                href={candidate.portfolio}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Portfolio"
+              >
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Globe className="h-4 w-4" />
+                </Button>
+              </a>
+            ) : null}
           </div>
         </div>
       </div>
-    </div>
+    </header>
   );
 }
-

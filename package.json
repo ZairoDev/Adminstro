@@ -21,6 +21,8 @@
     "test:finance": "jest --config jest.config.cjs --testPathPattern=src/services/finance/__tests__",
     "seed:whatsapp-phone-locations": "tsx src/scripts/seedWhatsAppPhoneLocations.ts",
     "backfill:employee-candidate-id": "tsx src/scripts/backfillEmployeeCandidateId.ts",
+    "migrate:employee-lifecycle": "tsx src/scripts/migrateEmployeeLifecycle.ts",
+    "migrate:employee-lifecycle:apply": "tsx src/scripts/migrateEmployeeLifecycle.ts --apply",
     "backfill:whatsapp-metrics": "tsx src/scripts/backfillWhatsAppConversationMetrics.ts",
     "backfill:whatsapp-session": "tsx src/scripts/backfillWhatsAppSessionExpiry.ts",
     "analyze:whatsapp-delivery": "tsx src/scripts/analyzeWhatsAppDeliveryStatus.ts"

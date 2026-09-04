@@ -2,8 +2,9 @@
 
 import type React from "react";
 import { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Check, AlertCircle, Loader2, FileText, Eye, Download, Upload } from "lucide-react";
+import Link from "next/link";
+import { useParams, useSearchParams } from "next/navigation";
+import { ArrowLeft, Check, AlertCircle, Loader2, FileText, Eye, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { SignaturePad } from "../../components/signature-pad";
 import { SignaturePreviewModal } from "../../components/signature-preview-modal";
 import axios from "@/util/axios";
+import { parseDashboardPath } from "@/features/people/navigation";
 
 interface Candidate {
   _id: string;
@@ -84,10 +86,11 @@ const LoadingSkeleton = () => (
 
 export default function OfferLetterPage() {
   const params = useParams();
-  const router = useRouter();
+  const searchParams = useSearchParams();
   const { uploadFiles } = useBunnyUpload();
   const { toast } = useToast();
   const candidateId = params?.id as string;
+  const hiringReturnTo = parseDashboardPath(searchParams.get("returnTo"));
 
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -605,6 +608,16 @@ export default function OfferLetterPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
       <div className="w-full max-w-4xl">
+        {hiringReturnTo ? (
+          <div className="mb-4">
+            <Button variant="ghost" size="sm" className="gap-1.5 h-8" asChild>
+              <Link href={hiringReturnTo}>
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back to hiring record
+              </Link>
+            </Button>
+          </div>
+        ) : null}
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent mb-3">

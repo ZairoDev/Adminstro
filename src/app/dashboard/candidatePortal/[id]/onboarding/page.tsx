@@ -3,7 +3,7 @@
 import type React from "react";
 
 import { useState, useEffect,useRef } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Check, AlertCircle, Upload, Loader2, FileText, X, Download, Eye, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -175,7 +175,6 @@ function base64ToFile(base64: string, filename: string): File {
 
 export default function OnboardingPage() {
   const params = useParams();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { uploadFiles } = useBunnyUpload();
   const { toast } = useToast();
@@ -1343,10 +1342,6 @@ export default function OnboardingPage() {
       setSuccess(true);
       setCandidate(onboardingRes.data.data);
       setIsOnboardingComplete(true); // Mark onboarding as complete
-
-      setTimeout(() => {
-        router.push(`/candidates/${candidateId}`);
-      }, 1500);
     } catch (err: any) {
       console.error("Error submitting onboarding:", err);
       setError(err.response?.data?.error || err.message);

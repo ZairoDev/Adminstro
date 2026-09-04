@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Users,
   ClipboardList,
@@ -8,7 +9,6 @@ import {
   Star,
   GraduationCap,
   Ban,
-  Upload,
   Briefcase,
   UserMinus,
 } from "lucide-react";
@@ -17,6 +17,10 @@ import {
   PeopleListShell,
   type PeopleListTab,
 } from "@/features/people/components/PeopleListShell";
+import {
+  parsePeopleListQuery,
+  peopleListPath,
+} from "@/features/people/navigation";
 
 const PEOPLE_TABS: {
   value: PeopleListTab;
@@ -34,13 +38,28 @@ const PEOPLE_TABS: {
 ];
 
 export default function PeoplePage() {
-  const [tab, setTab] = useState<PeopleListTab>("pipeline");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchKey = searchParams.toString();
+  const listQuery = useMemo(
+    () => parsePeopleListQuery(new URLSearchParams(searchKey)),
+    [searchKey]
+  );
+  const tab = listQuery.tab;
+
+  const handleTabChange = (value: string) => {
+    router.push(
+      peopleListPath({
+        ...listQuery,
+        tab: value as PeopleListTab,
+        page: 1,
+      }),
+      { scroll: false }
+    );
+  };
 
   return (
-    <Tabs
-      value={tab}
-      onValueChange={(value) => setTab(value as PeopleListTab)}
-    >
+    <Tabs value={tab} onValueChange={handleTabChange}>
       <TabsList className="mb-6 h-auto flex-wrap gap-1">
         {PEOPLE_TABS.map(({ value, label, icon: Icon }) => (
           <TabsTrigger

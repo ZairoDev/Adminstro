@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Briefcase,
@@ -83,6 +83,15 @@ import type { CandidateLite } from "@/app/dashboard/candidatePortal/components/n
 import { SeparatePersonDialog } from "@/features/people/components/SeparatePersonDialog";
 import { LifecycleBadge } from "@/features/people/components/LifecycleBadge";
 import { usePersonPermissions } from "@/features/people/hooks/usePersonPermissions";
+import {
+  hiringWorkspacePath,
+  parsePersonTab,
+  peopleListPath,
+  personPath,
+  readRememberedPeopleListUrl,
+  safeDashboardPath,
+  type PersonTab,
+} from "@/features/people/navigation";
 import type { Candidate } from "@/app/dashboard/candidatePortal/[id]/types";
 import type {
   AppreciationRecord,
@@ -93,14 +102,6 @@ import type {
   WarningRecord,
   WarningType,
 } from "@/util/type";
-
-type PersonTab =
-  | "overview"
-  | "pipeline"
-  | "documents"
-  | "employment"
-  | "performance"
-  | "history";
 
 type PersonCandidate = Candidate & {
   exitedAt?: string | Date | null;
@@ -231,6 +232,8 @@ const APPRECIATION_TYPE_CONFIG: Record<
 
 export default function PersonDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const candidateId = String(params?.candidateId ?? "");
   const { token } = useAuthStore();
   const userRole = token?.role ?? "";
@@ -249,12 +252,67 @@ export default function PersonDetailPage() {
     canSeparate,
   } = usePersonPermissions(person);
 
+  const paramReturnTo = searchParams.get("returnTo");
+  const [backHref, setBackHref] = useState(() =>
+    safeDashboardPath(paramReturnTo, peopleListPath())
+  );
+  const urlTab = parsePersonTab(searchParams.get("tab"));
+  const [tab, setTabState] = useState<PersonTab>(urlTab ?? "overview");
   const [employee, setEmployee] = useState<EmployeeInterface | null>(null);
   const [employeeLoading, setEmployeeLoading] = useState(false);
-  const [tab, setTab] = useState<PersonTab>("overview");
   const [notesOpen, setNotesOpen] = useState(false);
   const [createEmployeeOpen, setCreateEmployeeOpen] = useState(false);
   const [exitOpen, setExitOpen] = useState(false);
+
+  useEffect(() => {
+    setBackHref(
+      safeDashboardPath(
+        paramReturnTo ?? readRememberedPeopleListUrl(),
+        peopleListPath()
+      )
+    );
+  }, [paramReturnTo]);
+
+  useEffect(() => {
+    if (urlTab && urlTab !== tab) {
+      setTabState(urlTab);
+    }
+  }, [urlTab, tab]);
+
+  const setTab = (value: PersonTab) => {
+    setTabState(value);
+    const paramsNext = new URLSearchParams(searchParams.toString());
+    if (value === "overview") {
+      paramsNext.delete("tab");
+    } else {
+      paramsNext.set("tab", value);
+    }
+    const qs = paramsNext.toString();
+    router.replace(
+      qs
+        ? `/dashboard/people/${candidateId}?${qs}`
+        : `/dashboard/people/${candidateId}`,
+      { scroll: false }
+    );
+  };
+
+  const personHref = personPath(candidateId, {
+    returnTo: backHref,
+    tab: tab === "overview" ? undefined : tab,
+  });
+  const hiringHref = hiringWorkspacePath(candidateId, { returnTo: personHref });
+  const offerLetterHref = hiringWorkspacePath(candidateId, {
+    subpath: "offer-letter",
+    returnTo: hiringHref,
+  });
+  const onboardingHref = hiringWorkspacePath(candidateId, {
+    subpath: "onboarding",
+    returnTo: hiringHref,
+  });
+  const trainingAgreementHref = hiringWorkspacePath(candidateId, {
+    subpath: "training-agreement",
+    returnTo: hiringHref,
+  });
 
   const linkedEmployeeId = toEmployeeId(person?.employeeId);
   const showPipeline = phase === "applicant" || phase === "onboarding";
@@ -1186,7 +1244,7 @@ export default function PersonDetailPage() {
       <Card className="p-8 text-center space-y-3">
         <p className="text-muted-foreground">{error || "Person not found"}</p>
         <Button asChild variant="outline">
-          <Link href="/dashboard/people">Back to People</Link>
+          <Link href={backHref}>Back to People</Link>
         </Button>
       </Card>
     );
@@ -1196,14 +1254,14 @@ export default function PersonDetailPage() {
     <div className="-mx-8 -mt-8">
       <div className="px-8 pt-4 pb-2">
         <Button variant="ghost" size="sm" className="gap-1.5 h-8" asChild>
-          <Link href="/dashboard/people">
+          <Link href={backHref}>
             <ArrowLeft className="w-3.5 h-3.5" />
             Back to People
           </Link>
         </Button>
       </div>
 
-      <CandidateHeader candidate={person} />
+      <CandidateHeader candidate={person} showBack={false} />
 
       <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1219,13 +1277,13 @@ export default function PersonDetailPage() {
             {phase === "applicant" && (
               <>
                 <Button size="sm" variant="outline" asChild>
-                  <Link href={`/dashboard/candidatePortal/${person._id}`}>
+                  <Link href={hiringHref}>
                     <Calendar className="h-4 w-4 mr-2" />
                     {canScheduleInterview() ? "Schedule" : "Hiring actions"}
                   </Link>
                 </Button>
                 <Button size="sm" variant="outline" asChild>
-                  <Link href={`/dashboard/candidatePortal/${person._id}`}>
+                  <Link href={hiringHref}>
                     Shortlist / Select / Reject
                   </Link>
                 </Button>
@@ -1238,7 +1296,7 @@ export default function PersonDetailPage() {
                   Verify docs
                 </Button>
                 <Button size="sm" variant="outline" asChild>
-                  <Link href={`/dashboard/candidatePortal/${person._id}/offer-letter`}>
+                  <Link href={offerLetterHref}>
                     Send offer
                   </Link>
                 </Button>
@@ -1332,7 +1390,7 @@ export default function PersonDetailPage() {
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/dashboard/candidatePortal/${person._id}`}>
+                  <Link href={hiringHref}>
                     Open hiring record
                   </Link>
                 </Button>
@@ -1355,13 +1413,13 @@ export default function PersonDetailPage() {
                 </h2>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/dashboard/candidatePortal/${person._id}`}>
+                    <Link href={hiringHref}>
                       Open hiring workspace
                     </Link>
                   </Button>
                   {canStartOnboarding() && (
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={`/dashboard/candidatePortal/${person._id}/onboarding`}>
+                      <Link href={onboardingHref}>
                         Start onboarding
                       </Link>
                     </Button>
@@ -1400,12 +1458,12 @@ export default function PersonDetailPage() {
             <TabsContent value="documents" className="mt-4 space-y-4">
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/dashboard/candidatePortal/${person._id}/training-agreement`}>
+                  <Link href={trainingAgreementHref}>
                     Training agreement
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/dashboard/candidatePortal/${person._id}/offer-letter`}>
+                  <Link href={offerLetterHref}>
                     Offer letter
                   </Link>
                 </Button>

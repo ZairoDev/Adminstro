@@ -1,10 +1,22 @@
 import Candidate from "@/models/candidate";
 
-export type CandidateExitReason =
-  | "resigned"
-  | "terminated"
-  | "suspended"
-  | "abscond";
+export const CANDIDATE_EXIT_REASONS = [
+  "resigned",
+  "terminated",
+  "suspended",
+  "abscond",
+] as const;
+
+export type CandidateExitReason = (typeof CANDIDATE_EXIT_REASONS)[number];
+
+export function asCandidateExitReason(
+  value: unknown
+): CandidateExitReason | null {
+  if (typeof value !== "string") return null;
+  return CANDIDATE_EXIT_REASONS.includes(value as CandidateExitReason)
+    ? (value as CandidateExitReason)
+    : null;
+}
 
 /**
  * Mark the candidate linked to an employee as exited (Onboarded → Exited tab).
@@ -12,7 +24,7 @@ export type CandidateExitReason =
  */
 export async function markCandidateExitedByEmployeeId(
   employeeId: string,
-  exitReason: CandidateExitReason,
+  exitReason: CandidateExitReason | null,
   options?: {
     exitedAt?: Date;
     exitNotes?: string | null;

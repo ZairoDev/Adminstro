@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   ChevronLeft,
@@ -74,16 +75,20 @@ import {
 } from "@/lib/utils";
 import { format } from "date-fns";
 import { NotesModal } from "@/app/dashboard/candidatePortal/components/notes-modal";
+import { CreateEmployeeDialog } from "@/app/dashboard/candidatePortal/components/createEmployee";
+import type { CandidateLite } from "@/app/dashboard/candidatePortal/components/new-user";
+import {
+  hiringWorkspacePath,
+  peopleListPath,
+  personPath,
+  employeePath,
+  rememberPeopleListUrl,
+  parsePeopleListQuery,
+  type PeopleListQuery,
+  type PeopleListTab,
+} from "@/features/people/navigation";
 
-export type PeopleListTab =
-  | "pipeline"
-  | "interview"
-  | "shortlisted"
-  | "selected"
-  | "rejected"
-  | "onboarding"
-  | "active"
-  | "exited";
+export type { PeopleListTab };
 
 export interface PeopleListShellProps {
   tab: PeopleListTab;
@@ -462,19 +467,28 @@ function buildListParams(
 }
 
 export function PeopleListShell({ tab }: PeopleListShellProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchKey = searchParams.toString();
+  const listQuery = useMemo(
+    () => parsePeopleListQuery(new URLSearchParams(searchKey)),
+    [searchKey]
+  );
+  const listUrl = peopleListPath({ ...listQuery, tab });
+
   const [candidates, setCandidates] = useState<PeopleListRow[]>([]);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState(listQuery.search);
   const [pagination, setPagination] = useState<PaginationData | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
-  const [selectedRole, setSelectedRole] = useState("all");
-  const [experienceFilter, setExperienceFilter] = useState("all");
   const [availableRoles, setAvailableRoles] = useState<string[]>([
     ...ROLE_OPTIONS,
   ]);
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [notesPerson, setNotesPerson] = useState<PeopleListRow | null>(null);
+  const [createEmployeeOpen, setCreateEmployeeOpen] = useState(false);
+  const [createEmployeeCandidate, setCreateEmployeeCandidate] =
+    useState<CandidateLite | null>(null);
   const [pendingRescheduleRequests, setPendingRescheduleRequests] = useState<
     RescheduleRequest[]
   >([]);
@@ -483,11 +497,44 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
     null
   );
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [dateFilter, setDateFilter] = useState<string>("all");
-  const [customDateFrom, setCustomDateFrom] = useState<Date | undefined>(undefined);
-  const [customDateTo, setCustomDateTo] = useState<Date | undefined>(undefined);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [customRangeDialogOpen, setCustomRangeDialogOpen] = useState(false);
+  const [draftCustomFrom, setDraftCustomFrom] = useState<Date | undefined>(
+    undefined
+  );
+  const [draftCustomTo, setDraftCustomTo] = useState<Date | undefined>(undefined);
+
+  const search = listQuery.search;
+  const page = listQuery.page;
+  const selectedRole = listQuery.role;
+  const experienceFilter = listQuery.experience;
+  const dateFilter = listQuery.date;
+  const customDateFrom = useMemo(
+    () => (listQuery.from ? parseLocalDateString(listQuery.from) : undefined),
+    [listQuery.from]
+  );
+  const customDateTo = useMemo(
+    () => (listQuery.to ? parseLocalDateString(listQuery.to) : undefined),
+    [listQuery.to]
+  );
+
+  const updateListQuery = useCallback(
+    (patch: Partial<PeopleListQuery>, mode: "push" | "replace" = "replace") => {
+      const next: PeopleListQuery = {
+        ...listQuery,
+        tab,
+        ...patch,
+      };
+      const href = peopleListPath(next);
+      rememberPeopleListUrl(href);
+      if (mode === "push") {
+        router.push(href, { scroll: false });
+      } else {
+        router.replace(href, { scroll: false });
+      }
+    },
+    [listQuery, router, tab]
+  );
 
   const dateColumnLabel = DATE_COLUMN_LABEL[tab];
   const columnCount = 9;
@@ -583,13 +630,25 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
   }, []);
 
   useEffect(() => {
-    setPage(1);
-  }, [tab, search, selectedRole, experienceFilter, dateFilter, customDateFrom, customDateTo]);
+    rememberPeopleListUrl(listUrl);
+  }, [listUrl]);
+
+  useEffect(() => {
+    setSearchInput(listQuery.search);
+  }, [listQuery.search]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput === search) return;
+      updateListQuery({ search: searchInput, page: 1 });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput, search, updateListQuery]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       void fetchPeople(search, page, selectedRole, experienceFilter, dateFilter, customDateFrom, customDateTo);
-    }, 300);
+    }, 50);
     return () => clearTimeout(timer);
   }, [search, page, selectedRole, experienceFilter, dateFilter, customDateFrom, customDateTo, fetchPeople]);
 
@@ -738,8 +797,8 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
             <Search className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
             <Input
               placeholder="Search by name, email, or role..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="pl-10"
             />
           </div>
@@ -770,7 +829,10 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                 )}
               </Button>
             )}
-            <Select value={selectedRole} onValueChange={setSelectedRole}>
+            <Select
+              value={selectedRole}
+              onValueChange={(value) => updateListQuery({ role: value, page: 1 })}
+            >
               <SelectTrigger className="h-10 w-[150px]">
                 <SelectValue placeholder="Filter by Role" />
               </SelectTrigger>
@@ -785,7 +847,9 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
             </Select>
             <Select
               value={experienceFilter}
-              onValueChange={setExperienceFilter}
+              onValueChange={(value) =>
+                updateListQuery({ experience: value, page: 1 })
+              }
             >
               <SelectTrigger className="h-10 w-[150px]">
                 <SelectValue placeholder="Experience" />
@@ -822,7 +886,12 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                     variant={dateFilter === "all" ? "default" : "ghost"}
                     className="w-full justify-start"
                     onClick={() => {
-                      setDateFilter("all");
+                      updateListQuery({
+                        date: "all",
+                        from: undefined,
+                        to: undefined,
+                        page: 1,
+                      });
                       setDatePickerOpen(false);
                     }}
                   >
@@ -832,7 +901,12 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                     variant={dateFilter === "today" ? "default" : "ghost"}
                     className="w-full justify-start"
                     onClick={() => {
-                      setDateFilter("today");
+                      updateListQuery({
+                        date: "today",
+                        from: undefined,
+                        to: undefined,
+                        page: 1,
+                      });
                       setDatePickerOpen(false);
                     }}
                   >
@@ -842,7 +916,12 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                     variant={dateFilter === "last7days" ? "default" : "ghost"}
                     className="w-full justify-start"
                     onClick={() => {
-                      setDateFilter("last7days");
+                      updateListQuery({
+                        date: "last7days",
+                        from: undefined,
+                        to: undefined,
+                        page: 1,
+                      });
                       setDatePickerOpen(false);
                     }}
                   >
@@ -852,7 +931,12 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                     variant={dateFilter === "last30days" ? "default" : "ghost"}
                     className="w-full justify-start"
                     onClick={() => {
-                      setDateFilter("last30days");
+                      updateListQuery({
+                        date: "last30days",
+                        from: undefined,
+                        to: undefined,
+                        page: 1,
+                      });
                       setDatePickerOpen(false);
                     }}
                   >
@@ -863,6 +947,8 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                       variant={dateFilter === "custom" ? "default" : "ghost"}
                       className="w-full justify-start"
                       onClick={() => {
+                        setDraftCustomFrom(customDateFrom);
+                        setDraftCustomTo(customDateTo);
                         setDatePickerOpen(false);
                         setCustomRangeDialogOpen(true);
                       }}
@@ -1140,7 +1226,7 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem asChild>
                               <Link
-                                href={`/dashboard/people/${person._id}`}
+                                href={personPath(person._id, { returnTo: listUrl })}
                                 className="flex items-center cursor-pointer"
                               >
                                 <Eye className="mr-2 h-4 w-4" />
@@ -1150,7 +1236,9 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                             {HIRING_RECORD_LINK_TABS.includes(tab) && (
                               <DropdownMenuItem asChild>
                                 <Link
-                                  href={`/dashboard/candidatePortal/${person._id}`}
+                                  href={hiringWorkspacePath(person._id, {
+                                    returnTo: listUrl,
+                                  })}
                                   className="flex items-center cursor-pointer"
                                 >
                                   <FileText className="mr-2 h-4 w-4" />
@@ -1160,20 +1248,28 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                             )}
                             {tab === "onboarding" &&
                               canCreateEmployee(person) && (
-                                <DropdownMenuItem asChild>
-                                  <Link
-                                    href={`/dashboard/candidatePortal/${person._id}`}
-                                    className="flex items-center cursor-pointer"
-                                  >
-                                    <UserPlus className="mr-2 h-4 w-4" />
-                                    Create employee
-                                  </Link>
+                                <DropdownMenuItem
+                                  className="cursor-pointer"
+                                  onSelect={() => {
+                                    setCreateEmployeeCandidate({
+                                      _id: person._id,
+                                      name: person.name,
+                                      email: person.email,
+                                      phone: person.phone,
+                                      experience: person.experience,
+                                      position: person.position,
+                                    });
+                                    setCreateEmployeeOpen(true);
+                                  }}
+                                >
+                                  <UserPlus className="mr-2 h-4 w-4" />
+                                  Create employee
                                 </DropdownMenuItem>
                               )}
                             {tab === "active" && person.employeeId && (
                               <DropdownMenuItem asChild>
                                 <Link
-                                  href={`/dashboard/employeedetails/${person.employeeId}`}
+                                  href={employeePath(person.employeeId, listUrl)}
                                   className="flex items-center cursor-pointer"
                                 >
                                   <Briefcase className="mr-2 h-4 w-4" />
@@ -1203,7 +1299,7 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage(page - 1)}
+                onClick={() => updateListQuery({ page: page - 1 })}
                 disabled={page === 1}
                 aria-label="Previous page"
               >
@@ -1212,7 +1308,7 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage(page + 1)}
+                onClick={() => updateListQuery({ page: page + 1 })}
                 disabled={page === pagination.pages}
                 aria-label="Next page"
               >
@@ -1237,6 +1333,29 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
           onUpdate={handleNotesUpdated}
         />
       )}
+
+      <CreateEmployeeDialog
+        open={createEmployeeOpen}
+        onClose={() => {
+          setCreateEmployeeOpen(false);
+          setCreateEmployeeCandidate(null);
+        }}
+        candidate={createEmployeeCandidate}
+        onCreated={() => {
+          setCreateEmployeeOpen(false);
+          setCreateEmployeeCandidate(null);
+          void fetchPeople(
+            search,
+            page,
+            selectedRole,
+            experienceFilter,
+            dateFilter,
+            customDateFrom,
+            customDateTo
+          );
+          toast.success("Employee created successfully");
+        }}
+      />
 
       {/* Reschedule Requests Modal */}
       <Dialog
@@ -1275,7 +1394,9 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-3">
                           <Link
-                            href={`/dashboard/people/${request.candidateId}`}
+                            href={personPath(request.candidateId, {
+                              returnTo: listUrl,
+                            })}
                             className="font-semibold text-foreground hover:text-primary hover:underline"
                             onClick={() => setRescheduleModalOpen(false)}
                           >
@@ -1392,12 +1513,12 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
               <p className="text-sm font-medium mb-2">From Date</p>
               <Calendar
                 mode="single"
-                selected={customDateFrom}
+                selected={draftCustomFrom}
                 onSelect={(date) => {
-                  setCustomDateFrom(date);
+                  setDraftCustomFrom(date);
                 }}
                 disabled={(date) =>
-                  date > new Date() || (customDateTo ? date > customDateTo : false)
+                  date > new Date() || (draftCustomTo ? date > draftCustomTo : false)
                 }
                 className="rounded-md border"
               />
@@ -1406,12 +1527,12 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
               <p className="text-sm font-medium mb-2">To Date</p>
               <Calendar
                 mode="single"
-                selected={customDateTo}
+                selected={draftCustomTo}
                 onSelect={(date) => {
-                  setCustomDateTo(date);
+                  setDraftCustomTo(date);
                 }}
                 disabled={(date) =>
-                  date > new Date() || (customDateFrom ? date < customDateFrom : false)
+                  date > new Date() || (draftCustomFrom ? date < draftCustomFrom : false)
                 }
                 className="rounded-md border"
               />
@@ -1428,12 +1549,17 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
             </Button>
             <Button
               onClick={() => {
-                if (customDateFrom && customDateTo) {
-                  setDateFilter("custom");
+                if (draftCustomFrom && draftCustomTo) {
+                  updateListQuery({
+                    date: "custom",
+                    from: format(draftCustomFrom, "yyyy-MM-dd"),
+                    to: format(draftCustomTo, "yyyy-MM-dd"),
+                    page: 1,
+                  });
                   setCustomRangeDialogOpen(false);
                 }
               }}
-              disabled={!customDateFrom || !customDateTo}
+              disabled={!draftCustomFrom || !draftCustomTo}
             >
               Apply Range
             </Button>

@@ -19,9 +19,15 @@
  * Apply:
  *   npx tsx src/scripts/migrateEmployeeLifecycle.ts --apply
  *   npm run migrate:employee-lifecycle:apply
+ *
+ * Production env files are `.env.production` / `.env.local` (not `.env`).
+ * This script loads those automatically. Immediate workaround on the VPS:
+ *   cd /var/www/adminstro
+ *   DOTENV_CONFIG_PATH=.env.production npx tsx src/scripts/migrateEmployeeLifecycle.ts
  */
-import "dotenv/config";
-
+import dotenv from "dotenv";
+import fs from "node:fs";
+import path from "node:path";
 import { Types } from "mongoose";
 import { connectDb } from "@/util/db";
 import Candidate from "@/models/candidate";
@@ -30,6 +36,48 @@ import { asCandidateExitReason } from "@/lib/candidate/markCandidateExited";
 
 const APPLY = process.argv.includes("--apply");
 const LEGACY_PLACEHOLDER = "legacy-migration";
+
+function fileExists(filePath: string): boolean {
+  try {
+    return fs.statSync(filePath).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function loadScriptEnv(): { loaded: string[]; tried: string[] } {
+  const loaded: string[] = [];
+  const tried: string[] = [];
+  const names = [".env.production", ".env.local", ".env"];
+  const roots = [process.cwd(), "/var/www/adminstro"];
+  const uniquePaths: string[] = [];
+
+  if (process.env.DOTENV_CONFIG_PATH) {
+    uniquePaths.push(path.resolve(process.env.DOTENV_CONFIG_PATH));
+  }
+
+  for (const root of roots) {
+    for (const name of names) {
+      const filePath = path.resolve(root, name);
+      if (!uniquePaths.includes(filePath)) uniquePaths.push(filePath);
+    }
+  }
+
+  for (const filePath of uniquePaths) {
+    tried.push(filePath);
+    if (!fileExists(filePath)) continue;
+    const result = dotenv.config({ path: filePath, override: false });
+    if (!result.error) loaded.push(filePath);
+  }
+
+  if (!process.env.MONGO_DB_URL?.trim() && process.env.MONGODB_URI?.trim()) {
+    process.env.MONGO_DB_URL = process.env.MONGODB_URI;
+  }
+
+  return { loaded, tried };
+}
+
+const scriptEnv = loadScriptEnv();
 
 interface EmployeeRow {
   _id: Types.ObjectId;
@@ -42,7 +90,7 @@ interface EmployeeRow {
   country?: string;
   gender?: string;
   profilePic?: string;
-  allotedArea?: string[];
+  allotedArea?: unknown;
   dateOfJoining?: Date | null;
   createdAt?: Date;
   isActive?: boolean;
@@ -90,19 +138,29 @@ function exitedAtFrom(employee: EmployeeRow): Date {
   return asDate(employee.inactiveDate) ?? new Date();
 }
 
+function asText(value: unknown, fallback = ""): string {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
 function firstArea(employee: EmployeeRow): string {
-  const area = employee.allotedArea?.find(
-    (value) => typeof value === "string" && value.trim()
-  );
-  return area?.trim() || "Unknown";
+  const raw = employee.allotedArea;
+  const values = Array.isArray(raw)
+    ? raw
+    : typeof raw === "string"
+      ? raw.split(",")
+      : [];
+  const area = values
+    .map((value) => String(value).trim())
+    .find((value) => value.length > 0);
+  return area || "Unknown";
 }
 
 function candidateShellFromEmployee(employee: EmployeeRow) {
-  const name = employee.name?.trim() || "Unknown";
-  const email = employee.email?.trim() || "";
-  const phone = employee.phone?.trim() || "0000000000";
+  const name = asText(employee.name, "Unknown");
+  const email = asText(employee.email);
+  const phone = asText(employee.phone, "0000000000");
   const employedAt = employedAtFrom(employee);
-  const photo = employee.profilePic?.trim() || LEGACY_PLACEHOLDER;
+  const photo = asText(employee.profilePic, LEGACY_PLACEHOLDER);
   const gender =
     employee.gender === "Male" ||
     employee.gender === "Female" ||
@@ -118,13 +176,13 @@ function candidateShellFromEmployee(employee: EmployeeRow) {
       typeof employee.experience === "number" &&
       Number.isFinite(employee.experience)
         ? employee.experience
-        : 0,
-    address: employee.address?.trim() || "N/A",
+        : Number.parseFloat(String(employee.experience ?? "")) || 0,
+    address: asText(employee.address, "N/A"),
     city: firstArea(employee),
     gender,
-    country: employee.country?.trim() || "India",
+    country: asText(employee.country, "India"),
     college: "N/A",
-    position: employee.role?.trim() || "Employee",
+    position: asText(employee.role, "Employee"),
     resumeUrl: LEGACY_PLACEHOLDER,
     photoUrl: photo,
     status: "onboarding",
@@ -152,6 +210,23 @@ function candidateShellFromEmployee(employee: EmployeeRow) {
 }
 
 async function run(): Promise<void> {
+  if (!process.env.MONGO_DB_URL?.trim()) {
+    console.error("MONGO_DB_URL is not defined.");
+    console.error(
+      `Loaded env files: ${scriptEnv.loaded.length > 0 ? scriptEnv.loaded.join(", ") : "(none)"}`
+    );
+    console.error("Looked in:");
+    for (const filePath of scriptEnv.tried) {
+      console.error(`  - ${filePath}`);
+    }
+    console.error("");
+    console.error("The VPS keeps secrets in .env.production / .env.local, not .env.");
+    console.error("Run from the live app dir, or point dotenv at that file:");
+    console.error("  cd /var/www/adminstro");
+    console.error("  DOTENV_CONFIG_PATH=.env.production npx tsx src/scripts/migrateEmployeeLifecycle.ts");
+    process.exit(1);
+  }
+
   await connectDb();
 
   const employees = (await Employees.find({})
@@ -298,46 +373,56 @@ async function run(): Promise<void> {
 
     if (!APPLY) continue;
 
-    if (linkSource === "create") {
-      const created = await Candidate.create(candidateShellFromEmployee(employee));
-      await Employees.findByIdAndUpdate(employee._id, {
-        $set: { candidateId: created._id },
-      });
-      continue;
-    }
-
-    if (!candidate) continue;
-
-    const candidateSet: Record<string, unknown> = {};
-    if (needsForwardLink) {
-      candidateSet.employeeId = employee._id;
-    }
-    if (needsEmployedAt) {
-      candidateSet.employedAt = employedAtFrom(employee);
-    }
-
-    if (!isCurrentlyActive(employee)) {
-      if (!asDate(candidate.exitedAt)) {
-        candidateSet.exitedAt = exitedAtFrom(employee);
+    try {
+      if (linkSource === "create") {
+        const created = await Candidate.create(
+          candidateShellFromEmployee(employee)
+        );
+        await Employees.findByIdAndUpdate(employee._id, {
+          $set: { candidateId: created._id },
+        });
+        continue;
       }
-      if (!candidate.exitReason) {
-        const reason = asCandidateExitReason(employee.inactiveReason);
-        if (reason) candidateSet.exitReason = reason;
+
+      if (!candidate) continue;
+
+      const candidateSet: Record<string, unknown> = {};
+      if (needsForwardLink) {
+        candidateSet.employeeId = employee._id;
       }
-    } else if (asDate(candidate.exitedAt)) {
-      candidateSet.exitedAt = null;
-      candidateSet.exitReason = null;
-      candidateSet.exitNotes = null;
-    }
+      if (needsEmployedAt) {
+        candidateSet.employedAt = employedAtFrom(employee);
+      }
 
-    if (Object.keys(candidateSet).length > 0) {
-      await Candidate.findByIdAndUpdate(candidate._id, { $set: candidateSet });
-    }
+      if (!isCurrentlyActive(employee)) {
+        if (!asDate(candidate.exitedAt)) {
+          candidateSet.exitedAt = exitedAtFrom(employee);
+        }
+        if (!candidate.exitReason) {
+          const reason = asCandidateExitReason(employee.inactiveReason);
+          if (reason) candidateSet.exitReason = reason;
+        }
+      } else if (asDate(candidate.exitedAt)) {
+        candidateSet.exitedAt = null;
+        candidateSet.exitReason = null;
+        candidateSet.exitNotes = null;
+      }
 
-    if (needsReverseLink) {
-      await Employees.findByIdAndUpdate(employee._id, {
-        $set: { candidateId: candidate._id },
-      });
+      if (Object.keys(candidateSet).length > 0) {
+        await Candidate.findByIdAndUpdate(candidate._id, { $set: candidateSet });
+      }
+
+      if (needsReverseLink) {
+        await Employees.findByIdAndUpdate(employee._id, {
+          $set: { candidateId: candidate._id },
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      conflictNotes.push(
+        `${employee.email || employeeId}: apply failed: ${message}`
+      );
+      console.error(`Failed on ${employee.email || employeeId}:`, error);
     }
   }
 

@@ -1,4 +1,5 @@
 import Candidate from "@/models/candidate";
+import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { parseLocalDateString } from "@/lib/utils";
 import { type NextRequest, NextResponse } from "next/server";
@@ -10,6 +11,7 @@ const ONBOARDING_DOCUMENT_FIELDS = [
   "aadharCardFront",
   "aadharCardBack",
   "panCard",
+  "cancelledCheque",
   "highSchoolMarksheet",
   "interMarksheet",
   "graduationMarksheet",
@@ -321,6 +323,27 @@ export async function GET(request: NextRequest) {
       .skip(skip)
       .limit(limit)
       .lean();
+
+    // Attach the linked employee's display code without changing the shape
+    // of `employeeId` itself (existing UI relies on it staying a plain
+    // ObjectId string, e.g. for building profile links).
+    const employeeIds = candidates
+      .map((candidate) => candidate.employeeId)
+      .filter((employeeId): employeeId is NonNullable<typeof employeeId> => Boolean(employeeId));
+    if (employeeIds.length > 0) {
+      const employees = await Employees.find({ _id: { $in: employeeIds } })
+        .select("_id employeeCode")
+        .lean();
+      const codeByEmployeeId = new Map(
+        employees.map((employee) => [String(employee._id), employee.employeeCode ?? null]),
+      );
+      for (const candidate of candidates as Array<Record<string, unknown>>) {
+        const employeeId = candidate.employeeId;
+        candidate.employeeCode = employeeId
+          ? codeByEmployeeId.get(String(employeeId)) ?? null
+          : null;
+      }
+    }
 
     // console.log("Query:", query);
     // console.log("Fetched Candidates:", candidates);

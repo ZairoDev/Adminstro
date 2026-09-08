@@ -105,7 +105,7 @@ export default function DashboardLayout({
   if (isOnboarding) {
     return (
       <QueryProvider>
-        <main className="min-h-screen bg-background">{children}</main>
+        <main className="min-h-screen bg-[#f6f3ee] dark:bg-background">{children}</main>
       </QueryProvider>
     );
   }

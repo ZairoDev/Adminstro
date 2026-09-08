@@ -180,6 +180,7 @@ export default function EmployeeTable({
               <SelectItem value="name">Name</SelectItem>
               <SelectItem value="email">Email</SelectItem>
               <SelectItem value="phone">Phone</SelectItem>
+              <SelectItem value="employeeCode">Employee Code</SelectItem>
             </SelectContent>
           </Select>
 
@@ -192,7 +193,9 @@ export default function EmployeeTable({
                 return;
               }
               const updatedEmployeeList = employeeList.filter((emp) =>
-                String(emp[queryType as "name" | "email" | "phone"] ?? "")
+                String(
+                  emp[queryType as "name" | "email" | "phone" | "employeeCode"] ?? ""
+                )
                   .toLowerCase()
                   .includes(value)
               );
@@ -263,6 +266,7 @@ export default function EmployeeTable({
         <TableHeader>
           <TableRow>
             <TableHead>S.No.</TableHead>
+            <TableHead>Employee Code</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Contact</TableHead>
             <TableHead>Email</TableHead>
@@ -282,6 +286,9 @@ export default function EmployeeTable({
             return (
               <TableRow key={employee._id}>
                 <TableCell>{index + 1}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  {employee.employeeCode || "—"}
+                </TableCell>
                 <TableCell
                   className={`${employee.isActive ? "text-green-600" : "text-red-600"}`}
                 >

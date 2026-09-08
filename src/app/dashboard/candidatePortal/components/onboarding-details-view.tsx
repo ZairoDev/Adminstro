@@ -30,6 +30,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DocumentVerification } from "./document-verification";
 import { toast } from "sonner";
+import { getOnboardingDocumentLabel } from "@/lib/people/onboarding-documents";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +61,7 @@ interface OnboardingDetails {
     aadharCardFront?: string;
     aadharCardBack?: string;
     panCard?: string;
+    cancelledCheque?: string;
     highSchoolMarksheet?: string;
     interMarksheet?: string;
     graduationMarksheet?: string;
@@ -132,21 +134,6 @@ interface OnboardingDetailsViewProps {
   onUpdate?: () => void | Promise<void>;
 }
 
-const DOCUMENT_LABELS: Record<string, string> = {
-  aadharCard: "Aadhar Card", // Backward compatibility
-  aadharCardFront: "Aadhar Card - Front",
-  aadharCardBack: "Aadhar Card - Back",
-  panCard: "PAN Card",
-  sign: "Digital Signature",
-  highSchoolMarksheet: "High School Marksheet",
-  interMarksheet: "Intermediate Marksheet",
-  graduationMarksheet: "Graduation Marksheet",
-  experienceLetter: "Experience Letter",
-  relievingLetter: "Relieving Letter",
-  salarySlips: "Salary Slips",
-};
-
-// Info row component for compact display
 function InfoRow({ label, value, mono = false }: { label: string; value: string | undefined; mono?: boolean }) {
   if (!value) return null;
   return (
@@ -605,7 +592,7 @@ export function OnboardingDetailsView({
                 <div className="flex flex-wrap gap-1 mt-2">
                   {onboardingDetails.reuploadRequest.requestedDocuments?.map((doc) => (
                     <Badge key={doc} variant="outline" className="text-[10px] bg-blue-100 text-blue-700 border-blue-300">
-                      {DOCUMENT_LABELS[doc] || doc}
+                      {getOnboardingDocumentLabel(doc)}
                     </Badge>
                   ))}
                 </div>
@@ -865,7 +852,7 @@ export function OnboardingDetailsView({
                       verifiedAt={documentVerification?.[key]?.verifiedAt || null}
                       canVerify={canVerify}
                       onVerifyChange={handleDocumentVerify}
-                      label={DOCUMENT_LABELS[key] || key}
+                      label={getOnboardingDocumentLabel(key)}
                     />
                   );
                 })}
@@ -880,7 +867,7 @@ export function OnboardingDetailsView({
                     verifiedAt={documentVerification?.sign?.verifiedAt || null}
                     canVerify={canVerify}
                     onVerifyChange={handleDocumentVerify}
-                    label={DOCUMENT_LABELS.sign || "Digital Signature"}
+                    label={getOnboardingDocumentLabel("sign")}
                   />
                 )}
               </div>
@@ -1006,22 +993,30 @@ export function OnboardingDetailsView({
                           
                           docOptions.push({
                             key: "aadharCardFront",
-                            label: DOCUMENT_LABELS.aadharCardFront || "Aadhaar Card - Front",
+                            label: getOnboardingDocumentLabel("aadharCardFront"),
                             isVerified: oldAadharVerified || (documentVerification?.aadharCardFront?.verified || false),
                           });
                           docOptions.push({
                             key: "aadharCardBack",
-                            label: DOCUMENT_LABELS.aadharCardBack || "Aadhaar Card - Back",
+                            label: getOnboardingDocumentLabel("aadharCardBack"),
                             isVerified: oldAadharVerified || (documentVerification?.aadharCardBack?.verified || false),
                           });
                         } else {
                           docOptions.push({
                             key,
-                            label: DOCUMENT_LABELS[key] || key,
+                            label: getOnboardingDocumentLabel(key),
                             isVerified: documentVerification?.[key]?.verified || false,
                           });
                         }
                       });
+
+                      if (!docOptions.some((option) => option.key === "cancelledCheque")) {
+                        docOptions.push({
+                          key: "cancelledCheque",
+                          label: `${getOnboardingDocumentLabel("cancelledCheque")} (not uploaded)`,
+                          isVerified: false,
+                        });
+                      }
 
                       return docOptions.map(({ key, label, isVerified }) => (
                         <div key={key} className="flex items-center gap-3">

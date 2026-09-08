@@ -4,6 +4,13 @@ import { EmployeeSchema } from "@/schemas/employee.schema";
 import { DEFAULT_ORGANIZATION, ORGANIZATIONS } from "@/util/organizationConstants";
 
 interface IEmployee extends Document, EmployeeSchema {
+  /**
+   * Human-readable, permanent employee identifier, e.g. "ZI-4K7QXH".
+   * Assigned once at creation (see src/lib/people/employeeCode.ts) and never
+   * changed afterwards. Absent on legacy documents until the backfill script
+   * (npm run backfill:employee-code) has been run.
+   */
+  employeeCode?: string | null;
   candidateId?: Types.ObjectId | null;
   pricingRule: {
     enabled: boolean;
@@ -228,6 +235,17 @@ const employeeSchema = new Schema<IEmployee>(
       ref: "Candidate",
       default: null,
       index: true,
+    },
+    // Sparse so legacy docs without a code (pre-backfill) don't violate the
+    // unique index — note this deliberately has NO `default`, since a sparse
+    // index only excludes documents where the field is truly *absent*, not
+    // documents where it's explicitly `null` (which would still collide with
+    // each other). Immutable so no update path can ever overwrite it once set.
+    employeeCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      immutable: true,
     },
     inactiveReason: {
       type: String,

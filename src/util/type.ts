@@ -70,6 +70,8 @@ export type SeparationType = "terminated" | "suspended" | "abscond" | "resigned"
 
 export interface EmployeeInterface {
   _id: string;
+  /** Permanent human-readable ID, e.g. "ZI-4K7QXH". Null until backfilled on legacy records. */
+  employeeCode?: string | null;
   name: string;
   email: string;
   organization?: "VacationSaga" | "Holidaysera" | "HousingSaga";
@@ -268,6 +270,8 @@ export interface VSID {
 
 export interface UserInterface {
   _id: string;
+  /** Permanent human-readable ID, e.g. "ZI-4K7QXH". Null until backfilled on legacy records. */
+  employeeCode?: string | null;
   address: string;
   bankDetails: string;
   createdAt: string;

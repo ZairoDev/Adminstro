@@ -226,6 +226,7 @@ const CandidateSchema = new Schema(
         aadharCardFront: { type: String, default: null },
         aadharCardBack: { type: String, default: null },
         panCard: { type: String, default: null },
+        cancelledCheque: { type: String, default: null },
         highSchoolMarksheet: { type: String, default: null },
         interMarksheet: { type: String, default: null },
         graduationMarksheet: { type: String, default: null },
@@ -250,6 +251,11 @@ const CandidateSchema = new Schema(
           verifiedAt: { type: Date, default: null },
         },
         panCard: {
+          verified: { type: Boolean, default: false },
+          verifiedBy: { type: String, default: null },
+          verifiedAt: { type: Date, default: null },
+        },
+        cancelledCheque: {
           verified: { type: Boolean, default: false },
           verifiedBy: { type: String, default: null },
           verifiedAt: { type: Date, default: null },

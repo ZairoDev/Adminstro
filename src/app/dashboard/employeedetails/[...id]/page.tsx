@@ -1328,6 +1328,11 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                 <p className="text-muted-foreground line-clamp-1">
                   {user?.email}
                 </p>
+                {user?.employeeCode && (
+                  <p className="font-mono text-xs text-muted-foreground">
+                    {user.employeeCode}
+                  </p>
+                )}
                 <div className="relative w-full">
                   <div>
                     {newpassword && (

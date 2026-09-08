@@ -4,18 +4,35 @@ import type React from "react";
 
 import { useState, useEffect,useRef } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { Check, AlertCircle, Upload, Loader2, FileText, X, Download, Eye, Plus, Trash2 } from "lucide-react";
+import { Check, AlertCircle, Upload, Loader2, FileText, Download, Eye, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { useToast } from "@/hooks/use-toast";
 import { TermsConditionsModal } from "../../components/terms-conditions-modal";
 import { SignaturePreviewModal } from "../../components/signature-preview-modal";
 import { SignaturePad } from "../../components/signature-pad";
+import {
+  OnboardingDocumentDropzone,
+  OnboardingSectionHeader,
+} from "../../components/onboarding-document-dropzone";
+import {
+  OnboardingAlert,
+  OnboardingCard,
+  OnboardingFact,
+  OnboardingField,
+  OnboardingHero,
+  OnboardingPageShell,
+  OnboardingPdfPreview,
+  OnboardingProgress,
+  OnboardingSegmented,
+  OnboardingSignaturePhotoGuide,
+  OnboardingStickyBar,
+  onboardingControlClass,
+} from "../../components/onboarding-shell";
 import { PDFDocument } from "pdf-lib";
 import axios from "@/util/axios";
 
@@ -69,6 +86,7 @@ import axios from "@/util/axios";
         aadharCardFront: string;
         aadharCardBack: string;
         panCard: string;
+        cancelledCheque?: string;
         highSchoolMarksheet: string;
         interMarksheet: string;
         graduationMarksheet: string;
@@ -115,6 +133,7 @@ interface DocumentsState {
   aadharCardFront: UploadedFile | null;
   aadharCardBack: UploadedFile | null;
   panCard: UploadedFile | null;
+  cancelledCheque: UploadedFile | null;
   highSchoolMarksheet: UploadedFile | null;
   interMarksheet: UploadedFile | null;
   graduationMarksheet: UploadedFile | null;
@@ -132,26 +151,23 @@ interface CompanyExperience {
 }
 
 const LoadingSkeleton = () => (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
-    <div className="w-full max-w-4xl space-y-6">
-      <div className="text-center space-y-4">
-        <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg w-3/4 mx-auto animate-pulse" />
-        <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-2/3 mx-auto animate-pulse" />
-      </div>
-      {[...Array(3)].map((_, i) => (
-        <div
-          key={i}
-          className="space-y-3 p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 animate-pulse"
-        >
-          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/4" />
-          <div className="space-y-2">
-            <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded w-full" />
-            <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded w-full" />
-          </div>
-        </div>
-      ))}
+  <OnboardingPageShell>
+    <div className="mb-8 space-y-3">
+      <div className="h-3 w-24 animate-pulse rounded bg-muted" />
+      <div className="h-8 w-3/4 animate-pulse rounded-lg bg-muted" />
+      <div className="h-4 w-full max-w-md animate-pulse rounded bg-muted/80" />
     </div>
-  </div>
+    {[...Array(3)].map((_, i) => (
+      <div
+        key={i}
+        className="mb-4 space-y-3 rounded-2xl border border-border bg-card p-5"
+      >
+        <div className="h-5 w-1/3 animate-pulse rounded bg-muted" />
+        <div className="h-11 w-full animate-pulse rounded-md bg-muted/70" />
+        <div className="h-11 w-full animate-pulse rounded-md bg-muted/70" />
+      </div>
+    ))}
+  </OnboardingPageShell>
 );
 
 async function urlToUint8Array(url: string): Promise<Uint8Array> {
@@ -219,6 +235,7 @@ export default function OnboardingPage() {
     aadharCardFront: "Aadhaar Card - Front",
     aadharCardBack: "Aadhaar Card - Back",
     panCard: "PAN Card",
+    cancelledCheque: "Cancelled Cheque",
     highSchoolMarksheet: "High School Marksheet",
     interMarksheet: "Intermediate Marksheet",
     graduationMarksheet: "Graduation Marksheet",
@@ -285,6 +302,7 @@ export default function OnboardingPage() {
     aadharCardFront: null,
     aadharCardBack: null,
     panCard: null,
+    cancelledCheque: null,
     highSchoolMarksheet: null,
     interMarksheet: null,
     graduationMarksheet: null,
@@ -307,7 +325,7 @@ export default function OnboardingPage() {
   const [signature, setSignature] = useState<UploadedFile | null>(null);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [useDigitalSignature, setUseDigitalSignature] = useState(true);
-  const [showSignaturePad, setShowSignaturePad] = useState(true);
+  const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [previewSignature, setPreviewSignature] = useState<string | null>(null);
   const [showSignaturePreview, setShowSignaturePreview] = useState(false);
   const [unsignedPdfUrl, setUnsignedPdfUrl] = useState<string | null>(null);
@@ -461,6 +479,9 @@ export default function OnboardingPage() {
                 aadharCardFront: aadharCard ? { url: aadharCard, name: "Aadhar Card" } : (docs.aadharCardFront ? { url: docs.aadharCardFront, name: "Aadhar Card Front" } : null),
                 aadharCardBack: docs.aadharCardBack ? { url: docs.aadharCardBack, name: "Aadhar Card Back" } : null,
                 panCard: docs.panCard ? { url: docs.panCard, name: "PAN Card" } : null,
+                cancelledCheque: docs.cancelledCheque
+                  ? { url: docs.cancelledCheque, name: "Cancelled Cheque" }
+                  : null,
                 highSchoolMarksheet: docs.highSchoolMarksheet ? { url: docs.highSchoolMarksheet, name: "High School Marksheet" } : null,
                 interMarksheet: docs.interMarksheet ? { url: docs.interMarksheet, name: "Intermediate Marksheet" } : null,
                 graduationMarksheet: docs.graduationMarksheet ? { url: docs.graduationMarksheet, name: "Graduation Marksheet" } : null,
@@ -821,6 +842,7 @@ export default function OnboardingPage() {
             aadharCardFront: "Aadhar Card Front",
             aadharCardBack: "Aadhar Card Back",
             panCard: "PAN Card",
+            cancelledCheque: "Cancelled Cheque",
             highSchoolMarksheet: "High School Marksheet",
             interMarksheet: "Intermediate Marksheet",
             graduationMarksheet: "Graduation Marksheet",
@@ -843,6 +865,10 @@ export default function OnboardingPage() {
     }
     if (!documents.panCard) {
       setError("Please upload PAN card");
+      return false;
+    }
+    if (!documents.cancelledCheque) {
+      setError("Please upload a cancelled cheque");
       return false;
     }
     if (!documents.highSchoolMarksheet) {
@@ -1029,7 +1055,10 @@ export default function OnboardingPage() {
 
   const handleSubmitClick = (e: React.FormEvent) => {
     e.preventDefault();
-    // Show confirmation dialog before submitting
+    if (!validateForm()) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     setShowConfirmDialog(true);
   };
 
@@ -1310,6 +1339,7 @@ export default function OnboardingPage() {
       formData.append("aadharCardFront", documents.aadharCardFront?.url || "");
       formData.append("aadharCardBack", documents.aadharCardBack?.url || "");
       formData.append("panCard", documents.panCard?.url || "");
+      formData.append("cancelledCheque", documents.cancelledCheque?.url || "");
       formData.append(
         "highSchoolMarksheet",
         documents.highSchoolMarksheet?.url || ""
@@ -1525,370 +1555,291 @@ export default function OnboardingPage() {
 
   if (!candidate || candidate.status !== "onboarding" ) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-8">
-        <div className="max-w-4xl mx-auto">
-          <Card className="p-8 text-center bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-            <AlertCircle className="w-12 h-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
-            <p className="text-lg font-semibold text-foreground mb-2">
-              Access Denied
-            </p>
-            <p className="text-muted-foreground">
-              Only selected candidates can access onboarding
-            </p>
-          </Card>
-        </div>
-      </div>
+      <OnboardingPageShell narrow>
+        <OnboardingCard className="text-center">
+          <AlertCircle className="mx-auto mb-4 h-10 w-10 text-destructive" aria-hidden />
+          <h1 className="text-lg font-semibold text-foreground">
+            Onboarding is not available
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Only selected candidates can complete onboarding from this page.
+          </p>
+        </OnboardingCard>
+      </OnboardingPageShell>
     );
   }
 
   // Re-upload Mode - Simplified View with only requested documents
   if (isReuploadMode) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-amber-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
-        <div className="w-full max-w-2xl">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-amber-600 to-amber-800 dark:from-amber-400 dark:to-amber-600 bg-clip-text text-transparent mb-3">
-              Document Re-upload
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              Please re-upload the following documents
-            </p>
-          </div>
-
-          {/* Success Message */}
-          {success && (
-            <div className="mb-6 p-4 bg-green-50 dark:bg-green-950/30 border border-green-300 dark:border-green-800 rounded-lg flex items-center gap-3 shadow-sm">
-              <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-green-800 dark:text-green-300">
-                  Documents Re-uploaded Successfully!
-                </p>
-                <p className="text-sm text-green-700 dark:text-green-400">
-                  HR has been notified and will review your documents shortly.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Error Message */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded-lg flex items-start gap-3 shadow-sm">
-              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-red-800 dark:text-red-300">Error</p>
-                <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Already Completed Message */}
-          {reuploadCompleted && !success && (
-            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-300 dark:border-blue-800 rounded-lg flex items-center gap-3 shadow-sm">
-              <Check className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">
-                  Documents Already Submitted
-                </p>
-                <p className="text-sm text-blue-700 dark:text-blue-400">
-                  You have already re-uploaded the requested documents. HR will review them shortly.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Reason Banner */}
-          {reuploadReason && !reuploadCompleted && (
-            <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-lg shadow-sm">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                    Reason for Re-upload
-                  </p>
-                  <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
-                    {reuploadReason}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Tips */}
-          {!reuploadCompleted && (
-            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-sm text-blue-800 dark:text-blue-300 font-medium mb-2">
-                💡 Tips for better document uploads:
-              </p>
-              <ul className="text-xs text-blue-700 dark:text-blue-400 space-y-1 list-disc list-inside">
-                <li>Take photos in portrait mode with good lighting</li>
-                <li>Ensure all text is clearly visible and not blurred</li>
-                <li>Avoid shadows or glare on the document</li>
-                <li>Make sure the entire document is visible in the frame</li>
-              </ul>
-            </div>
-          )}
-
-          {/* Document Upload Cards - Only requested documents */}
-          {!reuploadCompleted && (
-            <form onSubmit={handleSubmitClick} noValidate className="space-y-4">
-              <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-amber-600 text-white flex items-center justify-center text-sm font-semibold">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <h2 className="text-lg font-semibold text-foreground">
-                    Documents to Re-upload
-                  </h2>
-                </div>
-                <div className="space-y-4">
-                  {reuploadDocuments.map((docKey) => {
-                    const doc = documents[docKey as keyof typeof documents] as UploadedFile | null;
-                    const isUploading = uploadingFiles.has(docKey);
-                    const label = DOCUMENT_LABELS[docKey] || docKey;
-
-                    return (
-                      <div key={docKey} className="space-y-2">
-                        <label className="block text-sm font-medium text-foreground items-center gap-2">
-                          {label}
-                          <span className="text-red-500">*</span>
-                          {isUploading && (
-                            <Loader2 className="w-4 h-4 animate-spin text-amber-600 inline-block ml-2" />
-                          )}
-                        </label>
-                        <div className="relative">
-                          <label className="flex items-center justify-center w-full px-4 py-4 border-2 border-dashed border-amber-300 dark:border-amber-700 rounded-lg cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors hover:border-amber-400 dark:hover:border-amber-600">
-                            <div className="flex items-center gap-2 text-foreground">
-                              {doc ? (
-                                <>
-                                  <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
-                                  <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                                    {doc.name}
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  <Upload className="w-5 h-5 text-amber-600" />
-                                  <span className="text-sm text-amber-700 dark:text-amber-400">
-                                    Click to upload {label}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                            <input
-                              type="file"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={(e) =>
-                                handleDocumentChange(e, docKey as keyof typeof documents)
-                              }
-                              className="hidden"
-                              disabled={isUploading}
-                              name={`reupload-${docKey}`}
-                            />
-                          </label>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </Card>
-
-              {/* Submit Button */}
+      <OnboardingPageShell
+        footer={
+          !reuploadCompleted ? (
+            <OnboardingStickyBar>
               <Button
                 type="submit"
+                form="onboarding-reupload-form"
                 disabled={submitting || uploadingFiles.size > 0}
-                className="w-full gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                size="lg"
+                className="h-12 w-full gap-2 text-base"
               >
                 {submitting ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Re-uploading Documents...
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Submitting…
                   </>
                 ) : (
                   <>
-                    <Upload className="w-4 h-4" />
-                    Submit Re-uploaded Documents
+                    <Upload className="h-4 w-4" />
+                    Submit documents
                   </>
                 )}
               </Button>
-            </form>
-          )}
+            </OnboardingStickyBar>
+          ) : undefined
+        }
+      >
+        <OnboardingHero
+          eyebrow="Onboarding"
+          title="Re-upload documents"
+          description="HR asked for clearer copies of the files below. Upload replacements, then submit."
+        />
 
-          {/* Confirmation Dialog */}
-          <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-            <DialogContent className="bg-white dark:bg-gray-800">
-              <DialogHeader>
-                <DialogTitle className="text-foreground">
-                  Confirm Document Re-upload
-                </DialogTitle>
-                <DialogDescription className="text-muted-foreground">
-                  Are you sure you want to submit the re-uploaded documents? HR will be notified and will review them shortly.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowConfirmDialog(false)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleConfirmSubmit}
-                  disabled={submitting}
-                  className="bg-amber-600 hover:bg-amber-700"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Re-uploading...
-                    </>
-                  ) : (
-                    "Yes, Submit Documents"
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+        {success ? (
+          <OnboardingAlert tone="success" title="Documents submitted">
+            HR has been notified and will review them shortly.
+          </OnboardingAlert>
+        ) : null}
+
+        {error ? (
+          <OnboardingAlert tone="error" title="Could not submit">
+            {error}
+          </OnboardingAlert>
+        ) : null}
+
+        {reuploadCompleted && !success ? (
+          <OnboardingAlert tone="info" title="Already submitted">
+            You have already re-uploaded these documents. HR will review them shortly.
+          </OnboardingAlert>
+        ) : null}
+
+        {reuploadReason && !reuploadCompleted ? (
+          <OnboardingAlert tone="warning" title="Why this was requested">
+            {reuploadReason}
+          </OnboardingAlert>
+        ) : null}
+
+        {!reuploadCompleted ? (
+          <>
+            <OnboardingCard className="mb-4">
+              <p className="text-sm font-medium text-foreground">
+                Tips for a clear photo
+              </p>
+              <ul className="mt-2 space-y-1.5 text-sm leading-6 text-muted-foreground">
+                <li>Hold the phone in portrait with even lighting</li>
+                <li>Keep all text sharp and unblurred</li>
+                <li>Avoid shadows or glare on the page</li>
+                <li>Fit the full document in the frame</li>
+              </ul>
+            </OnboardingCard>
+
+            <form
+              id="onboarding-reupload-form"
+              onSubmit={handleSubmitClick}
+              noValidate
+            >
+              <OnboardingCard>
+                <OnboardingSectionHeader
+                  step={<FileText className="h-4 w-4" aria-hidden />}
+                  title="Documents to re-upload"
+                  description="Upload a replacement for each file listed below."
+                />
+                <div className="grid grid-cols-1 gap-4">
+                  {reuploadDocuments.map((docKey) => {
+                    const doc = documents[
+                      docKey as keyof typeof documents
+                    ] as UploadedFile | null;
+                    const label = DOCUMENT_LABELS[docKey] || docKey;
+
+                    return (
+                      <OnboardingDocumentDropzone
+                        key={docKey}
+                        id={`reupload-${docKey}`}
+                        label={label}
+                        file={doc}
+                        uploading={uploadingFiles.has(docKey)}
+                        hint={
+                          docKey === "cancelledCheque"
+                            ? 'Write “CANCELLED” across a cheque of the salary account.'
+                            : undefined
+                        }
+                        onChange={(e) =>
+                          handleDocumentChange(
+                            e,
+                            docKey as keyof typeof documents
+                          )
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              </OnboardingCard>
+            </form>
+          </>
+        ) : null}
+
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <DialogContent className="bg-card">
+            <DialogHeader>
+              <DialogTitle>Confirm re-upload</DialogTitle>
+              <DialogDescription>
+                Submit these files for HR to review? You can close this page after they are sent.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                onClick={() => setShowConfirmDialog(false)}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="min-h-11"
+                onClick={handleConfirmSubmit}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting…
+                  </>
+                ) : (
+                  "Submit documents"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </OnboardingPageShell>
     );
   }
 
   // Resignature Mode - Only show document signing
   if (isResignatureMode && resignatureValid) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
-        <div className="w-full max-w-4xl">
-          {/* Enhanced Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-amber-600 to-amber-800 dark:from-amber-400 dark:to-amber-600 bg-clip-text text-transparent mb-3">
-              Re-sign Onboarding Agreement
-            </h1>
-            <p className="text-lg text-muted-foreground">
-              Please review and re-sign the onboarding agreement document only
-            </p>
-            {candidate?.onboardingDetails?.resignatureRequest?.reason && (
-              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
-                <p className="text-sm text-amber-800 dark:text-amber-200">
-                  <strong>Reason:</strong> {candidate.onboardingDetails.resignatureRequest.reason}
-                </p>
-              </div>
-            )}
-          </div>
+      <OnboardingPageShell
+        footer={
+          <OnboardingStickyBar>
+            <Button
+              type="submit"
+              form="onboarding-resignature-form"
+              disabled={submitting || !signature?.url || generatingPdf}
+              className="h-12 w-full gap-2 text-base"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Submitting…
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4" />
+                  Re-sign and submit
+                </>
+              )}
+            </Button>
+          </OnboardingStickyBar>
+        }
+      >
+        <OnboardingHero
+          eyebrow="Onboarding"
+          title="Re-sign your agreement"
+          description="Review the document, add your signature, then submit. Only the agreement needs to be signed again."
+        />
 
-          {/* Error Message */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded-lg flex items-start gap-3 shadow-sm">
-              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-semibold text-red-800 dark:text-red-300">Error</p>
-                <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-              </div>
-            </div>
-          )}
+        {candidate?.onboardingDetails?.resignatureRequest?.reason ? (
+          <OnboardingAlert tone="warning" title="Why a new signature is needed">
+            {candidate.onboardingDetails.resignatureRequest.reason}
+          </OnboardingAlert>
+        ) : null}
 
-          {/* Success Message */}
-          {success && (
-            <div className="mb-6 p-4 bg-green-50 dark:bg-green-950/30 border border-green-300 dark:border-green-800 rounded-lg flex items-center gap-3 shadow-sm">
-              <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-green-800 dark:text-green-300">
-                  Document Re-signed Successfully!
-                </p>
-                <p className="text-sm text-green-700 dark:text-green-400">
-                  Your onboarding agreement has been re-signed and submitted.
-                </p>
-              </div>
-            </div>
-          )}
+        {error ? (
+          <OnboardingAlert tone="error" title="Could not submit">
+            {error}
+          </OnboardingAlert>
+        ) : null}
 
-          <form onSubmit={handleSubmitClick} noValidate className="space-y-6">
-            {/* PDF Preview Section */}
-            <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200 dark:border-blue-800 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <h2 className="text-lg font-semibold text-foreground">
-                  Onboarding Agreement Document
-                </h2>
-              </div>
-              <div className="space-y-4">
-                {unsignedPdfUrl && (
-                  <div className="border rounded-lg overflow-hidden">
-                    <iframe
-                      src={unsignedPdfUrl}
-                      className="w-full h-[600px] border-0"
-                      title="Onboarding Agreement Preview"
-                    />
-                  </div>
-                )}
-                {!unsignedPdfUrl && !generatingPdf && (
-                  <Button
-                    type="button"
-                    onClick={generateUnsignedPdf}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    <FileText className="w-4 h-4 mr-2" />
-                    Generate Document Preview
-                  </Button>
-                )}
-                {generatingPdf && (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                    <span className="ml-2 text-muted-foreground">Generating document...</span>
-                  </div>
-                )}
-              </div>
-            </Card>
+        {success ? (
+          <OnboardingAlert tone="success" title="Agreement re-signed">
+            Your onboarding agreement has been submitted.
+          </OnboardingAlert>
+        ) : null}
 
-            {/* Signature Section */}
-            <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200 dark:border-blue-800 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
-                  2
-                </div>
-                <h2 className="text-lg font-semibold text-foreground">
-                  Signature <span className="text-red-500">*</span>
-                </h2>
-              </div>
-              
-              {/* Signature Mode Switch */}
-              <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
-                <button
+        <form
+          id="onboarding-resignature-form"
+          onSubmit={handleSubmitClick}
+          noValidate
+          className="space-y-4"
+        >
+          <OnboardingCard>
+            <OnboardingSectionHeader
+              step={1}
+              title="Agreement document"
+              description="Generate a preview, then open it to read the full terms on your phone."
+            />
+            <div className="space-y-4">
+              {unsignedPdfUrl ? (
+                <OnboardingPdfPreview
+                  url={unsignedPdfUrl}
+                  title="Onboarding agreement"
+                />
+              ) : null}
+              {!unsignedPdfUrl && !generatingPdf ? (
+                <Button
                   type="button"
-                  onClick={() => {
-                    setUseDigitalSignature(true);
-                    setShowSignaturePad(false);
-                  }}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                    useDigitalSignature
-                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
-                      : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
+                  onClick={generateUnsignedPdf}
+                  variant="outline"
+                  className="h-11 w-full"
                 >
-                  Digital Signature
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUseDigitalSignature(false)}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                    !useDigitalSignature
-                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
-                      : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  Upload Signature
-                </button>
-              </div>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Generate document preview
+                </Button>
+              ) : null}
+              {generatingPdf ? (
+                <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    Generating document…
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          </OnboardingCard>
 
-              {/* Digital Signature */}
-              {useDigitalSignature && (
+          <OnboardingCard>
+            <OnboardingSectionHeader
+              step={2}
+              title="Signature"
+              description="Draw on screen or upload a clear photo of your signature."
+            />
+
+            <OnboardingSegmented
+              value={useDigitalSignature ? "draw" : "upload"}
+              onChange={(next) => {
+                setUseDigitalSignature(next === "draw");
+                if (next === "draw") setShowSignaturePad(false);
+              }}
+              options={[
+                { value: "draw", label: "Draw" },
+                { value: "upload", label: "Upload" },
+              ]}
+            />
+
+            <div className="mt-4">
+              {useDigitalSignature ? (
                 <div className="space-y-4">
                   {showSignaturePad ? (
                     <>
@@ -1897,38 +1848,36 @@ export default function OnboardingPage() {
                         type="button"
                         variant="outline"
                         onClick={() => setShowSignaturePad(false)}
-                        className="w-full bg-transparent"
+                        className="h-11 w-full"
                       >
                         Cancel
                       </Button>
                     </>
                   ) : (
                     <div className="space-y-4">
-                      {/* Show confirmed signature */}
-                      {signature?.url && !previewSignature && (
-                        <div className="border-2 border-green-300 dark:border-green-600 rounded-lg p-4 bg-green-50 dark:bg-green-900/20">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-                            <span className="text-sm font-medium text-green-700 dark:text-green-400">Signature Confirmed</span>
-                          </div>
+                      {signature?.url && !previewSignature ? (
+                        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
+                          <p className="mb-2 flex items-center gap-2 text-sm font-medium text-foreground">
+                            <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                            Signature confirmed
+                          </p>
                           <img
                             src={signature.url}
                             alt="Confirmed signature"
-                            className="max-w-full h-auto mx-auto max-h-32"
+                            className="mx-auto max-h-32 w-full object-contain"
                           />
                         </div>
-                      )}
-                      {/* Show preview before confirmation */}
-                      {previewSignature && (
-                        <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-white dark:bg-gray-900">
+                      ) : null}
+                      {previewSignature ? (
+                        <div className="rounded-xl border border-dashed border-border bg-muted/30 p-4">
                           <img
                             src={previewSignature}
                             alt="Signature preview"
-                            className="max-w-full h-auto mx-auto"
+                            className="mx-auto max-h-32 w-full object-contain"
                           />
                         </div>
-                      )}
-                      <div className="flex gap-2">
+                      ) : null}
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <Button
                           type="button"
                           onClick={() => {
@@ -1936,298 +1885,262 @@ export default function OnboardingPage() {
                             setPreviewSignature(null);
                           }}
                           variant="outline"
-                          className="flex-1"
+                          className="h-11 flex-1"
                         >
-                          {signature?.url ? "Redraw Signature" : previewSignature ? "Redraw Signature" : "Draw Signature"}
+                          {signature?.url || previewSignature
+                            ? "Redraw signature"
+                            : "Draw signature"}
                         </Button>
-                        {previewSignature && (
+                        {previewSignature ? (
                           <Button
                             type="button"
                             onClick={confirmSignature}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                            className="h-11 flex-1"
                           >
-                            Confirm Signature
+                            Confirm signature
                           </Button>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   )}
                 </div>
-              )}
-
-              {/* Upload Signature */}
-              {!useDigitalSignature && (
+              ) : (
                 <div className="space-y-4">
-                  {signature?.url && (
-                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-white dark:bg-gray-900">
+                  <OnboardingSignaturePhotoGuide />
+                  {signature?.url ? (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
                       <img
                         src={signature.url}
                         alt="Signature"
-                        className="max-w-full h-auto mx-auto max-h-32"
+                        className="mx-auto max-h-32 w-full object-contain"
                       />
                     </div>
-                  )}
-                  <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors hover:border-blue-400 dark:hover:border-blue-500">
-                    <div className="flex items-center gap-2 text-foreground">
+                  ) : null}
+                  <label className="flex min-h-14 cursor-pointer items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 px-4 py-4 text-sm font-medium text-foreground">
+                    <span className="flex items-center gap-2">
                       {signature ? (
                         <>
-                          <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-                          <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                            {signature.name}
-                          </span>
+                          <Check className="h-4 w-4 text-emerald-600" />
+                          {signature.name}
                         </>
                       ) : (
                         <>
-                          <Upload className="w-4 h-4" />
-                          <span className="text-sm">Upload Signature Image</span>
+                          <Upload className="h-4 w-4" />
+                          Upload the transparent PNG
                         </>
                       )}
-                    </div>
+                    </span>
                     <input
                       type="file"
                       accept="image/*"
                       onChange={handleSignatureChange}
-                      className="hidden"
+                      className="sr-only"
                       disabled={uploadingFiles.has("signature")}
                       required
                     />
                   </label>
                 </div>
               )}
-            </Card>
+            </div>
+          </OnboardingCard>
+        </form>
 
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              disabled={submitting || !signature?.url || generatingPdf}
-              className="w-full gap-2 shadow-md bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
-              size="lg"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  Re-sign and Submit Document
-                </>
-              )}
-            </Button>
-          </form>
-
-          {/* Confirmation Dialog for Resignature */}
-          <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-            <DialogContent className="bg-white dark:bg-gray-800">
-              <DialogHeader>
-                <DialogTitle className="text-foreground">
-                  Confirm Re-signature
-                </DialogTitle>
-                <DialogDescription className="text-muted-foreground">
-                  You are about to re-sign the onboarding agreement document. Please confirm to proceed.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowConfirmDialog(false)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleConfirmSubmit}
-                  disabled={submitting}
-                  className="bg-amber-600 hover:bg-amber-700"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Submitting...
-                    </>
-                  ) : (
-                    "Yes, Re-sign Document"
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <DialogContent className="bg-card">
+            <DialogHeader>
+              <DialogTitle>Confirm re-signature</DialogTitle>
+              <DialogDescription>
+                You are about to re-sign the onboarding agreement. Confirm to continue.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                onClick={() => setShowConfirmDialog(false)}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="min-h-11"
+                onClick={handleConfirmSubmit}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting…
+                  </>
+                ) : (
+                  "Re-sign document"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </OnboardingPageShell>
     );
   }
 
+
+  const personalComplete = Boolean(
+    personalDetails.dateOfBirth &&
+      personalDetails.gender &&
+      personalDetails.nationality &&
+      personalDetails.fatherName &&
+      personalDetails.aadhaarNumber.replace(/\s/g, "").length === 12 &&
+      personalDetails.panNumber.length === 10 &&
+      !aadhaarError &&
+      !panError
+  );
+  const bankComplete = Boolean(
+    bankDetails.accountHolderName &&
+      bankDetails.accountNumber &&
+      bankDetails.ifscCode &&
+      bankDetails.bankName &&
+      documents.cancelledCheque?.url
+  );
+  const docsComplete = Boolean(
+    documents.aadharCardFront?.url &&
+      documents.aadharCardBack?.url &&
+      documents.panCard?.url &&
+      documents.highSchoolMarksheet?.url &&
+      documents.interMarksheet?.url &&
+      documents.graduationMarksheet?.url
+  );
+  const experienceComplete = yearsOfExperience !== "";
+  const signComplete = Boolean(termsAccepted && signature?.url);
+  const sectionsComplete = [
+    personalComplete,
+    bankComplete,
+    docsComplete,
+    experienceComplete,
+    signComplete,
+  ].filter(Boolean).length;
+
   // Normal Onboarding Flow
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
-      <div className="w-full max-w-4xl">
-        {/* Enhanced Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent mb-3">
-            Complete Your Onboarding
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Fill in all required details to get started with us
-          </p>
-        </div>
+    <OnboardingPageShell
+      footer={
+        <OnboardingStickyBar>
+          <Button
+            type="submit"
+            form="onboarding-form"
+            disabled={
+              submitting ||
+              uploadingFiles.size > 0 ||
+              (isOnboardingComplete && !isReuploadMode)
+            }
+            className="h-12 w-full gap-2 text-base"
+          >
+            {isOnboardingComplete && !isReuploadMode ? (
+              <>
+                <Check className="h-4 w-4" />
+                Onboarding completed
+              </>
+            ) : submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Submitting…
+              </>
+            ) : (
+              <>
+                <Check className="h-4 w-4" />
+                Complete onboarding
+              </>
+            )}
+          </Button>
+        </OnboardingStickyBar>
+      }
+    >
+      <OnboardingHero
+        eyebrow="Welcome"
+        title="Complete your onboarding"
+        description="Fill in your details, upload documents, and sign the agreement. This usually takes about 10 minutes."
+      />
 
-        {/* Success Message */}
-        {success && (
-          <div className="mb-6 p-4 bg-green-50 dark:bg-green-950/30 border border-green-300 dark:border-green-800 rounded-lg flex items-center gap-3 shadow-sm">
-            <Check className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-green-800 dark:text-green-300">
-                Onboarding completed successfully!
-              </p>
-              <p className="text-sm text-green-700 dark:text-green-400">
-                Redirecting to dashboard...
-              </p>
-            </div>
+      <OnboardingProgress complete={sectionsComplete} total={5} />
+
+      {success ? (
+        <OnboardingAlert tone="success" title="Onboarding completed">
+          Redirecting to your dashboard…
+        </OnboardingAlert>
+      ) : null}
+
+      {error ? (
+        <OnboardingAlert tone="error" title="Could not submit">
+          {error}
+        </OnboardingAlert>
+      ) : null}
+
+      <form
+        id="onboarding-form"
+        onSubmit={handleSubmitClick}
+        noValidate
+        className="space-y-4"
+      >
+        <OnboardingCard>
+          <OnboardingSectionHeader
+            step={1}
+            title="Your information"
+            description="These details come from your application. Contact HR if something is wrong."
+          />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <OnboardingFact label="Name" value={candidate.name} />
+            <OnboardingFact label="Email" value={candidate.email} />
+            <OnboardingFact label="Phone" value={candidate.phone} />
+            <OnboardingFact label="Address" value={candidate.address} />
+            <OnboardingFact label="City" value={candidate.city} />
+            <OnboardingFact label="Country" value={candidate.country} />
           </div>
-        )}
+        </OnboardingCard>
 
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded-lg flex items-start gap-3 shadow-sm">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-red-800 dark:text-red-300">Error</p>
-              <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmitClick} noValidate className="space-y-6">
-          {/* Your Information */}
-          <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200 dark:border-blue-800 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
-                1
-              </div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Your Information
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Name
-                </p>
-                <p className="text-base font-semibold text-foreground">
-                  {candidate.name}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Email
-                </p>
-                <p className="text-base font-semibold text-foreground">
-                  {candidate.email}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Phone
-                </p>
-                <p className="text-base font-semibold text-foreground">
-                  {candidate.phone}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Address
-                </p>
-                <p className="text-base font-semibold text-foreground">
-                  {candidate.address}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  City
-                </p>
-                <p className="text-base font-semibold text-foreground">
-                  {candidate.city}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Country
-                </p>
-                <p className="text-base font-semibold text-foreground">
-                  {candidate.country}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Selection Details Summary */}
-          {candidate.selectionDetails && (
-            <Card className="p-6 border-amber-200 dark:border-amber-800 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/20 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-full bg-amber-600 text-white flex items-center justify-center text-sm font-semibold">
-                  2
-                </div>
-                <h2 className="text-lg font-semibold text-foreground">
-                  Selection Details
-                </h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Position Type
-                  </p>
-                  <p className="text-base font-semibold text-foreground capitalize">
+        {candidate.selectionDetails ? (
+          <OnboardingCard>
+            <OnboardingSectionHeader
+              step={2}
+              title="Role details"
+              description="The offer we selected you for."
+            />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <OnboardingFact
+                label="Position type"
+                value={
+                  <span className="capitalize">
                     {candidate.selectionDetails.positionType}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Duration
-                  </p>
-                  <p className="text-base font-semibold text-foreground">
-                    {candidate.selectionDetails.duration}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Training Period
-                  </p>
-                  <p className="text-base font-semibold text-foreground">
-                    {candidate.selectionDetails.trainingPeriod}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Role
-                  </p>
-                  <p className="text-base font-semibold text-foreground">
-                    {candidate.selectionDetails.role}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* Personal Details - Hide in resignature mode */}
-          {!isResignatureMode && (
-          <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-semibold">
-                3
-              </div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Personal Details
-              </h2>
+                  </span>
+                }
+              />
+              <OnboardingFact
+                label="Duration"
+                value={candidate.selectionDetails.duration}
+              />
+              <OnboardingFact
+                label="Training period"
+                value={candidate.selectionDetails.trainingPeriod}
+              />
+              <OnboardingFact
+                label="Role"
+                value={candidate.selectionDetails.role}
+              />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Date of Birth
-                </label>
+          </OnboardingCard>
+        ) : null}
+
+        {!isResignatureMode && (
+          <OnboardingCard>
+            <OnboardingSectionHeader
+              step={3}
+              title="Personal details"
+              description="Used on your employment records and service agreement."
+            />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <OnboardingField label="Date of birth" htmlFor="dob" required>
                 <Input
+                  id="dob"
                   type="date"
                   value={personalDetails.dateOfBirth}
                   onChange={(e) =>
@@ -2237,13 +2150,12 @@ export default function OnboardingPage() {
                     }))
                   }
                   required
+                  className={onboardingControlClass}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Gender
-                </label>
+              </OnboardingField>
+              <OnboardingField label="Gender" htmlFor="gender" required>
                 <select
+                  id="gender"
                   value={personalDetails.gender}
                   onChange={(e) =>
                     setPersonalDetails((prev) => ({
@@ -2251,22 +2163,24 @@ export default function OnboardingPage() {
                       gender: e.target.value,
                     }))
                   }
-                  className="w-full px-3 py-2 border border-muted dark:border-gray-600 rounded bg-background dark:bg-gray-900 text-foreground focus:border-primary focus:outline-none"
+                  className={cn(
+                    onboardingControlClass,
+                    "rounded-md border border-input bg-background px-3 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  )}
                   required
                 >
-                  <option value="">Select Gender</option>
+                  <option value="">Select gender</option>
                   <option value="male">Male</option>
                   <option value="female">Female</option>
                   <option value="other">Other</option>
                 </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Nationality
-                </label>
+              </OnboardingField>
+              <OnboardingField label="Nationality" htmlFor="nationality" required>
                 <Input
+                  id="nationality"
                   type="text"
-                  placeholder="e.g., Indian"
+                  placeholder="e.g. Indian"
+                  autoComplete="country-name"
                   value={personalDetails.nationality}
                   onChange={(e) =>
                     setPersonalDetails((prev) => ({
@@ -2275,15 +2189,19 @@ export default function OnboardingPage() {
                     }))
                   }
                   required
+                  className={onboardingControlClass}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Father&apos;s Name
-                </label>
+              </OnboardingField>
+              <OnboardingField
+                label="Father's name"
+                htmlFor="fatherName"
+                required
+              >
                 <Input
+                  id="fatherName"
                   type="text"
-                  placeholder="e.g., Indian"
+                  placeholder="Full name"
+                  autoComplete="off"
                   value={personalDetails.fatherName}
                   onChange={(e) =>
                     setPersonalDetails((prev) => ({
@@ -2292,14 +2210,25 @@ export default function OnboardingPage() {
                     }))
                   }
                   required
+                  className={onboardingControlClass}
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Aadhaar Number <span className="text-red-500">*</span>
-                </label>
+              </OnboardingField>
+              <OnboardingField
+                label="Aadhaar number"
+                htmlFor="aadhaar"
+                required
+                error={aadhaarError}
+                hint={
+                  personalDetails.aadhaarNumber && !aadhaarError
+                    ? `Shown as ${formatAadhaarForDisplay(personalDetails.aadhaarNumber)}`
+                    : "12 digits, no spaces needed"
+                }
+              >
                 <Input
+                  id="aadhaar"
                   type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
                   placeholder="XXXX XXXX XXXX"
                   value={formatAadhaarInput(personalDetails.aadhaarNumber)}
                   onChange={(e) => {
@@ -2314,29 +2243,32 @@ export default function OnboardingPage() {
                       setAadhaarError(null);
                     }
                   }}
-                  className={aadhaarError ? "border-red-500" : ""}
+                  className={cn(
+                    onboardingControlClass,
+                    aadhaarError && "border-destructive"
+                  )}
                   required
                   disabled={isReuploadMode}
                 />
-                {aadhaarError && (
-                  <p className="text-xs text-red-500 mt-1">{aadhaarError}</p>
-                )}
-                {personalDetails.aadhaarNumber && !aadhaarError && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Display: {formatAadhaarForDisplay(personalDetails.aadhaarNumber)}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  PAN Number <span className="text-red-500">*</span>
-                </label>
+              </OnboardingField>
+              <OnboardingField
+                label="PAN number"
+                htmlFor="pan"
+                required
+                error={panError}
+                hint="5 letters, 4 digits, 1 letter — e.g. ABCDE1234F"
+              >
                 <Input
+                  id="pan"
                   type="text"
+                  autoComplete="off"
                   placeholder="ABCDE1234F"
                   value={personalDetails.panNumber.toUpperCase()}
                   onChange={(e) => {
-                    const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
+                    const value = e.target.value
+                      .toUpperCase()
+                      .replace(/[^A-Z0-9]/g, "")
+                      .slice(0, 10);
                     setPersonalDetails((prev) => ({
                       ...prev,
                       panNumber: value,
@@ -2347,38 +2279,31 @@ export default function OnboardingPage() {
                       setPanError(null);
                     }
                   }}
-                  className={panError ? "border-red-500" : ""}
+                  className={cn(
+                    onboardingControlClass,
+                    panError && "border-destructive"
+                  )}
                   required
                   disabled={isReuploadMode}
                 />
-                {panError && (
-                  <p className="text-xs text-red-500 mt-1">{panError}</p>
-                )}
-                <p className="text-xs text-muted-foreground mt-1">
-                  Format: 5 letters + 4 digits + 1 letter (e.g., ABCDE1234F)
-                </p>
-              </div>
+              </OnboardingField>
             </div>
-          </Card>
-          )}
+          </OnboardingCard>
+        )}
+
 
           {/* Bank Details - Hide in resignature mode */}
           {!isResignatureMode && (
-          <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-sm font-semibold">
-                4
-              </div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Bank Details
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Account Holder Name
-                </label>
+          <OnboardingCard>
+            <OnboardingSectionHeader
+              step={4}
+              title="Bank details"
+              description="Salary will be paid to this account. Upload a cancelled cheque so we can match the details."
+            />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <OnboardingField label="Account holder name" htmlFor="accountHolder" required>
                 <Input
+                  id="accountHolder"
                   type="text"
                   placeholder="Full name as per bank records"
                   value={bankDetails.accountHolderName}
@@ -2389,15 +2314,16 @@ export default function OnboardingPage() {
                     }))
                   }
                   required
+                  className={onboardingControlClass}
+                  autoComplete="name"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Account Number
-                </label>
+              </OnboardingField>
+              <OnboardingField label="Account number" htmlFor="accountNumber" required>
                 <Input
+                  id="accountNumber"
                   type="text"
-                  placeholder="Your bank account number"
+                  inputMode="numeric"
+                  placeholder="Bank account number"
                   value={bankDetails.accountNumber}
                   onChange={(e) =>
                     setBankDetails((prev) => ({
@@ -2406,30 +2332,30 @@ export default function OnboardingPage() {
                     }))
                   }
                   required
+                  className={onboardingControlClass}
+                  autoComplete="off"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  IFSC Code
-                </label>
+              </OnboardingField>
+              <OnboardingField label="IFSC code" htmlFor="ifsc" required>
                 <Input
+                  id="ifsc"
                   type="text"
                   placeholder="Bank IFSC code"
                   value={bankDetails.ifscCode}
                   onChange={(e) =>
                     setBankDetails((prev) => ({
                       ...prev,
-                      ifscCode: e.target.value,
+                      ifscCode: e.target.value.toUpperCase(),
                     }))
                   }
                   required
+                  className={onboardingControlClass}
+                  autoComplete="off"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Bank Name
-                </label>
+              </OnboardingField>
+              <OnboardingField label="Bank name" htmlFor="bankName" required>
                 <Input
+                  id="bankName"
                   type="text"
                   placeholder="Name of your bank"
                   value={bankDetails.bankName}
@@ -2440,228 +2366,148 @@ export default function OnboardingPage() {
                     }))
                   }
                   required
+                  className={onboardingControlClass}
+                  autoComplete="organization"
                 />
-              </div>
+              </OnboardingField>
             </div>
-          </Card>
+            <div className="mt-5 border-t border-border pt-5">
+              <OnboardingDocumentDropzone
+                id="cancelledCheque"
+                label="Cancelled cheque"
+                file={documents.cancelledCheque}
+                uploading={uploadingFiles.has("cancelledCheque")}
+                locked={isDocumentLocked("cancelledCheque")}
+                needsReupload={
+                  isReuploadMode && reuploadDocuments.includes("cancelledCheque")
+                }
+                hint='Write “CANCELLED” across a cheque of this account. A clear photo is enough.'
+                onChange={(e) => handleDocumentChange(e, "cancelledCheque")}
+              />
+            </div>
+          </OnboardingCard>
           )}
 
           {/* Document Upload - Required - Hide in resignature mode */}
           {!isResignatureMode && (
-          <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center text-sm font-semibold">
-                5
-              </div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Required Documents
-              </h2>
-            </div>
-            <div className="space-y-4">
-                            {/* Aadhar Card Front */}
-                            <div className="space-y-2">
-                <label className="block text-sm font-medium text-foreground items-center gap-2">
-                  Aadhar Card - Front
-                  <span className="text-red-500">*</span>
-                  {uploadingFiles.has("aadharCardFront") && (
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  )}
-                  {isDocumentLocked("aadharCardFront") && (
-                    <span className="ml-2 text-xs text-green-600 dark:text-green-400">(Verified ✓)</span>
-                  )}
-                  {isReuploadMode && reuploadDocuments.includes("aadharCardFront") && (
-                    <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">(Re-upload required)</span>
-                  )}
-                </label>
-                <div className="relative">
-                  <label className={`flex items-center justify-center w-full px-4 py-3 border-2 border-dashed rounded-lg transition-colors ${
-                    isDocumentLocked("aadharCardFront") 
-                      ? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20 cursor-not-allowed"
-                      : "border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500"
-                  }`}>
-                    <div className="flex items-center gap-2 text-foreground">
-                      {documents.aadharCardFront ? (
-                        <>
-                          <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-                          <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                            {documents.aadharCardFront.name}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-4 h-4" />
-                          <span className="text-sm">
-                            Click to upload or drag and drop
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    <input
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) =>
-                        handleDocumentChange(e, "aadharCardFront")
-                      }
-                      className="hidden"
-                      disabled={uploadingFiles.has("aadharCardFront") || isDocumentLocked("aadharCardFront")}
-                      required
-                    />
-                  </label>
+          <OnboardingCard>
+            <OnboardingSectionHeader
+              step={5}
+              title="Required documents"
+              description="Use a well-lit photo or scan. The full document should be readable."
+            />
+            <div className="space-y-6">
+              <section>
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Identity
+                </h3>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <OnboardingDocumentDropzone
+                    id="aadharCardFront"
+                    label="Aadhaar Card - Front"
+                    file={documents.aadharCardFront}
+                    uploading={uploadingFiles.has("aadharCardFront")}
+                    locked={isDocumentLocked("aadharCardFront")}
+                    needsReupload={
+                      isReuploadMode &&
+                      reuploadDocuments.includes("aadharCardFront")
+                    }
+                    compact
+                    onChange={(e) => handleDocumentChange(e, "aadharCardFront")}
+                  />
+                  <OnboardingDocumentDropzone
+                    id="aadharCardBack"
+                    label="Aadhaar Card - Back"
+                    file={documents.aadharCardBack}
+                    uploading={uploadingFiles.has("aadharCardBack")}
+                    locked={isDocumentLocked("aadharCardBack")}
+                    needsReupload={
+                      isReuploadMode &&
+                      reuploadDocuments.includes("aadharCardBack")
+                    }
+                    compact
+                    onChange={(e) => handleDocumentChange(e, "aadharCardBack")}
+                  />
+                  <OnboardingDocumentDropzone
+                    id="panCard"
+                    label="PAN Card"
+                    file={documents.panCard}
+                    uploading={uploadingFiles.has("panCard")}
+                    locked={isDocumentLocked("panCard")}
+                    needsReupload={
+                      isReuploadMode && reuploadDocuments.includes("panCard")
+                    }
+                    compact
+                    onChange={(e) => handleDocumentChange(e, "panCard")}
+                  />
                 </div>
-              </div>
-
-              {/* Aadhar Card Back */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-foreground items-center gap-2">
-                  Aadhar Card - Back
-                  <span className="text-red-500">*</span>
-                  {uploadingFiles.has("aadharCardBack") && (
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                  )}
-                  {isDocumentLocked("aadharCardBack") && (
-                    <span className="ml-2 text-xs text-green-600 dark:text-green-400">(Verified ✓)</span>
-                  )}
-                  {isReuploadMode && reuploadDocuments.includes("aadharCardBack") && (
-                    <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">(Re-upload required)</span>
-                  )}
-                </label>
-                <div className="relative">
-                  <label className={`flex items-center justify-center w-full px-4 py-3 border-2 border-dashed rounded-lg transition-colors ${
-                    isDocumentLocked("aadharCardBack") 
-                      ? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20 cursor-not-allowed"
-                      : "border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500"
-                  }`}>
-                    <div className="flex items-center gap-2 text-foreground">
-                      {documents.aadharCardBack ? (
-                        <>
-                          <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-                          <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                            {documents.aadharCardBack.name}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-4 h-4" />
-                          <span className="text-sm">
-                            Click to upload or drag and drop
-                          </span>
-                        </>
-                      )}
-                    </div>
-                    <input
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) =>
-                        handleDocumentChange(e, "aadharCardBack")
+              </section>
+              <section>
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Education
+                </h3>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {(
+                    [
+                      {
+                        key: "highSchoolMarksheet" as const,
+                        label: "High School Marksheet",
+                      },
+                      {
+                        key: "interMarksheet" as const,
+                        label: "Intermediate Marksheet",
+                      },
+                      {
+                        key: "graduationMarksheet" as const,
+                        label: "Graduation Marksheet",
+                      },
+                    ] as const
+                  ).map(({ key, label }) => (
+                    <OnboardingDocumentDropzone
+                      key={key}
+                      id={key}
+                      label={label}
+                      file={documents[key]}
+                      uploading={uploadingFiles.has(key)}
+                      locked={isDocumentLocked(key)}
+                      needsReupload={
+                        isReuploadMode && reuploadDocuments.includes(key)
                       }
-                      className="hidden"
-                      disabled={uploadingFiles.has("aadharCardBack") || isDocumentLocked("aadharCardBack")}
-                      required
+                      compact
+                      onChange={(e) => handleDocumentChange(e, key)}
                     />
-                  </label>
+                  ))}
                 </div>
-              </div>
-
-              {/* Other Documents */}
-              {[
-               
-                { key: "panCard", label: "PAN Card" },
-                { key: "highSchoolMarksheet", label: "High School Marksheet" },
-                { key: "interMarksheet", label: "Intermediate Marksheet" },
-                { key: "graduationMarksheet", label: "Graduation Marksheet" },
-              ].map(({ key, label }) => {
-                const doc = documents[
-                  key as keyof typeof documents
-                ] as UploadedFile | null;
-                const isUploading = uploadingFiles.has(key);
-                const isLocked = isDocumentLocked(key);
-                const needsReupload = isReuploadMode && reuploadDocuments.includes(key);
-
-                return (
-                  <div key={key} className="space-y-2">
-                    <label className="block text-sm font-medium text-foreground  items-center gap-2">
-                      {label}
-                      <span className="text-red-500">*</span>
-                      {isUploading && (
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                      )}
-                      {isLocked && (
-                        <span className="ml-2 text-xs text-green-600 dark:text-green-400">(Verified ✓)</span>
-                      )}
-                      {needsReupload && (
-                        <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">(Re-upload required)</span>
-                      )}
-                    </label>
-                    <div className="relative">
-                      <label className={`flex items-center justify-center w-full px-4 py-3 border-2 border-dashed rounded-lg transition-colors ${
-                        isLocked 
-                          ? "border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/20 cursor-not-allowed"
-                          : "border-gray-300 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500"
-                      }`}>
-                        <div className="flex items-center gap-2 text-foreground">
-                          {doc ? (
-                            <>
-                              <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-                              <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                                {doc.name}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="w-4 h-4" />
-                              <span className="text-sm">
-                                Click to upload or drag and drop
-                              </span>
-                            </>
-                          )}
-                        </div>
-                        <input
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={(e) =>
-                            handleDocumentChange(
-                              e,
-                              key as keyof typeof documents
-                            )
-                          }
-                          className="hidden"
-                          disabled={isUploading || isLocked}
-                          required
-                        />
-                      </label>
-                    </div>
-                  </div>
-                );
-              })}
+              </section>
             </div>
-          </Card>
+          </OnboardingCard>
           )}
 
           {/* Experience Section - Hide in resignature mode */}
           {!isResignatureMode && (
-          <Card className="p-6 shadow-sm border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-semibold">
-                6
-              </div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Work Experience
-              </h2>
-            </div>
+          <OnboardingCard>
+            <OnboardingSectionHeader
+              step={6}
+              title="Work experience"
+              description="Enter 0 if this is your first job. Add a company for each previous employer."
+            />
             
             {/* Years of Experience */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Years of Experience <span className="text-red-500">*</span>
-              </label>
+            <OnboardingField
+              label="Years of experience"
+              htmlFor="yearsOfExperience"
+              required
+              hint="Use decimals if needed, e.g. 2.5"
+            >
               <Input
+                id="yearsOfExperience"
                 type="number"
-                placeholder="e.g., 2.5"
+                inputMode="decimal"
+                placeholder="0"
                 value={yearsOfExperience}
                 onChange={(e) => {
                   const value = e.target.value;
                   setYearsOfExperience(value);
-                  // Clear companies if experience is set to 0 or empty
                   if (value === "" || parseFloat(value) === 0) {
                     setCompanies([
                       {
@@ -2680,13 +2526,13 @@ export default function OnboardingPage() {
                 min="0"
                 step="0.1"
                 required
-                className="max-w-xs"
+                className={cn(onboardingControlClass, "max-w-xs")}
               />
-            </div>
+            </OnboardingField>
 
             {/* Companies - Only show if experience > 0 */}
             {yearsOfExperience && parseFloat(yearsOfExperience) > 0 ? (
-              <div className="space-y-6">
+              <div className="mt-5 space-y-4">
               {companies.map((company, index) => {
                 const isUploadingExp = uploadingFiles.has(`company-${company.id}-experienceLetter`);
                 const isUploadingRel = uploadingFiles.has(`company-${company.id}-relievingLetter`);
@@ -2695,34 +2541,36 @@ export default function OnboardingPage() {
                 return (
                   <div
                     key={company.id}
-                    className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50"
+                    className="rounded-xl border border-border bg-muted/30 p-4"
                   >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-base font-semibold text-foreground">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <h3 className="text-sm font-semibold text-foreground">
                         Company {index + 1}
                       </h3>
-                      {companies.length > 1 && (
+                      {companies.length > 1 ? (
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
                           onClick={() => removeCompany(company.id)}
-                          className="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                          className="min-h-11 gap-1.5 text-destructive hover:text-destructive"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="h-4 w-4" />
+                          Remove
                         </Button>
-                      )}
+                      ) : null}
                     </div>
 
                     <div className="space-y-4">
-                      {/* Company Name */}
-                      <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          Company Name <span className="text-red-500">*</span>
-                        </label>
+                      <OnboardingField
+                        label="Company name"
+                        htmlFor={`company-name-${company.id}`}
+                        required
+                      >
                         <Input
+                          id={`company-name-${company.id}`}
                           type="text"
-                          placeholder="Enter company name"
+                          placeholder="Previous employer"
                           value={company.companyName}
                           onChange={(e) =>
                             updateCompany(company.id, {
@@ -2730,17 +2578,20 @@ export default function OnboardingPage() {
                             })
                           }
                           required
+                          className={onboardingControlClass}
                         />
-                      </div>
+                      </OnboardingField>
 
-                       {/* Years in Company */}
-                       <div>
-                        <label className="block text-sm font-medium text-foreground mb-2">
-                          Years of Experience in this Company <span className="text-red-500">*</span>
-                        </label>
+                      <OnboardingField
+                        label="Years at this company"
+                        htmlFor={`company-years-${company.id}`}
+                        required
+                      >
                         <Input
+                          id={`company-years-${company.id}`}
                           type="number"
-                          placeholder="e.g., 2.5"
+                          inputMode="decimal"
+                          placeholder="e.g. 2.5"
                           value={company.yearsInCompany}
                           onChange={(e) =>
                             updateCompany(company.id, {
@@ -2750,31 +2601,36 @@ export default function OnboardingPage() {
                           min="0"
                           step="0.1"
                           required
-                          className="max-w-xs"
+                          className={cn(onboardingControlClass, "max-w-xs")}
                         />
-                      </div>
+                      </OnboardingField>
 
-                      {/* HR Contact Details */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-foreground mb-2">
-                            HR Phone Number <span className="text-red-500">*</span>
-                          </label>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <OnboardingField
+                          label="HR phone"
+                          htmlFor={`company-hr-phone-${company.id}`}
+                          required
+                        >
                           <Input
+                            id={`company-hr-phone-${company.id}`}
                             type="tel"
+                            inputMode="tel"
                             placeholder="HR phone number"
                             value={company.hrPhone}
                             onChange={(e) =>
                               updateCompany(company.id, { hrPhone: e.target.value })
                             }
                             required
+                            className={onboardingControlClass}
                           />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-foreground mb-2">
-                            HR Email <span className="text-red-500">*</span>
-                          </label>
+                        </OnboardingField>
+                        <OnboardingField
+                          label="HR email"
+                          htmlFor={`company-hr-email-${company.id}`}
+                          required
+                        >
                           <Input
+                            id={`company-hr-email-${company.id}`}
                             type="email"
                             placeholder="HR email address"
                             value={company.hrEmail}
@@ -2782,369 +2638,229 @@ export default function OnboardingPage() {
                               updateCompany(company.id, { hrEmail: e.target.value })
                             }
                             required
+                            className={onboardingControlClass}
                           />
-                        </div>
+                        </OnboardingField>
                       </div>
 
-                      {/* Documents */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Experience Letter */}
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-foreground">
-                            Experience Letter <span className="text-red-500">*</span>
-                            {isUploadingExp && (
-                              <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400 inline-block ml-2" />
-                            )}
-                          </label>
-                          <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors hover:border-blue-400 dark:hover:border-blue-500">
-                            <div className="flex items-center gap-2 text-foreground">
-                              {company.experienceLetter ? (
-                                <>
-                                  <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-                                  <span className="text-sm font-medium text-green-700 dark:text-green-400 truncate">
-                                    {company.experienceLetter.name}
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  <Upload className="w-4 h-4" />
-                                  <span className="text-sm">Upload</span>
-                                </>
-                              )}
-                            </div>
-                            <input
-                              type="file"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={(e) =>
-                                handleCompanyDocumentChange(
-                                  e,
-                                  company.id,
-                                  "experienceLetter"
-                                )
-                              }
-                              className="hidden"
-                              disabled={isUploadingExp}
-                              required
-                            />
-                          </label>
-                        </div>
-
-                        {/* Relieving Letter */}
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-foreground">
-                            Relieving Letter <span className="text-red-500">*</span>
-                            {isUploadingRel && (
-                              <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400 inline-block ml-2" />
-                            )}
-                          </label>
-                          <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors hover:border-blue-400 dark:hover:border-blue-500">
-                            <div className="flex items-center gap-2 text-foreground">
-                              {company.relievingLetter ? (
-                                <>
-                                  <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-                                  <span className="text-sm font-medium text-green-700 dark:text-green-400 truncate">
-                                    {company.relievingLetter.name}
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  <Upload className="w-4 h-4" />
-                                  <span className="text-sm">Upload</span>
-                                </>
-                              )}
-                            </div>
-                            <input
-                              type="file"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={(e) =>
-                                handleCompanyDocumentChange(
-                                  e,
-                                  company.id,
-                                  "relievingLetter"
-                                )
-                              }
-                              className="hidden"
-                              disabled={isUploadingRel}
-                              required
-                            />
-                          </label>
-                        </div>
-
-                        {/* Salary Slip */}
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-foreground">
-                            Salary Slip <span className="text-red-500">*</span>
-                            {isUploadingSal && (
-                              <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400 inline-block ml-2" />
-                            )}
-                          </label>
-                          <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors hover:border-blue-400 dark:hover:border-blue-500">
-                            <div className="flex items-center gap-2 text-foreground">
-                              {company.salarySlip ? (
-                                <>
-                                  <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-                                  <span className="text-sm font-medium text-green-700 dark:text-green-400 truncate">
-                                    {company.salarySlip.name}
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  <Upload className="w-4 h-4" />
-                                  <span className="text-sm">Upload</span>
-                                </>
-                              )}
-                            </div>
-                            <input
-                              type="file"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              onChange={(e) =>
-                                handleCompanyDocumentChange(
-                                  e,
-                                  company.id,
-                                  "salarySlip"
-                                )
-                              }
-                              className="hidden"
-                              disabled={isUploadingSal}
-                              required
-                            />
-                          </label>
-                        </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <OnboardingDocumentDropzone
+                          id={`company-${company.id}-experienceLetter`}
+                          label="Experience letter"
+                          file={company.experienceLetter}
+                          uploading={isUploadingExp}
+                          compact
+                          onChange={(e) =>
+                            handleCompanyDocumentChange(
+                              e,
+                              company.id,
+                              "experienceLetter"
+                            )
+                          }
+                        />
+                        <OnboardingDocumentDropzone
+                          id={`company-${company.id}-relievingLetter`}
+                          label="Relieving letter"
+                          file={company.relievingLetter}
+                          uploading={isUploadingRel}
+                          compact
+                          onChange={(e) =>
+                            handleCompanyDocumentChange(
+                              e,
+                              company.id,
+                              "relievingLetter"
+                            )
+                          }
+                        />
+                        <OnboardingDocumentDropzone
+                          id={`company-${company.id}-salarySlip`}
+                          label="Salary slip"
+                          file={company.salarySlip}
+                          uploading={isUploadingSal}
+                          compact
+                          onChange={(e) =>
+                            handleCompanyDocumentChange(
+                              e,
+                              company.id,
+                              "salarySlip"
+                            )
+                          }
+                        />
                       </div>
                     </div>
                   </div>
                 );
               })}
 
-              {/* Add Company Button */}
               <Button
                 type="button"
                 variant="outline"
                 onClick={addCompany}
-                className="w-full border-dashed dark:border-gray-600"
+                className="h-11 w-full border-dashed"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Another Company
+                <Plus className="mr-2 h-4 w-4" />
+                Add another company
               </Button>
             </div>
             ) : yearsOfExperience && parseFloat(yearsOfExperience) === 0 ? (
-              <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-                <p className="text-sm text-blue-800 dark:text-blue-300">
-                  No company details required for candidates with zero years of experience.
-                </p>
-              </div>
-            ) : null}
-          </Card>
-          )}
-
-          {/* PDF Preview Section */}
-          <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-  <div className="flex items-center gap-2 mb-4">
-    <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-semibold">
-      7
-    </div>
-    <h2 className="text-lg font-semibold text-foreground">
-      Onboarding Document Preview
-    </h2>
-  </div>
-  <div className="space-y-4">
-    <p className="text-sm text-muted-foreground">
-      {signedPdfUrl 
-        ? "Your signed onboarding document is ready. This is the final version that will be saved."
-        : "Preview the onboarding document before signing. The document will be automatically generated for you."}
-    </p>
-    
-    {/* Action Buttons */}
-    <div className="flex gap-2 flex-wrap">
-      {!signedPdfUrl && !unsignedPdfUrl && (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={generateUnsignedPdf}
-          disabled={generatingPdf}
-          className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-        >
-          {generatingPdf ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              Generating...
-            </>
-          ) : (
-            <>
-              <Eye className="w-4 h-4 mr-2" />
-              Generate Preview
-            </>
-          )}
-        </Button>
-      )}
-      
-      {(signedPdfUrl || unsignedPdfUrl) && (
-        <>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              const url = signedPdfUrl || unsignedPdfUrl;
-              if (!url) return;
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = signedPdfUrl
-                ? `ZIPL-Service-Agreement-${candidateId}-Signed.pdf`
-                : `ZIPL-Service-Agreement-${candidateId}-Unsigned.pdf`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-            }}
-            className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Download {signedPdfUrl ? "Signed PDF" : "PDF"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setShowPdfPreview(true)}
-            className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-          >
-            <Eye className="w-4 h-4 mr-2" />
-            View Full Screen
-          </Button>
-        </>
-      )}
-    </div>
-
-    {/* Loading State */}
-    {generatingPdf && (
-      <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-blue-600" />
-          <p className="text-sm text-muted-foreground">Generating document preview...</p>
-        </div>
-      </div>
-    )}
-
-    {/* PDF Preview */}
-    {!generatingPdf && (signedPdfUrl || unsignedPdfUrl) && (
-      <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-        <iframe
-          src={signedPdfUrl || unsignedPdfUrl || ""}
-          className="w-full h-[500px] border-0"
-          title={signedPdfUrl ? "Signed PDF Preview" : "PDF Preview"}
-        />
-      </div>
-    )}
-
-    {/* No Preview State */}
-    {!generatingPdf && !signedPdfUrl && !unsignedPdfUrl && (
-      <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50">
-        <div className="text-center">
-          <FileText className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-          <p className="text-sm text-muted-foreground">
-            Click &quot;Generate Preview&quot; to view the document
-          </p>
-        </div>
-      </div>
-    )}
-  </div>
-</Card>
-
-          {/* Terms & Conditions + E-Signature */}
-          <Card className="p-6 shadow-sm space-y-6 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-            {/* Section Header */}
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-semibold">
-                8
-              </div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Terms & Conditions
-              </h2>
-            </div>
-
-            {/* T&C */}
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Please read and accept our terms and conditions to proceed with
-                onboarding.
+              <p className="mt-4 rounded-xl bg-muted/50 px-4 py-3 text-sm leading-6 text-muted-foreground">
+                No previous employer details are needed when experience is 0.
               </p>
+            ) : null}
+          </OnboardingCard>
+          )}
 
+
+          <OnboardingCard>
+            <OnboardingSectionHeader
+              step={7}
+              title="Agreement preview"
+              description={
+                signedPdfUrl
+                  ? "This is the signed document that will be saved with your onboarding."
+                  : "Generate the agreement, then open it on your phone to read before you sign."
+              }
+            />
+            <div className="space-y-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                {!signedPdfUrl && !unsignedPdfUrl ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={generateUnsignedPdf}
+                    disabled={generatingPdf}
+                    className="h-11 w-full sm:w-auto"
+                  >
+                    {generatingPdf ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating…
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Generate preview
+                      </>
+                    )}
+                  </Button>
+                ) : null}
+
+                {signedPdfUrl || unsignedPdfUrl ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 w-full sm:w-auto"
+                      onClick={() => {
+                        const url = signedPdfUrl || unsignedPdfUrl;
+                        if (!url) return;
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = signedPdfUrl
+                          ? `ZIPL-Service-Agreement-${candidateId}-Signed.pdf`
+                          : `ZIPL-Service-Agreement-${candidateId}-Unsigned.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                      }}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download {signedPdfUrl ? "signed PDF" : "PDF"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-11 w-full sm:w-auto"
+                      onClick={() => setShowPdfPreview(true)}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View larger
+                    </Button>
+                  </>
+                ) : null}
+              </div>
+
+              {generatingPdf ? (
+                <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-10">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Generating document…</p>
+                </div>
+              ) : null}
+
+              {!generatingPdf && (signedPdfUrl || unsignedPdfUrl) ? (
+                <OnboardingPdfPreview
+                  url={signedPdfUrl || unsignedPdfUrl || ""}
+                  title={signedPdfUrl ? "Signed agreement" : "Agreement preview"}
+                />
+              ) : null}
+
+              {!generatingPdf && !signedPdfUrl && !unsignedPdfUrl ? (
+                <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-8 text-center">
+                  <FileText className="mx-auto mb-2 h-8 w-8 text-muted-foreground" aria-hidden />
+                  <p className="text-sm text-muted-foreground">
+                    Generate a preview to review the agreement.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </OnboardingCard>
+
+          <OnboardingCard className="space-y-5">
+            <OnboardingSectionHeader
+              step={8}
+              title="Terms and signature"
+              description="Read the terms, then draw or upload your signature."
+            />
+
+            <div className="space-y-3">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setTermsModalOpen(true)}
-                className="w-full justify-center"
+                className="h-11 w-full"
               >
-                View Terms and Conditions
+                View terms and conditions
               </Button>
 
-              <label className="flex items-start gap-3 p-4 border border-purple-200 dark:border-purple-800 rounded-lg bg-white dark:bg-gray-900 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors cursor-pointer">
+              <label className="flex min-h-14 cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/30 p-4">
                 <input
                   type="checkbox"
                   checked={termsAccepted}
                   onChange={(e) => setTermsAccepted(e.target.checked)}
-                  className="w-4 h-4 cursor-pointer mt-1"
+                  className="mt-1 h-5 w-5 shrink-0 rounded border-input"
                   required
                 />
-                <span className="text-sm text-foreground">
+                <span className="text-sm leading-6 text-foreground">
                   I have read and agree to the terms and conditions
                 </span>
               </label>
             </div>
 
-            {/* Divider */}
-            <div className="border-t pt-4" />
-
-            {/* Signature Section Header */}
-            <div>
-              <h3 className="font-semibold text-base mb-1">E-Signature</h3>
-              <p className="text-sm text-muted-foreground">
-                {useDigitalSignature
-                  ? "Draw your signature below."
-                  : "Upload an image of your signature."}
-              </p>
-            </div>
-
-            {/* Signature Mode Switch */}
-            <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setUseDigitalSignature(true);
-                  setShowSignaturePad(false);
+            <div className="border-t border-border pt-5">
+              <p className="mb-3 text-sm font-medium text-foreground">Signature</p>
+              <OnboardingSegmented
+                value={useDigitalSignature ? "draw" : "upload"}
+                onChange={(next) => {
+                  setUseDigitalSignature(next === "draw");
+                  if (next === "draw") setShowSignaturePad(false);
                 }}
-                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                  useDigitalSignature
-                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
-                    : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
-                }`}
-              >
-                Digital Signature
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setUseDigitalSignature(false)}
-                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                  !useDigitalSignature
-                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
-                    : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
-                }`}
-              >
-                Upload Signature
-              </button>
+                options={[
+                  { value: "draw", label: "Draw" },
+                  { value: "upload", label: "Upload" },
+                ]}
+              />
             </div>
 
-            {/* Digital Signature */}
             {useDigitalSignature ? (
               <div className="space-y-3">
                 {!showSignaturePad ? (
                   signature ? (
-                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
                       <img
                         src={signature.url || "/placeholder.svg"}
                         alt="Digital signature preview"
-                        className="w-full max-h-40 object-contain"
+                        className="max-h-40 w-full object-contain"
                       />
-
                       <Button
                         type="button"
                         variant="outline"
@@ -3152,29 +2868,28 @@ export default function OnboardingPage() {
                           setSignature(null);
                           setShowSignaturePad(true);
                         }}
-                        className="w-full mt-3"
+                        className="mt-3 h-11 w-full"
                       >
-                        Redraw Signature
+                        Redraw signature
                       </Button>
                     </div>
                   ) : (
                     <Button
                       type="button"
                       onClick={() => setShowSignaturePad(true)}
-                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      className="h-11 w-full"
                     >
-                      Start Drawing Signature
+                      Start drawing signature
                     </Button>
                   )
                 ) : (
                   <>
                     <SignaturePad onSignatureCapture={handleSignatureCapture} />
-
                     <Button
                       type="button"
                       variant="outline"
                       onClick={cancelSignaturePad}
-                      className="w-full bg-transparent"
+                      className="h-11 w-full"
                     >
                       Cancel
                     </Button>
@@ -3182,83 +2897,36 @@ export default function OnboardingPage() {
                 )}
               </div>
             ) : (
-              /* Upload Signature */
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-foreground">
-                  Upload Signature
-                </label>
-
-                <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
-                  <div className="flex items-center gap-2 text-foreground">
+              <div className="space-y-4">
+                <OnboardingSignaturePhotoGuide />
+                <label className="flex min-h-14 cursor-pointer items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 px-4 py-5 text-sm font-medium text-foreground">
+                  <span className="flex items-center gap-2">
                     {signature ? (
                       <>
-                        <Check className="w-4 h-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-700">
-                          {signature.name}
-                        </span>
+                        <Check className="h-4 w-4 text-emerald-600" />
+                        {signature.name}
                       </>
                     ) : (
                       <>
-                        <Upload className="w-4 h-4" />
-                        <span className="text-sm">
-                          Click to upload signature
-                        </span>
+                        <Upload className="h-4 w-4" />
+                        Upload the transparent PNG
                       </>
                     )}
-                  </div>
-
+                  </span>
                   <input
                     type="file"
                     accept=".jpg,.jpeg,.png,.pdf"
                     onChange={handleSignatureChange}
-                    className="hidden"
+                    className="sr-only"
                     disabled={uploadingFiles.has("signature")}
                     required
                   />
                 </label>
               </div>
             )}
-          </Card>
-
-          {/* Submit Button */}
-          <div className="flex gap-3 pb-8">
-            <Button
-              type="submit"
-              disabled={submitting || uploadingFiles.size > 0 || (isOnboardingComplete && !isReuploadMode)}
-              className={`flex-1 gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${
-                isReuploadMode 
-                  ? "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
-                  : "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-              } text-white`}
-              size="lg"
-            >
-              {isOnboardingComplete && !isReuploadMode ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  Onboarding Completed
-                </>
-              ) : submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {isReuploadMode ? "Re-uploading..." : "Submitting..."}
-                </>
-              ) : isReuploadMode ? (
-                <>
-                  <Upload className="w-4 h-4" />
-                  Submit Re-uploaded Documents
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  Complete Onboarding
-                </>
-              )}
-            </Button>
-          </div>
+          </OnboardingCard>
         </form>
-      </div>
 
-      {/* Signature Preview Modal */}
       <SignaturePreviewModal
         open={showSignaturePreview}
         signature={previewSignature || ""}
@@ -3275,24 +2943,23 @@ export default function OnboardingPage() {
         }}
       />
 
-      {/* Confirmation Dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent className="bg-white dark:bg-gray-800">
+        <DialogContent className="bg-card">
           <DialogHeader>
-            <DialogTitle className="text-foreground">
-              {isReuploadMode ? "Confirm Document Re-upload" : "Confirm Submission"}
+            <DialogTitle>
+              {isReuploadMode ? "Confirm document re-upload" : "Confirm submission"}
             </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              {isReuploadMode 
-                ? "Are you sure you want to submit the re-uploaded documents? HR will be notified and will review them shortly."
-                : "Are you sure you want to submit your onboarding details? Once submitted, you won't be able to make changes."
-              }
+            <DialogDescription>
+              {isReuploadMode
+                ? "Submit the re-uploaded documents? HR will be notified and will review them shortly."
+                : "Submit your onboarding details? You will not be able to change them after this."}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button
               type="button"
               variant="outline"
+              className="min-h-11"
               onClick={() => setShowConfirmDialog(false)}
               disabled={submitting}
             >
@@ -3300,71 +2967,72 @@ export default function OnboardingPage() {
             </Button>
             <Button
               type="button"
+              className="min-h-11"
               onClick={handleConfirmSubmit}
               disabled={submitting}
-              className={isReuploadMode ? "bg-amber-600 hover:bg-amber-700" : "bg-blue-600 hover:bg-blue-700"}
             >
               {submitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {isReuploadMode ? "Re-uploading..." : "Submitting..."}
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isReuploadMode ? "Submitting…" : "Submitting…"}
                 </>
+              ) : isReuploadMode ? (
+                "Submit documents"
               ) : (
-                isReuploadMode ? "Yes, Submit Documents" : "Yes, Submit"
+                "Submit"
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* PDF Preview Dialog */}
       <Dialog open={showPdfPreview} onOpenChange={setShowPdfPreview}>
-        <DialogContent className="max-w-5xl max-h-[90vh] bg-white dark:bg-gray-800">
+        <DialogContent className="max-h-[90vh] max-w-5xl bg-card">
           <DialogHeader>
-            <DialogTitle className="text-foreground">
-              {signedPdfUrl ? "Signed Onboarding Document" : "Onboarding Document Preview"}
+            <DialogTitle>
+              {signedPdfUrl ? "Signed onboarding document" : "Onboarding document preview"}
             </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              {signedPdfUrl 
-                ? "Your signed onboarding document. This will be saved after submission."
-                : "Preview of the unsigned onboarding document. Please review before signing."}
+            <DialogDescription>
+              {signedPdfUrl
+                ? "This signed document will be saved after submission."
+                : "Review the unsigned document before signing."}
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-            {/* CRITICAL: Always prioritize signed PDF - once signed, never show unsigned */}
+          <div className="mt-2 overflow-hidden rounded-xl border border-border bg-muted/30">
             {(signedPdfUrl || unsignedPdfUrl) && (
               <iframe
                 src={signedPdfUrl || unsignedPdfUrl || ""}
-                className="w-full h-[70vh] border-0"
+                className="h-[50vh] w-full border-0 sm:h-[70vh]"
                 title={signedPdfUrl ? "Signed Onboarding Document" : "Onboarding Document Preview"}
               />
             )}
           </div>
-          <div className="flex justify-end gap-2 mt-4">
+          <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             {(unsignedPdfUrl || signedPdfUrl) && (
               <Button
                 type="button"
                 variant="outline"
+                className="h-11"
                 onClick={() => {
                   const url = signedPdfUrl || unsignedPdfUrl;
                   if (!url) return;
                   const a = document.createElement("a");
                   a.href = url;
-                  a.download = signedPdfUrl 
+                  a.download = signedPdfUrl
                     ? `ZIPL-Service-Agreement-${candidateId}.pdf`
                     : `ZIPL-Service-Agreement-${candidateId}-Unsigned.pdf`;
                   document.body.appendChild(a);
                   a.click();
                   document.body.removeChild(a);
                 }}
-                className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
               >
-                <Download className="w-4 h-4 mr-2" />
+                <Download className="mr-2 h-4 w-4" />
                 Download PDF
               </Button>
             )}
             <Button
               type="button"
+              className="h-11"
               onClick={() => {
                 setShowPdfPreview(false);
                 if (signedPdfUrl) {
@@ -3376,13 +3044,12 @@ export default function OnboardingPage() {
                   setUnsignedPdfUrl(null);
                 }
               }}
-              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
             >
               Close
             </Button>
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </OnboardingPageShell>
   );
 }

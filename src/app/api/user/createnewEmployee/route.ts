@@ -9,6 +9,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 import { normalizeAllotedArea } from "@/util/location";
 import { normalizeEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
+import { withUniqueEmployeeCode } from "@/lib/people/employeeCode";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   await connectDb();
@@ -140,7 +141,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       organization,
       passwordExpiresAt: computePasswordExpiryDate(),
     });
-    const createUser = await newUser.save();
+    // Assign a permanent ZI-XXXXXX employee code. Retries with a fresh code
+    // if a race condition ever collides with the unique index.
+    const createUser = await withUniqueEmployeeCode(async (employeeCode) => {
+      newUser.employeeCode = employeeCode;
+      return newUser.save();
+    });
 
     // Link candidate → employee when created from onboarding / candidate portal
     const candidateId =

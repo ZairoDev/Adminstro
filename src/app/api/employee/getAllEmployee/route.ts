@@ -38,7 +38,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       query.role = new RegExp(role, "i");
     }
 
-    const validQueryTypes = ["name", "email", "phone"];
+    const validQueryTypes = ["name", "email", "phone", "employeeCode"];
     if (queryType) {
       if (validQueryTypes.includes(queryType)) {
         if (EmployeeInput) {

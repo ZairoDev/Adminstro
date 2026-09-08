@@ -136,6 +136,7 @@ export interface Candidate {
       aadharCardFront?: string;
       aadharCardBack?: string;
       panCard?: string;
+      cancelledCheque?: string;
       highSchoolMarksheet?: string;
       interMarksheet?: string;
       graduationMarksheet?: string;

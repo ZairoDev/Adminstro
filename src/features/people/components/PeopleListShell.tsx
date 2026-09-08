@@ -130,6 +130,8 @@ interface PeopleListRow {
   status: string;
   createdAt: string;
   employeeId?: string | null;
+  /** Permanent human-readable ID of the linked employee, e.g. "ZI-4K7QXH". */
+  employeeCode?: string | null;
   employedAt?: string | null;
   exitedAt?: string | Date | null;
   exitReason?: string | null;
@@ -537,7 +539,7 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
   );
 
   const dateColumnLabel = DATE_COLUMN_LABEL[tab];
-  const columnCount = 9;
+  const columnCount = 10;
 
   // Get user role for reschedule permissions
   useEffect(() => {
@@ -972,6 +974,9 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                   Name
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                  Employee Code
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                   Email
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
@@ -1054,6 +1059,9 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                         <div className="font-medium text-foreground">
                           {person.name}
                         </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                        {person.employeeCode || "—"}
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
                         <TooltipProvider>

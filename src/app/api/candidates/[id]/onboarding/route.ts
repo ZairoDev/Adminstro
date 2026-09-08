@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createTransporterHR, DEFAULT_FROM_EMAIL } from "@/lib/email/transporter";
 import { getActiveHREmployee } from "@/lib/email/getHREmployee";
 import { getEmailSignature } from "@/lib/email/signature";
+import { getOnboardingDocumentLabel, isOnboardingReuploadDocumentKey } from "@/lib/people/onboarding-documents";
 
 // PATCH: Handle document re-uploads
 export async function PATCH(
@@ -98,6 +99,15 @@ export async function PATCH(
     // Validate that only requested documents are being re-uploaded
     const requestedDocs = reuploadRequest.requestedDocuments || [];
     const submittedDocs = Object.keys(documents);
+    const invalidType = submittedDocs.find(
+      (doc) => !isOnboardingReuploadDocumentKey(doc)
+    );
+    if (invalidType) {
+      return NextResponse.json(
+        { success: false, error: `Invalid document type: ${invalidType}` },
+        { status: 400 }
+      );
+    }
     const invalidDocs = submittedDocs.filter((doc) => !requestedDocs.includes(doc));
     
 
@@ -186,18 +196,7 @@ export async function PATCH(
 
       const documentListHtml = submittedDocs
         .map((docKey) => {
-          const labels: Record<string, string> = {
-            aadharCardFront: "Aadhaar Card - Front",
-            aadharCardBack: "Aadhaar Card - Back",
-            panCard: "PAN Card",
-            highSchoolMarksheet: "High School Marksheet",
-            interMarksheet: "Intermediate Marksheet",
-            graduationMarksheet: "Graduation Marksheet",
-            experienceLetter: "Experience Letter",
-            relievingLetter: "Relieving Letter",
-            salarySlips: "Salary Slips",
-          };
-          return `<li style="margin: 8px 0;">${labels[docKey] || docKey}</li>`;
+          return `<li style="margin: 8px 0;">${getOnboardingDocumentLabel(docKey)}</li>`;
         })
         .join("");
 
@@ -333,11 +332,18 @@ export async function POST(
       salarySlips = [];
     }
 
+    const cancelledChequeRaw = formData.get("cancelledCheque");
+    const cancelledCheque =
+      typeof cancelledChequeRaw === "string" && cancelledChequeRaw.trim()
+        ? cancelledChequeRaw.trim()
+        : null;
+
     const documents = {
       // aadharCard: formData.get("aadharCard") || null,
       aadharCardFront: formData.get("aadharCardFront") || formData.get("aadharCard") || null,
       aadharCardBack: formData.get("aadharCardBack") || null,
       panCard: formData.get("panCard") || null,
+      cancelledCheque,
       highSchoolMarksheet: formData.get("highSchoolMarksheet") || null,
       interMarksheet: formData.get("interMarksheet") || null,
       graduationMarksheet: formData.get("graduationMarksheet") || null,

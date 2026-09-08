@@ -7,31 +7,10 @@ import crypto from "crypto";
 import { createTransporterHR, DEFAULT_FROM_EMAIL } from "@/lib/email/transporter";
 import { getActiveHREmployee } from "@/lib/email/getHREmployee";
 import { getEmailSignature } from "@/lib/email/signature";
-
-// Valid document types that can be re-uploaded
-const DOCUMENT_TYPES = [
-  "aadharCardFront",
-  "aadharCardBack",
-  "panCard",
-  "highSchoolMarksheet",
-  "interMarksheet",
-  "graduationMarksheet",
-  "experienceLetter",
-  "relievingLetter",
-  "salarySlips",
-] as const;
-
-const DOCUMENT_LABELS: Record<string, string> = {
-  aadharCardFront: "Aadhaar Card - Front",
-  aadharCardBack: "Aadhaar Card - Back",
-  panCard: "PAN Card",
-  highSchoolMarksheet: "High School Marksheet",
-  interMarksheet: "Intermediate Marksheet",
-  graduationMarksheet: "Graduation Marksheet",
-  experienceLetter: "Experience Letter",
-  relievingLetter: "Relieving Letter",
-  salarySlips: "Salary Slips",
-};
+import {
+  getOnboardingDocumentLabel,
+  isOnboardingReuploadDocumentKey,
+} from "@/lib/people/onboarding-documents";
 
 // Generate a secure token for the re-upload link
 function generateSecureToken(): string {
@@ -79,7 +58,7 @@ export async function POST(
 
     // Validate each document type
     for (const docType of documentTypes) {
-      if (!DOCUMENT_TYPES.includes(docType)) {
+      if (typeof docType !== "string" || !isOnboardingReuploadDocumentKey(docType)) {
         return NextResponse.json(
           { success: false, error: `Invalid document type: ${docType}` },
           { status: 400 }
@@ -214,7 +193,7 @@ export async function POST(
       const transporter = createTransporterHR();
       
       const documentListHtml = documentTypes
-        .map((docType: string) => `<li style="margin: 8px 0;">${DOCUMENT_LABELS[docType] || docType}</li>`)
+        .map((docType: string) => `<li style="margin: 8px 0;">${getOnboardingDocumentLabel(docType)}</li>`)
         .join("");
 
       const emailHtml = `

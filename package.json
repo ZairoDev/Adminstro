@@ -25,7 +25,10 @@
     "migrate:employee-lifecycle:apply": "tsx src/scripts/migrateEmployeeLifecycle.ts --apply",
     "backfill:whatsapp-metrics": "tsx src/scripts/backfillWhatsAppConversationMetrics.ts",
     "backfill:whatsapp-session": "tsx src/scripts/backfillWhatsAppSessionExpiry.ts",
-    "analyze:whatsapp-delivery": "tsx src/scripts/analyzeWhatsAppDeliveryStatus.ts"
+    "analyze:whatsapp-delivery": "tsx src/scripts/analyzeWhatsAppDeliveryStatus.ts",
+    "backfill:employee-code": "tsx src/scripts/backfillEmployeeCode.ts",
+    "backfill:employee-code:apply": "tsx src/scripts/backfillEmployeeCode.ts --apply",
+    "db:sync-indexes": "tsx src/scripts/createIndexes.ts"
   },
   "dependencies": {
     "@apollo/client": "^3.11.7",

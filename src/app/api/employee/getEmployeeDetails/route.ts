@@ -1,5 +1,6 @@
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
+import  "@/models/officeAddress";
 import { EmployeeInterface } from "@/util/type";
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
@@ -14,6 +15,7 @@ export async function POST(request: NextRequest) {
     const { userId } = reqBody;
     const user = await Employees.findOne({ _id: userId })
   .select("-password -passwordExpiresAt")
+  .populate("officeDetails.officeAddressId","name")
   .lean() as EmployeeInterface | null;
 
     if (!user) {

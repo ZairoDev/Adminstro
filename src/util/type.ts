@@ -72,6 +72,11 @@ export interface EmployeeInterface {
   _id: string;
   /** Permanent human-readable ID, e.g. "ZI-4K7QXH". Null until backfilled on legacy records. */
   employeeCode?: string | null;
+  officeDetails?:{
+    officeAddressId?:  string | {_id: string, name: string} | null;
+    assignedEmail?: string | null;
+    assignedNumber?: string | null;
+  } | null;
   name: string;
   email: string;
   organization?: "VacationSaga" | "Holidaysera" | "HousingSaga";

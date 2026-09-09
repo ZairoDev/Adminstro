@@ -83,6 +83,8 @@ import type { CandidateLite } from "@/app/dashboard/candidatePortal/components/n
 import { SeparatePersonDialog } from "@/features/people/components/SeparatePersonDialog";
 import { LifecycleBadge } from "@/features/people/components/LifecycleBadge";
 import { usePersonPermissions } from "@/features/people/hooks/usePersonPermissions";
+
+import { OfficeDetailsDialog } from "@/features/people/components/OfficeDetailsDialog";
 import {
   hiringWorkspacePath,
   parsePersonTab,
@@ -379,6 +381,7 @@ export default function PersonDetailPage() {
 
   // Separation state
   const [separationDialogOpen, setSeparationDialogOpen] = useState(false);
+  const [officeDetailsDialogOpen, setOfficeDetailsDialogOpen] = useState(false);
   const [separationType, setSeparationType] = useState<"terminated" | "suspended" | "abscond" | "resigned" | "">("");
   const [separationReason, setSeparationReason] = useState("");
   const [separationDate, setSeparationDate] = useState("");
@@ -1563,6 +1566,40 @@ export default function PersonDetailPage() {
                       </p>
                     </div>
                   </Card>
+
+                  <Card className="p-4 space-y-4 mt-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <h2 className="text-sm font-semibold uppercase tracking-wide">
+                        Office Details
+                      </h2>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setOfficeDetailsDialogOpen(true)}
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                     
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <p className="text-sm">
+                        <span className="text-muted-foreground">Location: </span>
+                        {employee.officeDetails?.officeAddressId &&
+                        typeof employee.officeDetails.officeAddressId === "object"
+                          ? employee.officeDetails.officeAddressId.name
+                          : "Not set"}
+                      </p>
+                      <p className="text-sm">
+                        <span className="text-muted-foreground">Assigned Email: </span>
+                        {employee.officeDetails?.assignedEmail || "Not set"}
+                      </p>
+                      <p className="text-sm">
+                        <span className="text-muted-foreground">Assigned Number: </span>
+                        {employee.officeDetails?.assignedNumber || "Not set"}
+                      </p>
+                    </div>
+                  </Card>
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">Employee profile not found.</p>
@@ -2246,6 +2283,15 @@ export default function PersonDetailPage() {
           void refreshCandidate();
         }}
       />
+
+      {employee && (
+        <OfficeDetailsDialog
+          open={officeDetailsDialogOpen}
+          onOpenChange={setOfficeDetailsDialogOpen}
+          employeeId={employee._id}
+          onSaved={reloadEmployee}
+        />
+      )}
 
       {/* PIP Management Dialogs - Only for active phase */}
       {phase === "active" && linkedEmployeeId && (

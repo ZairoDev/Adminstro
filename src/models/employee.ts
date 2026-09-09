@@ -11,6 +11,11 @@ interface IEmployee extends Document, EmployeeSchema {
    * (npm run backfill:employee-code) has been run.
    */
   employeeCode?: string | null;
+  officeDetails?:{
+    officeAddressId?: Types.ObjectId | null;
+    assignedEmail?: string | null;
+    assignedNumber?: string | null;
+  };
   candidateId?: Types.ObjectId | null;
   pricingRule: {
     enabled: boolean;
@@ -246,6 +251,20 @@ const employeeSchema = new Schema<IEmployee>(
       unique: true,
       sparse: true,
       immutable: true,
+    },
+    officeDetails:{
+      officeAddressId: {
+        type:Schema.Types.ObjectId,
+        ref: "OfficeAddress",
+        default: null,
+      },
+      assignedEmail: {
+        type: String,
+       
+      },
+      assignedNumber: {
+        type: String,
+      },
     },
     inactiveReason: {
       type: String,
@@ -535,6 +554,8 @@ const employeeSchema = new Schema<IEmployee>(
 
 employeeSchema.index({ location: 1, isActive: 1 });
 employeeSchema.index({ role: 1, isActive: 1 });
+employeeSchema.index({ "officeDetails.assignedEmail": 1},{unique: true, sparse: true})
+employeeSchema.index({ "officeDetails.assignedNumber": 1}, {unique: true, sparse: true})
 
 const Employees =
   mongoose.models?.Employees ||

@@ -49,7 +49,15 @@ export interface PIPRecord {
   emailSent: boolean;
   status: PIPStatus;
   notes?: string;
+  /** Set once the employee has acknowledged this PIP on the mandatory gate. null = pending. */
+  acknowledgedAt?: string | Date | null;
+  /** True only for PIPs issued after acknowledgment enforcement was introduced. */
+  acknowledgmentRequired?: boolean;
 }
+
+/** Why an employee's profile is currently locked. Purely informational (messaging) -
+ * unlock-gating logic continues to key off whether an overdue active PIP exists. */
+export type EmployeeLockReason = "manual" | "pip" | null;
 
 export type AppreciationType =
   | "outstandingContribution"
@@ -109,6 +117,8 @@ export interface EmployeeInterface {
   rentalType?: string | null;
   createdAt: string;
   updatedAt: string;
+  isLocked?: boolean;
+  lockReason?: EmployeeLockReason;
   warnings?: WarningRecord[];
   pips?: PIPRecord[];
   appreciations?: AppreciationRecord[];
@@ -285,6 +295,7 @@ export interface UserInterface {
   gender: string;
   isVerified: boolean;
   isLocked: boolean;
+  lockReason?: EmployeeLockReason;
   isFeatured: boolean;
   passwordExpiresAt: Date;
   forgotPasswordToken: string;

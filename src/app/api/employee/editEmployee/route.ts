@@ -40,6 +40,7 @@ interface RequestBody {
   empType?: string;
   duration?: string;
   isLocked?: boolean;
+  lockReason?: "manual" | "pip" | null;
   inactiveReason?: string | null;
   inactiveDate?: Date | string | null;
   password?: string;
@@ -114,6 +115,9 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     if (Object.keys(updateFields).includes("isLocked")) {
       updateData.isLocked = updateFields.isLocked;
     }
+    if (Object.keys(updateFields).includes("lockReason")) {
+      updateData.lockReason = updateFields.lockReason;
+    }
     if (Object.keys(updateFields).includes("inactiveReason")) {
       updateData.inactiveReason = updateFields.inactiveReason;
     }
@@ -132,12 +136,42 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       updateData.passwordExpiresAt = computePasswordExpiryDate();
     }
 
+    const employeeUpdateFilter: Record<string, unknown> = { _id };
+    if (updateFields.isLocked === false) {
+      // The plain toggle may unlock the initial PIP lock while the plan is in
+      // progress, but it must not bypass end-of-duration PIP resolution. Keep
+      // the guard in the update predicate so a concurrent cron/status change
+      // cannot race this request.
+      const startOfToday = new Date();
+      startOfToday.setUTCHours(0, 0, 0, 0);
+      employeeUpdateFilter.pips = {
+        $not: {
+          $elemMatch: {
+            status: "active",
+            endDate: { $lt: startOfToday.toISOString().slice(0, 10) },
+          },
+        },
+      };
+    }
+
     const user = await Employees.findOneAndUpdate(
-      { _id },
+      employeeUpdateFilter,
       { $set: updateData },
       { new: true }
     ).select("-password");
     if (!user) {
+      if (
+        updateFields.isLocked === false &&
+        await Employees.exists({ _id })
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Resolve the overdue PIP as Completed or Failed before unlocking this profile.",
+          },
+          { status: 409 },
+        );
+      }
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 

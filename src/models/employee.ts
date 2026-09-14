@@ -279,6 +279,15 @@ const employeeSchema = new Schema<IEmployee>(
       type: Boolean,
       default: false,
     },
+    // Distinguishes an HR-initiated manual lock from a PIP-driven lock so
+    // login/toast messaging can be precise about *why* the profile is locked.
+    // Does not affect the unlock-gating logic, which continues to key off
+    // whether an overdue active PIP exists (see hasOverdueActivePIP).
+    lockReason: {
+      type: String,
+      enum: ["manual", "pip", null],
+      default: null,
+    },
     isfeatured: {
       type: Boolean,
       default: false,
@@ -331,7 +340,7 @@ const employeeSchema = new Schema<IEmployee>(
         {
           pipLevel: {
             type: String,
-            enum: ["level1", "level2", "level3"],
+            enum: ["forTrainees", "level1", "level2", "level3"],
             required: true,
           },
           startDate: { type: String, required: true },
@@ -346,6 +355,12 @@ const employeeSchema = new Schema<IEmployee>(
             default: "active",
           },
           notes: { type: String, default: "" },
+          // Set once the employee has clicked "I acknowledge" on the
+          // mandatory full-screen PIP acknowledgment gate. null = pending.
+          acknowledgedAt: { type: Date, default: null },
+          // Explicit marker prevents historical PIPs (created before this
+          // feature) from unexpectedly blocking employees after deployment.
+          acknowledgmentRequired: { type: Boolean, default: false },
         },
       ],
       default: [],

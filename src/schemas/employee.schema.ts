@@ -59,6 +59,7 @@ export const employeeSchema = z.object({
   inactiveReason: z.enum(["terminated", "suspended", "abscond", "resigned"]).nullable().optional().default(null),
   inactiveDate: z.date().nullable().optional().default(null),
   isLocked: z.boolean().optional().default(false),
+  lockReason: z.enum(["manual", "pip"]).nullable().optional().default(null),
   isfeatured: z.boolean().optional().default(false),
   organization: z.enum(ORGANIZATIONS).optional().default("VacationSaga"),
   passwordExpiresAt: z.date().optional(),
@@ -103,7 +104,7 @@ export const employeeSchema = z.object({
   pips: z
     .array(
       z.object({
-        pipLevel: z.enum(["level1", "level2", "level3"]),
+        pipLevel: z.enum(["forTrainees", "level1", "level2", "level3"]),
         startDate: z.string(),
         endDate: z.string(),
         concerns: z.array(z.string()).default([]),
@@ -112,6 +113,8 @@ export const employeeSchema = z.object({
         emailSent: z.boolean().default(false),
         status: z.enum(["active", "completed", "failed"]).default("active"),
         notes: z.string().optional().default(""),
+        acknowledgedAt: z.date().nullable().optional().default(null),
+        acknowledgmentRequired: z.boolean().optional().default(false),
       })
     )
     .optional()

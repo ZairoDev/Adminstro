@@ -12,7 +12,10 @@ import EmployeeUiRule from "@/models/employeeUiRule";
 import { getDeviceTypeFromHeaders, WEB_SESSION_DURATION_MS } from "@/util/deviceSession";
 import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
 import { normalizeEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
-
+import {
+  PIP_LOCK_LOGIN_MESSAGE,
+  MANUAL_LOCK_LOGIN_MESSAGE,
+} from "@/lib/employee/pipLockMessages";
 type UiFlags = {
   hideGuestManagement?: boolean;
   hideOwnerManagement?: boolean;
@@ -221,8 +224,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     if (temp.isLocked) {
+      const isPipLock = (temp as unknown as { lockReason?: string | null }).lockReason === "pip";
       return NextResponse.json(
-        { error: "Your account has been locked. Please contact the administrator to unlock your account." },
+        { error: isPipLock ? PIP_LOCK_LOGIN_MESSAGE : MANUAL_LOCK_LOGIN_MESSAGE },
         { status: 403 }
       );
     }

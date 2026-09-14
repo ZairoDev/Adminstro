@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import {
   Copy,
@@ -94,6 +94,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmailPreviewDialog } from "@/components/EmailPreviewDialog";
+import { PipIssueConfirmationDialog } from "@/components/pip/PipIssueConfirmationDialog";
 import { hiringWorkspacePath } from "@/features/people/navigation";
 
 interface PageProps {
@@ -223,6 +224,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
   // PIP Section State
   const [pips, setPips] = useState<PIPRecord[]>([]);
   const [pipDialogOpen, setPipDialogOpen] = useState(false);
+  const [pipIssueConfirmationOpen, setPipIssueConfirmationOpen] = useState(false);
   const [sendingPIP, setSendingPIP] = useState(false);
   const [deletingPIPId, setDeletingPIPId] = useState<string | null>(null);
   const [newPIP, setNewPIP] = useState({
@@ -746,20 +748,6 @@ export default function EmployeeProfilePage({ params }: PageProps) {
       return;
     }
 
-    // If this is a next level PIP, mark the previous PIP as failed first
-    if (pendingPIPAction?.action === "nextLevel" && pendingPIPAction.pipId) {
-      try {
-        await axios.put("/api/employee/pip", {
-          employeeId: userId,
-          pipId: pendingPIPAction.pipId,
-          status: "failed",
-        });
-      } catch (error: any) {
-        console.error("Failed to mark previous PIP as failed:", error);
-        // Continue anyway
-      }
-    }
-
     if (!newPIP.sendEmail || !user?.email) {
       // If email is not to be sent, directly save without preview
       try {
@@ -773,6 +761,10 @@ export default function EmployeeProfilePage({ params }: PageProps) {
           issuedBy: "Admin",
           notes: newPIP.notes,
           sendEmail: false,
+          currentPipId:
+            pendingPIPAction?.action === "nextLevel"
+              ? pendingPIPAction.pipId
+              : undefined,
         });
 
         if (response?.data?.success) {
@@ -787,13 +779,13 @@ export default function EmployeeProfilePage({ params }: PageProps) {
               : "Level 3";
             toast({
               title: "Next level PIP recorded",
-              description: `${levelLabel} PIP has been recorded. Previous PIP has been marked as failed.`,
+              description: `${levelLabel} PIP recorded. The profile is locked${response.data.forceLoggedOut ? " and active sessions were ended" : ""}.`,
             });
             setPendingPIPAction(null);
           } else {
             toast({
               title: "PIP recorded",
-              description: "PIP has been recorded without sending email.",
+              description: `The profile is locked${response.data.forceLoggedOut ? " and active sessions were ended" : ""}.`,
             });
           }
         }
@@ -857,27 +849,30 @@ export default function EmployeeProfilePage({ params }: PageProps) {
     }
   };
 
+  const requestPipIssue = () => {
+    if (!newPIP.pipLevel || !newPIP.startDate || !newPIP.endDate) {
+      toast({
+        variant: "destructive",
+        title: "Missing fields",
+        description: "Please fill all required fields (PIP Level, Start Date, End Date).",
+      });
+      return;
+    }
+    if (!newPIP.concerns.some((concern) => concern.trim().length > 0)) {
+      toast({
+        variant: "destructive",
+        title: "Missing concerns",
+        description: "Please add at least one concern or issue.",
+      });
+      return;
+    }
+    setPipIssueConfirmationOpen(true);
+  };
+
   const handleSendPIPWithCustomEmail = async (subject: string, html: string) => {
     try {
       setSendingPIP(true);
       
-      // If this is a next level PIP, mark current PIP as failed first (if not already done)
-      if (emailPreviewPayload?.currentPipId || pendingPIPAction?.action === "nextLevel") {
-        const pipIdToFail = emailPreviewPayload?.currentPipId || pendingPIPAction?.pipId;
-        if (pipIdToFail) {
-          try {
-            await axios.put("/api/employee/pip", {
-              employeeId: userId,
-              pipId: pipIdToFail,
-              status: "failed",
-            });
-          } catch (error: any) {
-            console.error("Failed to mark current PIP as failed:", error);
-            // Continue anyway
-          }
-        }
-      }
-
       const response = await axios.post("/api/employee/pip", {
         ...emailPreviewPayload,
         customEmailSubject: subject,
@@ -897,16 +892,16 @@ export default function EmployeeProfilePage({ params }: PageProps) {
           toast({
             title: response?.data?.emailSent ? "Next level PIP sent successfully" : "PIP recorded",
             description: response?.data?.emailSent
-              ? `${nextLevel} PIP email has been sent to ${user?.email}. Previous PIP has been marked as failed.`
-              : "PIP has been recorded without sending email.",
+              ? `${nextLevel} PIP sent to ${user?.email}. The profile is locked${response.data.forceLoggedOut ? " and active sessions were ended" : ""}.`
+              : `PIP recorded and profile locked${response.data.forceLoggedOut ? "; active sessions were ended" : ""}.`,
           });
           setPendingPIPAction(null);
         } else {
           toast({
             title: response?.data?.emailSent ? "PIP sent successfully" : "PIP recorded",
             description: response?.data?.emailSent
-              ? `PIP email has been sent to ${user?.email}`
-              : "PIP has been recorded without sending email.",
+              ? `PIP sent to ${user?.email}. The profile is locked${response.data.forceLoggedOut ? " and active sessions were ended" : ""}.`
+              : `PIP recorded and profile locked${response.data.forceLoggedOut ? "; active sessions were ended" : ""}.`,
           });
         }
         
@@ -1963,7 +1958,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                       </Button>
                     </DialogClose>
                     <Button
-                      onClick={handleSendPIP}
+                      onClick={requestPipIssue}
                       disabled={sendingPIP}
                       className="bg-blue-500 hover:bg-blue-600"
                     >
@@ -1982,6 +1977,15 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              <PipIssueConfirmationDialog
+                open={pipIssueConfirmationOpen}
+                employeeName={user?.name ?? ""}
+                onOpenChange={setPipIssueConfirmationOpen}
+                onConfirm={() => {
+                  setPipIssueConfirmationOpen(false);
+                  void handleSendPIP();
+                }}
+              />
             </CardHeader>
             <CardContent>
               <AnimatePresence mode="popLayout">

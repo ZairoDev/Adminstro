@@ -11,6 +11,7 @@ import { SystemNotificationToast } from "@/components/Notifications/SystemNotifi
 import { SystemNotificationCenter } from "@/components/Notifications/SystemNotificationCenter";
 import { CommandDialogDemo } from "@/components/camanddialog/CammandDialog";
 import { LeadSearch } from "@/components/UniversalLeadSearch/LeadSearch";
+import { PipAcknowledgmentGate } from "@/components/pip/PipAcknowledgmentGate";
 import { useState, useEffect } from "react";
 import InfoCard from "@/components/infoCard/InfoCard";
 import { usePathname } from "next/navigation";
@@ -173,10 +174,13 @@ export default function DashboardLayout({
         </div>
         <div>
           <div>
+
             <div className="pb-16 lg:pb-0">
+              <PipAcknowledgmentGate>
               <MonthlyTargetGate>
                 <VisitStatusGate>{children}</VisitStatusGate>
               </MonthlyTargetGate>
+              </PipAcknowledgmentGate>
             </div>
           </div>
         </div>

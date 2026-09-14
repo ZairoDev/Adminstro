@@ -2,6 +2,7 @@
 
  import { useEffect } from "react";
  import { useSocket } from "@/hooks/useSocket";
+ import {toast} from "sonner";
  import { useAuthStore } from "@/AuthStore";
  import axios from "@/util/axios";
  import { useRouter } from "next/navigation";
@@ -68,11 +69,19 @@
       });
     }
 
-     const handleForceLogout = async (data: { _id?: string; sessionId?: string }) => {
+    const handleForceLogout = async (data: {
+      _id?: string;
+      sessionId?: string;
+      reason?: string;
+      message?: string;
+    }) => {
       try {
         if (!token?.id) return;
         if (data?._id && data._id !== token.id) return;
         // Server already marked the session as ended. Client should only clear local state and redirect.
+        if (data?.message) {
+          toast.error(data.message, { duration: 8000 });
+        }
       } catch (err) {
         console.warn("Auto logout handler error:", err);
       } finally {

@@ -74,6 +74,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import Loader from "@/components/loader";
 import { EmailPreviewDialog } from "@/components/EmailPreviewDialog";
+import { PipIssueConfirmationDialog } from "@/components/pip/PipIssueConfirmationDialog";
 import { CandidateHeader } from "@/app/dashboard/candidatePortal/[id]/components/CandidateHeader";
 import { useCandidate } from "@/app/dashboard/candidatePortal/[id]/hooks/useCandidate";
 import { OnboardingDetailsView } from "@/app/dashboard/candidatePortal/components/onboarding-details-view";
@@ -343,6 +344,7 @@ export default function PersonDetailPage() {
   // PIP state
   const [pips, setPips] = useState<PIPRecord[]>([]);
   const [pipDialogOpen, setPipDialogOpen] = useState(false);
+  const [pipIssueConfirmationOpen, setPipIssueConfirmationOpen] = useState(false);
   const [sendingPIP, setSendingPIP] = useState(false);
   const [deletingPIPId, setDeletingPIPId] = useState<string | null>(null);
   const [newPIP, setNewPIP] = useState({
@@ -771,18 +773,7 @@ export default function PersonDetailPage() {
     }
 
     // If this is a next level PIP, mark the previous PIP as failed first
-    if (pendingPIPAction?.action === "nextLevel" && pendingPIPAction.pipId) {
-      try {
-        await axios.put("/api/employee/pip", {
-          employeeId: linkedEmployeeId,
-          pipId: pendingPIPAction.pipId,
-          status: "failed",
-        });
-      } catch (error: any) {
-        console.error("Failed to mark previous PIP as failed:", error);
-        // Continue anyway
-      }
-    }
+    
 
     if (!newPIP.sendEmail || !employee?.email) {
       // If email is not to be sent, directly save without preview
@@ -797,6 +788,10 @@ export default function PersonDetailPage() {
           issuedBy: "Admin",
           notes: newPIP.notes,
           sendEmail: false,
+          currentPipId:
+            pendingPIPAction?.action === "nextLevel"
+              ? pendingPIPAction.pipId
+              : undefined,
         });
 
         if (response?.data?.success) {
@@ -809,10 +804,14 @@ export default function PersonDetailPage() {
             const levelLabel = pendingPIPAction.pip.pipLevel === "level1" || pendingPIPAction.pip.pipLevel === "forTrainees" 
               ? "Level 2" 
               : "Level 3";
-            toast.success(`${levelLabel} PIP has been recorded. Previous PIP has been marked as failed.`);
+              toast.success(
+                `${levelLabel} PIP recorded. The profile is locked${response.data.forceLoggedOut ? " and active sessions were ended" : ""}.`,
+              );
             setPendingPIPAction(null);
           } else {
-            toast.success("PIP has been recorded without sending email.");
+            toast.success(
+              `PIP recorded and profile locked${response.data.forceLoggedOut ? "; active sessions were ended" : ""}.`,
+            );
           }
         }
       } catch (error: any) {
@@ -867,10 +866,23 @@ export default function PersonDetailPage() {
     }
   };
 
+  const requestPipIssue = () => {
+    if (!newPIP.pipLevel || !newPIP.startDate || !newPIP.endDate) {
+      toast.error("Please fill all required fields (PIP Level, Start Date, End Date).");
+      return;
+    }
+    if (!newPIP.concerns.some((concern) => concern.trim().length > 0)) {
+      toast.error("Please add at least one concern or issue.");
+      return;
+    }
+    setPipIssueConfirmationOpen(true);
+  };
+
   const handleSendPIPWithCustomEmail = async (subject: string, html: string) => {
     try {
       setSendingPIP(true);
       
+     
       // If this is a next level PIP, mark current PIP as failed first (if not already done)
       if (emailPreviewPayload?.currentPipId || pendingPIPAction?.action === "nextLevel") {
         const pipIdToFail = emailPreviewPayload?.currentPipId || pendingPIPAction?.pipId;
@@ -887,6 +899,7 @@ export default function PersonDetailPage() {
           }
         }
       }
+
 
       const response = await axios.post("/api/employee/pip", {
         ...emailPreviewPayload,
@@ -905,13 +918,13 @@ export default function PersonDetailPage() {
             ? "Level 2" 
             : "Level 3";
           toast.success(response?.data?.emailSent
-            ? `${nextLevel} PIP email has been sent to ${employee?.email}. Previous PIP has been marked as failed.`
-            : "PIP has been recorded without sending email.");
+            ? `${nextLevel} PIP sent to ${employee?.email}. The profile is locked${response.data.forceLoggedOut ? " and active sessions were ended" : ""}.`
+            : `PIP recorded and profile locked${response.data.forceLoggedOut ? "; active sessions were ended" : ""}.`);
           setPendingPIPAction(null);
         } else {
           toast.success(response?.data?.emailSent
-            ? `PIP email has been sent to ${employee?.email}`
-            : "PIP has been recorded without sending email.");
+            ? `PIP sent to ${employee?.email}. The profile is locked${response.data.forceLoggedOut ? " and active sessions were ended" : ""}.`
+            : `PIP recorded and profile locked${response.data.forceLoggedOut ? "; active sessions were ended" : ""}.`);
         }
         
         setEmailPreviewPayload(null);
@@ -2570,7 +2583,7 @@ export default function PersonDetailPage() {
                   </Button>
                 </DialogClose>
                 <Button
-                  onClick={handleSendPIP}
+                  onClick={requestPipIssue}
                   disabled={sendingPIP}
                   className="bg-blue-500 hover:bg-blue-600"
                 >
@@ -2589,6 +2602,16 @@ export default function PersonDetailPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          <PipIssueConfirmationDialog
+            open={pipIssueConfirmationOpen}
+            employeeName={employee?.name ?? ""}
+            onOpenChange={setPipIssueConfirmationOpen}
+            onConfirm={() => {
+              setPipIssueConfirmationOpen(false);
+              void handleSendPIP();
+            }}
+          />
 
           {/* Appreciation Dialog */}
           <Dialog

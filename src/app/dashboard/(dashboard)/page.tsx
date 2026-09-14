@@ -8,7 +8,7 @@ import { PersonalReminderBanner } from "@/components/reminders/PersonalReminderB
 import { TodaysEvents } from "@/util/getTodaysEvents";
 import { toast } from "sonner";
 import { DashboardSectionSkeleton } from "@/components/ui/DashboardSectionSkeleton";
-
+import { PipStatusBadge } from "@/components/pip/PipStatusBadge";
 // Auth & Dashboard Access
 import { useAuthStore } from "@/AuthStore";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
@@ -177,6 +177,7 @@ const Dashboard = () => {
         style={{ minHeight: "120px" }}
         data-celebration-section
       >
+        <div className="mb-2 flex justify-end"><PipStatusBadge /></div>
         <div
           className="relative w-full transition-transform duration-700 ease-in-out"
           style={{
@@ -190,14 +191,16 @@ const Dashboard = () => {
               transform: "rotateX(0deg)",
             }}
           >
-            <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 dark:border-blue-800 dark:from-blue-950/30 dark:to-indigo-950/30">
+            <div className="flex flex-col gap-4 rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 dark:border-blue-800 dark:from-blue-950/30 dark:to-indigo-950/30 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
                 {displayQuote}
               </p>
 
-              {(role === "SuperAdmin" || role === "HR") && (
-                <BroadcastNotificationForm />
-              )}
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {(role === "SuperAdmin" || role === "HR") && (
+                  <BroadcastNotificationForm />
+                )}
+              </div>
             </div>
           </div>
 

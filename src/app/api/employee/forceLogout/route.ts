@@ -3,12 +3,8 @@ import { z } from "zod";
 
 
 import { connectDb } from "@/util/db";
-import Employees from "@/models/employee";
-import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { generatePassword } from "@/util/generatePassword";
-import { generateMobilePin } from "@/util/generateMobilePin";
-import { computePasswordExpiryDate } from "@/util/passwordExpiry";
+import { forceLogoutEmployee } from "@/lib/employee/forceLogoutEmployee";
 
 connectDb();
 
@@ -17,6 +13,8 @@ export const dynamic = "force-dynamic";
 const bodySchema = z.object({
   employeeId: z.string().min(1),
   sessionId: z.string().optional(),
+  reason: z.string().max(100).optional(),
+  message: z.string().max(500).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -72,7 +70,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { employeeId, sessionId } = parsed.data;
+   const { employeeId, sessionId, reason, message } = parsed.data;
 
     // Hard-block invalid targets before any DB work
     if (auth?.id && auth.id === employeeId) {
@@ -90,165 +88,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch employee details before updating
-    const employee = await Employees.findById(employeeId);
-    if (!employee) {
+       const result = await forceLogoutEmployee(employeeId, {
+      actorName: auth.name || "Unknown",
+      actorRole: auth.role || "Unknown",
+      sessionId,
+      reason,
+      message,
+    });
+
+  if (!result.success) {
+      const status = result.message === "Employee not found" ? 404 : 403;
       return NextResponse.json(
-        { success: false, message: "Employee not found" },
-        { status: 404 },
+               { success: false, message: result.message },
+        { status },
       );
     }
 
-    const targetRole = String(employee.role || "").trim().toLowerCase();
-    if (targetRole === "superadmin") {
-      return NextResponse.json(
-        { success: false, message: "SuperAdmin cannot be force logged out." },
-        { status: 403 },
-      );
-    }
-
-    // Generate new password and update employee
-    let newPassword: string | null = null;
-    let newMobilePin: string | null = null;
-    const logoutTime = new Date();
-    try {
-      newPassword = generatePassword(6);
-      newMobilePin = generateMobilePin(4);
-
-
-      // mark employee as logged out and change password
-      await Employees.updateOne(
-        { _id: employeeId },
-        {
-          $set: {
-            lastLogout: logoutTime,
-            "webSession.sessionId": null,
-            "webSession.sessionStartedAt": null,
-            "webSession.expiresAt": null,
-            "webSession.isLoggedIn": false,
-            "mobileSession.sessionId": null,
-            "mobileSession.sessionStartedAt": null,
-            "mobileSession.lastActiveAt": null,
-            "mobileSession.isLoggedIn": false,
-            // Invalidate tokens for ALL device types (admin force logout).
-            // Keep legacy field for backward compatibility.
-            tokenValidAfter: Date.now(),
-            webTokenValidAfter: Date.now(),
-            mobileTokenValidAfter: Date.now(),
-            password: newPassword,
-            mobilePin: newMobilePin,
-            passwordExpiresAt: computePasswordExpiryDate(), // 24 hours by default
-          },
-        },
-      );
-
-      // Log the new password for admin reference (should be communicated to employee securely)
-      console.log(`🔐 Forced logout for ${employee.email}: New password generated: ${newPassword}`);
-    } catch (updateError: any) {
-      console.error("Error during employee update and password change:", updateError);
-      return NextResponse.json(
-        { success: false, message: "Failed to update employee data" },
-        { status: 500 },
-      );
-    }
-
-    // Create activity log entry for forced logout (separate from employee update for robustness)
-    try {
-      const forcedLogoutLog = new EmployeeActivityLog({
-        employeeId,
-        employeeName: employee.name,
-        employeeEmail: employee.email,
-        role: employee.role,
-        activityType: "logout",
-        logoutTime,
-        duration: 0, // No duration for forced logout
-        notes: `Forced logout by ${auth.name} (${auth.role}). Password changed.`,
-        sessionId: sessionId || null,
-        status: "ended",
-        lastActivityAt: logoutTime,
-      });
-      await forcedLogoutLog.save();
-    } catch (logError: any) {
-      console.error("Error creating activity log for forced logout:", logError);
-      // Don't fail the operation if logging fails
-    }
-
-    try {
-      const { endActiveEmployeeLoginSessions } = await import(
-        "@/util/employeeActivitySession"
-      );
-      await endActiveEmployeeLoginSessions({
-        employeeId,
-        logoutTime,
-        sessionId: sessionId || null,
-      });
-    } catch (e) {
-      console.warn(
-        "Failed to update activity logs during force logout:",
-        e,
-      );
-    }
-
-    // emit socket event for realtime clients and disconnect sockets in rooms
-    try {
-      if ((global as any).io) {
-        const io = (global as any).io;
-        // Emit to a user-specific room so only that user's clients receive it
-        io.to(`user-${employeeId}`).emit("force-logout", {
-          _id: employeeId,
-          sessionId,
-        });
-        // Also emit to session-specific room if provided
-        if (sessionId) {
-          io.to(`session-${sessionId}`).emit("force-logout", {
-            _id: employeeId,
-            sessionId,
-          });
-        }
-
-        // Disconnect sockets in user room
-        try {
-          const userRoom = `user-${employeeId}`;
-          const userSockets = await io.in(userRoom).fetchSockets();
-          console.log(
-            `Force logout: found ${userSockets.length} socket(s) in ${userRoom}`,
-          );
-          for (const s of userSockets) {
-            try {
-              s.disconnect(true);
-            } catch {
-              // ignore individual disconnect failures
-            }
-          }
-
-          if (sessionId) {
-            const sessionRoom = `session-${sessionId}`;
-            const sessionSockets = await io.in(sessionRoom).fetchSockets();
-            console.log(
-              `Force logout: found ${sessionSockets.length} socket(s) in ${sessionRoom}`,
-            );
-            for (const s of sessionSockets) {
-              try {
-                s.disconnect(true);
-              } catch {
-                // ignore
-              }
-            }
-          }
-        } catch (err) {
-          console.warn(
-            "Failed to fetch/disconnect sockets during force logout:",
-            err,
-          );
-        }
-      }
-    } catch (e) {
-      console.warn("Socket emit failed for force logout:", e);
-    }
-
+    
     return NextResponse.json({
       success: true,
-      message: "Employee force-logged out",
+      message: result.message,
     });
   } catch (error: any) {
     console.error("Force logout error:", error);

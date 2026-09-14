@@ -131,7 +131,7 @@ export default function EmployeeTable({
 
   const updateEmployee = async (
     employeeId: string,
-    data: { isLocked: boolean }
+    data: { isLocked: boolean; lockReason?: "manual" | "pip" | null }
   ) => {
     const response = await axios.put("/api/employee/editEmployee", {
       _id: employeeId,
@@ -386,23 +386,25 @@ export default function EmployeeTable({
                       <ToggleButton
                         value={employee.isLocked}
                         onChange={async (value) => {
+                          const lockReason = value ? "manual" : null;
                           setEmployeeList(
                             employeeList.map((emp) =>
                               emp._id === employee._id
-                                ? { ...emp, isLocked: value }
+                                ? { ...emp, isLocked: value, lockReason }
                                 : emp
                             )
                           );
                           setFilteredEmployee(
                             filteredEmployee.map((emp) =>
                               emp._id === employee._id
-                                ? { ...emp, isLocked: value }
+                                ? { ...emp, isLocked: value, lockReason }
                                 : emp
                             )
                           );
                           try {
                             const res = await updateEmployee(employee._id, {
                               isLocked: value,
+                              lockReason,
                             });
                             if (value === true) {
                               try {
@@ -428,14 +430,22 @@ export default function EmployeeTable({
                             setEmployeeList(
                               employeeList.map((emp) =>
                                 emp._id === employee._id
-                                  ? { ...emp, isLocked: !value }
+                              ? {
+                                ...emp,
+                                isLocked: !value,
+                                lockReason: employee.lockReason,
+                              }
                                   : emp
                               )
                             );
                             setFilteredEmployee(
                               filteredEmployee.map((emp) =>
                                 emp._id === employee._id
-                                  ? { ...emp, isLocked: !value }
+                              ? {
+                                ...emp,
+                                isLocked: !value,
+                                lockReason: employee.lockReason,
+                              }
                                   : emp
                               )
                             );

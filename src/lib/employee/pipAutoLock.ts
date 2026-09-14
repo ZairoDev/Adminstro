@@ -1,15 +1,6 @@
 import Employees from "@/models/employee";
 
-interface PipRecord {
-  status?: string;
-  endDate?: Date | string;
-}
 
-interface EmployeeWithPips {
-  _id: unknown;
-  isLocked?: boolean;
-  pips?: PipRecord[];
-}
 
 /**
  * Locks employees who have an active PIP past its end date.
@@ -18,30 +9,33 @@ interface EmployeeWithPips {
 export async function lockEmployeesWithOverduePips(): Promise<number> {
   const startOfToday = new Date();
   startOfToday.setUTCHours(0, 0, 0, 0);
+  const todayDateKey = startOfToday.toISOString().slice(0, 10);
 
-  const candidates = (await Employees.find({
-    isLocked: { $ne: true },
-    "pips.status": "active",
-  })
-    .select("_id isLocked pips")
-    .lean()) as EmployeeWithPips[];
+  // Conditional update is race-safe: if HR resolves the PIP before this write,
+  // the document no longer matches and cannot be re-locked from stale data.
+  const result = await Employees.updateMany(
+    {
+      pips: {
+        $elemMatch: {
+          status: "active",
+          endDate: { $lt: todayDateKey },
+        },
+      },
+      $or: [
+        { isLocked: { $ne: true } },
+        { lockReason: { $ne: "pip" } },
+      ],
+    },
+    {
+      $set: {
+        isLocked: true,
+        lockReason: "pip",
+      },
+    },
+  );
 
-  let lockedCount = 0;
+  
 
-  for (const employee of candidates) {
-    const pips = employee.pips ?? [];
-    const hasOverdueActivePIP = pips.some(
-      (p) =>
-        p.status === "active" &&
-        p.endDate != null &&
-        new Date(p.endDate) < startOfToday,
-    );
-
-    if (hasOverdueActivePIP) {
-      await Employees.findByIdAndUpdate(employee._id, { isLocked: true });
-      lockedCount += 1;
-    }
-  }
-
-  return lockedCount;
+  return result.modifiedCount
+  ;
 }

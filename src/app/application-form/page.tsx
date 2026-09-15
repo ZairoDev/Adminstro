@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type React from "react";
 import {
   Briefcase,
@@ -140,6 +140,21 @@ export default function JobApplicationForm() {
     };
     fetchOffices();
   }, []);
+
+  const officeCityOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const unique: typeof officeOptions = [];
+    for (const office of officeOptions) {
+      const cityLabel = (office.city || office.name).trim();
+      const key = cityLabel.toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      unique.push(office);
+    }
+    return unique.sort((a, b) =>
+      (a.city || a.name).localeCompare(b.city || b.name),
+    );
+  }, [officeOptions]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -949,9 +964,9 @@ export default function JobApplicationForm() {
                   } rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all`}
                 >
                   <option value="">Select office location</option>
-                  {officeOptions.map((office) => (
+                  {officeCityOptions.map((office) => (
                     <option key={office._id} value={office._id}>
-                      {office.name} — {office.city}
+                      {office.city || office.name}
                     </option>
                   ))}
                 </select>

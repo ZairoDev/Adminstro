@@ -12,6 +12,12 @@ import { getAppreciationEmailTemplate, getAppreciationReasonText } from "./templ
 import { getSeparationEmailTemplate, getSeparationReasonText, SeparationEmailPayload, SeparationType } from "./templates/separation";
 import { getPersonalReminderEmailTemplate } from "./templates/personalReminder";
 import {
+  JOB_APPLICATION_HR_INBOX,
+  JobApplicationEmailDetails,
+  getApplicantApplicationReceivedTemplate,
+  getHrNewApplicationTemplate,
+} from "./templates/jobApplication";
+import {
   CandidateEmailPayload,
   WarningEmailPayload,
   PIPEmailPayload,
@@ -36,6 +42,12 @@ export { getEmailSignature, getEmailSignatureWithImage } from "./signature";
 export type { EmailSignatureConfig } from "./signature";
 export { getActiveHREmployee } from "./getHREmployee";
 export type { HREmployee } from "./getHREmployee";
+export {
+  JOB_APPLICATION_HR_INBOX,
+  getApplicantApplicationReceivedTemplate,
+  getHrNewApplicationTemplate,
+} from "./templates/jobApplication";
+export type { JobApplicationEmailDetails } from "./templates/jobApplication";
 
 // Legacy export for backward compatibility with existing code
 export type EmailPayload = CandidateEmailPayload;
@@ -281,6 +293,49 @@ export interface PersonalReminderEmailPayload {
   note: string;
   scheduledAt: Date;
   appUrl: string;
+}
+
+export async function sendJobApplicationReceivedEmails(
+  details: JobApplicationEmailDetails,
+): Promise<{ applicant: EmailResponse; hr: EmailResponse }> {
+  const hrEmployee = await getActiveHREmployee();
+  const companyName = details.companyName || DEFAULT_COMPANY_NAME;
+  const transporter = createTransporterHR();
+  const applicantTemplate = getApplicantApplicationReceivedTemplate(
+    details,
+    hrEmployee,
+  );
+  const hrTemplate = getHrNewApplicationTemplate(details);
+
+  const sendOne = async (
+    to: string,
+    template: EmailTemplate,
+  ): Promise<EmailResponse> => {
+    try {
+      const mailResponse = await transporter.sendMail({
+        from: `${companyName} <${DEFAULT_FROM_EMAIL}>`,
+        to,
+        replyTo: JOB_APPLICATION_HR_INBOX,
+        subject: template.subject,
+        html: template.html,
+      });
+      if (mailResponse.rejected.length > 0) {
+        throw new Error("Email address was rejected or invalid");
+      }
+      return { success: true, messageId: mailResponse.messageId };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.error("Job application email error:", message);
+      return { success: false, error: message };
+    }
+  };
+
+  const [applicant, hr] = await Promise.all([
+    sendOne(details.applicantEmail, applicantTemplate),
+    sendOne(JOB_APPLICATION_HR_INBOX, hrTemplate),
+  ]);
+
+  return { applicant, hr };
 }
 
 export async function sendPersonalReminderEmail(

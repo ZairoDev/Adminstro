@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import mongoose from "mongoose";
 import OfficeAddress from "@/models/officeAddress";
 import { seedDefaultOffices } from "@/lib/officeAddress/seedDefaultOffices";
+import { sendJobApplicationReceivedEmails } from "@/lib/email";
 
 export async function POST(req: Request) {
   try {
@@ -76,6 +77,40 @@ export async function POST(req: Request) {
       resumeUrl: data.resume, // Bunny file URL
       photoUrl: data.photo,
     });
+
+    const applicantEmail =
+      typeof data.email === "string" ? data.email.trim() : "";
+    if (applicantEmail) {
+      const baseUrl = (
+        process.env.NEXT_PUBLIC_BASE_URL ||
+        process.env.NEXTAUTH_URL ||
+        ""
+      ).replace(/\/$/, "");
+      try {
+        await sendJobApplicationReceivedEmails({
+          applicantName: String(data.name || "").trim(),
+          applicantEmail,
+          phone,
+          position: String(data.position || "").trim(),
+          officeCity: officeDoc.city,
+          city: String(data.city || "").trim(),
+          country: String(data.country || "").trim(),
+          college,
+          experience: String(data.experience || "").trim(),
+          linkedin:
+            typeof data.linkedin === "string" ? data.linkedin.trim() : "",
+          applicationId: String(newApplication._id),
+          reviewUrl: baseUrl
+            ? `${baseUrl}/dashboard/people/${String(newApplication._id)}`
+            : undefined,
+        });
+      } catch (emailError) {
+        console.error(
+          "Job application saved but notification emails failed:",
+          emailError,
+        );
+      }
+    }
 
     return NextResponse.json({
       success: true,

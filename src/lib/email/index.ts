@@ -338,6 +338,144 @@ export async function sendJobApplicationReceivedEmails(
   return { applicant, hr };
 }
 
+export interface LoginNotificationEmailPayload {
+  to: string;
+  employeeName: string;
+  employeeEmail: string;
+  role?: string;
+  loginTime?: Date;
+}
+
+function formatLoginTimeIst(loginTime: Date): string {
+  const formatted = loginTime.toLocaleString("en-IN", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Kolkata",
+  });
+  return `${formatted} IST`;
+}
+
+function escapeLoginEmailHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function getEmployeeLoginNotificationTemplate(
+  employeeName: string,
+  loginTimeIst: string,
+  companyName: string,
+): EmailTemplate {
+  const name = escapeLoginEmailHtml(employeeName);
+  const time = escapeLoginEmailHtml(loginTimeIst);
+  return {
+    subject: `Successful login to ${companyName} dashboard`,
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+        <div style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); padding: 36px 30px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Login Successful</h1>
+        </div>
+        <div style="padding: 36px 30px; color: #333; line-height: 1.7;">
+          <p style="font-size: 16px; margin-bottom: 16px;">Dear ${name},</p>
+          <p style="font-size: 15px; margin-bottom: 16px;">
+            You have successfully logged in to the <strong>${escapeLoginEmailHtml(companyName)}</strong> dashboard.
+          </p>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin: 24px 0;">
+            <p style="margin: 0; font-size: 15px;"><strong>Login time (IST):</strong> ${time}</p>
+          </div>
+          <p style="font-size: 15px; margin-bottom: 16px;">
+            Please log in to the dashboard as soon as you reach the office, as it will be used for keeping the attendance.
+          </p>
+          <p style="font-size: 15px; margin-bottom: 16px;">
+            Please make sure to log out from the system when you leave.
+          </p>
+          <p style="font-size: 15px; margin-top: 24px;">
+            Kind regards,<br/>
+            Human Resources<br/>
+            ${escapeLoginEmailHtml(companyName)}
+          </p>
+        </div>
+      </div>
+    `,
+  };
+}
+
+function getHrLoginNotificationTemplate(
+  employeeName: string,
+  employeeEmail: string,
+  role: string,
+  loginTimeIst: string,
+  companyName: string,
+): EmailTemplate {
+  const name = escapeLoginEmailHtml(employeeName);
+  const email = escapeLoginEmailHtml(employeeEmail);
+  const roleLabel = escapeLoginEmailHtml(role);
+  const time = escapeLoginEmailHtml(loginTimeIst);
+  return {
+    subject: `Dashboard login: ${employeeName} at ${loginTimeIst}`,
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+        <div style="padding: 36px 30px; color: #333; line-height: 1.7;">
+          <p style="font-size: 15px; margin-bottom: 16px;">
+            The following user has logged in to the ${escapeLoginEmailHtml(companyName)} dashboard.
+          </p>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin: 24px 0;">
+            <p style="margin: 0; font-size: 15px;"><strong>Name:</strong> ${name}</p>
+            <p style="margin: 8px 0 0 0; font-size: 15px;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 8px 0 0 0; font-size: 15px;"><strong>Role:</strong> ${roleLabel}</p>
+            <p style="margin: 8px 0 0 0; font-size: 15px;"><strong>Login time (IST):</strong> ${time}</p>
+          </div>
+        </div>
+      </div>
+    `,
+  };
+}
+
+export async function sendLoginNotificationEmails(
+  payload: LoginNotificationEmailPayload,
+): Promise<{ employee: EmailResponse; hr: EmailResponse }> {
+  const companyName = DEFAULT_COMPANY_NAME;
+  const loginTime = payload.loginTime ?? new Date();
+  const loginTimeIst = formatLoginTimeIst(loginTime);
+  const role = payload.role?.trim() || "Employee";
+  const employeeTemplate = getEmployeeLoginNotificationTemplate(
+    payload.employeeName,
+    loginTimeIst,
+    companyName,
+  );
+  const hrTemplate = getHrLoginNotificationTemplate(
+    payload.employeeName,
+    payload.employeeEmail,
+    role,
+    loginTimeIst,
+    companyName,
+  );
+
+  const [employee, hr] = await Promise.all([
+    sendCustomEmail(payload.to, employeeTemplate, companyName),
+    sendCustomEmail(JOB_APPLICATION_HR_INBOX, hrTemplate, companyName),
+  ]);
+
+  return { employee, hr };
+}
+
+export function notifySuccessfulLoginEmails(
+  payload: LoginNotificationEmailPayload,
+): void {
+  void sendLoginNotificationEmails(payload).catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("Login notification email failed (non-critical):", message);
+  });
+}
+
 export async function sendPersonalReminderEmail(
   payload: PersonalReminderEmailPayload,
 ): Promise<EmailResponse> {

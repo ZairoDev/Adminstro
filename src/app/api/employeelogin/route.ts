@@ -16,6 +16,7 @@ import {
   PIP_LOCK_LOGIN_MESSAGE,
   MANUAL_LOCK_LOGIN_MESSAGE,
 } from "@/lib/employee/pipLockMessages";
+import { notifySuccessfulLoginEmails } from "@/lib/email";
 type UiFlags = {
   hideGuestManagement?: boolean;
   hideOwnerManagement?: boolean;
@@ -443,6 +444,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             });
           } catch (e) {}
         }
+
+        notifySuccessfulLoginEmails({
+          to: temp.email,
+          employeeName: temp.name,
+          employeeEmail: temp.email,
+          role: temp.role,
+          loginTime: new Date(),
+        });
         
         return response;
       }
@@ -557,6 +566,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       console.warn("Activity logging failed (non-critical):", activityError);
       // Don't throw error - activity logging should not break login
     }
+
+    notifySuccessfulLoginEmails({
+      to: temp.email,
+      employeeName: temp.name,
+      employeeEmail: temp.email,
+      role: temp.role,
+      loginTime: new Date(),
+    });
 
     const response = NextResponse.json({
       message: "Login successful",

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDeviceTypeFromHeaders, WEB_SESSION_DURATION_MS } from "@/util/deviceSession";
 import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
 import { normalizeEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
+import { notifySuccessfulLoginEmails } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -257,6 +258,14 @@ export async function POST(request: NextRequest) {
     } catch {
       // non-critical
     }
+
+    notifySuccessfulLoginEmails({
+      to: (savedUser as { email: string }).email,
+      employeeName: (savedUser as { name: string }).name,
+      employeeEmail: (savedUser as { email: string }).email,
+      role: (savedUser as { role?: string }).role,
+      loginTime: new Date(),
+    });
 
     return response;
   } catch (error) {

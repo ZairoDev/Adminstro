@@ -193,6 +193,7 @@ const CandidateSchema = new Schema(
         panNumber: { type: String, default: null },
       },
       bankDetails: {
+        hasBankAccount: { type: Boolean, default: true },
         accountHolderName: { type: String, default: null },
         accountNumber: { type: String, default: null },
         ifscCode: { type: String, default: null },
@@ -227,6 +228,7 @@ const CandidateSchema = new Schema(
         aadharCardBack: { type: String, default: null },
         panCard: { type: String, default: null },
         cancelledCheque: { type: String, default: null },
+        passbookPhoto: { type: String, default: null },
         highSchoolMarksheet: { type: String, default: null },
         interMarksheet: { type: String, default: null },
         graduationMarksheet: { type: String, default: null },
@@ -256,6 +258,11 @@ const CandidateSchema = new Schema(
           verifiedAt: { type: Date, default: null },
         },
         cancelledCheque: {
+          verified: { type: Boolean, default: false },
+          verifiedBy: { type: String, default: null },
+          verifiedAt: { type: Date, default: null },
+        },
+        passbookPhoto: {
           verified: { type: Boolean, default: false },
           verifiedBy: { type: String, default: null },
           verifiedAt: { type: Date, default: null },

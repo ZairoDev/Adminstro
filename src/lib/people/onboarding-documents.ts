@@ -9,6 +9,7 @@ export const ONBOARDING_FILE_DOCUMENT_KEYS = [
   "aadharCardBack",
   "panCard",
   "cancelledCheque",
+  "passbookPhoto",
   "highSchoolMarksheet",
   "interMarksheet",
   "graduationMarksheet",
@@ -22,6 +23,7 @@ export const ONBOARDING_REUPLOAD_DOCUMENT_KEYS = [
   "aadharCardBack",
   "panCard",
   "cancelledCheque",
+  "passbookPhoto",
   "highSchoolMarksheet",
   "interMarksheet",
   "graduationMarksheet",
@@ -60,6 +62,7 @@ export const ONBOARDING_DOCUMENT_LABELS: Record<string, string> = {
   aadharCardBack: "Aadhaar Card - Back",
   panCard: "PAN Card",
   cancelledCheque: "Cancelled Cheque",
+  passbookPhoto: "Passbook photo",
   highSchoolMarksheet: "High School Marksheet",
   interMarksheet: "Intermediate Marksheet",
   graduationMarksheet: "Graduation Marksheet",
@@ -87,4 +90,51 @@ export function isOnboardingVerifiableDocumentKey(
 
 export function getOnboardingDocumentLabel(key: string): string {
   return ONBOARDING_DOCUMENT_LABELS[key] || key;
+}
+
+export type OnboardingBankDetailsValue = {
+  hasBankAccount: boolean;
+  accountHolderName: string | null;
+  accountNumber: string | null;
+  ifscCode: string | null;
+  bankName: string | null;
+};
+
+function asTrimmedString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+export function normalizeOnboardingBankDetails(
+  raw: Record<string, unknown> | null | undefined
+): OnboardingBankDetailsValue {
+  const hasBankAccount = raw?.hasBankAccount !== false && raw?.hasBankAccount !== "false";
+  if (!hasBankAccount) {
+    return {
+      hasBankAccount: false,
+      accountHolderName: null,
+      accountNumber: null,
+      ifscCode: null,
+      bankName: null,
+    };
+  }
+
+  return {
+    hasBankAccount: true,
+    accountHolderName: asTrimmedString(raw?.accountHolderName) || null,
+    accountNumber: asTrimmedString(raw?.accountNumber) || null,
+    ifscCode: asTrimmedString(raw?.ifscCode)?.toUpperCase() || null,
+    bankName: asTrimmedString(raw?.bankName) || null,
+  };
+}
+
+export function isCompleteOnboardingBankDetails(
+  bank: OnboardingBankDetailsValue
+): boolean {
+  if (!bank.hasBankAccount) return true;
+  return Boolean(
+    bank.accountHolderName &&
+      bank.accountNumber &&
+      bank.ifscCode &&
+      bank.bankName
+  );
 }

@@ -4,7 +4,12 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createTransporterHR, DEFAULT_FROM_EMAIL } from "@/lib/email/transporter";
 import { getActiveHREmployee } from "@/lib/email/getHREmployee";
 import { getEmailSignature } from "@/lib/email/signature";
-import { getOnboardingDocumentLabel, isOnboardingReuploadDocumentKey } from "@/lib/people/onboarding-documents";
+import {
+  getOnboardingDocumentLabel,
+  isCompleteOnboardingBankDetails,
+  isOnboardingReuploadDocumentKey,
+  normalizeOnboardingBankDetails,
+} from "@/lib/people/onboarding-documents";
 
 // PATCH: Handle document re-uploads
 export async function PATCH(
@@ -295,7 +300,15 @@ export async function POST(
     const bankDetailsRaw = formData.get("bankDetails") as string;
 
     const personalDetails = JSON.parse(personalDetailsRaw);
-    const bankDetails = JSON.parse(bankDetailsRaw);
+    const bankDetails = normalizeOnboardingBankDetails(
+      JSON.parse(bankDetailsRaw) as Record<string, unknown>
+    );
+    if (!isCompleteOnboardingBankDetails(bankDetails)) {
+      return NextResponse.json(
+        { success: false, error: "Please fill all bank details" },
+        { status: 400 }
+      );
+    }
 
     // Handle fatherName inside personalDetails
     const fatherName = personalDetails.fatherName || null;
@@ -332,11 +345,22 @@ export async function POST(
       salarySlips = [];
     }
 
-    const cancelledChequeRaw = formData.get("cancelledCheque");
-    const cancelledCheque =
-      typeof cancelledChequeRaw === "string" && cancelledChequeRaw.trim()
-        ? cancelledChequeRaw.trim()
-        : null;
+    const optionalDocumentUrl = (value: FormDataEntryValue | null): string | null =>
+      typeof value === "string" && value.trim() ? value.trim() : null;
+
+    const cancelledCheque = bankDetails.hasBankAccount
+      ? optionalDocumentUrl(formData.get("cancelledCheque"))
+      : null;
+    const passbookPhoto = bankDetails.hasBankAccount
+      ? optionalDocumentUrl(formData.get("passbookPhoto"))
+      : null;
+
+    if (bankDetails.hasBankAccount && !cancelledCheque) {
+      return NextResponse.json(
+        { success: false, error: "Please upload a cancelled cheque" },
+        { status: 400 }
+      );
+    }
 
     const documents = {
       // aadharCard: formData.get("aadharCard") || null,
@@ -344,6 +368,7 @@ export async function POST(
       aadharCardBack: formData.get("aadharCardBack") || null,
       panCard: formData.get("panCard") || null,
       cancelledCheque,
+      passbookPhoto,
       highSchoolMarksheet: formData.get("highSchoolMarksheet") || null,
       interMarksheet: formData.get("interMarksheet") || null,
       graduationMarksheet: formData.get("graduationMarksheet") || null,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ChangeEvent } from "react";
 import {
   User,
   Building2,
@@ -24,11 +24,14 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DocumentVerification } from "./document-verification";
+import { OnboardingDocumentDropzone } from "./onboarding-document-dropzone";
+import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { toast } from "sonner";
 import { getOnboardingDocumentLabel } from "@/lib/people/onboarding-documents";
 import {
@@ -51,6 +54,7 @@ interface OnboardingDetails {
     panNumber?: string;
   };
   bankDetails?: {
+    hasBankAccount?: boolean;
     accountHolderName?: string;
     accountNumber?: string;
     ifscCode?: string;
@@ -62,6 +66,7 @@ interface OnboardingDetails {
     aadharCardBack?: string;
     panCard?: string;
     cancelledCheque?: string;
+    passbookPhoto?: string;
     highSchoolMarksheet?: string;
     interMarksheet?: string;
     graduationMarksheet?: string;
@@ -196,6 +201,19 @@ export function OnboardingDetailsView({
   const [reuploadReason, setReuploadReason] = useState("");
   const [isRequestingReupload, setIsRequestingReupload] = useState(false);
   const [reuploadLink, setReuploadLink] = useState<string | null>(null);
+  const [bankEditOpen, setBankEditOpen] = useState(false);
+  const [savingBank, setSavingBank] = useState(false);
+  const [editHasBankAccount, setEditHasBankAccount] = useState(true);
+  const [editBankDetails, setEditBankDetails] = useState({
+    accountHolderName: "",
+    accountNumber: "",
+    ifscCode: "",
+    bankName: "",
+  });
+  const [editChequeUrl, setEditChequeUrl] = useState<string | null>(null);
+  const [editPassbookUrl, setEditPassbookUrl] = useState<string | null>(null);
+  const [uploadingBankDoc, setUploadingBankDoc] = useState<string | null>(null);
+  const { uploadFiles } = useBunnyUpload();
 
   useEffect(() => {
     if (onboardingDetails?.verifiedByHR?.notes) {
@@ -366,6 +384,101 @@ export function OnboardingDetailsView({
       toast.error(errorMessage);
     } finally {
       setIsUpdatingHR(false);
+    }
+  };
+
+  const openBankEdit = () => {
+    const bank = onboardingDetails?.bankDetails;
+    setEditHasBankAccount(bank?.hasBankAccount !== false);
+    setEditBankDetails({
+      accountHolderName: bank?.accountHolderName || "",
+      accountNumber: bank?.accountNumber || "",
+      ifscCode: bank?.ifscCode || "",
+      bankName: bank?.bankName || "",
+    });
+    setEditChequeUrl(onboardingDetails?.documents?.cancelledCheque || null);
+    setEditPassbookUrl(onboardingDetails?.documents?.passbookPhoto || null);
+    setBankEditOpen(true);
+  };
+
+  const handleBankDocumentChange = async (
+    event: ChangeEvent<HTMLInputElement>,
+    docType: "cancelledCheque" | "passbookPhoto"
+  ) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    const fileArray = Array.from(files);
+    event.target.value = "";
+    setUploadingBankDoc(docType);
+    try {
+      const { imageUrls, error } = await uploadFiles(
+        fileArray,
+        `Documents/${docType}`
+      );
+      if (error || !imageUrls?.length) {
+        toast.error(error || "Failed to upload file");
+        return;
+      }
+      if (docType === "cancelledCheque") {
+        setEditChequeUrl(imageUrls[0]);
+      } else {
+        setEditPassbookUrl(imageUrls[0]);
+      }
+      toast.success("Upload successful");
+    } catch (error) {
+      console.error(`Error uploading ${docType}:`, error);
+      toast.error("Failed to upload file");
+    } finally {
+      setUploadingBankDoc(null);
+    }
+  };
+
+  const handleSaveBankDetails = async () => {
+    if (editHasBankAccount) {
+      if (
+        !editBankDetails.accountHolderName.trim() ||
+        !editBankDetails.accountNumber.trim() ||
+        !editBankDetails.ifscCode.trim() ||
+        !editBankDetails.bankName.trim()
+      ) {
+        toast.error("Please fill all bank details");
+        return;
+      }
+      if (!editChequeUrl) {
+        toast.error("Please upload a cancelled cheque");
+        return;
+      }
+    }
+
+    setSavingBank(true);
+    try {
+      const response = await fetch(`/api/candidates/${candidateId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          onboardingBankUpdate: {
+            hasBankAccount: editHasBankAccount,
+            ...editBankDetails,
+            cancelledCheque: editHasBankAccount ? editChequeUrl : null,
+            passbookPhoto: editHasBankAccount ? editPassbookUrl : null,
+          },
+        }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        toast.success("Bank details updated");
+        setBankEditOpen(false);
+        if (onUpdate) onUpdate();
+      } else {
+        throw new Error(result.error || "Failed to update bank details");
+      }
+    } catch (error: unknown) {
+      console.error("Error updating bank details:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to update bank details";
+      toast.error(errorMessage);
+    } finally {
+      setSavingBank(false);
     }
   };
 
@@ -677,23 +790,41 @@ export function OnboardingDetailsView({
           )}
 
           {/* Bank Details */}
-          {onboardingDetails.bankDetails && (
-            <Card className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <CreditCard className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-semibold">Bank Details</h3>
+          <Card className="p-4">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">Bank Details</h3>
+                </div>
+                {canVerify && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11"
+                    onClick={openBankEdit}
+                  >
+                    <PenLine className="h-3.5 w-3.5 mr-1.5" />
+                    Edit
+                  </Button>
+                )}
               </div>
+              {onboardingDetails.bankDetails?.hasBankAccount === false ? (
+                <p className="text-sm text-muted-foreground">
+                  Candidate does not have a bank account.
+                </p>
+              ) : (
               <div className="space-y-0">
-                <InfoRow label="Account Holder" value={onboardingDetails.bankDetails.accountHolderName} />
+                <InfoRow label="Account Holder" value={onboardingDetails.bankDetails?.accountHolderName} />
                 <MaskedInfoRow
                   label="Account Number"
-                  value={onboardingDetails.bankDetails.accountNumber}
+                  value={onboardingDetails.bankDetails?.accountNumber}
                 />
-                <InfoRow label="IFSC Code" value={onboardingDetails.bankDetails.ifscCode} mono />
-                <InfoRow label="Bank Name" value={onboardingDetails.bankDetails.bankName} />
+                <InfoRow label="IFSC Code" value={onboardingDetails.bankDetails?.ifscCode} mono />
+                <InfoRow label="Bank Name" value={onboardingDetails.bankDetails?.bankName} />
               </div>
+              )}
             </Card>
-          )}
 
           {/* Experience Details */}
           {onboardingDetails.yearsOfExperience && (
@@ -1010,10 +1141,24 @@ export function OnboardingDetailsView({
                         }
                       });
 
-                      if (!docOptions.some((option) => option.key === "cancelledCheque")) {
+                      if (
+                        onboardingDetails.bankDetails?.hasBankAccount !== false &&
+                        !docOptions.some((option) => option.key === "cancelledCheque")
+                      ) {
                         docOptions.push({
                           key: "cancelledCheque",
                           label: `${getOnboardingDocumentLabel("cancelledCheque")} (not uploaded)`,
+                          isVerified: false,
+                        });
+                      }
+
+                      if (
+                        onboardingDetails.bankDetails?.hasBankAccount !== false &&
+                        !docOptions.some((option) => option.key === "passbookPhoto")
+                      ) {
+                        docOptions.push({
+                          key: "passbookPhoto",
+                          label: `${getOnboardingDocumentLabel("passbookPhoto")} (not uploaded)`,
                           isVerified: false,
                         });
                       }
@@ -1140,6 +1285,140 @@ export function OnboardingDetailsView({
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bankEditOpen} onOpenChange={setBankEditOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit bank details</DialogTitle>
+            <DialogDescription>
+              Update the salary account or mark that this person does not have a bank account.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <label
+              htmlFor="edit-no-bank-account"
+              className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border px-3 py-3"
+            >
+              <Checkbox
+                id="edit-no-bank-account"
+                className="mt-0.5"
+                checked={!editHasBankAccount}
+                onCheckedChange={(checked) => {
+                  setEditHasBankAccount(!Boolean(checked));
+                }}
+              />
+              <span className="text-sm">Does not have a bank account</span>
+            </label>
+            {editHasBankAccount ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-account-holder">Account holder</Label>
+                    <Input
+                      id="edit-account-holder"
+                      value={editBankDetails.accountHolderName}
+                      onChange={(e) =>
+                        setEditBankDetails((prev) => ({
+                          ...prev,
+                          accountHolderName: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-account-number">Account number</Label>
+                    <Input
+                      id="edit-account-number"
+                      value={editBankDetails.accountNumber}
+                      onChange={(e) =>
+                        setEditBankDetails((prev) => ({
+                          ...prev,
+                          accountNumber: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-ifsc">IFSC code</Label>
+                    <Input
+                      id="edit-ifsc"
+                      value={editBankDetails.ifscCode}
+                      onChange={(e) =>
+                        setEditBankDetails((prev) => ({
+                          ...prev,
+                          ifscCode: e.target.value.toUpperCase(),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="edit-bank-name">Bank name</Label>
+                    <Input
+                      id="edit-bank-name"
+                      value={editBankDetails.bankName}
+                      onChange={(e) =>
+                        setEditBankDetails((prev) => ({
+                          ...prev,
+                          bankName: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+                <OnboardingDocumentDropzone
+                  id="edit-cancelledCheque"
+                  label="Cancelled cheque"
+                  file={
+                    editChequeUrl
+                      ? { url: editChequeUrl, name: "Cancelled Cheque" }
+                      : null
+                  }
+                  uploading={uploadingBankDoc === "cancelledCheque"}
+                  hint='Write “CANCELLED” across a cheque of this account.'
+                  onChange={(e) => handleBankDocumentChange(e, "cancelledCheque")}
+                />
+                <OnboardingDocumentDropzone
+                  id="edit-passbookPhoto"
+                  label="Passbook photo"
+                  file={
+                    editPassbookUrl
+                      ? { url: editPassbookUrl, name: "Passbook photo" }
+                      : null
+                  }
+                  uploading={uploadingBankDoc === "passbookPhoto"}
+                  required={false}
+                  hint="Optional."
+                  onChange={(e) => handleBankDocumentChange(e, "passbookPhoto")}
+                />
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setBankEditOpen(false)}
+              disabled={savingBank}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void handleSaveBankDetails()}
+              disabled={savingBank || Boolean(uploadingBankDoc)}
+            >
+              {savingBank ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save"
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

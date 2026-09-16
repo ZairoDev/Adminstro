@@ -3,23 +3,7 @@ import Employee from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { type NextRequest, NextResponse } from "next/server";
-
-// Document types that can be verified (includes "sign" for signed onboarding document)
-const DOCUMENT_TYPES = [
-  "aadharCard", // Backward compatibility
-  "aadharCardFront",
-  "aadharCardBack",
-  "panCard",
-  "highSchoolMarksheet",
-  "interMarksheet",
-  "graduationMarksheet",
-  "experienceLetter",
-  "relievingLetter",
-  "salarySlips",
-  "sign", // Digital signature (eSign image) - must be verified before HR verification completes
-] as const;
-
-type DocumentType = (typeof DOCUMENT_TYPES)[number];
+import { isOnboardingVerifiableDocumentKey } from "@/lib/people/onboarding-documents";
 
 // Verify/Unverify a specific document
 export async function PATCH(
@@ -56,19 +40,18 @@ export async function PATCH(
    
 
     // Validate document type
-    if (!DOCUMENT_TYPES.includes(documentType as DocumentType)) {
-      console.error("Invalid document type:", documentType, "Valid types:", DOCUMENT_TYPES);
+    if (!isOnboardingVerifiableDocumentKey(documentType)) {
+      console.error("Invalid document type:", documentType);
       return NextResponse.json(
         { 
           success: false, 
-          error: `Invalid document type: "${documentType}". Valid types: ${DOCUMENT_TYPES.join(", ")}` 
+          error: `Invalid document type: "${documentType}"` 
         },
         { status: 400 }
       );
     }
 
-    // Type assertion after validation - we know documentType is valid
-    const validDocumentType = documentType as DocumentType;
+    const validDocumentType = documentType;
 
     // Validate verified is boolean
     if (typeof verified !== "boolean") {

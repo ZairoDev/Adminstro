@@ -126,6 +126,7 @@ export interface Candidate {
       panNumber?: string;
     };
     bankDetails?: {
+      hasBankAccount?: boolean;
       accountHolderName?: string;
       accountNumber?: string;
       ifscCode?: string;
@@ -137,6 +138,7 @@ export interface Candidate {
       aadharCardBack?: string;
       panCard?: string;
       cancelledCheque?: string;
+      passbookPhoto?: string;
       highSchoolMarksheet?: string;
       interMarksheet?: string;
       graduationMarksheet?: string;

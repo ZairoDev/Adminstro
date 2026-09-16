@@ -3025,6 +3025,7 @@ export default function CandidateDetailPage() {
               panNumber: candidate.onboardingDetails.personalDetails.panNumber,
             } : undefined,
             bankDetails: candidate.onboardingDetails.bankDetails ? {
+              hasBankAccount: candidate.onboardingDetails.bankDetails.hasBankAccount,
               accountNumber: candidate.onboardingDetails.bankDetails.accountNumber,
               ifscCode: candidate.onboardingDetails.bankDetails.ifscCode,
               bankName: candidate.onboardingDetails.bankDetails.bankName,

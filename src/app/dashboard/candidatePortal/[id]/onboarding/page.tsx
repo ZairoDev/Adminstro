@@ -7,6 +7,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { Check, AlertCircle, Upload, Loader2, FileText, Download, Eye, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -77,6 +78,7 @@ import axios from "@/util/axios";
         fatherName?: string;
       };
       bankDetails: {
+        hasBankAccount?: boolean;
         accountHolderName: string;
         accountNumber: string;
         ifscCode: string;
@@ -87,6 +89,7 @@ import axios from "@/util/axios";
         aadharCardBack: string;
         panCard: string;
         cancelledCheque?: string;
+        passbookPhoto?: string;
         highSchoolMarksheet: string;
         interMarksheet: string;
         graduationMarksheet: string;
@@ -134,6 +137,7 @@ interface DocumentsState {
   aadharCardBack: UploadedFile | null;
   panCard: UploadedFile | null;
   cancelledCheque: UploadedFile | null;
+  passbookPhoto: UploadedFile | null;
   highSchoolMarksheet: UploadedFile | null;
   interMarksheet: UploadedFile | null;
   graduationMarksheet: UploadedFile | null;
@@ -236,6 +240,7 @@ export default function OnboardingPage() {
     aadharCardBack: "Aadhaar Card - Back",
     panCard: "PAN Card",
     cancelledCheque: "Cancelled Cheque",
+    passbookPhoto: "Passbook photo",
     highSchoolMarksheet: "High School Marksheet",
     interMarksheet: "Intermediate Marksheet",
     graduationMarksheet: "Graduation Marksheet",
@@ -297,12 +302,14 @@ export default function OnboardingPage() {
     ifscCode: "",
     bankName: "",
   });
+  const [hasBankAccount, setHasBankAccount] = useState(true);
 
   const [documents, setDocuments] = useState<DocumentsState>({
     aadharCardFront: null,
     aadharCardBack: null,
     panCard: null,
     cancelledCheque: null,
+    passbookPhoto: null,
     highSchoolMarksheet: null,
     interMarksheet: null,
     graduationMarksheet: null,
@@ -466,9 +473,13 @@ export default function OnboardingPage() {
             });
             
             // Load bank details
-            setBankDetails(
-              onboarding.bankDetails || bankDetails
-            );
+            setHasBankAccount(onboarding.bankDetails?.hasBankAccount !== false);
+            setBankDetails({
+              accountHolderName: onboarding.bankDetails?.accountHolderName || "",
+              accountNumber: onboarding.bankDetails?.accountNumber || "",
+              ifscCode: onboarding.bankDetails?.ifscCode || "",
+              bankName: onboarding.bankDetails?.bankName || "",
+            });
 
              // Load documents with backward compatibility for aadharCard
              if (onboarding.documents) {
@@ -481,6 +492,9 @@ export default function OnboardingPage() {
                 panCard: docs.panCard ? { url: docs.panCard, name: "PAN Card" } : null,
                 cancelledCheque: docs.cancelledCheque
                   ? { url: docs.cancelledCheque, name: "Cancelled Cheque" }
+                  : null,
+                passbookPhoto: docs.passbookPhoto
+                  ? { url: docs.passbookPhoto, name: "Passbook photo" }
                   : null,
                 highSchoolMarksheet: docs.highSchoolMarksheet ? { url: docs.highSchoolMarksheet, name: "High School Marksheet" } : null,
                 interMarksheet: docs.interMarksheet ? { url: docs.interMarksheet, name: "Intermediate Marksheet" } : null,
@@ -824,12 +838,12 @@ export default function OnboardingPage() {
         return false;
       }
     }
-    if (
+    if (hasBankAccount && (
       !bankDetails.accountHolderName ||
       !bankDetails.accountNumber ||
       !bankDetails.ifscCode ||
       !bankDetails.bankName
-    ) {
+    )) {
       setError("Please fill all bank details");
       return false;
     }
@@ -843,6 +857,7 @@ export default function OnboardingPage() {
             aadharCardBack: "Aadhar Card Back",
             panCard: "PAN Card",
             cancelledCheque: "Cancelled Cheque",
+            passbookPhoto: "Passbook photo",
             highSchoolMarksheet: "High School Marksheet",
             interMarksheet: "Intermediate Marksheet",
             graduationMarksheet: "Graduation Marksheet",
@@ -867,7 +882,7 @@ export default function OnboardingPage() {
       setError("Please upload PAN card");
       return false;
     }
-    if (!documents.cancelledCheque) {
+    if (hasBankAccount && !documents.cancelledCheque) {
       setError("Please upload a cancelled cheque");
       return false;
     }
@@ -1334,12 +1349,22 @@ export default function OnboardingPage() {
       const formData = new FormData();
 
       formData.append("personalDetails", JSON.stringify(personalDetails));
-      formData.append("bankDetails", JSON.stringify(bankDetails));
+      formData.append(
+        "bankDetails",
+        JSON.stringify({ ...bankDetails, hasBankAccount })
+      );
 
       formData.append("aadharCardFront", documents.aadharCardFront?.url || "");
       formData.append("aadharCardBack", documents.aadharCardBack?.url || "");
       formData.append("panCard", documents.panCard?.url || "");
-      formData.append("cancelledCheque", documents.cancelledCheque?.url || "");
+      formData.append(
+        "cancelledCheque",
+        hasBankAccount ? documents.cancelledCheque?.url || "" : ""
+      );
+      formData.append(
+        "passbookPhoto",
+        hasBankAccount ? documents.passbookPhoto?.url || "" : ""
+      );
       formData.append(
         "highSchoolMarksheet",
         documents.highSchoolMarksheet?.url || ""
@@ -1670,6 +1695,8 @@ export default function OnboardingPage() {
                         hint={
                           docKey === "cancelledCheque"
                             ? 'Write “CANCELLED” across a cheque of the salary account.'
+                            : docKey === "passbookPhoto"
+                            ? "Photo of the first page of your passbook. Optional."
                             : undefined
                         }
                         onChange={(e) =>
@@ -1996,7 +2023,7 @@ export default function OnboardingPage() {
       !aadhaarError &&
       !panError
   );
-  const bankComplete = Boolean(
+  const bankComplete = !hasBankAccount || Boolean(
     bankDetails.accountHolderName &&
       bankDetails.accountNumber &&
       bankDetails.ifscCode &&
@@ -2300,6 +2327,43 @@ export default function OnboardingPage() {
               title="Bank details"
               description="Salary will be paid to this account. Upload a cancelled cheque so we can match the details."
             />
+            <label
+              htmlFor="noBankAccount"
+              className="mb-4 flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/30 px-3 py-3"
+            >
+              <Checkbox
+                id="noBankAccount"
+                className="mt-0.5"
+                checked={!hasBankAccount}
+                onCheckedChange={(checked) => {
+                  const noAccount = Boolean(checked);
+                  setHasBankAccount(!noAccount);
+                  if (noAccount) {
+                    setBankDetails({
+                      accountHolderName: "",
+                      accountNumber: "",
+                      ifscCode: "",
+                      bankName: "",
+                    });
+                    setDocuments((prev) => ({
+                      ...prev,
+                      cancelledCheque: null,
+                      passbookPhoto: null,
+                    }));
+                  }
+                }}
+              />
+              <span>
+                <span className="block text-sm font-medium text-foreground">
+                  I do not have a bank account
+                </span>
+                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">
+                  You can complete onboarding without account details. HR can add them later.
+                </span>
+              </span>
+            </label>
+            {hasBankAccount ? (
+              <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <OnboardingField label="Account holder name" htmlFor="accountHolder" required>
                 <Input
@@ -2371,7 +2435,7 @@ export default function OnboardingPage() {
                 />
               </OnboardingField>
             </div>
-            <div className="mt-5 border-t border-border pt-5">
+            <div className="mt-5 space-y-4 border-t border-border pt-5">
               <OnboardingDocumentDropzone
                 id="cancelledCheque"
                 label="Cancelled cheque"
@@ -2384,7 +2448,22 @@ export default function OnboardingPage() {
                 hint='Write “CANCELLED” across a cheque of this account. A clear photo is enough.'
                 onChange={(e) => handleDocumentChange(e, "cancelledCheque")}
               />
+              <OnboardingDocumentDropzone
+                id="passbookPhoto"
+                label="Passbook photo"
+                file={documents.passbookPhoto}
+                uploading={uploadingFiles.has("passbookPhoto")}
+                locked={isDocumentLocked("passbookPhoto")}
+                needsReupload={
+                  isReuploadMode && reuploadDocuments.includes("passbookPhoto")
+                }
+                required={false}
+                hint="Optional. Photo of the first page of your passbook."
+                onChange={(e) => handleDocumentChange(e, "passbookPhoto")}
+              />
             </div>
+              </>
+            ) : null}
           </OnboardingCard>
           )}
 

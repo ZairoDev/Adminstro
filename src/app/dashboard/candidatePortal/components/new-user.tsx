@@ -67,6 +67,7 @@ export type CandidateLite = {
   dateOfBirth?: string | Date;
   nationality?: string;
   bankDetails?: {
+    hasBankAccount?: boolean;
     accountNumber?: string;
     ifscCode?: string;
     bankName?: string;
@@ -84,6 +85,7 @@ export type CandidateLite = {
       panNumber?: string;
     };
     bankDetails?: {
+      hasBankAccount?: boolean;
       accountNumber?: string;
       ifscCode?: string;
       bankName?: string;

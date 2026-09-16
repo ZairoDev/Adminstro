@@ -25,8 +25,11 @@ import {
   EmailResponse,
   EmailTemplate,
   PIPLevel,
+  SelectionDetails,
 } from "./types";
 import { getActiveHREmployee } from "./getHREmployee";
+import { getEmailSignature } from "./signature";
+import type { EmailSignatureConfig } from "./signature";
 
 // Re-export all types
 export * from "./types";
@@ -256,11 +259,18 @@ export async function sendEmail(payload: CandidateEmailPayload): Promise<EmailRe
   return sendCandidateEmail(payload);
 }
 
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+}
+
 // Send custom email with provided template
 export async function sendCustomEmail(
   to: string,
   template: EmailTemplate,
-  companyName?: string
+  companyName?: string,
+  attachments?: EmailAttachment[],
 ): Promise<EmailResponse> {
   try {
     const transporter = createTransporterHR();
@@ -270,6 +280,7 @@ export async function sendCustomEmail(
       to,
       subject: template.subject,
       html: template.html,
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
     };
 
     const mailResponse = await transporter.sendMail(mailOptions);
@@ -284,6 +295,152 @@ export async function sendCustomEmail(
     console.error("❌ Custom email sending error:", error);
     return { success: false, error: error.message };
   }
+}
+
+export interface SignedDocumentSource {
+  filename: string;
+  url: string | null | undefined;
+}
+
+export interface EmployeeSignedDocumentsEmailPayload {
+  to: string;
+  employeeName: string;
+  position?: string;
+  selectionDetails?: SelectionDetails | null;
+  documents: SignedDocumentSource[];
+  companyName?: string;
+}
+
+async function fetchUrlAsBuffer(url: string): Promise<Buffer | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return Buffer.from(await response.arrayBuffer());
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Failed to fetch email attachment:", url, message);
+    return null;
+  }
+}
+
+function getEmployeeSignedDocumentsTemplate(
+  employeeName: string,
+  position: string,
+  selectionDetails: SelectionDetails | null | undefined,
+  attachedNames: string[],
+  companyName: string,
+  hrEmployee?: EmailSignatureConfig,
+): EmailTemplate {
+  const name = escapeLoginEmailHtml(employeeName);
+  const role = escapeLoginEmailHtml(position);
+  const company = escapeLoginEmailHtml(companyName);
+  const attachmentList = attachedNames
+    .map((item) => `<li style="margin: 6px 0;">${escapeLoginEmailHtml(item)}</li>`)
+    .join("");
+
+  const details = selectionDetails
+    ? `
+                <p style="font-size: 15px; margin: 24px 0 8px 0;"><strong>Selection details</strong></p>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+                  ${selectionDetails.positionType ? `
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600;">Position type:</td>
+                    <td style="padding: 8px 0;">${escapeLoginEmailHtml(selectionDetails.positionType)}</td>
+                  </tr>` : ""}
+                  ${selectionDetails.role ? `
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600;">Role:</td>
+                    <td style="padding: 8px 0;">${escapeLoginEmailHtml(selectionDetails.role)}</td>
+                  </tr>` : ""}
+                  ${selectionDetails.trainingPeriod ? `
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600;">Training period:</td>
+                    <td style="padding: 8px 0;">${escapeLoginEmailHtml(selectionDetails.trainingPeriod)}</td>
+                  </tr>` : ""}
+                  ${selectionDetails.duration ? `
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600;">Training duration:</td>
+                    <td style="padding: 8px 0;">${escapeLoginEmailHtml(selectionDetails.duration)}</td>
+                  </tr>` : ""}
+                  ${selectionDetails.internDuration ? `
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600;">Internship duration:</td>
+                    <td style="padding: 8px 0;">${escapeLoginEmailHtml(selectionDetails.internDuration)}</td>
+                  </tr>` : ""}
+                  ${selectionDetails.trainingDate ? `
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600;">Training start date:</td>
+                    <td style="padding: 8px 0;">${escapeLoginEmailHtml(selectionDetails.trainingDate)}</td>
+                  </tr>` : ""}
+                </table>
+              `
+    : "";
+
+  return {
+    subject: `Your signed employment documents – ${companyName}`,
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+        <div style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); padding: 36px 30px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Signed Documents</h1>
+        </div>
+        <div style="padding: 36px 30px; color: #333; line-height: 1.7;">
+          <p style="font-size: 16px; margin-bottom: 16px;">Dear ${name},</p>
+          <p style="font-size: 15px; margin-bottom: 16px;">
+            Welcome to <strong>${company}</strong>. Please find attached copies of the documents you signed during selection and onboarding${role ? ` for the role of <strong>${role}</strong>` : ""}.
+          </p>
+          ${details}
+          ${
+            attachmentList
+              ? `
+          <p style="font-size: 15px; margin-bottom: 8px;"><strong>Attached documents</strong></p>
+          <ul style="margin: 0 0 16px 0; padding-left: 20px;">
+            ${attachmentList}
+          </ul>`
+              : ""
+          }
+          <p style="font-size: 15px; margin-bottom: 16px;">
+            Please keep these files for your records. If any attachment is missing or incorrect, contact HR.
+          </p>
+          ${getEmailSignature(hrEmployee)}
+        </div>
+      </div>
+    `,
+  };
+}
+
+export async function sendEmployeeSignedDocumentsEmail(
+  payload: EmployeeSignedDocumentsEmailPayload,
+): Promise<EmailResponse> {
+  const companyName = payload.companyName || DEFAULT_COMPANY_NAME;
+  const attachments: EmailAttachment[] = [];
+
+  for (const document of payload.documents) {
+    const url = document.url?.trim();
+    if (!url) continue;
+    const content = await fetchUrlAsBuffer(url);
+    if (!content) continue;
+    attachments.push({
+      filename: document.filename,
+      content,
+      contentType: "application/pdf",
+    });
+  }
+
+  if (attachments.length === 0) {
+    return { success: false, error: "No signed documents available to attach" };
+  }
+
+  const hrEmployee = await getActiveHREmployee();
+  const template = getEmployeeSignedDocumentsTemplate(
+    payload.employeeName,
+    payload.position || payload.selectionDetails?.role || "",
+    payload.selectionDetails,
+    attachments.map((item) => item.filename),
+    companyName,
+    hrEmployee,
+  );
+
+  return sendCustomEmail(payload.to, template, companyName, attachments);
 }
 
 export interface PersonalReminderEmailPayload {

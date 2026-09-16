@@ -15,6 +15,7 @@ import {
   CircleX,
   BellDot,
   Bell,
+  FolderOpen,
   Notebook,
   PhoneOff,
   ThumbsUp,
@@ -1612,6 +1613,11 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
         path: "/dashboard/my-reminders",
         label: "My Reminders",
         Icon: <Bell size={18} />,
+      },
+      {
+        path: "/dashboard/my-documents",
+        label: "My Documents",
+        Icon: <FolderOpen size={18} />,
       },
     ];
     const leadRoute = inGroup(leadManagementRoutes);

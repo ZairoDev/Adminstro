@@ -10,6 +10,10 @@ import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 import { normalizeAllotedArea } from "@/util/location";
 import { normalizeEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
 import { withUniqueEmployeeCode } from "@/lib/people/employeeCode";
+import {
+  sendEmployeeSignedDocumentsEmail,
+  type SelectionDetails,
+} from "@/lib/email";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   await connectDb();
@@ -169,6 +173,69 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           "Employee created but failed to link candidate:",
           candidateId,
           linkError
+        );
+      }
+
+      try {
+        const candidate = await Candidate.findById(candidateId).select(
+          "name email position selectionDetails trainingAgreementDetails.signedPdfUrl trainingAgreementDetails.signedHrPoliciesPdfUrl trainingAgreementDetails.signedLetterOfIntentPdfUrl onboardingDetails.signedPdfUrl",
+        );
+        const recipient = createUser.email || candidate?.email;
+        if (candidate && recipient) {
+          const sd = candidate.selectionDetails;
+          const selectionDetails: SelectionDetails | null = sd
+            ? {
+                positionType: sd.positionType || "",
+                duration: sd.duration || "",
+                internDuration: sd.internDuration || undefined,
+                trainingPeriod: sd.trainingPeriod || "",
+                trainingDate: sd.trainingDate || undefined,
+                role: sd.role || candidate.position || "",
+              }
+            : null;
+          const safeName = (createUser.name || candidate.name || "employee")
+            .replace(/[^a-zA-Z0-9]+/g, "-")
+            .replace(/^-|-$/g, "");
+          const emailResult = await sendEmployeeSignedDocumentsEmail({
+            to: recipient,
+            employeeName: createUser.name || candidate.name,
+            position: selectionDetails?.role || candidate.position || "",
+            selectionDetails,
+            documents: [
+              {
+                filename: `Appointment-Letter-${safeName}.pdf`,
+                url: sd?.signedOfferLetterPdfUrl,
+              },
+              {
+                filename: `Pre-Employment-Training-Agreement-${safeName}.pdf`,
+                url: candidate.trainingAgreementDetails?.signedPdfUrl,
+              },
+              {
+                filename: `HR-Policies-${safeName}.pdf`,
+                url: candidate.trainingAgreementDetails?.signedHrPoliciesPdfUrl,
+              },
+              {
+                filename: `Letter-of-Intent-${safeName}.pdf`,
+                url: candidate.trainingAgreementDetails?.signedLetterOfIntentPdfUrl,
+              },
+              {
+                filename: `ZIPL-Service-Agreement-${safeName}.pdf`,
+                url: candidate.onboardingDetails?.signedPdfUrl,
+              },
+            ],
+          });
+          if (!emailResult.success) {
+            console.error(
+              "Employee created but signed-documents email failed:",
+              emailResult.error,
+            );
+          }
+        }
+      } catch (emailError) {
+        console.error(
+          "Employee created but signed-documents email failed:",
+          candidateId,
+          emailError,
         );
       }
     }

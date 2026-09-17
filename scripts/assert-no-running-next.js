@@ -2,21 +2,52 @@
 
 const { execSync } = require("child_process");
 
-function listConflictingProcesses() {
-  try {
-    return execSync('pgrep -fl "tsx socket.ts|next dev|next start"', {
-      encoding: "utf8",
-    })
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
+function isCi() {
+  return (
+    process.env.CI === "true" ||
+    process.env.CI === "1" ||
+    process.env.GITHUB_ACTIONS === "true" ||
+    Boolean(process.env.JENKINS_URL)
+  );
+}
+
+if (isCi()) {
+  process.exit(0);
 }
 
 if (process.env.NEXT_DIST_DIR && process.env.NEXT_DIST_DIR !== ".next") {
   process.exit(0);
+}
+
+function listConflictingProcesses() {
+  let output = "";
+  try {
+    output = execSync("ps -A -o pid=,command=", { encoding: "utf8" });
+  } catch {
+    return [];
+  }
+
+  const ignorePids = new Set([String(process.pid), String(process.ppid)]);
+
+  return output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => {
+      const match = line.match(/^(\d+)\s+(.*)$/);
+      if (!match) return false;
+
+      const pid = match[1];
+      const cmd = match[2];
+      if (ignorePids.has(pid)) return false;
+      if (cmd.includes("assert-no-running-next")) return false;
+
+      return (
+        /(^|[/\s])tsx(\.js)?\s+\S*socket\.ts/.test(cmd) ||
+        /(^|[/\s])next(\.js)?\s+dev\b/.test(cmd) ||
+        /(^|[/\s])next(\.js)?\s+start\b/.test(cmd)
+      );
+    });
 }
 
 const running = listConflictingProcesses();

@@ -182,6 +182,8 @@ export interface EmployeeInterface {
     sessionStartedAt?: number | null;
     expiresAt?: number | null;
     isLoggedIn?: boolean;
+    lastActiveAt?: number | null;
+    pendingReleaseAt?: number | null;
   };
   mobileSession?: {
     sessionId?: string | null;

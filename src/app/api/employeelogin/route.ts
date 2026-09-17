@@ -5,8 +5,8 @@ import { randomUUID } from "crypto";
 import { connectDb } from "@/util/db";
 import { sendEmail } from "@/util/mailer";
 import Employees from "@/models/employee";
-import EmployeeActivityLog from "@/models/employeeActivityLog";
-import { endActiveEmployeeLoginSessions } from "@/util/employeeActivitySession";
+import { logEmployeeLoginActivity } from "@/util/employeeActivitySession";
+import { isWebSessionAlive, freeWebSession } from "@/util/webSession";
 import { TEST_SUPERADMIN_EMAIL } from "@/util/employeeConstants";
 import EmployeeUiRule from "@/models/employeeUiRule";
 import { getDeviceTypeFromHeaders, WEB_SESSION_DURATION_MS } from "@/util/deviceSession";
@@ -274,50 +274,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Web: block login if an unexpired web session already exists.
+    // Web: only ONE web session may be active at a time. A genuinely active
+    // session (fresh heartbeat) must BLOCK a new login — it is never taken over
+    // or terminated. A session whose tab was closed (beacon fired / heartbeat
+    // went stale) is considered dead and is released so re-login can proceed.
     if (deviceType === "web") {
       const existing = temp.webSession;
-      const nowMs = Date.now();
-      const existingLoggedIn = existing?.isLoggedIn === true;
-      const existingSessionId = typeof existing?.sessionId === "string" && existing.sessionId.length > 0;
-      const existingExpiresAt = typeof existing?.expiresAt === "number" ? existing.expiresAt : null;
-      const unexpired = typeof existingExpiresAt === "number" && existingExpiresAt > nowMs;
-
-      if (existingLoggedIn && existingSessionId && unexpired) {
-        // If the current request carries no token cookie the user has no active
-        // session on this browser (cookie was cleared manually, private window
-        // closed, or a prior auth-error cleanup silently failed in the DB).
-        // Treat the DB record as stale and wipe it so login can proceed.
-        const incomingToken = request.cookies.get("token")?.value;
-        if (!incomingToken) {
-          const staleSessionId = existing?.sessionId ?? null;
-          await Employees.updateOne(
-            { _id: temp._id },
-            {
-              $set: {
-                "webSession.sessionId": null,
-                "webSession.sessionStartedAt": null,
-                "webSession.expiresAt": null,
-                "webSession.isLoggedIn": false,
-              },
-            },
-          );
-          try {
-            await endActiveEmployeeLoginSessions({
-              employeeId: temp._id.toString(),
-              logoutTime: new Date(),
-              sessionId: staleSessionId,
-            });
-          } catch {
-            // non-critical
-          }
-          // Fall through to normal login flow below
-        } else {
-          return NextResponse.json(
-            { error: "User already logged in on another tab/device" },
-            { status: 409 },
-          );
-        }
+      if (isWebSessionAlive(existing, Date.now())) {
+        return NextResponse.json(
+          { error: "This account is already logged in on another browser/device. Please log out from that session first." },
+          { status: 409 },
+        );
+      }
+      // Dead/expired session: free the slot (and close its activity log) so the
+      // fresh login below can create a clean session.
+      if (existing?.sessionId) {
+        await freeWebSession(temp._id.toString(), existing.sessionId);
       }
     }
 
@@ -368,6 +340,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           "webSession.sessionId": sessionIdVar,
           "webSession.sessionStartedAt": now,
           "webSession.expiresAt": now + WEB_SESSION_DURATION_MS,
+          "webSession.lastActiveAt": now,
+          "webSession.pendingReleaseAt": null,
         };
         const mobileSessionUpdate = {
           "mobileSession.isLoggedIn": true,
@@ -445,12 +419,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           } catch (e) {}
         }
 
+        // Log login activity so this session shows up (and can later be closed
+        // out) in the SuperAdmin login-activity dashboard, same as every other
+        // login path. Previously this bypass skipped logging entirely.
+        await logEmployeeLoginActivity({
+          employeeId: temp._id.toString(),
+          employeeName: temp.name,
+          employeeEmail: temp.email,
+          role: temp.role,
+          sessionId: sessionIdVar,
+          headers: request.headers,
+          notes: "Login through employee portal (SuperAdmin OTP bypass)",
+        });
+
         notifySuccessfulLoginEmails({
           to: temp.email,
           employeeName: temp.name,
           employeeEmail: temp.email,
           role: temp.role,
           loginTime: new Date(),
+          employeeId: temp._id.toString(),
         });
         
         return response;
@@ -481,6 +469,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       "webSession.sessionId": sessionIdVar,
       "webSession.sessionStartedAt": now,
       "webSession.expiresAt": now + WEB_SESSION_DURATION_MS,
+      "webSession.lastActiveAt": now,
+      "webSession.pendingReleaseAt": null,
     };
     const mobileSessionUpdate = {
       "mobileSession.isLoggedIn": true,
@@ -531,41 +521,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const token = jwt.sign(tokenData, tokenSecret, deviceType === "mobile" ? {} : { expiresIn: "12h" });
 
-    // Log login activity
-    try {
-    const { getClientIpFromHeaders } = await import("@/util/getClientIp");
-    const ipAddress = (() => {
-      const h = getClientIpFromHeaders(request.headers);
-      return h || request.headers.get("x-forwarded-for")?.split(",")[0] || request.headers.get("x-real-ip") || "Unknown";
-    })();
-    const { getIpLocation } = await import("@/util/getIpLocation");
-    const location = getIpLocation(ipAddress);
-      const userAgent = request.headers.get("user-agent") || "";
-      // generate a session id for this device/session
-
-      const activityLog = new EmployeeActivityLog({
-        employeeId: temp._id.toString(),
-        employeeName: temp.name,
-        employeeEmail: temp.email,
-        role: temp.role,
-        activityType: "login",
-        loginTime: new Date(),
-        sessionId: sessionIdVar,
-        status: "active",
-        lastActivityAt: new Date(),
-        ipAddress: location,
-        userAgent: userAgent,
-        notes: "Login through employee portal",
-      });
-      
-      await activityLog.save().catch((err: Error) => {
-        console.warn("Failed to log activity:", err.message);
-        // Don't throw error - activity logging should not break login
-      });
-    } catch (activityError) {
-      console.warn("Activity logging failed (non-critical):", activityError);
-      // Don't throw error - activity logging should not break login
-    }
+    // Log login activity (best-effort; never breaks login on failure)
+    await logEmployeeLoginActivity({
+      employeeId: temp._id.toString(),
+      employeeName: temp.name,
+      employeeEmail: temp.email,
+      role: temp.role,
+      sessionId: sessionIdVar,
+      headers: request.headers,
+      notes: "Login through employee portal",
+    });
 
     notifySuccessfulLoginEmails({
       to: temp.email,
@@ -573,6 +538,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       employeeEmail: temp.email,
       role: temp.role,
       loginTime: new Date(),
+      employeeId: temp._id.toString(),
     });
 
     const response = NextResponse.json({

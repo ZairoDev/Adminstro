@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/AuthStore";
 import { clearMonthlyTargetGateSkip } from "@/lib/monthly-target-gate-skip";
 import { clearVisitStatusGateSkip } from "@/lib/visits/visit-status-gate-skip";
+import { allowIntentionalUnload } from "@/components/SessionHeartbeat";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -40,6 +41,8 @@ export function LogoutButton() {
   const handleLogout = async () => {
     try {
       setLoading(true);
+      // Deliberate logout — don't nag with the "still logged in" warning.
+      allowIntentionalUnload();
       const response = await axios.get("/api/employeelogout", {
         withCredentials: true,
       });

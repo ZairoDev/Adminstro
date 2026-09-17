@@ -2,6 +2,7 @@ import cron from "node-cron";
 import Employees from "@/models/employee";
 import EmployeeActivityLog from "@/models/employeeActivityLog";
 import { connectDb } from "@/util/db";
+import { endActiveEmployeeLoginSessions } from "@/util/employeeActivitySession";
 import { generatePassword } from "./generatePassword";
 import { generateMobilePin } from "./generateMobilePin";
 import { computePasswordExpiryMs } from "./passwordExpiry";
@@ -28,32 +29,6 @@ async function emitForceLogoutAndDisconnectSession(sessionId: string | null | un
     }
   } catch (err) {
     console.warn(`[password-rotation] Socket force-logout for session ${sessionId}:`, err);
-  }
-}
-
-/** End active activity log sessions for this employee (same as forceLogout API). */
-async function endActivityLogSessions(employeeId: string, logoutTime: Date): Promise<void> {
-  try {
-    const activeSessions = await EmployeeActivityLog.find({
-      employeeId,
-      status: "active",
-      activityType: "login",
-    });
-    await Promise.all(
-      activeSessions.map((session: { loginTime?: Date; logoutTime?: Date; duration?: number; status: string; lastActivityAt?: Date; save: () => Promise<unknown> }) => {
-        const loginTime = session.loginTime ? new Date(session.loginTime) : null;
-        const durationMinutes = loginTime
-          ? Math.max(0, Math.round((logoutTime.getTime() - loginTime.getTime()) / (1000 * 60)))
-          : 0;
-        session.logoutTime = logoutTime;
-        session.duration = durationMinutes;
-        session.status = "ended";
-        session.lastActivityAt = logoutTime;
-        return session.save().catch(() => undefined);
-      }),
-    );
-  } catch (e) {
-    console.warn("[password-rotation] Failed to end activity logs for", employeeId, e);
   }
 }
 
@@ -125,7 +100,19 @@ export const rotatePasswordsNow = async () => {
         },
       );
 
-      await endActivityLogSessions(employeeId, logoutTime);
+      // Only rotation invalidates WEB sessions (see comment above), so only
+      // close the matching web login row. Passing no sessionId would fall
+      // back to ending *every* active login for this employee — including
+      // an unrelated, still-valid mobile session — which we must not do.
+      if (webSessionId) {
+        await endActiveEmployeeLoginSessions({
+          employeeId,
+          logoutTime,
+          sessionId: webSessionId,
+        }).catch((e) =>
+          console.warn("[password-rotation] Failed to end activity logs for", employeeId, e),
+        );
+      }
       await createForcedLogoutLog(emp, logoutTime);
       await emitForceLogoutAndDisconnectSession(webSessionId);
 

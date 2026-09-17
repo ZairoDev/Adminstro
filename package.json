@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx socket.ts",
-    "build": "next build",
+    "build": "node scripts/assert-no-running-next.js && next build",
     "start": "NODE_ENV=production tsx socket.ts",
     "lint": "next lint",
     "import-offer-template": "tsx src/scripts/importOfferTemplate.ts",

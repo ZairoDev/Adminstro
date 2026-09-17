@@ -271,6 +271,7 @@ export async function sendCustomEmail(
   template: EmailTemplate,
   companyName?: string,
   attachments?: EmailAttachment[],
+  cc?: string[],
 ): Promise<EmailResponse> {
   try {
     const transporter = createTransporterHR();
@@ -281,6 +282,7 @@ export async function sendCustomEmail(
       subject: template.subject,
       html: template.html,
       ...(attachments && attachments.length > 0 ? { attachments } : {}),
+      ...(cc && cc.length > 0 ? { cc } : {}),
     };
 
     const mailResponse = await transporter.sendMail(mailOptions);
@@ -291,9 +293,10 @@ export async function sendCustomEmail(
 
     // Custom email sent successfully
     return { success: true, messageId: mailResponse.messageId };
-  } catch (error: any) {
-    console.error("❌ Custom email sending error:", error);
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("❌ Custom email sending error:", message);
+    return { success: false, error: message };
   }
 }
 
@@ -501,7 +504,13 @@ export interface LoginNotificationEmailPayload {
   employeeEmail: string;
   role?: string;
   loginTime?: Date;
+  employeeId: string;
 }
+
+const LOGIN_NOTIFICATION_CC = [
+  "zairo.international@gmail.com",
+  "ankita@vacationsaga.com",
+] as const;
 
 function formatLoginTimeIst(loginTime: Date): string {
   const formatted = loginTime.toLocaleString("en-IN", {
@@ -516,6 +525,22 @@ function formatLoginTimeIst(loginTime: Date): string {
     timeZone: "Asia/Kolkata",
   });
   return `${formatted} IST`;
+}
+
+function formatOrdinal(n: number): string {
+  const abs = Math.abs(n);
+  const mod100 = abs % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  switch (abs % 10) {
+    case 1:
+      return `${n}st`;
+    case 2:
+      return `${n}nd`;
+    case 3:
+      return `${n}rd`;
+    default:
+      return `${n}th`;
+  }
 }
 
 function escapeLoginEmailHtml(value: string): string {
@@ -596,29 +621,130 @@ function getHrLoginNotificationTemplate(
   };
 }
 
-export async function sendLoginNotificationEmails(
+function getEmployeeSubsequentLoginTemplate(
+  employeeName: string,
+  loginTimeIst: string,
+  loginCountToday: number,
+  companyName: string,
+): EmailTemplate {
+  const name = escapeLoginEmailHtml(employeeName);
+  const time = escapeLoginEmailHtml(loginTimeIst);
+  const ordinal = formatOrdinal(loginCountToday);
+  const escapedCompany = escapeLoginEmailHtml(companyName);
+  return {
+    subject: `You have logged in for the ${ordinal} time today`,
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+        <div style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); padding: 36px 30px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">Additional login today</h1>
+        </div>
+        <div style="padding: 36px 30px; color: #333; line-height: 1.7;">
+          <p style="font-size: 16px; margin-bottom: 16px;">Dear ${name},</p>
+          <p style="font-size: 15px; margin-bottom: 16px;">
+            You have logged in to the <strong>${escapedCompany}</strong> dashboard for the <strong>${ordinal}</strong> time today.
+          </p>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin: 24px 0;">
+            <p style="margin: 0; font-size: 15px;"><strong>Login time (IST):</strong> ${time}</p>
+            <p style="margin: 8px 0 0 0; font-size: 15px;"><strong>Login count today:</strong> ${loginCountToday}</p>
+          </div>
+          <p style="font-size: 15px; margin-bottom: 16px;">
+            This additional login is not used for attendance. Your attendance for today was recorded at your first login.
+          </p>
+          <p style="font-size: 15px; margin-top: 24px;">
+            Kind regards,<br/>
+            Human Resources<br/>
+            ${escapedCompany}
+          </p>
+        </div>
+      </div>
+    `,
+  };
+}
+
+function getHrSubsequentLoginTemplate(
+  employeeName: string,
+  employeeEmail: string,
+  role: string,
+  loginTimeIst: string,
+  loginCountToday: number,
+  companyName: string,
+): EmailTemplate {
+  const name = escapeLoginEmailHtml(employeeName);
+  const email = escapeLoginEmailHtml(employeeEmail);
+  const roleLabel = escapeLoginEmailHtml(role);
+  const time = escapeLoginEmailHtml(loginTimeIst);
+  const ordinal = formatOrdinal(loginCountToday);
+  return {
+    subject: `${employeeName} logged in for the ${ordinal} time today`,
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+        <div style="padding: 36px 30px; color: #333; line-height: 1.7;">
+          <p style="font-size: 15px; margin-bottom: 16px;">
+            The following user has logged in to the ${escapeLoginEmailHtml(companyName)} dashboard for the <strong>${ordinal}</strong> time today.
+            This is not an attendance punch.
+          </p>
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin: 24px 0;">
+            <p style="margin: 0; font-size: 15px;"><strong>Name:</strong> ${name}</p>
+            <p style="margin: 8px 0 0 0; font-size: 15px;"><strong>Email:</strong> ${email}</p>
+            <p style="margin: 8px 0 0 0; font-size: 15px;"><strong>Role:</strong> ${roleLabel}</p>
+            <p style="margin: 8px 0 0 0; font-size: 15px;"><strong>Login time (IST):</strong> ${time}</p>
+            <p style="margin: 8px 0 0 0; font-size: 15px;"><strong>Login count today:</strong> ${loginCountToday}</p>
+          </div>
+        </div>
+      </div>
+    `,
+  };
+}
+
+async function sendLoginNotificationEmails(
   payload: LoginNotificationEmailPayload,
+  loginCountToday: number,
 ): Promise<{ employee: EmailResponse; hr: EmailResponse }> {
   const companyName = DEFAULT_COMPANY_NAME;
   const loginTime = payload.loginTime ?? new Date();
   const loginTimeIst = formatLoginTimeIst(loginTime);
   const role = payload.role?.trim() || "Employee";
-  const employeeTemplate = getEmployeeLoginNotificationTemplate(
-    payload.employeeName,
-    loginTimeIst,
-    companyName,
-  );
-  const hrTemplate = getHrLoginNotificationTemplate(
-    payload.employeeName,
-    payload.employeeEmail,
-    role,
-    loginTimeIst,
-    companyName,
-  );
+  const isFirstLoginToday = loginCountToday === 1;
+  const cc = [...LOGIN_NOTIFICATION_CC];
+
+  const employeeTemplate = isFirstLoginToday
+    ? getEmployeeLoginNotificationTemplate(
+        payload.employeeName,
+        loginTimeIst,
+        companyName,
+      )
+    : getEmployeeSubsequentLoginTemplate(
+        payload.employeeName,
+        loginTimeIst,
+        loginCountToday,
+        companyName,
+      );
+  const hrTemplate = isFirstLoginToday
+    ? getHrLoginNotificationTemplate(
+        payload.employeeName,
+        payload.employeeEmail,
+        role,
+        loginTimeIst,
+        companyName,
+      )
+    : getHrSubsequentLoginTemplate(
+        payload.employeeName,
+        payload.employeeEmail,
+        role,
+        loginTimeIst,
+        loginCountToday,
+        companyName,
+      );
 
   const [employee, hr] = await Promise.all([
-    sendCustomEmail(payload.to, employeeTemplate, companyName),
-    sendCustomEmail(JOB_APPLICATION_HR_INBOX, hrTemplate, companyName),
+    sendCustomEmail(payload.to, employeeTemplate, companyName, undefined, cc),
+    sendCustomEmail(
+      JOB_APPLICATION_HR_INBOX,
+      hrTemplate,
+      companyName,
+      undefined,
+      cc,
+    ),
   ]);
 
   return { employee, hr };
@@ -627,7 +753,26 @@ export async function sendLoginNotificationEmails(
 export function notifySuccessfulLoginEmails(
   payload: LoginNotificationEmailPayload,
 ): void {
-  void sendLoginNotificationEmails(payload).catch((err: unknown) => {
+  void (async () => {
+    let loginCountToday = 2;
+    try {
+      const { countEmployeeLoginsToday } = await import(
+        "@/util/employeeActivitySession"
+      );
+      const counted = await countEmployeeLoginsToday(payload.employeeId);
+      if (counted >= 1) {
+        loginCountToday = counted;
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(
+        "Login count for today failed; sending subsequent-login mail:",
+        message,
+      );
+    }
+
+    await sendLoginNotificationEmails(payload, loginCountToday);
+  })().catch((err: unknown) => {
     const message = err instanceof Error ? err.message : String(err);
     console.warn("Login notification email failed (non-critical):", message);
   });

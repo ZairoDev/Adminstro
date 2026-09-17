@@ -22,3 +22,15 @@ export function sessionPath(deviceType: DeviceType): "webSession" | "mobileSessi
 
 export const WEB_SESSION_DURATION_MS = 12 * 60 * 60 * 1000;
 
+// --- Web session heartbeat / release tuning ---------------------------------
+// Client sends a heartbeat this often while a tab is open.
+export const WEB_HEARTBEAT_INTERVAL_MS = 25 * 1000;
+// If no heartbeat for this long, the tab is considered gone (safety net for
+// crashes / blocked beacons). Generously larger than the interval so a brief
+// network blip never releases a genuinely active session.
+export const WEB_SESSION_STALE_MS = 3 * 60 * 1000;
+// After the tab-close beacon fires, release the session this long later unless
+// a heartbeat arrives first (which happens on refresh/navigation). Short, so a
+// real close frees the session quickly.
+export const WEB_RELEASE_GRACE_MS = 15 * 1000;
+

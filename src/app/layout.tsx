@@ -7,6 +7,7 @@ import { Toaster as SonnerToaster } from "sonner";
 import "./globals.css";
 import SocketGlobalListener from "@/components/SocketGlobalListener";
 import { AuthHydrator } from "@/components/AuthHydrator";
+import SessionHeartbeat from "@/components/SessionHeartbeat";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -54,6 +55,7 @@ export default function RootLayout({
           >
             <AuthHydrator />
             <SocketGlobalListener />
+            <SessionHeartbeat />
             {children}
           </ThemeProvider>
           <Toaster />

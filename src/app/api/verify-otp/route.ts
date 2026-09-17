@@ -2,7 +2,8 @@ import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
 import { connectDb } from "@/util/db";
 import Employees from "@/models/employee";
-import EmployeeActivityLog from "@/models/employeeActivityLog";
+import { logEmployeeLoginActivity } from "@/util/employeeActivitySession";
+import { isWebSessionAlive, freeWebSession, type WebSessionSlot } from "@/util/webSession";
 import { NextRequest, NextResponse } from "next/server";
 import { getDeviceTypeFromHeaders, WEB_SESSION_DURATION_MS } from "@/util/deviceSession";
 import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
@@ -88,44 +89,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Web: block if an unexpired web session already exists.
+    // Web: only ONE web session may be active at a time. A genuinely active
+    // session (fresh heartbeat) blocks login and is never taken over; a session
+    // whose tab was closed (dead heartbeat) is released so login can proceed.
     if (deviceType === "web") {
       const existing = (savedUser as any)?.webSession as
-        | { sessionId?: string | null; expiresAt?: number | null; isLoggedIn?: boolean }
+        | WebSessionSlot
         | undefined;
-      const nowMs = Date.now();
-      const alreadyActive =
-        existing?.isLoggedIn === true &&
-        typeof existing?.sessionId === "string" &&
-        existing.sessionId.length > 0 &&
-        typeof existing?.expiresAt === "number" &&
-        existing.expiresAt > nowMs;
-
-      if (alreadyActive) {
-        // OTP verification is a pre-login step — the user cannot have a valid
-        // cookie at this point. If they do not carry a token cookie the DB session
-        // is stale (browser cleared, incognito window closed, prior cleanup failed).
-        // Clear it so the SuperAdmin can complete login instead of hitting a 409.
-        const incomingToken = request.cookies.get("token")?.value;
-        if (!incomingToken) {
-          await Employees.updateOne(
-            { _id: (savedUser as any)._id },
-            {
-              $set: {
-                "webSession.sessionId": null,
-                "webSession.sessionStartedAt": null,
-                "webSession.expiresAt": null,
-                "webSession.isLoggedIn": false,
-              },
-            },
-          );
-          // Fall through to issue a fresh session below
-        } else {
-          return NextResponse.json(
-            { error: "User already logged in on another tab/device" },
-            { status: 409 },
-          );
-        }
+      if (isWebSessionAlive(existing, Date.now())) {
+        return NextResponse.json(
+          { error: "This account is already logged in on another browser/device. Please log out from that session first." },
+          { status: 409 },
+        );
+      }
+      if (existing?.sessionId) {
+        await freeWebSession((savedUser as any)._id.toString(), existing.sessionId);
       }
     }
 
@@ -157,6 +135,8 @@ export async function POST(request: NextRequest) {
       "webSession.sessionId": sessionId,
       "webSession.sessionStartedAt": now,
       "webSession.expiresAt": now + WEB_SESSION_DURATION_MS,
+      "webSession.lastActiveAt": now,
+      "webSession.pendingReleaseAt": null,
     };
     const mobileSessionUpdate = {
       "mobileSession.isLoggedIn": true,
@@ -231,33 +211,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Best-effort login activity log
-    try {
-      const { getClientIpFromHeaders } = await import("@/util/getClientIp");
-      const ipAddress =
-        getClientIpFromHeaders(request.headers) ||
-        request.headers.get("x-forwarded-for")?.split(",")[0] ||
-        request.headers.get("x-real-ip") ||
-        "Unknown";
-      const userAgent = request.headers.get("user-agent") || "";
-
-      const activityLog = new EmployeeActivityLog({
-        employeeId: (savedUser as any)._id.toString(),
-        employeeName: (savedUser as any).name,
-        employeeEmail: (savedUser as any).email,
-        role: (savedUser as any).role,
-        activityType: "login",
-        loginTime: new Date(),
-        sessionId,
-        status: "active",
-        lastActivityAt: new Date(),
-        ipAddress,
-        userAgent,
-        notes: "Login through employee portal (OTP verified)",
-      });
-      await activityLog.save().catch(() => {});
-    } catch {
-      // non-critical
-    }
+    await logEmployeeLoginActivity({
+      employeeId: (savedUser as any)._id.toString(),
+      employeeName: (savedUser as any).name,
+      employeeEmail: (savedUser as any).email,
+      role: (savedUser as any).role,
+      sessionId,
+      headers: request.headers,
+      notes: "Login through employee portal (OTP verified)",
+    });
 
     notifySuccessfulLoginEmails({
       to: (savedUser as { email: string }).email,
@@ -265,6 +227,7 @@ export async function POST(request: NextRequest) {
       employeeEmail: (savedUser as { email: string }).email,
       role: (savedUser as { role?: string }).role,
       loginTime: new Date(),
+      employeeId: (savedUser as { _id: { toString: () => string } })._id.toString(),
     });
 
     return response;

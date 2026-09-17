@@ -4,6 +4,12 @@ import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDeviceTypeFromHeaders } from "@/util/deviceSession";
 import { resolveEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
+// NOTE: imported lazily (inside the two call sites below) instead of as a
+// static top-level import. This file is imported by nearly every API route
+// in the app; a static import of employeeActivitySession.ts here made
+// Next's dev bundler fail to register dozens of unrelated routes (they'd
+// compile but resolve to a 404 not-found page). A dynamic import breaks
+// that dependency edge while keeping the same runtime behavior.
 
 export const getDataFromToken = async (request: NextRequest) => {
   let token: string | undefined;
@@ -105,8 +111,35 @@ export const getDataFromToken = async (request: NextRequest) => {
             },
           },
         ).catch(() => undefined);
+        // Without this, the login-activity dashboard shows the session as
+        // "active" forever — the web session expired but nothing ever told
+        // the activity log to close it out.
+        try {
+          const { endActiveEmployeeLoginSessions } = await import(
+            "@/util/employeeActivitySession"
+          );
+          await endActiveEmployeeLoginSessions({
+            employeeId,
+            logoutTime: new Date(),
+            sessionId,
+          });
+        } catch {
+          // non-critical
+        }
         throw { status: 401, code: "AUTH_EXPIRED" };
       }
+
+      // Web session heartbeat: any authenticated web request keeps the session
+      // alive and cancels a pending tab-close release (e.g. after a refresh).
+      await Employees.updateOne(
+        { _id: employeeId, "webSession.sessionId": sessionId },
+        {
+          $set: {
+            "webSession.lastActiveAt": Date.now(),
+            "webSession.pendingReleaseAt": null,
+          },
+        },
+      ).catch(() => undefined);
     } else {
       // Mobile session heartbeat
       await Employees.updateOne(
@@ -156,6 +189,23 @@ export const getDataFromToken = async (request: NextRequest) => {
                   },
             },
           ).catch(() => undefined);
+
+          // Same gap as the web-session-expiry branch above: a plain JWT
+          // expiry (mobile has no separate expiresAt check, and this also
+          // covers the "iat" clock-skew path) must also close the matching
+          // activity-log row, otherwise it stays "active" forever.
+          try {
+            const { endActiveEmployeeLoginSessions } = await import(
+              "@/util/employeeActivitySession"
+            );
+            await endActiveEmployeeLoginSessions({
+              employeeId: String(employeeId),
+              logoutTime: new Date(),
+              sessionId: sessionId ?? null,
+            });
+          } catch {
+            // non-critical
+          }
         }
       } catch {
         console.log("Decode failed");

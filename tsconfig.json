@@ -1,6 +1,11 @@
 {
   "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext","es2015"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext",
+      "es2015"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,7 +24,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
   "include": [
@@ -29,7 +36,14 @@
     ".next/types/**/*.ts",
     "src/app/api/employee/deleteEmploye",
     "src/createSuggestionItems.js",
-    "src/models/offersts"
-, "socket.ts", "src/app/api/candidates/onboardingDocument"  ],
-  "exclude": ["node_modules", "dist", "build"]
+    "src/models/offersts",
+    "socket.ts",
+    "src/app/api/candidates/onboardingDocument",
+    ".next-verify/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build"
+  ]
 }

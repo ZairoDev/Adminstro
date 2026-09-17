@@ -57,6 +57,9 @@ axios.interceptors.response.use(
 
       localStorage.clear();
 
+      // Auth already failed — suppress the "still logged in" unload warning.
+      (window as unknown as Record<string, boolean>)["__ADMINSTRO_ALLOW_UNLOAD__"] = true;
+
       if (!window.location.pathname.includes("/login")) {
         window.location.href = "/login";
       }

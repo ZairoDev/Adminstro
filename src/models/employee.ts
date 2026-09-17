@@ -85,6 +85,12 @@ const webSessionSchema = new Schema(
     sessionStartedAt: { type: Number, default: null },
     expiresAt: { type: Number, default: null },
     isLoggedIn: { type: Boolean, default: false },
+    // Heartbeat timestamp (ms). Refreshed by the client heartbeat ping and by
+    // any authenticated web request. If it goes stale the tab is gone.
+    lastActiveAt: { type: Number, default: null },
+    // Set by the sendBeacon fired on tab close/unload. A quick re-heartbeat
+    // (e.g. on refresh) clears it, so a refresh never releases the session.
+    pendingReleaseAt: { type: Number, default: null },
   },
   { _id: false },
 );

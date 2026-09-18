@@ -29,30 +29,9 @@ export default function RootLayout({
 }>) {
   return (
     <ViewTransitions>
-      <html lang="en">
-        <body className={poppins.className } >
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            themes={[
-              // "orange",
-              // "rose",
-              "dark",
-              "light",
-              // "green",
-              // "blue",
-              // "violet",
-              // "slate",
-              // "yellow",
-              // "stone",
-              "gray",
-              // "neutral",
-              // "red",
-              // "zinc",
-            ]}
-            disableTransitionOnChange
-          >
+      <html lang="en" suppressHydrationWarning>
+        <body className={poppins.className}>
+          <ThemeProvider>
             <AuthHydrator />
             <SocketGlobalListener />
             <SessionHeartbeat />

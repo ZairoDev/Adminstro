@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -28,8 +27,6 @@ import {
   MessageSquarePlus,
   Images,
   MessageCircle,
-  Sun,
-  Moon,
   Shield,
   MapPin,
   MapPinOff,
@@ -38,6 +35,7 @@ import {
 } from "lucide-react";
 import axios from "@/util/axios";
 import { cn } from "@/lib/utils";
+import { ModeToggle } from "@/components/themeChangeButton";
 import type { Conversation } from "../types";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -168,47 +166,6 @@ interface SidebarProps {
   onCrmActionForConversation?: (conversation: Conversation) => void;
 }
 
-/** Theme toggle button for the nav strip: toggles between light and dark mode */
-function ThemeToggleButton() {
-  const { theme, setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
-  const isDark = mounted && (resolvedTheme === "dark" || theme === "dark");
-  const toggleTheme = () => {
-    setTheme(isDark ? "light" : "dark");
-  };
-  const themeToggleLabel = mounted
-    ? isDark
-      ? "Switch to light mode"
-      : "Switch to dark mode"
-    : "Toggle theme";
-  const themeTooltip = mounted ? (isDark ? "Light mode" : "Dark mode") : "Theme";
-
-  return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-[#e9edef] dark:hover:bg-[#2a3942] transition-colors"
-            aria-label={themeToggleLabel}
-          >
-            {mounted && isDark ? (
-              <Sun className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
-            ) : (
-              <Moon className="h-6 w-6 text-[#54656f] dark:text-[#8696a0]" />
-            )}
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="right" suppressHydrationWarning>
-          {themeTooltip}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
 
 export const ConversationSidebar = memo(function ConversationSidebar({
   conversations,
@@ -532,7 +489,16 @@ export const ConversationSidebar = memo(function ConversationSidebar({
         </TooltipProvider>
 
         {/* Theme Toggle (Light / Dark) */}
-        <ThemeToggleButton />
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <ModeToggle className="size-12" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="right">Theme</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {/* User Profile Picture */}
         <TooltipProvider>

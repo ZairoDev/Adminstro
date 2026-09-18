@@ -137,13 +137,14 @@ export async function cleanupStaleEmployeeActivitySessions(): Promise<number> {
  * Fast sweeper for dead WEB SESSION SLOTS on the Employee document.
  *
  * Complements `cleanupStaleEmployeeActivitySessions` (which closes activity-log
- * rows on a 15-min cron): this runs every ~30s so a closed tab is reflected
- * quickly — it frees the `webSession` slot (so the online/monitoring list and
- * "already logged in" check update promptly) and records the logout.
+ * rows on a 15-min cron): this runs every ~30s and frees the `webSession` slot
+ * (so the online/monitoring list and "already logged in" check stay accurate)
+ * and records the logout.
  *
  * A session is only freed when it is NOT alive per `isWebSessionAlive`, i.e. the
  * tab-close beacon fired (past the grace window) or the heartbeat went stale —
- * never a genuinely active session.
+ * never a genuinely active session. Grace/stale windows are long so checking
+ * email or switching apps does not look like a close.
  */
 export async function cleanupDeadWebSessions(): Promise<number> {
   await connectDb();

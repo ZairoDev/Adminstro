@@ -26,11 +26,11 @@ export const WEB_SESSION_DURATION_MS = 12 * 60 * 60 * 1000;
 // Client sends a heartbeat this often while a tab is open.
 export const WEB_HEARTBEAT_INTERVAL_MS = 25 * 1000;
 // If no heartbeat for this long, the tab is considered gone (safety net for
-// crashes / blocked beacons). Generously larger than the interval so a brief
-// network blip never releases a genuinely active session.
-export const WEB_SESSION_STALE_MS = 3 * 60 * 1000;
-// After the tab-close beacon fires, release the session this long later unless
-// a heartbeat arrives first (which happens on refresh/navigation). Short, so a
-// real close frees the session quickly.
-export const WEB_RELEASE_GRACE_MS = 15 * 1000;
+// crashes / blocked beacons). Long enough that switching apps or checking
+// email never looks like a crash — browsers throttle background timers.
+export const WEB_SESSION_STALE_MS = 30 * 60 * 1000;
+// After a real tab-close beacon, wait this long before freeing the slot
+// unless a heartbeat arrives first (refresh / navigation / return from bfcache).
+// Generous on purpose: pagehide still fires on some app-switches.
+export const WEB_RELEASE_GRACE_MS = 60 * 60 * 1000;
 

@@ -21,7 +21,7 @@ export function allowIntentionalUnload(): void {
 
 /**
  * Keeps the web session alive while a tab is open, warns before an accidental
- * close, and fires a release beacon on close so the session frees up quickly.
+ * close, and fires a release beacon on a real unload (not bfcache / tab switch).
  *
  * Mounted globally; it only does anything while the user is logged in.
  */
@@ -67,10 +67,11 @@ export default function SessionHeartbeat(): null {
     };
     window.addEventListener("beforeunload", onBeforeUnload);
 
-    // On actual unload, tell the server the tab is closing. sendBeacon is
-    // reliable during unload. The server only marks pending-release; a refresh's
-    // fresh heartbeat cancels it, so this never logs out on refresh.
-    const onPageHide = () => {
+    // Real unload only. `event.persisted` means the page is entering bfcache
+    // (tab switch, app switch, back/forward) — not a close. Releasing then
+    // kicks people who just checked email.
+    const onPageHide = (event: PageTransitionEvent) => {
+      if (event.persisted) return;
       try {
         navigator.sendBeacon?.("/api/employee/session/release");
       } catch {

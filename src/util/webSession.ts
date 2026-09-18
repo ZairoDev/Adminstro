@@ -2,6 +2,7 @@ import Employees from "@/models/employee";
 import { endActiveEmployeeLoginSessions } from "@/util/employeeActivitySession";
 import {
   WEB_RELEASE_GRACE_MS,
+  WEB_SESSION_DURATION_MS,
   WEB_SESSION_STALE_MS,
 } from "@/util/deviceSession";
 
@@ -98,4 +99,54 @@ export async function freeWebSession(
   } catch {
     // non-critical
   }
+}
+
+export type RestoreWebSessionResult = "restored" | "occupied" | "expired";
+
+/**
+ * Put a still-valid web JWT back into a vacant slot.
+ *
+ * The sweeper frees slots without bumping `webTokenValidAfter`. Force-logout,
+ * PIP lock, and password rotation DO bump it, so those tokens never reach here.
+ * A different live web session is left alone (occupied) so we never steal it.
+ */
+export async function restoreWebSessionIfSwept(params: {
+  employeeId: string;
+  sessionId: string;
+  issuedAtMs?: number;
+}): Promise<RestoreWebSessionResult> {
+  const { employeeId, sessionId, issuedAtMs } = params;
+  if (!employeeId || !sessionId || employeeId === "test-superadmin") {
+    return "occupied";
+  }
+
+  const now = Date.now();
+  const sessionStartedAt =
+    typeof issuedAtMs === "number" && issuedAtMs > 0 ? issuedAtMs : now;
+  const expiresAt = sessionStartedAt + WEB_SESSION_DURATION_MS;
+  if (now > expiresAt) {
+    return "expired";
+  }
+
+  const result = await Employees.updateOne(
+    {
+      _id: employeeId,
+      $or: [
+        { "webSession.isLoggedIn": { $ne: true } },
+        { "webSession.sessionId": { $in: [null, sessionId] } },
+      ],
+    },
+    {
+      $set: {
+        "webSession.sessionId": sessionId,
+        "webSession.sessionStartedAt": sessionStartedAt,
+        "webSession.expiresAt": expiresAt,
+        "webSession.isLoggedIn": true,
+        "webSession.lastActiveAt": now,
+        "webSession.pendingReleaseAt": null,
+      },
+    },
+  );
+
+  return result.matchedCount > 0 ? "restored" : "occupied";
 }

@@ -91,13 +91,47 @@ export const getDataFromToken = async (request: NextRequest) => {
     }
 
     const slot = deviceType === "mobile" ? employee.mobileSession : employee.webSession;
-    if (!slot?.sessionId || slot.sessionId !== sessionId || slot.isLoggedIn !== true) {
-      throw { status: 401, code: "SESSION_INVALID" };
+    const slotMatches =
+      Boolean(slot?.sessionId) &&
+      slot?.sessionId === sessionId &&
+      slot?.isLoggedIn === true;
+
+    let restoredSweptSlot = false;
+    if (!slotMatches) {
+      // Sweeper-freed web slot: JWT is still valid (force-logout / PIP /
+      // password rotation already failed the *TokenValidAfter check above).
+      // Restore instead of kicking someone who checked email. A different
+      // live web session stays SESSION_INVALID. Explicit logout deleted the
+      // cookie, so it never reaches here.
+      if (deviceType === "web" && sessionId) {
+        const { restoreWebSessionIfSwept } = await import("@/util/webSession");
+        const restoreResult = await restoreWebSessionIfSwept({
+          employeeId,
+          sessionId,
+          issuedAtMs:
+            typeof issuedAtSeconds === "number"
+              ? issuedAtSeconds * 1000
+              : undefined,
+        });
+        if (restoreResult === "expired") {
+          throw { status: 401, code: "AUTH_EXPIRED" };
+        }
+        if (restoreResult !== "restored") {
+          throw { status: 401, code: "SESSION_INVALID" };
+        }
+        restoredSweptSlot = true;
+      } else {
+        throw { status: 401, code: "SESSION_INVALID" };
+      }
     }
 
     // Web session expiry enforcement (12h), independent of JWT exp.
     if (deviceType === "web") {
-      const expiresAt = (slot as any)?.expiresAt as number | null | undefined;
+      // After a sweeper restore the in-memory slot is vacant; restore already
+      // enforced the 12h ceiling from JWT iat, so don't trust stale expiresAt.
+      const expiresAt = restoredSweptSlot
+        ? undefined
+        : ((slot as { expiresAt?: number | null } | null | undefined)?.expiresAt);
       if (typeof expiresAt === "number" && expiresAt > 0 && Date.now() > expiresAt) {
         // Best-effort cleanup; don't touch tokenValidAfter.
         await Employees.updateOne(

@@ -26,6 +26,12 @@ export interface SelectionData {
   internDuration?: string; // Internship length (e.g., "3 months")
 }
 
+const TRAINING_TIME_PRESETS = [
+  "12:00 pm to 4:00 pm",
+  "4:00 pm to 8:00 pm",
+  "Full Day",
+] as const;
+
 export function SelectCandidateDialog({
   open,
   onClose,
@@ -278,28 +284,21 @@ export function SelectCandidateDialog({
                 Training Time
               </label>
               <div className="flex flex-wrap gap-3 mb-2">
-                <button
-                  type="button"
-                  onClick={() => setDuration("12:00 pm to 4:00 pm")}
-                  className={`flex-1 min-w-[140px] py-2 px-3 rounded border transition ${
-                    duration === "12:00 pm to 4:00 pm"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-muted text-muted-foreground hover:border-primary"
-                  }`}
-                >
-                  12:00 pm to 4:00 pm
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDuration("4:00 pm to 8:00 pm")}
-                  className={`flex-1 min-w-[140px] py-2 px-3 rounded border transition ${
-                    duration === "4:00 pm to 8:00 pm"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-muted text-muted-foreground hover:border-primary"
-                  }`}
-                >
-                  4:00 pm to 8:00 pm
-                </button>
+                {TRAINING_TIME_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setDuration(preset)}
+                    aria-pressed={duration === preset}
+                    className={`flex-1 min-w-[140px] min-h-11 py-2 px-3 rounded border cursor-pointer transition-colors duration-200 ${
+                      duration === preset
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-muted text-muted-foreground hover:border-primary"
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
               </div>
               <input
                 type="text"

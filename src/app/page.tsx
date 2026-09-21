@@ -9,6 +9,7 @@ import FadeInBlur from "@/components/FadeInBlur";
 import DashboardCard from "@/components/DashBoardCard";
 import { RainbowButton } from "@/components/ui/rainbow-button";
 import { AnimatedTooltip } from "@/components/ui/animated-tooltip";
+import { CloudShader } from "@/components/ui/cloud-shader";
 import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
 import { useRouter } from "next/navigation";
 // import CrashErrorPage from "./dashboard/cr%%5E$ghzdkkxjuhgy789/page";
@@ -55,32 +56,36 @@ export default function HomePage() {
 
 
   return (
-    <>
+    <div className="relative min-h-dvh text-white [text-shadow:0_1px_8px_rgba(0,0,0,0.35)]">
+      <div className="pointer-events-none fixed inset-0 z-0" aria-hidden>
+        <CloudShader className="h-full min-h-full w-full" />
+      </div>
+      <div className="relative z-10">
       <Navbar />
       <FadeInBlur>
-        <h1 className="max-w-2xl m-auto mt-20 text-center p-2 lg:text-6xl  sm:text-5xl text-4xl  ">
-          Welcome to the Zairo Office Portal!
+        <h1 className="max-w-3xl m-auto mt-20 text-center p-2 font-semibold text-5xl sm:text-6xl lg:text-7xl">
+          Welcome to the Zairo International
         </h1>
       </FadeInBlur>
-      <FadeInBlur>
-        <p className="max-w-3xl m-auto p-2 md:text-base text-center text-sm">
+      {/* <FadeInBlur> */}
+        {/* <p className="max-w-3xl m-auto p-2 text-center text-lg leading-relaxed md:text-xl">
           Oh, you think you belong here? If you&apos;re one of us here at Zairo,
           congrats! Otherwise, feel free to close this window...or try to get in
           if you dare. If you&apos;re actually an employee, tap the button
           below, enter your credentials, and we&apos;ll route you to your
           designated workspace.
-        </p>
-      </FadeInBlur>
+        </p> */}
+      {/* </FadeInBlur> */}
       <FadeInBlur>
         <div className="my-6">
-          <p className="text-center mb-1">Managed by</p>
+          <p className="text-center mb-1 text-lg">Managed by</p>
           <div className="flex flex-row items-center justify-center  w-full">
             <AnimatedTooltip items={people} />
           </div>
         </div>
       </FadeInBlur>
 
-      <div className="flex items-center mt-2 justify-center">
+      <div className="relative z-20 flex items-center mt-2 justify-center">
         {/* <>
           {token ? (
             token.role === "Sales" ? (
@@ -129,12 +134,18 @@ export default function HomePage() {
 
         <>
           {token ? (
-            <RainbowButton onClick={handleDashboard} disabled={!token?.id}>
+            <RainbowButton
+              onClick={handleDashboard}
+              disabled={!token?.id}
+              className="h-12 bg-white px-10 text-lg text-black shadow-md [background-image:none] [text-shadow:none] hover:bg-white/90 before:hidden"
+            >
               Dashboard
             </RainbowButton>
           ) : (
             <Link href="/login">
-              <RainbowButton>Login</RainbowButton>
+              <RainbowButton className="h-12 bg-white px-10 text-lg text-black shadow-md [background-image:none] [text-shadow:none] hover:bg-white/90 before:hidden">
+                Login
+              </RainbowButton>
             </Link>
           )}
         </>
@@ -156,7 +167,8 @@ export default function HomePage() {
         <DashboardCard />
       </div>
       <ScrollToTopButton />
-    </>
+      </div>
+    </div>
   );
 }
 

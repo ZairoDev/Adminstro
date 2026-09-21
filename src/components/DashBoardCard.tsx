@@ -42,9 +42,9 @@ export default function DashboardCard() {
         transition={{ duration: 0.5 }}
         className="text-center"
       >
-        <h1 className="text-3xl  my-4  sm:text-4xl">Our Features</h1>
-        <p className="mt-4 text-lg text-muted-foreground">
-          Choose where you want to go after login.
+        <h1 className="my-4 text-4xl text-white sm:text-5xl">Our Products</h1>
+        <p className="mt-4 text-xl text-white/85">
+          Choose where you belong.
         </p>
       </motion.div>
 
@@ -63,21 +63,21 @@ export default function DashboardCard() {
               transition={{ delay: 0.2 * (index + 1), duration: 0.5 }}
               className="pt-6"
             >
-              <div className="flow-root   border-secondary border  rounded-lg px-6 pb-4">
+              <div className="flow-root rounded-xl border border-white/35 bg-sky-950/60 px-6 pb-5 shadow-lg backdrop-blur-md">
                 <div className="-mt-6">
                   <div>
-                    <span className="inline-flex items-center justify-center p-3 text-primary bg-secondary rounded-md shadow-lg">
+                    <span className="inline-flex items-center justify-center rounded-md bg-white p-3 text-black shadow-lg">
                       <feature.icon className="h-6 w-6 " aria-hidden="true" />
                     </span>
                   </div>
-                  <h3 className="mt-4 text-lg font-medium  tracking-tight">
+                  <h3 className="mt-4 text-xl font-medium tracking-tight text-white [text-shadow:none]">
                     {feature.name}
                   </h3>
-                  <p className="my-2 text-base text-muted-foreground">
+                  <p className="my-2 text-lg leading-relaxed text-white/90 [text-shadow:none]">
                     {feature.description}
                   </p>
                   <Link href={feature.link} className="mt-2">
-                    <Button>
+                    <Button className="h-11 bg-white px-4 text-base text-black shadow-md [text-shadow:none] hover:bg-white/90 hover:text-black">
                       Navigate <ArrowRight size={18} />
                     </Button>
                   </Link>

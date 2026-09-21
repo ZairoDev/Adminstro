@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import {
   ArrowLeft,
   Download,
@@ -10,6 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ProfilePhotoPopup } from "@/components/profile-photo-popup";
 import { Candidate } from "../types";
 import { formatEmploymentType, getStatusColor, getStatusLabel } from "../constants";
 
@@ -66,14 +66,11 @@ export function CandidateHeader({
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-4">
             {candidate.photoUrl ? (
-              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-border/70">
-                <Image
-                  src={candidate.photoUrl}
-                  alt={candidate.name}
-                  fill
-                  className="object-cover"
-                />
-              </div>
+              <ProfilePhotoPopup
+                src={candidate.photoUrl}
+                alt={candidate.name}
+                className="h-14 w-14 rounded-2xl border border-border/70"
+              />
             ) : (
               <div
                 aria-hidden

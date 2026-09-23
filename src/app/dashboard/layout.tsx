@@ -9,7 +9,7 @@ import { Notifications } from "@/components/Notifications/Notifications";
 import { WhatsAppNotifications } from "@/components/whatsapp/WhatsAppNotifications";
 import { SystemNotificationToast } from "@/components/Notifications/SystemNotificationToast";
 import { SystemNotificationCenter } from "@/components/Notifications/SystemNotificationCenter";
-import { CommandDialogDemo } from "@/components/camanddialog/CammandDialog";
+import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastNotificationForm";
 import { LeadSearch } from "@/components/UniversalLeadSearch/LeadSearch";
 import { PipAcknowledgmentGate } from "@/components/pip/PipAcknowledgmentGate";
 import { useState, useEffect } from "react";
@@ -154,7 +154,9 @@ export default function DashboardLayout({
             {token && <PersonalReminderNavBell />}
             <nav className="flex  justify-between items-center  gap-x-2">
               <div className=" flex  items-center gap-x-2 ">
-                <CommandDialogDemo />
+                {(token?.role === "SuperAdmin" || token?.role === "HR") && (
+                  <BroadcastNotificationForm />
+                )}
               </div>
               <div className=" ">
                 <LogoutButton />

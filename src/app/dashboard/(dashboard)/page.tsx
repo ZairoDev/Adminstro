@@ -8,6 +8,7 @@ import { PersonalReminderBanner } from "@/components/reminders/PersonalReminderB
 import { TodaysEvents } from "@/util/getTodaysEvents";
 import { toast } from "sonner";
 import { DashboardSectionSkeleton } from "@/components/ui/DashboardSectionSkeleton";
+import { TextFlippingBoard, normalizeFlapText } from "@/components/ui/text-flipping-board";
 import { PipStatusBadge } from "@/components/pip/PipStatusBadge";
 // Auth & Dashboard Access
 import { useAuthStore } from "@/AuthStore";
@@ -37,9 +38,6 @@ import {
   emptyCelebrations,
   useCelebrations,
 } from "@/hooks/shared/useCelebrations";
-
-// Components
-import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastNotificationForm";
 
 const Dashboard = () => {
   const { token } = useAuthStore();
@@ -99,6 +97,11 @@ const Dashboard = () => {
     const firstName = token.name.trim().split(" ")[0];
     return getRandomQuote(firstName);
   }, [token?.name]);
+
+  const quoteBoardCols = useMemo(() => {
+    const length = normalizeFlapText(displayQuote).length;
+    return Math.min(56, Math.max(length, 24));
+  }, [displayQuote]);
 
   const flipCardEvents = useMemo((): TodaysEvents => {
     const birthdays = centralizedCelebrations.birthdays.map((b) => ({
@@ -177,7 +180,9 @@ const Dashboard = () => {
         style={{ minHeight: "120px" }}
         data-celebration-section
       >
-        <div className="mb-2 flex justify-end"><PipStatusBadge /></div>
+        <div className="mb-2 flex justify-end">
+          <PipStatusBadge />
+        </div>
         <div
           className="relative w-full transition-transform duration-700 ease-in-out"
           style={{
@@ -191,17 +196,12 @@ const Dashboard = () => {
               transform: "rotateX(0deg)",
             }}
           >
-            <div className="flex flex-col gap-4 rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 dark:border-blue-800 dark:from-blue-950/30 dark:to-indigo-950/30 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
-                {displayQuote}
-              </p>
-
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {(role === "SuperAdmin" || role === "HR") && (
-                  <BroadcastNotificationForm />
-                )}
-              </div>
-            </div>
+            <TextFlippingBoard
+              text={displayQuote}
+              boardRows={1}
+              boardCols={quoteBoardCols}
+              compact
+            />
           </div>
 
           <div
@@ -217,11 +217,12 @@ const Dashboard = () => {
                 onDismiss={handleDismissCelebration}
               />
             ) : (
-              <div className="rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-6 dark:border-blue-800 dark:from-blue-950/30 dark:to-indigo-950/30">
-                <p className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
-                  {displayQuote}
-                </p>
-              </div>
+              <TextFlippingBoard
+                text={displayQuote}
+                boardRows={1}
+                boardCols={quoteBoardCols}
+                compact
+              />
             )}
           </div>
         </div>

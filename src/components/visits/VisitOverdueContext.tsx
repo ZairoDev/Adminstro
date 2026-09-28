@@ -63,6 +63,13 @@ export function VisitOverdueProvider({ children }: VisitOverdueProviderProps) {
   const refresh = useCallback(async () => {
     if (!token) return;
 
+    if (role === "HCollaborator") {
+      setCount(0);
+      setVisits([]);
+      setStatus("allowed");
+      return;
+    }
+
     if (canSkip && userId && isVisitStatusGateSkipped(userId)) {
       setCount(0);
       setVisits([]);
@@ -83,7 +90,7 @@ export function VisitOverdueProvider({ children }: VisitOverdueProviderProps) {
       setCount(0);
       setStatus("allowed");
     }
-  }, [canSkip, token, userId]);
+  }, [canSkip, role, token, userId]);
 
   const skip = useCallback(() => {
     if (!canSkip || !userId) return;

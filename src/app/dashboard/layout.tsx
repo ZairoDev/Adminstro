@@ -23,6 +23,7 @@ import { VisitOverdueProvider } from "@/components/visits/VisitOverdueContext";
 import { VisitStatusGate } from "@/components/visits/VisitStatusGate";
 import { PersonalReminderNavBell } from "@/components/reminders/PersonalReminderBanner";
 import { QueryProvider } from "@/providers/QueryProvider";
+import { CrmAgentChatDrawer } from "@/components/crm-agent/CrmAgentChatDrawer";
 
 export default function DashboardLayout({
   children,
@@ -35,6 +36,7 @@ export default function DashboardLayout({
   const isOnboarding = pathname?.includes("/onboarding");
   const isTrainingAgreement = pathname?.includes("/training-agreement");
   const isOfferLetter = pathname?.includes("/offer-letter");
+  const isHousingCollaborator = token?.role === "HCollaborator";
   
   // Hooks must be called unconditionally (before any early returns)
   const { socket } = useSocket();
@@ -50,6 +52,7 @@ export default function DashboardLayout({
   useEffect(() => {
     const syncTokenRentalType = async () => {
       if (!token?.id) return;
+      if (token.role === "HCollaborator") return;
       if (token.rentalType !== undefined && token.rentalType !== null) return;
       try {
         const res = await axios.get("/api/user/getloggedinuser");
@@ -62,7 +65,7 @@ export default function DashboardLayout({
     };
     void syncTokenRentalType();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token?.id]);
+  }, [token?.id, token?.role]);
 
   useEffect(() => {
     if (!socket) return;
@@ -139,22 +142,24 @@ export default function DashboardLayout({
             <BreadCrumb />
           </div>
           <div className=" flex items-center gap-x-2">
-            <InfoCard />
-            {<LeadSearch />}
-            {(token?.role === "SuperAdmin" ||
-              token?.role === "Sales" ||
-              token?.role === "Sales-TeamLead") && (
+            {!isHousingCollaborator && <InfoCard />}
+            {!isHousingCollaborator && <LeadSearch />}
+            {!isHousingCollaborator &&
+              (token?.role === "SuperAdmin" ||
+                token?.role === "Sales" ||
+                token?.role === "Sales-TeamLead") && (
               <>
                 <Notifications />
                 <WhatsAppNotifications />
               </>
             )}
             {/* System Notification Center - Visible to all authenticated users */}
-            {token && <SystemNotificationCenter />}
-            {token && <PersonalReminderNavBell />}
+            {token && !isHousingCollaborator && <SystemNotificationCenter />}
+            {token && !isHousingCollaborator && <PersonalReminderNavBell />}
             <nav className="flex  justify-between items-center  gap-x-2">
               <div className=" flex  items-center gap-x-2 ">
-                {(token?.role === "SuperAdmin" || token?.role === "HR") && (
+                {!isHousingCollaborator &&
+                  (token?.role === "SuperAdmin" || token?.role === "HR") && (
                   <BroadcastNotificationForm />
                 )}
               </div>
@@ -178,18 +183,23 @@ export default function DashboardLayout({
           <div>
 
             <div className="pb-16 lg:pb-0">
-              <PipAcknowledgmentGate>
-              <MonthlyTargetGate>
-                <VisitStatusGate>{children}</VisitStatusGate>
-              </MonthlyTargetGate>
-              </PipAcknowledgmentGate>
+              {isHousingCollaborator ? (
+                children
+              ) : (
+                <PipAcknowledgmentGate>
+                  <MonthlyTargetGate>
+                    <VisitStatusGate>{children}</VisitStatusGate>
+                  </MonthlyTargetGate>
+                </PipAcknowledgmentGate>
+              )}
             </div>
           </div>
         </div>
       </main>
       <ScrollToTopButton />
+      {token && !isHousingCollaborator && <CrmAgentChatDrawer />}
       {/* Global System Notification Toast - Visible on all pages (includes WhatsApp messages) */}
-      {token && <SystemNotificationToast />}
+      {token && !isHousingCollaborator && <SystemNotificationToast />}
     </div>
     </VisitOverdueProvider>
     </QueryProvider>

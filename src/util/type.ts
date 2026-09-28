@@ -698,6 +698,7 @@ export interface TokenInterface {
   name: string;
   email: string;
   role: string;
+  accountType?: string;
   allotedArea?: string | string[];
   rentalType?: string | null;
   uiFlags?: {

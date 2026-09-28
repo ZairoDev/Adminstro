@@ -1,4 +1,4 @@
-import { jwtVerify } from "jose";
+import { jwtVerify, decodeJwt } from "jose";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
@@ -24,6 +24,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/people\/.*$/,
     "/holidaysera",
     /^\/holidaysera(\/.*)?$/,
+    "/housingsaga",
+    /^\/housingsaga(\/.*)?$/,
     "/dashboard/website-leads",
     /^\/dashboard\/recommendations\/.*$/,
     /^\/dashboard\/.*$/,
@@ -327,6 +329,14 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/people",
     /^\/dashboard\/people\/.*$/,
   ],
+  HCollaborator: [
+    "/",
+    "/housingsaga/login",
+    "/dashboard/createquery",
+    /^\/dashboard\/createquery(\/.*)?$/,
+    "/dashboard/rolebaseLead",
+    /^\/dashboard\/rolebaseLead(\/.*)?$/,
+  ],
 };
 
 export const defaultRoutes: { [key: string]: string } = {
@@ -348,12 +358,14 @@ export const defaultRoutes: { [key: string]: string } = {
   "sales-intern": "/dashboard",
   hSale: "/dashboard/sales-offer",
   HAdmin: "/holidaysera",
+  HCollaborator: "/dashboard/createquery",
   Default: "/dashboard",
 };
 
 const publicRoutes = [
   "/",
   "/login",
+  "/housingsaga/login",
   "/dashboard/candidatePortal",
   "/login/verify-otp",
   /^\/login\/verify-otp\/.+$/,
@@ -488,7 +500,21 @@ export async function middleware(request: NextRequest) {
       // Always clear both auth cookies on any JWT error (expired, invalid signature,
       // malformed, etc.) so the stale cookie never persists and causes redirect loops.
       // jose throws { code: "ERR_JWT_EXPIRED" } — NOT message === "Token Expired".
-      const response = NextResponse.redirect(new URL("/login", request.url));
+      let loginPath = "/login";
+      try {
+        const decoded = decodeJwt(token);
+        const accountType = String((decoded as { accountType?: unknown })?.accountType ?? "");
+        const decodedRole = String((decoded as { role?: unknown })?.role ?? "");
+        if (
+          accountType === "housingCollaborator" ||
+          decodedRole === "HCollaborator"
+        ) {
+          loginPath = "/housingsaga/login";
+        }
+      } catch {
+        // keep default employee login
+      }
+      const response = NextResponse.redirect(new URL(loginPath, request.url));
       response.cookies.set("token", "", { httpOnly: true, expires: new Date(0), path: "/" });
       response.cookies.set("sessionId", "", { httpOnly: true, expires: new Date(0), path: "/" });
       return response;

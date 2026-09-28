@@ -23,7 +23,7 @@ const features = [
     name: "Housing Saga",
     description: "Things that related to housingSaga will goes in this route",
     icon: Shield,
-    link: "/",
+    link: "/housingsaga/collaborators",
   },
   {
     name: "Tech Tune",

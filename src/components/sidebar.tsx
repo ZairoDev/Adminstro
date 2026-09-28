@@ -654,6 +654,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <PersonStanding size={18} />,
     },
     {
+      path: "/housingsaga/collaborators",
+      label: "Collaborators",
+      Icon: <Users size={18} />,
+    },
+    {
       path: "/dashboard/closedleads",
       label: "Closed Leads",
       Icon: <CheckCheck size={18} />,
@@ -1177,6 +1182,18 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <Mail size={18} />,
     },
   ],
+  HCollaborator: [
+    {
+      path: "/dashboard/createquery",
+      label: "Create Lead",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/rolebaseLead",
+      label: "Leads",
+      Icon: <Sprout size={18} />,
+    },
+  ],
 };
 
 const dashboardManagementRoutes = [
@@ -1495,6 +1512,14 @@ const holidaySeraRoutes = [
   },
 ];
 
+const housingSagaRoutes = [
+  {
+    path: "/housingsaga/collaborators",
+    label: "Collaborators",
+    Icon: <Users size={18} />,
+  },
+];
+
 const otherSettingsRoutes = [
   {
     path: "/dashboard/addons",
@@ -1646,6 +1671,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
       },
     );
     const holidaySeraRoute = inGroup(holidaySeraRoutes);
+    const housingSagaRoute = inGroup(housingSagaRoutes);
     const retargetAllowedRoles = ["SuperAdmin", "Sales", "Advert"];
     const hasChatAccess = routesForRole.some((r) => r.path === "/whatsapp");
     const hasRetargetAccess = role ? retargetAllowedRoles.includes(role) : false;
@@ -1813,6 +1839,14 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
         <SidebarSection
           title="HolidaySera"
           routes={holidaySeraRoute}
+          showText={showText}
+          currentPath={pathname}
+          defaultOpen={defaultOpen}
+          onNavigate={onNavigate}
+        />
+        <SidebarSection
+          title="Housing Saga"
+          routes={housingSagaRoute}
           showText={showText}
           currentPath={pathname}
           defaultOpen={defaultOpen}

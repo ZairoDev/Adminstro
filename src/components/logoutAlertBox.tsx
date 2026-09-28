@@ -43,8 +43,15 @@ export function LogoutButton() {
       setLoading(true);
       // Deliberate logout — don't nag with the "still logged in" warning.
       allowIntentionalUnload();
-      const response = await axios.get("/api/employeelogout", {
-        withCredentials: true,
+      const isCollaborator = token?.role === "HCollaborator";
+      await axios.post(
+        isCollaborator ? "/api/housingsaga/logout" : "/api/employeelogout",
+        {},
+        { withCredentials: true },
+      ).catch(async () => {
+        if (!isCollaborator) {
+          await axios.get("/api/employeelogout", { withCredentials: true });
+        }
       });
       if (token?.id) {
         clearMonthlyTargetGateSkip(String(token.id));
@@ -53,7 +60,7 @@ export function LogoutButton() {
       clearToken();
       setOpen(false);
       setDropdownOpen(false);
-      router.push("/login");
+      router.push(isCollaborator ? "/housingsaga/login" : "/login");
     } catch (error) {
       console.error("Logout error:", error);
       alert("An error occurred. Please try again.");

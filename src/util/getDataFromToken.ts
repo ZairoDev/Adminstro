@@ -1,9 +1,14 @@
 import { NextRequest } from "next/server";
 import { jwtVerify, decodeJwt } from "jose";
 import Employees from "@/models/employee";
+import HousingCollaborator from "@/models/housingCollaborator";
 import { connectDb } from "@/util/db";
 import { getDeviceTypeFromHeaders } from "@/util/deviceSession";
 import { resolveEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
+import {
+  HOUSING_COLLABORATOR_ACCOUNT_TYPE,
+  HOUSING_COLLABORATOR_ROLE,
+} from "@/schemas/housingCollaborator.schema";
 // NOTE: imported lazily (inside the two call sites below) instead of as a
 // static top-level import. This file is imported by nearly every API route
 // in the app; a static import of employeeActivitySession.ts here made
@@ -36,20 +41,93 @@ export const getDataFromToken = async (request: NextRequest) => {
 
     const { payload } = await jwtVerify(token, secret);
 
-    const employeeId = payload.id as string;
+    const accountId = payload.id as string;
     const sessionId = payload.sid as string;
     const issuedAtSeconds = payload.iat as number | undefined;
+    const accountType = String((payload as { accountType?: unknown }).accountType ?? "");
+    const role = String((payload as { role?: unknown }).role ?? "");
 
-    if (!employeeId) {
+    if (!accountId) {
       throw { status: 401, code: "INVALID_TOKEN" };
     }
 
     // Test SuperAdmin has no DB record; accept token as-is
-    if (employeeId === "test-superadmin") {
+    if (accountId === "test-superadmin") {
       return payload;
     }
 
     await connectDb();
+
+    // Housing Saga collaborators — separate identity from Employees
+    if (
+      accountType === HOUSING_COLLABORATOR_ACCOUNT_TYPE ||
+      role === HOUSING_COLLABORATOR_ROLE
+    ) {
+      const collaborator = await HousingCollaborator.findById(accountId).select(
+        "isActive webSession tokenValidAfter name email",
+      );
+
+      if (!collaborator || collaborator.isActive === false) {
+        throw { status: 401, code: "USER_NOT_FOUND" };
+      }
+
+      if (typeof issuedAtSeconds === "number") {
+        const issuedAtMs = issuedAtSeconds * 1000;
+        const SKEW_TOLERANCE_MS = 1500;
+        const cutoff =
+          typeof collaborator.tokenValidAfter === "number"
+            ? collaborator.tokenValidAfter
+            : 0;
+        if (cutoff > 0 && issuedAtMs + SKEW_TOLERANCE_MS < cutoff) {
+          throw { status: 401, code: "SESSION_INVALID" };
+        }
+      }
+
+      const slot = collaborator.webSession;
+      const slotMatches =
+        Boolean(slot?.sessionId) &&
+        slot?.sessionId === sessionId &&
+        slot?.isLoggedIn === true;
+
+      if (!slotMatches) {
+        throw { status: 401, code: "SESSION_INVALID" };
+      }
+
+      if (deviceType === "web") {
+        const expiresAt = slot?.expiresAt;
+        if (typeof expiresAt === "number" && expiresAt > 0 && Date.now() > expiresAt) {
+          await HousingCollaborator.updateOne(
+            { _id: accountId, "webSession.sessionId": sessionId },
+            {
+              $set: {
+                "webSession.sessionId": null,
+                "webSession.sessionStartedAt": null,
+                "webSession.expiresAt": null,
+                "webSession.lastActiveAt": null,
+                "webSession.isLoggedIn": false,
+              },
+            },
+          ).catch(() => undefined);
+          throw { status: 401, code: "AUTH_EXPIRED" };
+        }
+
+        await HousingCollaborator.updateOne(
+          { _id: accountId, "webSession.sessionId": sessionId },
+          { $set: { "webSession.lastActiveAt": Date.now() } },
+        ).catch(() => undefined);
+      }
+
+      return {
+        ...payload,
+        id: String(collaborator._id),
+        name: collaborator.name,
+        email: collaborator.email,
+        role: HOUSING_COLLABORATOR_ROLE,
+        accountType: HOUSING_COLLABORATOR_ACCOUNT_TYPE,
+      };
+    }
+
+    const employeeId = accountId;
 
     const employee = await Employees.findById(employeeId).select(
       "tokenValidAfter webTokenValidAfter mobileTokenValidAfter mobileSession webSession rentalType",
@@ -63,9 +141,7 @@ export const getDataFromToken = async (request: NextRequest) => {
     // jsonwebtoken's `iat` is second-granularity, while `tokenValidAfter` is ms.
     // Without a tolerance window, a freshly issued token can be rejected
     // if tokenValidAfter is set a few hundred ms after iat's rounded timestamp.
-    if (
-      typeof issuedAtSeconds === "number"
-    ) {
+    if (typeof issuedAtSeconds === "number") {
       const issuedAtMs = issuedAtSeconds * 1000;
       const SKEW_TOLERANCE_MS = 1500;
 
@@ -192,15 +268,38 @@ export const getDataFromToken = async (request: NextRequest) => {
       rentalType,
     };
   } catch (error: any) {
-    // 🔥 JWT Expired Handling
+    // JWT Expired Handling
     if (error?.code === "ERR_JWT_EXPIRED" && token) {
       try {
         const decoded: any = decodeJwt(token);
         const employeeId = decoded?.id;
         const sessionId = decoded?.sid;
+        const accountType = String(decoded?.accountType ?? "");
+        const decodedRole = String(decoded?.role ?? "");
 
         if (employeeId) {
           await connectDb();
+
+          if (
+            accountType === HOUSING_COLLABORATOR_ACCOUNT_TYPE ||
+            decodedRole === HOUSING_COLLABORATOR_ROLE
+          ) {
+            await HousingCollaborator.updateOne(
+              sessionId
+                ? { _id: employeeId, "webSession.sessionId": sessionId }
+                : { _id: employeeId },
+              {
+                $set: {
+                  "webSession.sessionId": null,
+                  "webSession.sessionStartedAt": null,
+                  "webSession.expiresAt": null,
+                  "webSession.lastActiveAt": null,
+                  "webSession.isLoggedIn": false,
+                },
+              },
+            ).catch(() => undefined);
+            throw { status: 401, code: "AUTH_EXPIRED" };
+          }
 
           const isMobile = deviceType === "mobile";
           const matchField = isMobile ? "mobileSession.sessionId" : "webSession.sessionId";
@@ -224,10 +323,6 @@ export const getDataFromToken = async (request: NextRequest) => {
             },
           ).catch(() => undefined);
 
-          // Same gap as the web-session-expiry branch above: a plain JWT
-          // expiry (mobile has no separate expiresAt check, and this also
-          // covers the "iat" clock-skew path) must also close the matching
-          // activity-log row, otherwise it stays "active" forever.
           try {
             const { endActiveEmployeeLoginSessions } = await import(
               "@/util/employeeActivitySession"

@@ -240,6 +240,11 @@ export async function POST(req: NextRequest) {
       leadStatus: "fresh",
     };
 
+    // Housing collaborators only see leads they created
+    if (String(role) === "HCollaborator" && token.email) {
+      query.createdBy = String(token.email).toLowerCase();
+    }
+
     {
       /* Only search leads for alloted area, but only in case of agents not for TL and SuperAdmin */
     }

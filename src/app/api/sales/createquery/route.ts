@@ -272,7 +272,7 @@ export async function POST(req: NextRequest) {
       idName,
       profilePicture: profilePicture || "",
       leadDocuments: sanitizeLeadDocumentsForSave(leadDocuments),
-      createdBy: token.email,
+      createdBy: String(token.email || "").toLowerCase(),
       leadStatus: "fresh",
     });
 

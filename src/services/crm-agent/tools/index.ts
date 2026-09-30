@@ -428,17 +428,10 @@ export async function getFinanceTransactionTool(
 export async function getFinanceOverviewTool(
   caller: CrmAgentCaller,
 ): Promise<ToolResult> {
-  const name: ToolName = "getFinanceOverview";
-  if (!canUseTool(name, caller.role)) return deny(name, caller.role);
-  return {
-    name,
-    ok: true,
-    data: {
-      note: "Open /dashboard/finance for live aggregates. Copilot does not invent totals — use the finance overview UI or pass a transaction id.",
-    },
-    summary: "Finance overview pointer",
-    deepLinks: ["/dashboard/finance"],
-  };
+  const { getFinanceOverviewLiveTool } = await import(
+    "@/services/crm-agent/tools/reports"
+  );
+  return getFinanceOverviewLiveTool(caller);
 }
 
 export async function getWebhookLogHintTool(
@@ -560,7 +553,57 @@ export async function runToolsForIntent(
   const results: ToolResult[] = [];
   let proposal: WriteProposal | null = null;
 
+  const {
+    getTeamTodayReportTool,
+    getDailyLeadStatsTool,
+    getLeadStatusCountsTool,
+    getHiringPipelineSummaryTool,
+    findEmployeeTool,
+    listMyRemindersTool,
+    getWhatsAppInboxCountsTool,
+  } = await import("@/services/crm-agent/tools/reports");
+
   if (classification.intent === "refuse") {
+    return { results, proposal: null };
+  }
+
+  if (classification.intent === "report") {
+    const lower = message.toLowerCase();
+    if (
+      /\bhiring|candidate\s+(pipeline|funnel|stats)|what'?s\s+new\s+in\s+hir/i.test(
+        lower,
+      )
+    ) {
+      results.push(await getHiringPipelineSummaryTool(caller));
+    }
+    if (
+      /\bmy\s+team\s+today|team\s+today|today'?s?\s+(lead|team|visit)/i.test(
+        lower,
+      )
+      || /\bwhat'?s\s+new\b/i.test(lower)
+    ) {
+      results.push(await getTeamTodayReportTool(caller, callerEmail));
+    }
+    if (/\blead\s+stats|how\s+many\s+leads|status\s+counts?/i.test(lower)) {
+      results.push(await getDailyLeadStatsTool(caller, callerEmail));
+      results.push(await getLeadStatusCountsTool(caller, callerEmail));
+    }
+    if (/\binbox|whatsapp\s+(count|backlog|stats)/i.test(lower)) {
+      results.push(await getWhatsAppInboxCountsTool(caller));
+    }
+    if (/\bfinance\s+overview|finance\s+totals?/i.test(lower)) {
+      results.push(await getFinanceOverviewTool(caller));
+    }
+    if (/\breminder/i.test(lower)) {
+      results.push(await listMyRemindersTool(caller, callerEmail));
+    }
+    // Default report pack if nothing matched specifically
+    if (results.length === 0) {
+      results.push(await getTeamTodayReportTool(caller, callerEmail));
+      if (canUseTool("getHiringPipelineSummary", caller.role)) {
+        results.push(await getHiringPipelineSummaryTool(caller));
+      }
+    }
     return { results, proposal: null };
   }
 
@@ -591,7 +634,8 @@ export async function runToolsForIntent(
   }
 
   if (classification.intent === "summarize") {
-    const hint = classification.phone || classification.conversationHint || message;
+    const hint =
+      classification.phone || classification.conversationHint || message;
     results.push(await getConversationSummaryTool(caller, hint));
     return { results, proposal: null };
   }
@@ -608,23 +652,59 @@ export async function runToolsForIntent(
   if (/\boverdue\b/i.test(message) && /\bvisit/i.test(message)) {
     results.push(await getOverdueVisitsTool(caller, callerEmail));
   }
-  if (/\bcandidate\b/i.test(message) || /\bhr\b/i.test(message)) {
+
+  const personSearch = (
+    classification.personHint
+    || classification.employeeHint
+    || ""
+  ).trim();
+  const wantsPerson =
+    personSearch.length >= 2
+    || /\b(who is|find employee|lookup staff|find candidate|find person)\b/i.test(
+      message,
+    );
+
+  if (wantsPerson) {
+    const hint =
+      personSearch
+      || message
+        .replace(
+          /\b(who is|find employee|find candidate|find person|lookup staff|employee|candidate|staff)\b/gi,
+          "",
+        )
+        .trim();
+    if (hint.length >= 2) {
+      if (canUseTool("findEmployee", caller.role)) {
+        results.push(await findEmployeeTool(caller, hint));
+      }
+      if (canUseTool("findCandidate", caller.role)) {
+        results.push(await findCandidateTool(caller, hint));
+      }
+    }
+  } else if (/\bcandidate\b/i.test(message) || /\bhr\b/i.test(message)) {
     const search =
-      classification.phone ||
-      message.replace(/\b(find|search|candidate|where is)\b/gi, "").trim();
+      classification.phone
+      || message.replace(/\b(find|search|candidate|where is)\b/gi, "").trim();
     if (search.length >= 2) {
       results.push(await findCandidateTool(caller, search));
     }
   }
+
+  if (/\b(my )?reminders?\b/i.test(message)) {
+    results.push(await listMyRemindersTool(caller, callerEmail));
+  }
   if (/\bwhatsapp|inbox|conversation\b/i.test(message)) {
     results.push(
-      await searchWhatsAppTool(
-        caller,
-        classification.phone || message,
-      ),
+      await searchWhatsAppTool(caller, classification.phone || message),
     );
+    if (/\b(count|backlog|stats)\b/i.test(message)) {
+      results.push(await getWhatsAppInboxCountsTool(caller));
+    }
   }
-  if (classification.financeId || /\b(transaction|invoice|payment)\b/i.test(message)) {
+  if (
+    classification.financeId
+    || /\b(transaction|invoice|payment)\b/i.test(message)
+  ) {
     if (classification.financeId) {
       results.push(
         await getFinanceTransactionTool(caller, classification.financeId),

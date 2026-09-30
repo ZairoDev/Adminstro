@@ -6,6 +6,11 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
 import { getLeadGenEmployeeEmails } from "@/lib/leads/leadGenEmailCache";
 import { loadEmployeeLeadContext } from "@/lib/leads/employeeLeadContext";
+import { parseAssignedAreasFromToken } from "@/util/guestLeadLocationScope";
+import {
+  applyGuestPropertyTypeAllowListToLeadQuery,
+  isPropertyTypeRuleBypassRole,
+} from "@/util/propertyTypeAllowList";
 import { COMPARE_DAILY_PROJECTION } from "@/lib/leads/compareLeadFields";
 import { buildCreatedAtRangeQuery } from "@/lib/leads/istDateRange";
 
@@ -56,6 +61,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       token,
       employeeContext.rentalType,
     );
+
+    const bypassPropertyTypeRule = isPropertyTypeRuleBypassRole(
+      String(token.role || ""),
+    );
+    const assignedAreas = parseAssignedAreasFromToken(
+      (token as { allotedArea?: unknown }).allotedArea,
+    );
+    const propertyTypeResult = applyGuestPropertyTypeAllowListToLeadQuery({
+      query: scopedQuery,
+      ownerRules: bypassPropertyTypeRule
+        ? null
+        : employeeContext.ownerPropertyTypeVisibilityRules,
+      propertyVisibilityRules: bypassPropertyTypeRule
+        ? null
+        : employeeContext.propertyVisibilityRules,
+      locations: assignedAreas.length > 0 ? assignedAreas : null,
+    });
+    if (propertyTypeResult.impossible) {
+      return NextResponse.json({ data: [], totalQueries: 0, groupedStats: [] });
+    }
 
     const [facetResult] = await Query.aggregate([
       { $match: scopedQuery },

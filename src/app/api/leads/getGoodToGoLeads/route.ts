@@ -16,6 +16,7 @@ import { batchComputeWhatsAppReplyStatus } from "@/lib/whatsapp/replyStatusResol
 import {
   getBlockedLeadLocations,
   loadEmployeeLeadContext,
+  ownerPropertyTypeRulesForToken,
 } from "@/lib/leads/employeeLeadContext";
 import { applyPricingRulesByLocationToQuery } from "@/util/pricingRule";
 import {
@@ -191,6 +192,10 @@ export async function POST(req: NextRequest) {
         locations: effectiveLocations,
         uiPropertyType: propertyType,
         uiTypeOfProperty: hasQuickPropertyFilters ? "" : typeOfProperty,
+        ownerRules: ownerPropertyTypeRulesForToken(
+          String(role ?? ""),
+          employeeContext.ownerPropertyTypeVisibilityRules,
+        ),
       });
       if (impossible) {
         return NextResponse.json({

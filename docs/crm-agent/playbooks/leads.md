@@ -1,34 +1,89 @@
-# Leads & queries
+# Leads and queries
 
-## Pipeline overview
+## Find a guest lead by phone
 
-Adminstro stores guest/traveller leads mainly in the `Query` model. Staff create and edit leads from `/dashboard/createquery` and work boards such as role-base leads, good-to-go, declined, rejected, closed, not-replying, review, and reminders.
+**Example questions**
 
-## Global lead search
+- Status of 98XXXXXXXX
+- Find lead by phone
+- How do I use global lead search?
 
-Use the header Lead Search (or ask Copilot with a phone number). It calls `POST /api/leads/globalLeadSearch` and matches `phoneNo` with a case-insensitive regex. Deep link after find: `/dashboard/createquery/[id]`.
+**Answer in brief**
 
-## Common statuses and boards
+- Guest leads live in the Query model. Ask with a phone to get live status via lookup tools.
+- Header Lead Search uses `POST /api/leads/globalLeadSearch` (regex on phoneNo).
+- Deep link after find: `/dashboard/createquery/[id]`.
 
-- **Create / edit:** `/dashboard/createquery`, `/dashboard/createquery/[id]`
-- **Role-base / location boards:** `/dashboard/rolebaseLead`
-- **Good to go:** `/dashboard/goodtogoleads`
-- **Declined / rejected / closed / not replying / review:** matching `/dashboard/*leads` routes
-- **Reminders:** `/dashboard/reminders`, personal `/dashboard/my-reminders`
-- **Website leads:** `/dashboard/website-leads`
-- **Low budget:** `/dashboard/lowBudget`
+**Open in dashboard**
 
-## How to mark progress
+- `/dashboard/createquery`, `/dashboard/createquery/[id]`
 
-Disposition and status updates go through sales/lead APIs (`queryStatusUpdate`, disposition routes). Only roles with lead access (Sales, Sales-TeamLead, LeadGen, Advert, SuperAdmin, etc.) should change status. Copilot will not auto-change status without a confirmed write proposal.
+**Live Ask tools**
 
-## Claiming and duplicates
+- `findLeadByPhone` (also may run offer/owner phone tools)
 
-Before creating a lead, check the phone with sales `checkNumber` flows and global search. Duplicate phones should be merged into the existing query instead of creating a second record.
+## Boards and statuses
 
-## What Copilot can answer
+**Example questions**
 
-- How to find a lead by phone
-- Which board a disposition belongs on
-- What global search does
-- Live status when a phone is provided (via lookup tools)
+- Which board is good to go?
+- Where are declined / rejected / reminder leads?
+
+**Answer in brief**
+
+- Create/edit: `/dashboard/createquery`
+- Role-base: `/dashboard/rolebaseLead`
+- Good to go: `/dashboard/goodtogoleads`
+- Declined / rejected / closed / not replying / review: matching `/dashboard/*leads` routes
+- Reminders: `/dashboard/reminders` (personal: `/dashboard/my-reminders`)
+- Website leads: `/dashboard/website-leads`
+
+## Mark progress (Agent only)
+
+**Example questions**
+
+- How do I mark good to go?
+- Move this lead to reject / decline
+
+**Answer in brief**
+
+- Good To Go: fresh → active. Reject from fresh. Decline from active.
+- Quality required: Good / Average / Below Average.
+- Ask never changes status — switch to **Agent**, confirm plan.
+- Executor uses shared disposition rules (not the naive disposition API).
+
+**Agent for writes**
+
+- `apply_disposition` workflow
+
+## Team today and lead stats
+
+**Example questions**
+
+- My team today
+- What’s new in leads?
+- Lead stats today / this week
+- How many fresh leads?
+
+**Answer in brief**
+
+- Team today: overdue visits + today’s counts by status (scoped to your role/email).
+- Lead stats: last ~7 days by day and by status — never invent totals.
+
+**Open in dashboard**
+
+- `/dashboard/visits`, `/dashboard/goodtogoleads`, `/dashboard/compareLeads`
+
+**Live Ask tools**
+
+- `getTeamTodayReport`, `getDailyLeadStats`, `getLeadStatusCounts`
+
+## Duplicates
+
+**Example questions**
+
+- Can I create another lead for the same phone?
+
+**Answer in brief**
+
+- Check phone first (global search / checkNumber). Prefer merging into the existing Query.

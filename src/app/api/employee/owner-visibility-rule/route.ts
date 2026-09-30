@@ -76,16 +76,28 @@ export async function PUT(request: NextRequest) {
       location === "All"
         ? "ownerVisibilityRules.all"
         : `ownerVisibilityRules.byLocation.${locKey}`;
+    const propertyTypePath =
+      location === "All"
+        ? "ownerPropertyTypeVisibilityRules.all"
+        : `ownerPropertyTypeVisibilityRules.byLocation.${locKey}`;
 
     const updated = await Employees.findByIdAndUpdate(
       employeeId,
       {
         $set: {
-          [targetPath]: { enabled, allowedInteriorStatus, allowedPropertyType, allowedPetStatus },
+          [targetPath]: {
+            enabled,
+            allowedInteriorStatus,
+            allowedPropertyType,
+            allowedPetStatus,
+          },
+          [propertyTypePath]: { enabled, allowedPropertyType },
         },
       },
       { new: true },
-    ).select("_id ownerVisibilityRules name email isActive allotedArea");
+    ).select(
+      "_id ownerVisibilityRules ownerPropertyTypeVisibilityRules name email isActive allotedArea",
+    );
 
     if (!updated) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 });

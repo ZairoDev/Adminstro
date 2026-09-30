@@ -6,6 +6,12 @@ import {
   canViewLeadDocuments,
   normalizeLeadDocuments,
 } from "@/util/leadDocuments";
+import { loadEmployeeLeadContext } from "@/lib/leads/employeeLeadContext";
+import {
+  guestTypeIsAllowed,
+  isPropertyTypeRuleBypassRole,
+  resolveGuestTypeAllowList,
+} from "@/util/propertyTypeAllowList";
 
 connectDb();
 
@@ -27,8 +33,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const data = query.toObject();
+    const data = query.toObject() as {
+      typeOfProperty?: string;
+      location?: string;
+      leadDocuments?: unknown;
+    };
     const role = (token as { role?: string }).role;
+
+    if (!isPropertyTypeRuleBypassRole(role)) {
+      const employeeId = String((token as { id?: string }).id || "");
+      const employeeContext = await loadEmployeeLeadContext(
+        employeeId,
+        (token as { rentalType?: unknown }).rentalType,
+      );
+      const allowed = resolveGuestTypeAllowList({
+        ownerRules: employeeContext.ownerPropertyTypeVisibilityRules,
+        propertyVisibilityRules: employeeContext.propertyVisibilityRules,
+        location: data.location,
+      });
+      if (!guestTypeIsAllowed(data.typeOfProperty, allowed)) {
+        return NextResponse.json(
+          { success: false, message: "This guest is outside your property type rule" },
+          { status: 403 },
+        );
+      }
+    }
 
     if (!canViewLeadDocuments(role)) {
       delete data.leadDocuments;

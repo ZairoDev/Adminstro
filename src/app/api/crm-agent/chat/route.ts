@@ -12,6 +12,7 @@ export const maxDuration = 60;
 const BodySchema = z.object({
   message: z.string().trim().min(1).max(4000),
   conversationId: z.string().trim().optional().nullable(),
+  mode: z.enum(["ask", "agent"]).optional().default("ask"),
 });
 
 export async function POST(request: NextRequest) {
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
       conversationId: parsed.data.conversationId,
       caller,
       callerEmail: typeof token.email === "string" ? token.email : undefined,
+      mode: parsed.data.mode,
     });
 
     return NextResponse.json({

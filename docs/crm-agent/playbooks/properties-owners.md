@@ -1,25 +1,62 @@
 # Properties and owners
 
-## VSID lookup
+## Look up by VSID
 
-Properties are stored with a `VSID` field. Staff and Copilot can look up a property via `POST /api/property/getPropertyByVSID`. Dashboard: `/dashboard/property`, listing wizard `/dashboard/add-listing`, geo tools `/dashboard/geo-search`.
+**Example questions**
 
-## Owner sheets
+- How do I look up a property by VSID?
+- What is property for VSID …?
 
-- Long-term owner sheet: `/spreadsheet`
-- Short-term owner sheet: `/spreadsheet-short-term`
-- Access depends on employee `rentalType` and role (`canAccessOwnerSheetVariant`).
+**Answer in brief**
 
-Registered owners live in Owners / Users models. Unregistered owners have separate long-term and short-term collections with nearby/geo search APIs.
+- Properties have a `VSID` field. Ask with a VSID for live lookup.
+- API: `POST /api/property/getPropertyByVSID`.
+
+**Open in dashboard**
+
+- `/dashboard/property`, `/dashboard/add-listing`, `/dashboard/geo-search`
+
+**Live Ask tools**
+
+- `findPropertyByVsid`
+
+## Owner sheets and phone check
+
+**Example questions**
+
+- Difference between long-term and short-term owner sheet?
+- Is this phone already an owner?
+
+**Answer in brief**
+
+- Long-term sheet `/spreadsheet`, short-term `/spreadsheet-short-term` (depends on rentalType/role).
+- Registered owners in Owners/Users; unregistered have separate collections.
+- Phone check: `POST /api/owner/checkNumberInOwners`. Ask can use `findOwnerByPhone`.
+
+**Live Ask tools**
+
+- `findOwnerByPhone`
 
 ## Boost and catalogue
 
-Property boost: `/dashboard/propertyBoost`. Catalogue: `/dashboard/catalogue`. Aliases for listing emails: `/dashboard/aliases`.
+**Example questions**
 
-## Phone check
+- What is property boost?
+- Where is the catalogue?
 
-`POST /api/owner/checkNumberInOwners` returns whether a phone already exists as an owner.
+**Answer in brief**
+
+- Boost `/dashboard/propertyBoost`
+- Catalogue `/dashboard/catalogue`
+- Listing email aliases `/dashboard/aliases`
 
 ## Visibility rules
 
-Employees may have property visibility, owner visibility, pricing bands, and location blocks. These filter what they see on lead/property boards — Copilot tools respect role gates; detailed rule editing is on employee detail pages.
+**Example questions**
+
+- Why can’t I see some properties?
+
+**Answer in brief**
+
+- Employees may have property/owner visibility, pricing bands, and location blocks.
+- Copilot tools respect role gates; edit rules on employee detail pages.

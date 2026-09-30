@@ -16,6 +16,7 @@ import { LeadQueryService } from "@/lib/leads/LeadQueryService";
 import {
   getBlockedLeadLocations,
   loadEmployeeLeadContext,
+  ownerPropertyTypeRulesForToken,
 } from "@/lib/leads/employeeLeadContext";
 import { applyPricingRulesByLocationToQuery } from "@/util/pricingRule";
 import {
@@ -166,6 +167,10 @@ export async function POST(req: NextRequest) {
         rules: employeeContext.propertyVisibilityRules,
         locations: effectiveLocations,
         uiPropertyType: propertyType,
+        ownerRules: ownerPropertyTypeRulesForToken(
+          String(role ?? ""),
+          employeeContext.ownerPropertyTypeVisibilityRules,
+        ),
       });
       if (impossible) {
         return NextResponse.json({

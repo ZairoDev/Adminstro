@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
+import type { ActiveWorkflow } from "@/services/crm-agent/workflows/types";
 
 export type CrmAgentMessageRole = "user" | "assistant" | "system";
 
@@ -14,6 +15,7 @@ export interface ICrmAgentConversation extends Document {
   employeeId: Types.ObjectId;
   title: string;
   messages: ICrmAgentMessage[];
+  activeWorkflow?: ActiveWorkflow | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -46,8 +48,9 @@ const crmAgentConversationSchema = new Schema<ICrmAgentConversation>(
       required: true,
       index: true,
     },
-    title: { type: String, default: "CRM Copilot" },
+    title: { type: String, default: "Nova" },
     messages: { type: [messageSchema], default: [] },
+    activeWorkflow: { type: Schema.Types.Mixed, default: null },
   },
   { timestamps: true },
 );

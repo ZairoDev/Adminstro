@@ -1,6 +1,11 @@
 import type { CrmAgentIntent } from "@/models/crmAgentAudit";
+import type { CrmAgentMode } from "@/services/crm-agent/workflows/types";
+import type {
+  ActiveWorkflow,
+  CrmAgentUi,
+} from "@/services/crm-agent/workflows/types";
 
-export type { CrmAgentIntent };
+export type { CrmAgentIntent, CrmAgentMode };
 
 export interface CrmAgentCaller {
   employeeId: string;
@@ -48,6 +53,7 @@ export interface RunTurnInput {
   conversationId?: string | null;
   caller: CrmAgentCaller;
   callerEmail?: string;
+  mode?: CrmAgentMode;
 }
 
 export interface RunTurnResult {
@@ -58,4 +64,6 @@ export interface RunTurnResult {
   toolNames: string[];
   proposal?: WriteProposal | null;
   latencyMs: number;
+  activeWorkflow?: ActiveWorkflow | null;
+  ui?: CrmAgentUi;
 }

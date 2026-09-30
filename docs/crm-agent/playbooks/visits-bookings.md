@@ -1,17 +1,59 @@
 # Visits and bookings
 
-## Visits
+## Overdue visits
 
-Visits are scheduled against leads/properties. Dashboard: `/dashboard/visits`, detail `/dashboard/visits/[id]`. Overdue visits are exposed by `GET /api/visits/overdue` for the logged-in user’s email and shown in the VisitStatusGate.
+**Example questions**
 
-## Status meanings
+- Show my overdue visits
+- How do overdue visits work?
 
-Visit status enums live under visit schemas / `lib/visits/visitStatus`. Typical ops questions: scheduled, completed, cancelled, no-show, overdue.
+**Answer in brief**
+
+- Overdue visits for your email appear in VisitStatusGate and `/dashboard/visits`.
+- Ask can list your overdue visits via the overdue tool — never invent counts.
+
+**Open in dashboard**
+
+- `/dashboard/visits`, `/dashboard/visits/[id]`
+
+**Live Ask tools**
+
+- `getOverdueVisits` (also included in “my team today”)
+
+## Visit statuses
+
+**Example questions**
+
+- What visit statuses exist?
+
+**Answer in brief**
+
+- Typical ops: scheduled, completed, cancelled, no-show, overdue.
+- Exact enums live in visit schemas / visitStatus helpers.
 
 ## Bookings
 
-Bookings: `/dashboard/bookings`, `/dashboard/bookings/[id]`. Payment state is tracked with booking and finance services — do not invent payment amounts; use finance tools or the booking UI.
+**Example questions**
+
+- Where are bookings?
+- What is the payment state of a booking?
+
+**Answer in brief**
+
+- Boards: `/dashboard/bookings`, `/dashboard/bookings/[id]`.
+- Payment totals: use finance overview / booking UI — do not invent amounts in Ask.
+
+**Open in dashboard**
+
+- `/dashboard/bookings`, `/dashboard/finance`
 
 ## Guest rooms
 
-Collaborative property showcase rooms: `/dashboard/room/roomlist`, join `/dashboard/room/joinroom`. Guest window: `/dashboard/guest-window`.
+**Example questions**
+
+- Where is the guest window / room list?
+
+**Answer in brief**
+
+- Room list `/dashboard/room/roomlist`, join `/dashboard/room/joinroom`
+- Guest window `/dashboard/guest-window`

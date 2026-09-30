@@ -73,6 +73,8 @@ import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { LeadDocumentsUpload } from "@/components/leads/LeadDocumentsUpload";
 import { canViewLeadDocuments } from "@/util/leadDocuments";
+import { CreateHousingSagaLeadForm } from "@/components/housingsaga/CreateHousingSagaLeadForm";
+import { HousingSagaLeadsTable } from "@/components/housingsaga/HousingSagaLeadsTable";
 
 interface ApiResponse {
   data: IQuery[];
@@ -132,6 +134,9 @@ const SalesDashboard = () => {
 
   // ✅ CHANGE 1: Added state to control dialog open/close
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [leadBrand, setLeadBrand] = useState<"vacation" | "housing">("vacation");
+  const [listBrand, setListBrand] = useState<"vacation" | "housing">("vacation");
+  const [housingListVersion, setHousingListVersion] = useState(0);
 
   // ✅ CHANGE 2: Added ref to track if we should fetch queries after submission
   const shouldRefetchRef = useRef(false);
@@ -627,10 +632,30 @@ const SalesDashboard = () => {
     <div>
       <Toaster />
       <div className="flex items-center md:flex-row flex-col justify-between w-full">
-        <div className="w-full">
-          <Heading heading="All Leads" subheading="" />
+        <div className="w-full flex flex-wrap items-center gap-3">
+          <Heading
+            heading={listBrand === "housing" ? "Housing Saga Leads" : "All Leads"}
+            subheading=""
+          />
+          <Select
+            value={listBrand}
+            onValueChange={(value) => {
+              if (value === "vacation" || value === "housing") {
+                setListBrand(value);
+              }
+            }}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Vacation Saga" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="vacation">Vacation Saga</SelectItem>
+              <SelectItem value="housing">Housing Saga</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex md:flex-row flex-col-reverse gap-x-2 w-full">
+          {listBrand !== "housing" && (
           <div className="flex w-full items-center gap-x-2">
             <div className="">
               <Select
@@ -653,8 +678,15 @@ const SalesDashboard = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          )}
           {/* ✅ CHANGE 8: Added controlled dialog state */}
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog
+            open={isDialogOpen}
+            onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (open) setLeadBrand("vacation");
+            }}
+          >
             <DialogTrigger asChild>
               {token?.role !== "Sales" && <Button>Create Lead</Button>}
             </DialogTrigger>
@@ -664,7 +696,38 @@ const SalesDashboard = () => {
                 <DialogDescription>
                   Please provide accurate and complete information.
                 </DialogDescription>
+                <div className="pt-3 space-y-2 text-left">
+                  <Label className="text-sm font-medium text-foreground">
+                    Create lead for
+                  </Label>
+                  <Select
+                    value={leadBrand}
+                    onValueChange={(value) => {
+                      if (value === "vacation" || value === "housing") {
+                        setLeadBrand(value);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full sm:w-[240px]">
+                      <SelectValue placeholder="Vacation Saga" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vacation">Vacation Saga</SelectItem>
+                      <SelectItem value="housing">Housing Saga</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </DialogHeader>
+              {leadBrand === "housing" ? (
+                <CreateHousingSagaLeadForm
+                  onCreated={() => {
+                    setIsDialogOpen(false);
+                    setListBrand("housing");
+                    setHousingListVersion((version) => version + 1);
+                  }}
+                />
+              ) : (
+              <>
 
               <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
                 <div className="px-6 py-4 pb-6">
@@ -1260,9 +1323,12 @@ const SalesDashboard = () => {
                   </Button>
                 </DialogFooter>
               </div>
+              </>
+              )}
             </DialogContent>
           </Dialog>
 
+          {listBrand !== "housing" && (
           <div className="flex md:w-auto w-full justify-between  gap-x-2">
             <div className="">
               <Sheet>
@@ -1355,9 +1421,12 @@ const SalesDashboard = () => {
               </Sheet>
             </div>
           </div>
+          )}
         </div>
       </div>
-      {loading ? (
+      {listBrand === "housing" ? (
+        <HousingSagaLeadsTable refreshKey={housingListVersion} />
+      ) : loading ? (
         <div className="flex mt-2 min-h-screen items-center justify-center">
           <Loader />
         </div>

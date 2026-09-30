@@ -1,10 +1,15 @@
 # Sales offer pipeline
 
-## Stages
+## Stages and boards
 
-Sales offer leads flow through:
+**Example questions**
 
-- New lead `/dashboard/sales-offer`
+- What are sales offer pending leads?
+- Where is sales offer payment complete?
+
+**Answer in brief**
+
+- New `/dashboard/sales-offer`
 - Pending `/dashboard/sales-offer/pending-leads`
 - Callbacks `/dashboard/sales-offer/callbacks`
 - Rejected `/dashboard/sales-offer/rejected-leads`
@@ -13,10 +18,30 @@ Sales offer leads flow through:
 - Templates `/dashboard/sales-offer/templates`
 - Import `/dashboard/sales-offer/leads/import`
 
-## Phone check
+## Phone already in sales offer
 
-`POST /api/sales-offer/checkNumberInOffers` checks whether a phone/email already exists in the Offer collection and returns platform availability.
+**Example questions**
 
-## Offer vs Query leads
+- Is this phone already in sales offer?
+- Check number in offers
 
-Sales offer uses the `Offer` model (subscription / HousingSaga style pipelines). Traveller Query leads are a separate pipeline under createquery boards. Searching both is often required when a phone is ambiguous.
+**Answer in brief**
+
+- `POST /api/sales-offer/checkNumberInOffers` checks Offer collection + platform availability.
+- Ask with a phone runs `findOfferByPhone` for allowed roles.
+
+**Live Ask tools**
+
+- `findOfferByPhone`
+
+## Offer versus Query
+
+**Example questions**
+
+- Difference between Offer and Query?
+
+**Answer in brief**
+
+- Offer = subscription / sales-offer pipeline.
+- Query = traveller guest leads on createquery boards.
+- Ambiguous phones often need both searches.

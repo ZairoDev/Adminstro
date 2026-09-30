@@ -15,6 +15,7 @@ import {
   getUserAreasFromToken,
 } from "./locationAccess";
 import { canAccessByLeadGenHandoff } from "./leadGenHandoff";
+import { guestConversationPassesPropertyTypeRule } from "./guestPropertyTypeAccess";
 
 type AccessUser = {
   id?: string;
@@ -162,14 +163,20 @@ export async function canAccessConversationAsync(
         hasPhoneAccess = true;
       }
     }
-    return evaluateRetargetAccess(normalized, conversation, hasPhoneAccess);
+    if (!evaluateRetargetAccess(normalized, conversation, hasPhoneAccess)) {
+      return false;
+    }
+    return guestConversationPassesPropertyTypeRule(normalized, conversation);
   }
 
   if (!canAccessByLeadGenHandoff(userRole, conversation.handedToSales)) {
     return false;
   }
 
-  return conversationMatchesStaffVisibilityAsync(normalized, conversation);
+  if (!(await conversationMatchesStaffVisibilityAsync(normalized, conversation))) {
+    return false;
+  }
+  return guestConversationPassesPropertyTypeRule(normalized, conversation);
 }
 
 /**

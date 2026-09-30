@@ -25,6 +25,10 @@ import {
   loadEmployeePropertyVisibilityRules,
   applyPropertyVisibilityRulesByLocationToLeadQuery,
 } from "@/util/propertyVisibilityRule";
+import {
+  loadOwnerPropertyTypeRules,
+  ownerPropertyTypeRulesForToken,
+} from "@/lib/leads/employeeLeadContext";
 
 connectDb();
 
@@ -46,6 +50,7 @@ export async function POST(req: NextRequest) {
     const employeeId = String((token as any)?.id || "");
     const employeePricingRules = await loadEmployeePricingRules(employeeId);
     const employeeVisibilityRules = await loadEmployeePropertyVisibilityRules(employeeId);
+    const employeeOwnerTypeRules = await loadOwnerPropertyTypeRules(employeeId);
     const employeeLocationBlock = await Employees.findById(employeeId)
       .select("guestLeadLocationBlock")
       .lean();
@@ -169,6 +174,7 @@ export async function POST(req: NextRequest) {
         rules: employeeVisibilityRules,
         locations: effectiveLocations,
         uiPropertyType: propertyType,
+        ownerRules: ownerPropertyTypeRulesForToken(String(role ?? ""), employeeOwnerTypeRules),
       });
       if (impossible) {
         return NextResponse.json({

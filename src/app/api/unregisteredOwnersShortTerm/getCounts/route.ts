@@ -11,6 +11,7 @@ import {
   parseAllotedAreaFromToken,
   resolveOwnerSheetLocations,
 } from "@/util/ownerSheetLocationFilter";
+import { applyOwnerSheetPropertyTypeFilter } from "@/util/propertyTypeAllowList";
 
 connectDb();
 
@@ -71,22 +72,6 @@ export async function POST(req: NextRequest) {
       const escaped = filters.searchValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       baseQuery[filters.searchType] = new RegExp(escaped, "i");
     }
-    const ownerVisAll = (ownerRuleDoc as any)?.ownerPropertyTypeVisibilityRules?.all;
-    const ownerVisByLocation = (ownerRuleDoc as any)?.ownerPropertyTypeVisibilityRules?.byLocation;
-    const getOwnerVisRuleForLocation = (locKey: string) => {
-      const byLoc =
-        ownerVisByLocation && typeof (ownerVisByLocation as any).get === "function"
-          ? (ownerVisByLocation as any).get(locKey)
-          : (ownerVisByLocation as any)?.[locKey];
-      return byLoc || ownerVisAll || null;
-    };
-    const propertyTypeFilter = String(filters?.propertyType || "").trim();
-    const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const strictValueRegex = (s: string) => new RegExp(`^\\s*${escapeRegex(s)}\\s*$`, "i");
-
-    if (propertyTypeFilter) {
-      baseQuery.propertyType = strictValueRegex(propertyTypeFilter);
-    }
     const { locations: sheetLocations, denyAll } = resolveOwnerSheetLocations({
       role,
       tokenAllotedArea,
@@ -114,61 +99,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Apply owner property-type rule per effective locations (use actual requested locations)
-    const locationsForRules: string[] = effectiveLocationsForRules;
-
-    if (locationsForRules.length > 0) {
-      const clauses: any[] = [];
-      for (const loc of locationsForRules) {
-        const locKey = String(loc).toLowerCase();
-        const rule = getOwnerVisRuleForLocation(locKey);
-        const allowedTypes = Array.isArray(rule?.allowedPropertyType)
-          ? rule.allowedPropertyType
-          : [];
-        const enabled = Boolean(rule?.enabled) && allowedTypes.length > 0;
-
-        if (enabled) {
-          if (propertyTypeFilter) {
-            const ok = allowedTypes.some((t: string) => t.toLowerCase() === propertyTypeFilter.toLowerCase());
-            if (!ok) continue;
-            clauses.push({
-              location: { $regex: new RegExp(`^${escapeRegex(loc)}$`, "i") },
-              propertyType: strictValueRegex(propertyTypeFilter),
-            });
-          } else {
-            clauses.push({
-              location: { $regex: new RegExp(`^${escapeRegex(loc)}$`, "i") },
-              propertyType: { $in: allowedTypes.map((t: string) => strictValueRegex(t)) },
-            });
-          }
-        } else {
-          clauses.push({
-            location: { $regex: new RegExp(`^${escapeRegex(loc)}$`, "i") },
-            ...(propertyTypeFilter ? { propertyType: strictValueRegex(propertyTypeFilter) } : {}),
-          });
-        }
-      }
-
-      if (clauses.length === 0) {
-        return NextResponse.json({ availableCount: 0, notAvailableCount: 0 });
-      }
-
-      baseQuery.$or = clauses;
-      if (baseQuery.propertyType) delete baseQuery.propertyType;
-    } else {
-      // no location restriction: apply global rule only
-      const rule = ownerVisAll || null;
-      const allowedTypes = Array.isArray(rule?.allowedPropertyType) ? rule.allowedPropertyType : [];
-      const enabled = Boolean(rule?.enabled) && allowedTypes.length > 0;
-      if (enabled) {
-        if (propertyTypeFilter) {
-          const ok = allowedTypes.some((t: string) => t.toLowerCase() === propertyTypeFilter.toLowerCase());
-          if (!ok) return NextResponse.json({ availableCount: 0, notAvailableCount: 0 });
-          baseQuery.propertyType = strictValueRegex(propertyTypeFilter);
-        } else {
-          baseQuery.propertyType = { $in: allowedTypes.map((t: string) => strictValueRegex(t)) };
-        }
-      }
+    const propertyTypeResult = applyOwnerSheetPropertyTypeFilter({
+      query: baseQuery,
+      rules: (ownerRuleDoc as { ownerPropertyTypeVisibilityRules?: null })?.ownerPropertyTypeVisibilityRules,
+      locations: effectiveLocationsForRules,
+      propertyTypeFilter: filters?.propertyType,
+    });
+    if (propertyTypeResult.impossible) {
+      return NextResponse.json({ availableCount: 0, notAvailableCount: 0, upcomingCount: 0 });
     }
 
     const now = new Date();

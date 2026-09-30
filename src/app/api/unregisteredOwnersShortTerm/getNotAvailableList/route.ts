@@ -15,6 +15,7 @@ import {
   parseAllotedAreaFromToken,
   resolveOwnerSheetLocations,
 } from "@/util/ownerSheetLocationFilter";
+import { applyOwnerSheetPropertyTypeFilter } from "@/util/propertyTypeAllowList";
 
 connectDb();
 export async function POST(req: NextRequest) {
@@ -70,15 +71,6 @@ export async function POST(req: NextRequest) {
     if (filters.searchType && filters.searchValue)
       query[filters.searchType] = new RegExp(filters.searchValue, "i");
 
-    const ownerVisAll = (ownerRuleDoc as any)?.ownerPropertyTypeVisibilityRules?.all;
-    const ownerVisByLocation = (ownerRuleDoc as any)?.ownerPropertyTypeVisibilityRules?.byLocation;
-    const getOwnerVisRuleForLocation = (locKey: string) => {
-      const byLoc =
-        ownerVisByLocation && typeof (ownerVisByLocation as any).get === "function"
-          ? (ownerVisByLocation as any).get(locKey)
-          : (ownerVisByLocation as any)?.[locKey];
-      return byLoc || ownerVisAll || null;
-    };
     const { locations: sheetLocations, denyAll } = resolveOwnerSheetLocations({
       role,
       tokenAllotedArea,
@@ -98,64 +90,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ data: [], total: 0 }, { status: 200 });
     }
 
-    const propertyTypeFilter = String(filters.propertyType || "").trim();
-    const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const strictValueRegex = (s: string) => new RegExp(`^\\s*${escapeRegex(s)}\\s*$`, "i");
-
-    const locationsForRules = effectiveLocationsForRules;
-
-    if (locationsForRules.length > 0) {
-      const clauses: any[] = [];
-      for (const loc of locationsForRules) {
-        const locKey = String(loc).toLowerCase();
-        const rule = getOwnerVisRuleForLocation(locKey);
-        const allowedTypes = Array.isArray(rule?.allowedPropertyType)
-          ? rule.allowedPropertyType
-          : [];
-        const enabled = Boolean(rule?.enabled) && allowedTypes.length > 0;
-
-        if (enabled) {
-          if (propertyTypeFilter) {
-            const ok = allowedTypes.some((t: string) => t.toLowerCase() === propertyTypeFilter.toLowerCase());
-            if (!ok) continue;
-          }
-          clauses.push({
-            location: { $regex: new RegExp(`^${escapeRegex(loc)}$`, "i") },
-            ...(propertyTypeFilter
-              ? { propertyType: strictValueRegex(propertyTypeFilter) }
-              : { propertyType: { $in: allowedTypes.map((t: string) => strictValueRegex(t)) } }),
-          });
-        } else {
-          clauses.push({
-            location: { $regex: new RegExp(`^${escapeRegex(loc)}$`, "i") },
-            ...(propertyTypeFilter
-              ? { propertyType: strictValueRegex(propertyTypeFilter) }
-              : {}),
-          });
-        }
-      }
-
-      if (clauses.length === 0) {
-        return NextResponse.json({ data: [], total: 0 }, { status: 200 });
-      }
-
-      query.$or = clauses;
-      if (query.propertyType) delete query.propertyType;
-    } else {
-      const rule = ownerVisAll || null;
-      const allowedTypes = Array.isArray(rule?.allowedPropertyType) ? rule.allowedPropertyType : [];
-      const enabled = Boolean(rule?.enabled) && allowedTypes.length > 0;
-      if (enabled) {
-        if (propertyTypeFilter) {
-          const ok = allowedTypes.some((t: string) => t.toLowerCase() === propertyTypeFilter.toLowerCase());
-          if (!ok) return NextResponse.json({ data: [], total: 0 }, { status: 200 });
-        } else {
-          query.propertyType = { $in: allowedTypes.map((t: string) => strictValueRegex(t)) };
-        }
-      }
-      if (propertyTypeFilter) {
-        query.propertyType = strictValueRegex(propertyTypeFilter);
-      }
+    const propertyTypeResult = applyOwnerSheetPropertyTypeFilter({
+      query,
+      rules: (ownerRuleDoc as { ownerPropertyTypeVisibilityRules?: null })?.ownerPropertyTypeVisibilityRules,
+      locations: effectiveLocationsForRules,
+      propertyTypeFilter: filters.propertyType,
+    });
+    if (propertyTypeResult.impossible) {
+      return NextResponse.json({ data: [], total: 0 }, { status: 200 });
     }
      if (filters.area?.length) {
       // exact match any of selected areas (case-insensitive)

@@ -1,8 +1,5 @@
 import { createHash } from "crypto";
-import {
-  getEmbedModel,
-  requireGoogleApiKey,
-} from "@/services/crm-agent/config";
+import { LOCAL_EMBED_DIMS } from "@/services/crm-agent/config";
 
 type EmbedTaskType = "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY";
 
@@ -10,24 +7,42 @@ export function hashContent(content: string): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
+/**
+ * Local hashed bag-of-tokens embedding (no external API).
+ * Groq has no embedding models — this keeps playbook RAG working with GROQ_API_KEY alone.
+ * Re-run `npm run crm-agent:index` after switching from Gemini embeddings.
+ */
+function localEmbed(text: string, dims: number = LOCAL_EMBED_DIMS): number[] {
+  const vec = new Array<number>(dims).fill(0);
+  const tokens = text
+    .toLowerCase()
+    .replace(/[^a-z0-9/#.\-\s]/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length > 1);
+
+  for (const token of tokens) {
+    const h = createHash("sha256").update(token).digest();
+    // Use first 8 bytes as two uint32 indices / signs
+    const i1 = h.readUInt32BE(0) % dims;
+    const i2 = h.readUInt32BE(4) % dims;
+    const s1 = (h[8]! & 1) === 0 ? 1 : -1;
+    const s2 = (h[9]! & 1) === 0 ? 1 : -1;
+    vec[i1] = (vec[i1] ?? 0) + s1;
+    vec[i2] = (vec[i2] ?? 0) + s2 * 0.5;
+  }
+
+  let norm = 0;
+  for (const v of vec) norm += v * v;
+  norm = Math.sqrt(norm) || 1;
+  return vec.map((v) => v / norm);
+}
+
 export async function embedTexts(
   texts: string[],
-  taskType: EmbedTaskType = "RETRIEVAL_DOCUMENT",
+  _taskType: EmbedTaskType = "RETRIEVAL_DOCUMENT",
 ): Promise<number[][]> {
   if (texts.length === 0) return [];
-  const [{ embedMany }, { createGoogleGenerativeAI }] = await Promise.all([
-    import("ai"),
-    import("@ai-sdk/google"),
-  ]);
-  const google = createGoogleGenerativeAI({ apiKey: requireGoogleApiKey() });
-  const { embeddings } = await embedMany({
-    model: google.embeddingModel(getEmbedModel()),
-    values: texts,
-    providerOptions: {
-      google: { taskType },
-    },
-  });
-  return embeddings;
+  return texts.map((t) => localEmbed(t));
 }
 
 export async function embedQuery(text: string): Promise<number[]> {
@@ -80,7 +95,7 @@ export function chunkMarkdown(
       sourcePath,
       domain,
       heading,
-      content: `# ${heading}\n\n${content}`,
+      content,
     });
     buf = [];
   };
@@ -89,12 +104,10 @@ export function chunkMarkdown(
     const m = line.match(/^##\s+(.+)$/);
     if (m) {
       flush();
-      heading = m[1].trim();
+      heading = m[1]!.trim();
       continue;
     }
-    if (line.match(/^#\s+/) && !line.match(/^##/)) {
-      continue;
-    }
+    if (line.match(/^#\s+/)) continue;
     buf.push(line);
   }
   flush();

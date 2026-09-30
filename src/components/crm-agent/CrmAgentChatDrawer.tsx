@@ -1,54 +1,87 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { MessageCircle, X, Send, Loader2, ShieldAlert } from "lucide-react";
 import { useAuthStore } from "@/AuthStore";
 import axios from "@/util/axios";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  CRM_AGENT_DISPLAY_NAME,
+  CRM_AGENT_EMPTY_AGENT,
+  CRM_AGENT_EMPTY_ASK,
+  CRM_AGENT_TAGLINE,
+} from "@/lib/crm-agent-brand";
 
 type ChatSource = { sourcePath: string; heading: string };
+
+type CrmAgentUi =
+  | {
+      type: "choices";
+      id: string;
+      prompt: string;
+      options: { label: string; value: string }[];
+    }
+  | {
+      type: "plan";
+      title: string;
+      lines: string[];
+      confirmLabel: string;
+    }
+  | {
+      type: "report";
+      title: string;
+      metrics: Array<{ label: string; value: string | number; href?: string }>;
+    };
 
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   sources?: ChatSource[];
   toolNames?: string[];
+  ui?: CrmAgentUi;
 };
 
-type WriteProposal = {
-  type: string;
-  title: string;
-  description: string;
-  payload: Record<string, unknown>;
-  confirmApi: string;
-};
+type AgentMode = "ask" | "agent";
 
 const PILOT_FALLBACK = new Set(["SuperAdmin", "Sales-TeamLead", "HR"]);
+const MODE_STORAGE_KEY = "crm-agent-mode";
 
 export function CrmAgentChatDrawer() {
   const token = useAuthStore((s) => s.token);
   const [open, setOpen] = useState(false);
   const [enabled, setEnabled] = useState(false);
+  const [mode, setMode] = useState<AgentMode>("ask");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [proposal, setProposal] = useState<WriteProposal | null>(null);
+  const [pendingUi, setPendingUi] = useState<CrmAgentUi | null>(null);
   const [confirming, setConfirming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const role = token?.role ?? "";
   const roleAllowed = PILOT_FALLBACK.has(role);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(MODE_STORAGE_KEY);
+      if (saved === "ask" || saved === "agent") setMode(saved);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const setModePersist = useCallback((next: AgentMode) => {
+    setMode(next);
+    try {
+      localStorage.setItem(MODE_STORAGE_KEY, next);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     if (!token?.id || !roleAllowed) {
@@ -71,81 +104,90 @@ export function CrmAgentChatDrawer() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, open]);
+  }, [messages, open, pendingUi]);
+
+  const sendMessage = useCallback(
+    async (raw: string) => {
+      const message = raw.trim();
+      if (!message || loading) return;
+      setInput("");
+      setError(null);
+      setPendingUi(null);
+      setMessages((prev) => [...prev, { role: "user", content: message }]);
+      setLoading(true);
+      try {
+        const { data } = await axios.post("/api/crm-agent/chat", {
+          message,
+          conversationId,
+          mode,
+        });
+        setConversationId(data.conversationId ?? null);
+        const ui = (data.ui as CrmAgentUi | undefined) ?? null;
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: data.answer ?? "No answer returned.",
+            sources: data.sources ?? [],
+            toolNames: data.toolNames ?? [],
+            ui: ui ?? undefined,
+          },
+        ]);
+        setPendingUi(ui);
+      } catch (err: unknown) {
+        const ax = err as {
+          response?: { data?: { error?: string }; status?: number };
+        };
+        const msg =
+          ax.response?.data?.error ||
+          (ax.response?.status === 429
+            ? "Rate limit exceeded — try again later."
+            : `Failed to reach ${CRM_AGENT_DISPLAY_NAME}.`);
+        setError(msg);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: `Error: ${msg}` },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [loading, conversationId, mode],
+  );
 
   const send = useCallback(async () => {
-    const message = input.trim();
-    if (!message || loading) return;
-    setInput("");
-    setError(null);
-    setMessages((prev) => [...prev, { role: "user", content: message }]);
-    setLoading(true);
-    try {
-      const { data } = await axios.post("/api/crm-agent/chat", {
-        message,
-        conversationId,
-      });
-      setConversationId(data.conversationId ?? null);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: data.answer ?? "No answer returned.",
-          sources: data.sources ?? [],
-          toolNames: data.toolNames ?? [],
-        },
-      ]);
-      if (data.proposal) {
-        setProposal(data.proposal as WriteProposal);
-      }
-    } catch (err: unknown) {
-      const ax = err as {
-        response?: { data?: { error?: string }; status?: number };
-      };
-      const msg =
-        ax.response?.data?.error ||
-        (ax.response?.status === 429
-          ? "Rate limit exceeded — try again later."
-          : "Failed to reach CRM Copilot.");
-      setError(msg);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: `Error: ${msg}` },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }, [input, loading, conversationId]);
+    await sendMessage(input);
+  }, [input, sendMessage]);
 
-  const confirmWrite = useCallback(async () => {
-    if (!proposal) return;
-    setConfirming(true);
-    try {
-      const { data } = await axios.post(
-        proposal.confirmApi || "/api/crm-agent/confirm-write",
-        {
-          type: proposal.type,
-          payload: proposal.payload,
-          confirmed: true,
-        },
-      );
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: data.deferred
-            ? String(data.message ?? "Open the dashboard to finish this action.")
-            : `Confirmed. ${data.deepLink ? `Open ${data.deepLink}` : ""}`,
-        },
-      ]);
-      setProposal(null);
-    } catch (err: unknown) {
-      const ax = err as { response?: { data?: { error?: string } } };
-      setError(ax.response?.data?.error || "Confirm failed");
-    } finally {
-      setConfirming(false);
-    }
-  }, [proposal]);
+  const confirmWrite = useCallback(
+    async (confirmed: boolean) => {
+      if (!conversationId) return;
+      setConfirming(true);
+      setError(null);
+      try {
+        const { data } = await axios.post("/api/crm-agent/confirm-write", {
+          conversationId,
+          confirmed,
+        });
+        setPendingUi(null);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: confirmed
+              ? String(data.answer ?? "Done.")
+              : "Cancelled.",
+          },
+        ]);
+      } catch (err: unknown) {
+        const ax = err as { response?: { data?: { error?: string } } };
+        setError(ax.response?.data?.error || "Confirm failed");
+      } finally {
+        setConfirming(false);
+      }
+    },
+    [conversationId],
+  );
 
   if (!enabled) return null;
 
@@ -153,7 +195,8 @@ export function CrmAgentChatDrawer() {
     <>
       <button
         type="button"
-        aria-label="Open CRM Copilot"
+        aria-label={`Open ${CRM_AGENT_DISPLAY_NAME}`}
+        title={CRM_AGENT_TAGLINE}
         onClick={() => setOpen((v) => !v)}
         className="fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#F7951D] text-white shadow-lg hover:opacity-90"
       >
@@ -164,27 +207,62 @@ export function CrmAgentChatDrawer() {
         <div className="fixed bottom-20 right-6 z-40 flex h-[min(560px,70vh)] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl">
           <div className="flex items-center justify-between border-b border-border bg-muted/40 px-3 py-2">
             <div>
-              <p className="text-sm font-semibold">CRM Copilot</p>
+              <p className="text-sm font-semibold">{CRM_AGENT_DISPLAY_NAME}</p>
               <p className="text-xs text-muted-foreground">
-                How-to + live lookup · {role}
+                {CRM_AGENT_TAGLINE}
+              </p>
+              <p className="text-[10px] text-muted-foreground/80">
+                {mode === "agent" ? "Agent · writes with confirm" : "Ask · read-only"} · {role}
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setOpen(false)}
-              aria-label="Close"
-            >
-              <X size={16} />
-            </Button>
+            <div className="flex items-center gap-1">
+              <div className="flex rounded-md border border-border p-0.5 text-xs">
+                <button
+                  type="button"
+                  className={`rounded px-2 py-0.5 ${
+                    mode === "ask"
+                      ? "bg-[#F7951D] text-white"
+                      : "text-muted-foreground"
+                  }`}
+                  onClick={() => setModePersist("ask")}
+                >
+                  Ask
+                </button>
+                <button
+                  type="button"
+                  className={`rounded px-2 py-0.5 ${
+                    mode === "agent"
+                      ? "bg-[#F7951D] text-white"
+                      : "text-muted-foreground"
+                  }`}
+                  onClick={() => setModePersist("agent")}
+                >
+                  Agent
+                </button>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+              >
+                <X size={16} />
+              </Button>
+            </div>
           </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto p-3">
             {messages.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Ask how to use a board, who can open a page, or look up a phone /
-                VSID.
-              </p>
+              <div className="space-y-2 rounded-lg bg-[#F7951D]/10 px-3 py-3">
+                <p className="text-sm font-medium text-foreground">
+                  {CRM_AGENT_TAGLINE}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {mode === "agent"
+                    ? CRM_AGENT_EMPTY_AGENT
+                    : CRM_AGENT_EMPTY_ASK}
+                </p>
+              </div>
             )}
             {messages.map((m, i) => (
               <div
@@ -210,8 +288,111 @@ export function CrmAgentChatDrawer() {
                     Tools: {m.toolNames.join(", ")}
                   </p>
                 )}
+                {m.ui?.type === "report" && (
+                  <div className="mt-2 space-y-1 border-t border-border/60 pt-2">
+                    <p className="text-xs font-medium">{m.ui.title}</p>
+                    {m.ui.metrics.map((metric) => (
+                      <div
+                        key={metric.label}
+                        className="flex justify-between gap-2 text-xs"
+                      >
+                        <span className="text-muted-foreground">
+                          {metric.label}
+                        </span>
+                        {metric.href ? (
+                          <Link
+                            href={metric.href}
+                            className="font-medium text-[#F7951D] underline-offset-2 hover:underline"
+                          >
+                            {metric.value}
+                          </Link>
+                        ) : (
+                          <span className="font-medium">{metric.value}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
+
+            {pendingUi?.type === "report" && (
+              <div className="space-y-2 rounded-lg border border-border bg-background p-3">
+                <p className="text-sm font-semibold">{pendingUi.title}</p>
+                {pendingUi.metrics.map((metric) => (
+                  <div
+                    key={metric.label}
+                    className="flex justify-between gap-2 text-xs"
+                  >
+                    <span className="text-muted-foreground">{metric.label}</span>
+                    {metric.href ? (
+                      <Link
+                        href={metric.href}
+                        className="font-medium text-[#F7951D] underline-offset-2 hover:underline"
+                      >
+                        {metric.value}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">{metric.value}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {pendingUi?.type === "choices" && (
+              <div className="space-y-2 rounded-lg border border-border bg-background p-2">
+                <p className="text-xs text-muted-foreground">
+                  {pendingUi.prompt}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {pendingUi.options.map((opt) => (
+                    <Button
+                      key={opt.value}
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      disabled={loading}
+                      onClick={() => void sendMessage(opt.value)}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {pendingUi?.type === "plan" && (
+              <div className="space-y-2 rounded-lg border border-[#F7951D]/40 bg-[#F7951D]/5 p-3">
+                <p className="text-sm font-semibold">{pendingUi.title}</p>
+                <ul className="space-y-0.5 text-xs text-muted-foreground">
+                  {pendingUi.lines.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={confirming}
+                    onClick={() => void confirmWrite(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={confirming}
+                    onClick={() => void confirmWrite(true)}
+                  >
+                    {confirming
+                      ? "Working…"
+                      : pendingUi.confirmLabel || "Confirm"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {loading && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3 w-3 animate-spin" /> Thinking…
@@ -231,7 +412,11 @@ export function CrmAgentChatDrawer() {
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask CRM Copilot…"
+              placeholder={
+                mode === "agent"
+                  ? `Ask ${CRM_AGENT_DISPLAY_NAME} to change leads…`
+                  : `Message ${CRM_AGENT_DISPLAY_NAME}…`
+              }
               className="min-h-[44px] max-h-28 resize-none text-sm"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -255,27 +440,6 @@ export function CrmAgentChatDrawer() {
           </div>
         </div>
       )}
-
-      <Dialog open={Boolean(proposal)} onOpenChange={(v) => !v && setProposal(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{proposal?.title ?? "Confirm action"}</DialogTitle>
-            <DialogDescription>
-              CRM Copilot proposed a write. Review and confirm to continue. Nothing
-              is saved until you confirm.
-            </DialogDescription>
-          </DialogHeader>
-          <p className="text-sm whitespace-pre-wrap">{proposal?.description}</p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setProposal(null)}>
-              Cancel
-            </Button>
-            <Button onClick={() => void confirmWrite()} disabled={confirming}>
-              {confirming ? "Confirming…" : "Confirm"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

@@ -15,6 +15,7 @@ import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalTy
 import {
   getBlockedLeadLocations,
   loadEmployeeLeadContext,
+  ownerPropertyTypeRulesForToken,
 } from "@/lib/leads/employeeLeadContext";
 import { LeadQueryService } from "@/lib/leads/LeadQueryService";
 import { applyPricingRulesByLocationToQuery } from "@/util/pricingRule";
@@ -186,6 +187,10 @@ export async function POST(req: NextRequest) {
         locations: effectiveLocations,
         uiPropertyType: propertyType,
         uiTypeOfProperty: hasQuickPropertyFilters ? "" : typeOfProperty,
+        ownerRules: ownerPropertyTypeRulesForToken(
+          String(role ?? ""),
+          employeeContext.ownerPropertyTypeVisibilityRules,
+        ),
       });
       if (impossible) {
         return NextResponse.json({

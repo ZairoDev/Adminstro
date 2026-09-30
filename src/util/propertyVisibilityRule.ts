@@ -1,4 +1,9 @@
 import Employees from "@/models/employee";
+import {
+  listIncludesType,
+  resolveAllowedPropertyTypes,
+  type PropertyTypeRules,
+} from "@/util/propertyTypeAllowList";
 
 export type PropertyVisibilityRule = {
   enabled?: boolean;
@@ -46,12 +51,18 @@ export function applyPropertyVisibilityRuleToLeadQuery(params: {
   rule: PropertyVisibilityRule | null;
   uiPropertyType?: unknown;
   uiTypeOfProperty?: unknown;
+  ownerAllowedTypes?: string[] | null;
 }): { impossible: boolean } {
-  const { query, rule, uiPropertyType, uiTypeOfProperty } = params;
+  const { query, rule, uiPropertyType, uiTypeOfProperty, ownerAllowedTypes } = params;
   if (!rule?.enabled) {
-    // Keep existing UI filters behavior
     if (uiPropertyType) query.propertyType = uiPropertyType;
-    if (uiTypeOfProperty) query.typeOfProperty = uiTypeOfProperty;
+    const ownerOnly = applyOwnerTypesToLeadQuery({
+      query,
+      ownerAllowedTypes: ownerAllowedTypes ?? null,
+      uiTypeOfProperty,
+    });
+    if (ownerOnly.impossible) return ownerOnly;
+    if (!ownerAllowedTypes && uiTypeOfProperty) query.typeOfProperty = uiTypeOfProperty;
     return { impossible: false };
   }
 
@@ -76,19 +87,48 @@ export function applyPropertyVisibilityRuleToLeadQuery(params: {
     if (uiPropertyType) query.propertyType = uiPropertyType;
   }
 
-  // Type of Property intersection (only if route supports it)
-  if (allowedTypeOfProperty.length > 0) {
-    if (uiTypeOfProperty && String(uiTypeOfProperty).trim() !== "") {
-      const v = String(uiTypeOfProperty);
-      if (!allowedTypeOfProperty.includes(v)) return { impossible: true };
-      query.typeOfProperty = v;
-    } else {
-      query.typeOfProperty = { $in: allowedTypeOfProperty };
-    }
+  const guestTypes = allowedTypeOfProperty.length > 0 ? allowedTypeOfProperty : null;
+  const ownerTypes =
+    ownerAllowedTypes && ownerAllowedTypes.length > 0 ? ownerAllowedTypes : null;
+  let effectiveTypes: string[] | null = null;
+  if (guestTypes && ownerTypes) {
+    effectiveTypes = guestTypes.filter((type) => listIncludesType(ownerTypes, type));
+    if (effectiveTypes.length === 0) return { impossible: true };
   } else {
-    if (uiTypeOfProperty) query.typeOfProperty = uiTypeOfProperty;
+    effectiveTypes = guestTypes || ownerTypes;
   }
 
+  if (effectiveTypes && effectiveTypes.length > 0) {
+    if (uiTypeOfProperty && String(uiTypeOfProperty).trim() !== "") {
+      const v = String(uiTypeOfProperty);
+      if (!listIncludesType(effectiveTypes, v)) return { impossible: true };
+      query.typeOfProperty = v;
+    } else {
+      query.typeOfProperty = { $in: effectiveTypes };
+    }
+  } else if (uiTypeOfProperty) {
+    query.typeOfProperty = uiTypeOfProperty;
+  }
+
+  return { impossible: false };
+}
+
+function applyOwnerTypesToLeadQuery(params: {
+  query: Record<string, any>;
+  ownerAllowedTypes: string[] | null;
+  uiTypeOfProperty?: unknown;
+}): { impossible: boolean } {
+  const { query, ownerAllowedTypes, uiTypeOfProperty } = params;
+  if (!ownerAllowedTypes || ownerAllowedTypes.length === 0) {
+    return { impossible: false };
+  }
+  if (uiTypeOfProperty && String(uiTypeOfProperty).trim() !== "") {
+    const v = String(uiTypeOfProperty);
+    if (!listIncludesType(ownerAllowedTypes, v)) return { impossible: true };
+    query.typeOfProperty = v;
+    return { impossible: false };
+  }
+  query.typeOfProperty = { $in: ownerAllowedTypes };
   return { impossible: false };
 }
 
@@ -98,8 +138,9 @@ export function applyPropertyVisibilityRulesByLocationToLeadQuery(params: {
   locations: string[] | null;
   uiPropertyType?: unknown;
   uiTypeOfProperty?: unknown;
+  ownerRules?: PropertyTypeRules | null;
 }): { impossible: boolean } {
-  const { query, rules, locations, uiPropertyType, uiTypeOfProperty } = params;
+  const { query, rules, locations, uiPropertyType, uiTypeOfProperty, ownerRules } = params;
 
   if (!locations || locations.length === 0) {
     // Unknown/all locations: apply only global rule.
@@ -108,6 +149,7 @@ export function applyPropertyVisibilityRulesByLocationToLeadQuery(params: {
       rule: rules?.all || null,
       uiPropertyType,
       uiTypeOfProperty,
+      ownerAllowedTypes: resolveAllowedPropertyTypes(ownerRules, null),
     });
   }
 
@@ -118,6 +160,7 @@ export function applyPropertyVisibilityRulesByLocationToLeadQuery(params: {
       rule,
       uiPropertyType,
       uiTypeOfProperty,
+      ownerAllowedTypes: resolveAllowedPropertyTypes(ownerRules, locations[0]),
     });
   }
 
@@ -136,6 +179,7 @@ export function applyPropertyVisibilityRulesByLocationToLeadQuery(params: {
       rule,
       uiPropertyType,
       uiTypeOfProperty,
+      ownerAllowedTypes: resolveAllowedPropertyTypes(ownerRules, loc),
     });
     if (impossible) continue;
     Object.assign(clause, temp);

@@ -21,6 +21,7 @@ import {
 import { exactCaseInsensitiveRegex } from "@/util/regex";
 import { applyPricingRulesByLocationToQuery } from "@/util/pricingRule";
 import { applyPropertyVisibilityRulesByLocationToLeadQuery } from "@/util/propertyVisibilityRule";
+import { ownerRulesForRole } from "@/util/propertyTypeAllowList";
 
 function convertToIST(date: Date): Date {
   return addHours(date, 5.5);
@@ -186,6 +187,7 @@ export async function buildAllLeadsMatchQuery(params: {
     locations: effectiveLocations,
     uiPropertyType: propertyType,
     uiTypeOfProperty: typeOfProperty,
+    ownerRules: ownerRulesForRole(role, employeeContext.ownerPropertyTypeVisibilityRules),
   });
   if (visibility.impossible) {
     return { ok: false, emptyResponse: { data: [], totalPages: 1, totalQueries: 0 } };

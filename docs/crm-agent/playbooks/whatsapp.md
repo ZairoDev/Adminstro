@@ -1,21 +1,65 @@
 # WhatsApp CRM
 
-## Surfaces
+## Open inbox and related surfaces
 
-Inbox: `/whatsapp`. Channels admin: `/whatsapp/channels`, `/dashboard/whatsapp/channels`. Retarget: `/whatsapp/retarget`. Analytics: `/dashboard/whatsapp-analytics`. Calls: `/whatsapp/calls`.
+**Example questions**
 
-## Access rules
+- Where is the WhatsApp inbox?
+- Where is retarget / analytics / calls?
 
-WhatsApp access is role- and location-scoped (see `docs/whatsapp-architecture-specification.md` and `lib/whatsapp/*`). Advert may only see certain conversation types. Initiation limits apply per role via `/api/whatsapp/initiation-limit`.
+**Answer in brief**
 
-## Search
+- Inbox `/whatsapp`
+- Channels `/whatsapp/channels`, `/dashboard/whatsapp/channels`
+- Retarget `/whatsapp/retarget`
+- Analytics `/dashboard/whatsapp-analytics`
+- Calls `/whatsapp/calls`
 
-Unified conversation search exists under `/api/whatsapp/search/unified`. Copilot searchWhatsApp finds conversations by phone/name for allowed roles.
+## Access and initiation limit
 
-## Summaries
+**Example questions**
 
-Copilot can load recent messages for a conversation and summarize them. It never auto-sends WhatsApp. Draft replies must be copied into the composer by staff.
+- Who can use WhatsApp?
+- What is WhatsApp initiation limit?
 
-## Phone masking
+**Answer in brief**
 
-Employees may have `whatsappPhoneMask` flags to mask owner or guest phones in UI and Copilot outputs.
+- Access is role- and location-scoped. Advert sees limited conversation types.
+- Initiation limit caps new outbound conversations per role in a window.
+
+**Open in dashboard**
+
+- `/whatsapp`
+
+## Search and summarize
+
+**Example questions**
+
+- Find WhatsApp for 98XXXXXXXX
+- Summarize this WhatsApp conversation
+
+**Answer in brief**
+
+- Ask can search by phone/name and summarize recent messages for allowed roles.
+- Never auto-sends. Drafts must be copied into the composer.
+- Phones may be masked via employee `whatsappPhoneMask` flags.
+
+**Live Ask tools**
+
+- `searchWhatsApp`, `getConversationSummary`, `draftText`
+
+## Inbox backlog (Ask)
+
+**Example questions**
+
+- Inbox backlog
+- WhatsApp inbox counts
+
+**Answer in brief**
+
+- Org-level totals (total / owner / guest) for WhatsApp-capable roles.
+- Your area-scoped badges in the WhatsApp UI remain the personal source of truth.
+
+**Live Ask tools**
+
+- `getWhatsAppInboxCounts`

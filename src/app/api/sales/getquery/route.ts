@@ -7,6 +7,11 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
 import { getLeadGenEmployeeEmails } from "@/lib/leads/leadGenEmailCache";
 import { loadEmployeeLeadContext } from "@/lib/leads/employeeLeadContext";
+import { parseAssignedAreasFromToken } from "@/util/guestLeadLocationScope";
+import {
+  applyGuestPropertyTypeAllowListToLeadQuery,
+  isPropertyTypeRuleBypassRole,
+} from "@/util/propertyTypeAllowList";
 import { batchComputeWhatsAppReplyStatus } from "@/lib/whatsapp/replyStatusResolver";
 connectDb();
 export const dynamic = "force-dynamic";
@@ -206,6 +211,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       token,
       employeeContext.rentalType,
     );
+
+    const bypassPropertyTypeRule = isPropertyTypeRuleBypassRole(
+      String((token as { role?: string }).role || ""),
+    );
+    const assignedAreas = parseAssignedAreasFromToken(
+      (token as { allotedArea?: unknown }).allotedArea,
+    );
+    const propertyTypeResult = applyGuestPropertyTypeAllowListToLeadQuery({
+      query,
+      ownerRules: bypassPropertyTypeRule
+        ? null
+        : employeeContext.ownerPropertyTypeVisibilityRules,
+      propertyVisibilityRules: bypassPropertyTypeRule
+        ? null
+        : employeeContext.propertyVisibilityRules,
+      locations: assignedAreas.length > 0 ? assignedAreas : null,
+    });
+    if (propertyTypeResult.impossible) {
+      return NextResponse.json({
+        data: [],
+        page,
+        totalPages: 0,
+        totalQueries: 0,
+      });
+    }
 
     // CRITICAL FIX: For date-specific queries, skip pagination to get all results
     const aggregationPipeline: any[] = [

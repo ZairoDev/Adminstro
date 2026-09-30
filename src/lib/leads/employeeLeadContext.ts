@@ -5,6 +5,10 @@ import {
 } from "@/util/employeeRentalTypeAccess";
 import type { PricingRules } from "@/util/pricingRule";
 import type { PropertyVisibilityRules } from "@/util/propertyVisibilityRule";
+import {
+  ownerRulesForRole,
+  type PropertyTypeRules,
+} from "@/util/propertyTypeAllowList";
 
 export type GuestLeadLocationBlock = {
   all?: string[];
@@ -13,6 +17,7 @@ export type GuestLeadLocationBlock = {
 export interface EmployeeLeadContext {
   pricingRules: PricingRules | null;
   propertyVisibilityRules: PropertyVisibilityRules | null;
+  ownerPropertyTypeVisibilityRules: PropertyTypeRules | null;
   guestLeadLocationBlock: GuestLeadLocationBlock | null;
   rentalType: EmployeeRentalType | null;
 }
@@ -20,6 +25,7 @@ export interface EmployeeLeadContext {
 const EMPTY_CONTEXT: EmployeeLeadContext = {
   pricingRules: null,
   propertyVisibilityRules: null,
+  ownerPropertyTypeVisibilityRules: null,
   guestLeadLocationBlock: null,
   rentalType: null,
 };
@@ -41,13 +47,14 @@ export async function loadEmployeeLeadContext(
 
   const emp = await Employees.findById(employeeId)
     .select(
-      "pricingRules propertyVisibilityRules guestLeadLocationBlock rentalType",
+      "pricingRules propertyVisibilityRules ownerPropertyTypeVisibilityRules guestLeadLocationBlock rentalType",
     )
     .lean();
 
   const doc = emp as {
     pricingRules?: PricingRules;
     propertyVisibilityRules?: PropertyVisibilityRules;
+    ownerPropertyTypeVisibilityRules?: PropertyTypeRules;
     guestLeadLocationBlock?: GuestLeadLocationBlock;
     rentalType?: unknown;
   } | null;
@@ -55,9 +62,27 @@ export async function loadEmployeeLeadContext(
   return {
     pricingRules: doc?.pricingRules ?? null,
     propertyVisibilityRules: doc?.propertyVisibilityRules ?? null,
+    ownerPropertyTypeVisibilityRules: doc?.ownerPropertyTypeVisibilityRules ?? null,
     guestLeadLocationBlock: doc?.guestLeadLocationBlock ?? null,
     rentalType: resolveEmployeeRentalType(tokenRentalType, doc?.rentalType),
   };
+}
+
+export function ownerPropertyTypeRulesForToken(
+  role: string | undefined,
+  rules: PropertyTypeRules | null | undefined,
+): PropertyTypeRules | null {
+  return ownerRulesForRole(role, rules);
+}
+
+export async function loadOwnerPropertyTypeRules(
+  employeeId: string,
+): Promise<PropertyTypeRules | null> {
+  if (!employeeId) return null;
+  const emp = await Employees.findById(employeeId)
+    .select("ownerPropertyTypeVisibilityRules")
+    .lean<{ ownerPropertyTypeVisibilityRules?: PropertyTypeRules } | null>();
+  return emp?.ownerPropertyTypeVisibilityRules ?? null;
 }
 
 export function getBlockedLeadLocations(

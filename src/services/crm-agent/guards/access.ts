@@ -2,6 +2,7 @@ import {
   getPilotRoles,
   isCrmAgentEnabled,
   isPilotRole,
+  isWriteRole,
 } from "@/services/crm-agent/config";
 import type { CrmAgentCaller } from "@/services/crm-agent/types";
 
@@ -94,12 +95,19 @@ export type ToolName =
   | "findOfferByPhone"
   | "getOverdueVisits"
   | "findCandidate"
+  | "findEmployee"
   | "explainMyAccess"
   | "searchWhatsApp"
   | "getConversationSummary"
+  | "getWhatsAppInboxCounts"
   | "getFinanceTransaction"
   | "getFinanceOverview"
   | "getWebhookLogHint"
+  | "getTeamTodayReport"
+  | "getDailyLeadStats"
+  | "getLeadStatusCounts"
+  | "getHiringPipelineSummary"
+  | "listMyReminders"
   | "draftText"
   | "proposeWrite";
 
@@ -110,12 +118,34 @@ const TOOL_ROLE_MAP: Record<ToolName, Set<string>> = {
   findOfferByPhone: OFFER_LOOKUP_ROLES,
   getOverdueVisits: VISIT_LOOKUP_ROLES,
   findCandidate: CANDIDATE_LOOKUP_ROLES,
+  findEmployee: new Set([
+    "SuperAdmin",
+    "Admin",
+    "HR",
+    "HAdmin",
+    "Sales-TeamLead",
+    "Developer",
+  ]),
   explainMyAccess: new Set(["*"]),
   searchWhatsApp: WHATSAPP_LOOKUP_ROLES,
   getConversationSummary: WHATSAPP_LOOKUP_ROLES,
+  getWhatsAppInboxCounts: WHATSAPP_LOOKUP_ROLES,
   getFinanceTransaction: FINANCE_LOOKUP_ROLES,
   getFinanceOverview: FINANCE_LOOKUP_ROLES,
   getWebhookLogHint: FINANCE_LOOKUP_ROLES,
+  getTeamTodayReport: LEAD_LOOKUP_ROLES,
+  getDailyLeadStats: LEAD_LOOKUP_ROLES,
+  getLeadStatusCounts: LEAD_LOOKUP_ROLES,
+  getHiringPipelineSummary: CANDIDATE_LOOKUP_ROLES,
+  listMyReminders: new Set([
+    "SuperAdmin",
+    "Sales-TeamLead",
+    "Sales",
+    "HR",
+    "LeadGen",
+    "LeadGen-TeamLead",
+    "Admin",
+  ]),
   draftText: new Set(["*"]),
   proposeWrite: WRITE_PROPOSE_ROLES,
 };
@@ -148,6 +178,11 @@ export function canUseTool(tool: ToolName, role: string): boolean {
   if (allowed.has("*")) return true;
   if (role === "SuperAdmin" || role === "Developer") return true;
   return allowed.has(role);
+}
+
+/** Agent write workflows (disposition / reminders) — pilot write allowlist. */
+export function canRunAgentWriteWorkflow(role: string): boolean {
+  return isWriteRole(role);
 }
 
 export function maskPhone(
@@ -191,16 +226,28 @@ function stripSensitiveFields(value: unknown): unknown {
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       const lower = k.toLowerCase();
       if (
-        lower.includes("password") ||
-        lower.includes("mobilepin") ||
-        lower === "aadhar" ||
-        lower === "aadhaar" ||
-        lower === "pan" ||
-        lower === "accountno" ||
-        lower === "accountnumber" ||
-        lower === "ifsc" ||
-        lower.includes("otp") ||
-        lower.includes("token")
+        lower.includes("password")
+        || lower.includes("mobilepin")
+        || lower.includes("mobile_pin")
+        || lower === "aadhar"
+        || lower === "aadhaar"
+        || lower.includes("aadhar")
+        || lower.includes("aadhaar")
+        || lower === "pan"
+        || lower.includes("pannumber")
+        || lower.includes("pan_number")
+        || lower === "accountno"
+        || lower === "accountnumber"
+        || lower.includes("accountnumber")
+        || lower.includes("accountno")
+        || lower === "ifsc"
+        || lower.includes("ifsccode")
+        || lower.includes("ifsc_code")
+        || lower.includes("bankaccount")
+        || lower.includes("otp")
+        || lower.includes("token")
+        || lower.includes("secret")
+        || lower.includes("jwt")
       ) {
         continue;
       }

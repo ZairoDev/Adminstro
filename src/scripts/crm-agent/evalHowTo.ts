@@ -5,7 +5,7 @@
 import "dotenv/config";
 import fs from "fs";
 import path from "path";
-import { getGoogleApiKey } from "@/services/crm-agent/config";
+import { getGroqApiKey } from "@/services/crm-agent/config";
 
 type EvalCase = {
   id: string;
@@ -45,10 +45,18 @@ const CASES: EvalCase[] = [
   { id: "28", question: "How do phone masks work on WhatsApp?", expectedDomain: "whatsapp", expectedSourceIncludes: "whatsapp.md" },
   { id: "29", question: "Difference between Offer and Query?", expectedDomain: "glossary", expectedSourceIncludes: "glossary.md" },
   { id: "30", question: "How do I start candidate onboarding?", expectedDomain: "hr", expectedSourceIncludes: "hr-people.md" },
+  { id: "31", question: "What is the difference between personal and lead reminders?", expectedDomain: "reminders", expectedSourceIncludes: "reminders.md" },
+  { id: "32", question: "How can Ask show hiring pipeline updates?", expectedDomain: "hr", expectedSourceIncludes: "hr-people.md" },
+  { id: "33", question: "How do I look up who a person is in Copilot?", expectedDomain: "people", expectedSourceIncludes: "people-lookup.md" },
+  { id: "34", question: "What does Ask return when I ask who is someone?", expectedDomain: "people", expectedSourceIncludes: "people-lookup.md" },
+  { id: "35", question: "What's new in hiring today?", expectedDomain: "hr", expectedSourceIncludes: "hr-people.md" },
 ];
 
 function heuristicDomain(question: string): string {
   const q = question.toLowerCase();
+  if (/who a person|who is someone|look up who|people lookup|find person/i.test(question)) {
+    return "people";
+  }
   if (/what is a vsid|exitedat|employeecode|difference between offer and query/i.test(question)) {
     return "glossary";
   }
@@ -60,11 +68,14 @@ function heuristicDomain(question: string): string {
   if (/sales offer|pending lead|import sales|blacklisted|callback/.test(q)) {
     return "sales-offer";
   }
+  if (/reminder/.test(q)) return "reminders";
   if (/lead|good-to-go|good to go|global lead|declined/.test(q)) return "leads";
   if (/visit|booking|guest window/.test(q)) return "visits";
   if (/whatsapp|initiation|retarget|phone mask/.test(q)) return "whatsapp";
   if (/finance|razorpay|webhook/.test(q)) return "finance";
-  if (/candidate|onboarding|employee from|lifecycle|pip/.test(q)) return "hr";
+  if (/candidate|onboarding|employee from|lifecycle|pip|hiring pipeline|hiring today|what'?s new in hiring/.test(q)) {
+    return "hr";
+  }
   if (/role|middleware|pilot|people pages|who can/.test(q)) return "roles";
   if (/what is|meaning|glossary/.test(q)) return "glossary";
   return "unknown";
@@ -107,12 +118,12 @@ async function main() {
   fs.mkdirSync(outDir, { recursive: true });
 
   let result: { pass: number; total: number };
-  if (getGoogleApiKey() && process.env.CRM_AGENT_EVAL_LIVE === "true") {
+  if (getGroqApiKey() && process.env.CRM_AGENT_EVAL_LIVE === "true") {
     console.log("Running live embedding retrieval eval…");
     result = await runWithRetrieval();
   } else {
     console.log(
-      "Running heuristic eval (set CRM_AGENT_EVAL_LIVE=true + GOOGLE_GENERATIVE_AI_API_KEY + indexed KB for live RAG eval)…",
+      "Running heuristic eval (set CRM_AGENT_EVAL_LIVE=true + indexed KB for live RAG eval)…",
     );
     result = runHeuristic();
   }

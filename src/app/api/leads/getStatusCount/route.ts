@@ -3,6 +3,12 @@ import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
+import { loadEmployeeLeadContext } from "@/lib/leads/employeeLeadContext";
+import { parseAssignedAreasFromToken } from "@/util/guestLeadLocationScope";
+import {
+  applyGuestPropertyTypeAllowListToLeadQuery,
+  isPropertyTypeRuleBypassRole,
+} from "@/util/propertyTypeAllowList";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,7 +19,43 @@ export async function GET(req: NextRequest) {
   try {
     const token = await getDataFromToken(req);
     const rentalTypeQuery = await applyEmployeeRentalTypeLeadFilter({}, token);
+    const employeeId = String((token as { id?: string }).id || "");
+    const employeeContext = await loadEmployeeLeadContext(
+      employeeId,
+      (token as { rentalType?: unknown }).rentalType,
+    );
+    const bypassPropertyTypeRule = isPropertyTypeRuleBypassRole(
+      String((token as { role?: string }).role || ""),
+    );
+    const assignedAreas = parseAssignedAreasFromToken(
+      (token as { allotedArea?: unknown }).allotedArea,
+    );
+    const propertyTypeQuery: Record<string, unknown> = {};
+    const propertyTypeResult = applyGuestPropertyTypeAllowListToLeadQuery({
+      query: propertyTypeQuery,
+      ownerRules: bypassPropertyTypeRule
+        ? null
+        : employeeContext.ownerPropertyTypeVisibilityRules,
+      propertyVisibilityRules: bypassPropertyTypeRule
+        ? null
+        : employeeContext.propertyVisibilityRules,
+      locations: assignedAreas.length > 0 ? assignedAreas : null,
+    });
+    const emptySummary = {
+      First: {},
+      Second: {},
+      Third: {},
+      Fourth: {},
+      Options: {},
+      Visit: {},
+    };
+    if (propertyTypeResult.impossible) {
+      return NextResponse.json({ success: true, statusSummary: emptySummary });
+    }
     const statusPipeline = [
+  ...(Object.keys(propertyTypeQuery).length > 0
+    ? [{ $match: propertyTypeQuery }]
+    : []),
   ...(rentalTypeQuery.bookingTerm
     ? [{ $match: { bookingTerm: rentalTypeQuery.bookingTerm } }]
     : []),

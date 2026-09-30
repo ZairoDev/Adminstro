@@ -7,6 +7,7 @@ export type LeadLookupResult = {
   email?: string;
   phoneNo?: string;
   location?: string;
+  typeOfProperty?: string;
   leadStatus?: string;
   reason?: string;
   rejectionReason?: string | null;
@@ -55,8 +56,9 @@ export async function findLeadByPhoneOrEmail(params: {
   if (or.length === 0) return null;
 
   const lead = await Query.findOne({ $or: or })
+    .sort({ updatedAt: -1 })
     .select(
-      "name email phoneNo location leadStatus reason rejectionReason leadQualityByReviewer reminder minBudget maxBudget note",
+      "name email phoneNo location typeOfProperty leadStatus reason rejectionReason leadQualityByReviewer reminder minBudget maxBudget note",
     )
     .lean() as LeadLookupResult | null;
 

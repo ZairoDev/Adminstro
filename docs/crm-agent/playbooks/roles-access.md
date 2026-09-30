@@ -1,29 +1,68 @@
 # Roles and access
 
-## How access works
+## Who can open a page
 
-Next.js middleware (`src/middleware.ts`) maps each employee `role` to allowed path patterns (`roleAccess`). Unauthorized navigations redirect to the role default route.
+**Example questions**
 
-Sidebar (`src/components/sidebar.tsx`) shows nav items per role. UI hide is not enough — APIs must also authorize.
+- Who can open finance?
+- Who can open People pages?
+- What can my role access?
+
+**Answer in brief**
+
+- Middleware maps each employee `role` to allowed path patterns (`roleAccess`).
+- Sidebar hides items by role, but APIs must also authorize.
+- Ask `explainMyAccess` for your role, pilot list, and allottedArea.
+
+**Open in dashboard**
+
+- Your role’s default home after login
+
+**Live Ask tools**
+
+- `explainMyAccess`
 
 ## Pilot Copilot roles
 
-Default pilot roles for CRM Copilot: SuperAdmin, Sales-TeamLead, HR (override with `CRM_AGENT_PILOT_ROLES`).
+**Example questions**
+
+- Default pilot roles for CRM Copilot?
+
+**Answer in brief**
+
+- Default: SuperAdmin, Sales-TeamLead, HR (override with `CRM_AGENT_PILOT_ROLES`).
+- Agent **writes** use `CRM_AGENT_WRITE_ROLES` (default SuperAdmin, Sales-TeamLead).
 
 ## Common role homes
 
-- SuperAdmin — full `/dashboard/*`, WhatsApp, sheets
-- HR — people, employees, office-addresses, candidate portal
-- Sales / Sales-TeamLead — leads, visits, WhatsApp, sales-offer (team lead broader)
+**Example questions**
+
+- What can Sales vs HR open?
+
+**Answer in brief**
+
+- SuperAdmin — full dashboard, WhatsApp, sheets
+- HR — people, employees, candidate portal
+- Sales / Sales-TeamLead — leads, visits, WhatsApp, sales-offer
 - LeadGen — lead creation and boards
-- Advert — owners, properties, invoices, limited WhatsApp retarget
-- HAdmin — HolidaySera + limited employee/people
-- HCollaborator — HousingSaga collaborator createquery only
+- Advert — owners, properties, limited WhatsApp retarget
 
 ## UI flags
 
-Employee `uiFlags.hideGuestManagement` / `hideOwnerManagement` block additional path prefixes even when the role would otherwise allow them.
+**Example questions**
 
-## Appendix
+- Why can’t I see guest or owner management?
 
-Run `npm run crm-agent:export-roles` to regenerate a machine-readable role→routes dump into `docs/crm-agent/generated/role-access.json`.
+**Answer in brief**
+
+- Employee `uiFlags.hideGuestManagement` / `hideOwnerManagement` block extra path prefixes even if the role would allow them.
+
+## Export role map
+
+**Example questions**
+
+- How does middleware roleAccess work?
+
+**Answer in brief**
+
+- Run `npm run crm-agent:export-roles` for `docs/crm-agent/generated/role-access.json`.

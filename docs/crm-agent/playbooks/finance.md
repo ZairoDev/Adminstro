@@ -1,21 +1,63 @@
 # Finance and payments
 
-## Dashboard
+## Finance dashboard
+
+**Example questions**
+
+- Where is finance?
+- Where are webhook logs?
+
+**Answer in brief**
 
 - Overview `/dashboard/finance`
 - Transactions `/dashboard/finance/transactions`
 - Webhook logs `/dashboard/finance/webhook-logs`
-- Legacy advert invoices `/dashboard/invoice`
-- Coupons `/dashboard/coupons`
+- Legacy invoices `/dashboard/invoice`, coupons `/dashboard/coupons`
 
-## Models
+## Finance overview (Ask)
 
-Finance payments and invoices are stored in finance Mongo models. Razorpay webhook logs capture delivery/processing status. Copilot quotes tool JSON for amounts — never invent totals.
+**Example questions**
+
+- Finance overview
+- Today’s collection / week collection
+
+**Answer in brief**
+
+- Live aggregates: today / week / month collection, pending mapping, mapped, failed, refunded, revenue, total payments.
+- Never invent amounts — only tool results.
+- SuperAdmin, Admin, Developer only in Copilot.
+
+**Live Ask tools**
+
+- `getFinanceOverview`
+
+## Transaction or webhook lookup
+
+**Example questions**
+
+- Status of transaction …
+- Find Razorpay webhook for event …
+
+**Answer in brief**
+
+- Transaction by id via finance transaction tool.
+- Webhook logs by event or payload id (narrow fields).
+
+**Open in dashboard**
+
+- `/dashboard/finance/transactions`, `/dashboard/finance/webhook-logs`
+
+**Live Ask tools**
+
+- `getFinanceTransaction`, `getWebhookLogHint`
 
 ## Mapping payments
 
-Ops map Razorpay payments to bookings via finance services. Failed webhooks are inspected on the webhook-logs page.
+**Example questions**
 
-## Who can ask
+- How do we map Razorpay payments?
 
-Finance lookup tools are limited to SuperAdmin, Admin, and Developer in Copilot v1.
+**Answer in brief**
+
+- Ops map payments to bookings in finance services / UI.
+- Failed webhooks: inspect webhook-logs page.

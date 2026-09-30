@@ -32,10 +32,12 @@
     "crm-agent:index": "tsx src/scripts/crm-agent/indexKnowledge.ts",
     "crm-agent:export-roles": "tsx scripts/crm-agent/exportRoleAccess.ts",
     "crm-agent:eval": "tsx src/scripts/crm-agent/evalHowTo.ts",
+    "crm-agent:eval:agent": "tsx src/scripts/crm-agent/evalAgent.ts",
     "test:crm-agent": "jest --config jest.config.cjs --testPathPatterns=src/services/crm-agent"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.82",
+    "@ai-sdk/groq": "^4.0.50",
     "@apollo/client": "^3.11.7",
     "@apollo/server": "^4.11.0",
     "@editorjs/editorjs": "^2.30.6",

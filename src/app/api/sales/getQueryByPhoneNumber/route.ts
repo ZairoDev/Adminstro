@@ -23,9 +23,26 @@ export async function POST(req: NextRequest) {
       );
     }
     const query = await Query.find({ phoneNo }).lean<
-      Array<{ typeOfProperty?: string; location?: string }>
+      Array<{ typeOfProperty?: string; location?: string; createdBy?: string }>
     >();
     const role = String((token as { role?: string }).role || "");
+
+    if (role === "HCollaborator") {
+      const email = String((token as { email?: string }).email || "")
+        .trim()
+        .toLowerCase();
+      const owned = query.filter(
+        (lead) => String(lead.createdBy || "").trim().toLowerCase() === email,
+      );
+      if (!email || owned.length === 0) {
+        return NextResponse.json(
+          { success: false, message: "You can only view leads you created" },
+          { status: 403 },
+        );
+      }
+      return NextResponse.json({ success: true, data: owned }, { status: 200 });
+    }
+
     if (isPropertyTypeRuleBypassRole(role) || query.length === 0) {
       return NextResponse.json({ success: true, data: query }, { status: 200 });
     }

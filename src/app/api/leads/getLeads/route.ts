@@ -18,6 +18,7 @@ import {
   ownerPropertyTypeRulesForToken,
 } from "@/lib/leads/employeeLeadContext";
 import { LeadQueryService } from "@/lib/leads/LeadQueryService";
+import { exactCaseInsensitiveRegex } from "@/util/regex";
 import { applyPricingRulesByLocationToQuery } from "@/util/pricingRule";
 import {
   applyPropertyVisibilityRulesByLocationToLeadQuery,
@@ -246,8 +247,11 @@ export async function POST(req: NextRequest) {
     };
 
     // Housing collaborators only see leads they created
-    if (String(role) === "HCollaborator" && token.email) {
-      query.createdBy = String(token.email).toLowerCase();
+    if (String(role) === "HCollaborator") {
+      const collaboratorEmail = String(token.email || "").trim();
+      query.createdBy = collaboratorEmail
+        ? exactCaseInsensitiveRegex(collaboratorEmail)
+        : { $in: [] };
     }
 
     {

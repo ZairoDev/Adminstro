@@ -37,8 +37,22 @@ export async function POST(req: NextRequest) {
       typeOfProperty?: string;
       location?: string;
       leadDocuments?: unknown;
+      createdBy?: string;
     };
     const role = (token as { role?: string }).role;
+
+    if (role === "HCollaborator") {
+      const email = String((token as { email?: string }).email || "")
+        .trim()
+        .toLowerCase();
+      const owner = String(data.createdBy || "").trim().toLowerCase();
+      if (!email || owner !== email) {
+        return NextResponse.json(
+          { success: false, message: "You can only view leads you created" },
+          { status: 403 },
+        );
+      }
+    }
 
     if (!isPropertyTypeRuleBypassRole(role)) {
       const employeeId = String((token as { id?: string }).id || "");

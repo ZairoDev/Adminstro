@@ -8,6 +8,7 @@ import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalTy
 import { getLeadGenEmployeeEmails } from "@/lib/leads/leadGenEmailCache";
 import { loadEmployeeLeadContext } from "@/lib/leads/employeeLeadContext";
 import { parseAssignedAreasFromToken } from "@/util/guestLeadLocationScope";
+import { exactCaseInsensitiveRegex } from "@/util/regex";
 import {
   applyGuestPropertyTypeAllowListToLeadQuery,
   isPropertyTypeRuleBypassRole,
@@ -187,9 +188,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
     query = { ...query, ...dateQuery };
 
-   // Handle employee filter
-   // CRITICAL FIX: Handle createdBy parameter if provided (overrides default filter)
-   if (createdBy) {
+   // Collaborators only see leads they created. Ignore any client createdBy filter.
+   if (String(token.role) === "HCollaborator") {
+     const collaboratorEmail = String(token.email || "").trim();
+     if (!collaboratorEmail) {
+       return NextResponse.json({
+         data: [],
+         page,
+         totalPages: 0,
+         totalQueries: 0,
+       });
+     }
+     query.createdBy = exactCaseInsensitiveRegex(collaboratorEmail);
+   } else if (createdBy) {
      query.createdBy = createdBy;
    } else {
      const leadGenEmails = await getLeadGenEmployeeEmails();

@@ -24,11 +24,13 @@ export function SelectableCell({
   value,
   save,
   maxWidth,
+  readOnly = false,
 }: {
   data: Option[]
   value: string
   save: (val: string) => void
   maxWidth?: string
+  readOnly?: boolean
 }) {
   const canonicalValue = useMemo(
     () => resolveOptionValue(value, data),
@@ -50,6 +52,14 @@ export function SelectableCell({
     )
     if (!found) return resolved
     return typeof found === "string" ? found : found.label
+  }
+
+  if (readOnly) {
+    return (
+      <span className="block truncate text-sm" style={{ maxWidth }}>
+        {getLabel(value) || ""}
+      </span>
+    )
   }
 
   return (

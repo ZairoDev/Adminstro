@@ -8,6 +8,7 @@ type EditableCopyCellProps = {
   onSave: (newValue: string) => void
   maxWidth?: string
   allowOnlyNumbers?: boolean // NEW: Only allow numbers (for phone)
+  readOnly?: boolean
 }
 
 export function EditableCopyCell({
@@ -15,6 +16,7 @@ export function EditableCopyCell({
   onSave,
   maxWidth = "160px",
   allowOnlyNumbers = false, // NEW: Default false to not break existing usage
+  readOnly = false,
 }: EditableCopyCellProps) {
   const safeValue = value ?? "" // fallback to empty string
   const [isEditing, setIsEditing] = useState(false)
@@ -46,6 +48,14 @@ export function EditableCopyCell({
     }
     
     setDraft(newValue)
+  }
+
+  if (readOnly) {
+    return (
+      <span className="block truncate text-sm" style={{ maxWidth }}>
+        {safeValue}
+      </span>
+    )
   }
 
   return (

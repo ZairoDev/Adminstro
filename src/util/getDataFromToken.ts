@@ -64,7 +64,7 @@ export const getDataFromToken = async (request: NextRequest) => {
       role === HOUSING_COLLABORATOR_ROLE
     ) {
       const collaborator = await HousingCollaborator.findById(accountId).select(
-        "isActive webSession tokenValidAfter name email",
+        "isActive webSession tokenValidAfter name email allotedArea",
       );
 
       if (!collaborator || collaborator.isActive === false) {
@@ -124,6 +124,9 @@ export const getDataFromToken = async (request: NextRequest) => {
         email: collaborator.email,
         role: HOUSING_COLLABORATOR_ROLE,
         accountType: HOUSING_COLLABORATOR_ACCOUNT_TYPE,
+        allotedArea: Array.isArray(collaborator.allotedArea)
+          ? collaborator.allotedArea
+          : [],
       };
     }
 

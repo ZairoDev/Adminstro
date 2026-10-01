@@ -358,9 +358,16 @@ export default function GeoSearchPage() {
     dateRange: undefined,
     sortByPrice: "",
   });
+  const isCollaborator = token?.role === "HCollaborator";
   const geoHiddenColumns = useMemo(
-    () => ["availability", "petStatus", "remarks", "upload"],
-    [],
+    () => {
+      const base = ["availability", "petStatus", "remarks", "upload"];
+      if (token?.role === "HCollaborator") {
+        return [...base, "phoneNumber", "refLink", "address"];
+      }
+      return base;
+    },
+    [token?.role],
   );
 
   const ownerById = useMemo(() => {
@@ -1325,7 +1332,7 @@ export default function GeoSearchPage() {
                 >
                   <GeoInfoCard
                     name={activeInfoOwner.name}
-                    address={activeInfoOwner.address}
+                    address={isCollaborator ? undefined : activeInfoOwner.address}
                     propertyType={activeInfoOwner.propertyType}
                     area={activeInfoOwner.area}
                     price={activeInfoOwner.price}

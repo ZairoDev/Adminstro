@@ -9,9 +9,10 @@ type EditableCellProps = {
   maxWidth?: string
   disableDigits?: boolean
   type?: "text" | "date"
+  readOnly?: boolean
 }
 
-export function EditableCell({ maxWidth = "150px", value, disableDigits, onSave, type = "text" }: EditableCellProps) {
+export function EditableCell({ maxWidth = "150px", value, disableDigits, onSave, type = "text", readOnly = false }: EditableCellProps) {
   const [draft, setDraft] = useState(value)
   const [isFocused, setIsFocused] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -39,6 +40,14 @@ export function EditableCell({ maxWidth = "150px", value, disableDigits, onSave,
 
   const handleFocus = () => {
     setIsFocused(true)
+  }
+
+  if (readOnly) {
+    return (
+      <span className="block truncate text-sm" style={{ maxWidth }}>
+        {value || ""}
+      </span>
+    )
   }
 
   return (

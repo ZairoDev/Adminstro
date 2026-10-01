@@ -58,6 +58,7 @@ import {
   Wallet,
   Receipt,
   ScrollText,
+  MapPin,
 } from "lucide-react";
 
 import {
@@ -76,6 +77,7 @@ import axios from "@/util/axios";
 import { AiFillDashboard } from "react-icons/ai";
 import { IoMdPaper } from "react-icons/io";
 import { canAccessOwnerSheetVariant } from "@/util/employeeRentalTypeAccess";
+import { isHousingSagaStaffEmail } from "@/util/housingSagaStaff";
 import { useVisitOverdue } from "@/components/visits/VisitOverdueContext";
 
 const isActive = (currentPath: string, path: string): boolean => {
@@ -1193,6 +1195,21 @@ const roleRoutes: Record<string, Route[]> = {
       label: "Leads",
       Icon: <Sprout size={18} />,
     },
+    {
+      path: "/spreadsheet",
+      label: "Owner Sheet Long Term",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/spreadsheet-short-term",
+      label: "Owner Sheet Short Term",
+      Icon: <PencilLine size={18} />,
+    },
+    {
+      path: "/dashboard/geo-search",
+      label: "Geo Search",
+      Icon: <MapPin size={18} />,
+    },
   ],
 };
 
@@ -1575,6 +1592,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
   // const [collapsed, setCollapsed] = useState(false);
 
   const [role, setRole] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
   const [rentalType, setRentalType] = useState<string | null>(null);
   const [hideGuestManagement, setHideGuestManagement] = useState(false);
   const [hideOwnerManagement, setHideOwnerManagement] = useState(false);
@@ -1587,11 +1605,13 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
         const token =
           typeof store?.getState === "function" ? store.getState()?.token : undefined;
         const tokenRole = token?.role;
+        const tokenEmail = typeof token?.email === "string" ? token.email : null;
         const tokenRentalType = token?.rentalType ?? null;
         const hideGuest = Boolean(token?.uiFlags?.hideGuestManagement);
         const hideOwner = Boolean(token?.uiFlags?.hideOwnerManagement);
         if (mounted) {
           setRole(tokenRole ?? null);
+          setEmail(tokenEmail);
           setRentalType(tokenRentalType);
           setHideGuestManagement(hideGuest);
           setHideOwnerManagement(hideOwner);
@@ -1604,6 +1624,8 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
       mounted = false;
     };
   }, []);
+
+  const homeHref = role === "HCollaborator" ? "/dashboard/createquery" : "/";
 
   const renderRoutes = (
     showText: boolean,
@@ -1632,19 +1654,22 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const inGroup = (group: Route[]) =>
       routesForRole.filter((r) => group.some((g) => g.path === r.path));
 
-    const dashboardRoutes = [
-      ...inGroup(dashboardManagementRoutes),
-      {
-        path: "/dashboard/my-reminders",
-        label: "My Reminders",
-        Icon: <Bell size={18} />,
-      },
-      {
-        path: "/dashboard/my-documents",
-        label: "My Documents",
-        Icon: <FolderOpen size={18} />,
-      },
-    ];
+    const dashboardRoutes =
+      role === "HCollaborator"
+        ? []
+        : [
+            ...inGroup(dashboardManagementRoutes),
+            {
+              path: "/dashboard/my-reminders",
+              label: "My Reminders",
+              Icon: <Bell size={18} />,
+            },
+            {
+              path: "/dashboard/my-documents",
+              label: "My Documents",
+              Icon: <FolderOpen size={18} />,
+            },
+          ];
     const leadRoute = inGroup(leadManagementRoutes);
     const visitsManagementRoute = inGroup(visitsManagementRoutes).map((route) =>
       route.path === "/dashboard/visits" && overdueVisitCount > 0
@@ -1671,7 +1696,9 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
       },
     );
     const holidaySeraRoute = inGroup(holidaySeraRoutes);
-    const housingSagaRoute = inGroup(housingSagaRoutes);
+    const housingSagaRoute = isHousingSagaStaffEmail(email)
+      ? housingSagaRoutes
+      : inGroup(housingSagaRoutes);
     const retargetAllowedRoles = ["SuperAdmin", "Sales", "Advert"];
     const hasChatAccess = routesForRole.some((r) => r.path === "/whatsapp");
     const hasRetargetAccess = role ? retargetAllowedRoles.includes(role) : false;
@@ -1877,7 +1904,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
             <div className="h-full">
               <div className="flex items-center justify-between border-b">
                 <h2 className="text-xl font-semibold text-primary p-4">
-                  <Link href="/" onClick={() => setMobileOpen(false)}>
+                  <Link href={homeHref} onClick={() => setMobileOpen(false)}>
                     Adminstro
                   </Link>
                 </h2>
@@ -1923,7 +1950,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
             </button>
             {!collapsed && (
               <h2 className="text-2xl font-bold text-primary p-2">
-                <Link href="/">Adminstro</Link>
+                <Link href={homeHref}>Adminstro</Link>
               </h2>
             )}
           </div>

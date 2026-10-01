@@ -14,6 +14,9 @@ export const housingCollaboratorSchema = z
     country: z.string().trim().min(2, "Country is required"),
     city: z.string().trim().min(2, "City is required"),
     area: z.string().trim().min(2, "Area is required"),
+    allotedArea: z
+      .array(z.string().trim().min(1))
+      .min(1, "Alloted area is required"),
     supplies: z.enum(HOUSING_COLLABORATOR_SUPPLIES, {
       errorMap: () => ({ message: "Please select supplies type" }),
     }),

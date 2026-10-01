@@ -2,6 +2,7 @@ import { unregisteredOwnerShortTerm } from "@/models/unregisteredOwnerShortTerm"
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
+import { collaboratorOwnerWriteForbidden } from "@/util/collaboratorOwnerAccess";
 import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -23,6 +24,8 @@ export async function POST(req: NextRequest) {
 
     const denied = await enforceOwnerSheetRentalTypeAccess(token, "short-term");
     if (denied) return denied;
+    const collaboratorDenied = collaboratorOwnerWriteForbidden(token.role);
+    if (collaboratorDenied) return collaboratorDenied;
 
     const { petId, changedStatus } = await req.json();
     // console.log("lead: ", petId, changedStatus);

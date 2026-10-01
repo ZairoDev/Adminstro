@@ -5,6 +5,10 @@ import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
+import {
+  applyCollaboratorOwnerLocation,
+  redactOwnerListForRole,
+} from "@/util/collaboratorOwnerAccess";
 
 connectDb();
 export async function POST(req: NextRequest) {
@@ -29,9 +33,22 @@ export async function POST(req: NextRequest) {
     else if(filters.minPrice) query["price"] = { $gte: filters.minPrice };
     else if(filters.place) query["location"] = filters.place;
 
+    const collaboratorScope = applyCollaboratorOwnerLocation(
+      query,
+      String(token.role ?? ""),
+      (token as { allotedArea?: unknown }).allotedArea,
+      filters.place,
+    );
+    if (collaboratorScope.denyAll) {
+      return NextResponse.json({ data: [] }, { status: 200 });
+    }
+
     const data = await unregisteredOwner.find(query);
 
-    return NextResponse.json({data}, {status: 200});
+    return NextResponse.json(
+      { data: redactOwnerListForRole(token.role, data) },
+      { status: 200 },
+    );
   }catch(err: unknown){
     const error = err as { status?: number; code?: string };
     if (error?.status) {

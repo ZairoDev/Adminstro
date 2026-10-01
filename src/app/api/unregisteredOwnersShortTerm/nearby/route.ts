@@ -8,6 +8,10 @@ import { applyLocationFilter, isLocationExempt } from "@/util/apiSecurity";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
+import {
+  applyCollaboratorOwnerLocation,
+  redactOwnerListForRole,
+} from "@/util/collaboratorOwnerAccess";
 
 const EARTH_RADIUS_M = 6_378_100;
 
@@ -470,6 +474,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         : {};
 
     await applyCommonFilters(mapGeoQuery, filters, role, assignedArea);
+    const collaboratorScope = applyCollaboratorOwnerLocation(
+      mapGeoQuery,
+      role,
+      alloted,
+      filters.place,
+    );
+    if (collaboratorScope.denyAll) {
+      return NextResponse.json(
+        {
+          count: 0,
+          mode,
+          radiusMeters,
+          corridorWidthMeters,
+          mapData: [],
+          mapCap: 0,
+          mapTruncated: false,
+          tableData: [],
+          total: 0,
+          availableCount: 0,
+          notAvailableCount: 0,
+        },
+        { status: 200 },
+      );
+    }
 
     const mapQueryForNear: Record<string, unknown> = {
       ...mapGeoQuery,
@@ -537,6 +565,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       locationGeo: tableGeoFilter,
     };
     await applyCommonFilters(tableBaseQuery, filters, role, assignedArea);
+    applyCollaboratorOwnerLocation(tableBaseQuery, role, alloted, filters.place);
 
     const tableQuery: Record<string, unknown> = {
       ...tableBaseQuery,
@@ -699,10 +728,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         originToDestinationMeters: searchDestination
           ? haversineDistanceMeters(searchOrigin, searchDestination)
           : undefined,
-        mapData,
+        mapData: redactOwnerListForRole(role, mapData),
         mapCap,
         mapTruncated,
-        tableData,
+        tableData: redactOwnerListForRole(role, tableData),
         total,
         availableCount,
         notAvailableCount,

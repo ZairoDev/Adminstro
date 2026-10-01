@@ -1,6 +1,7 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { useAuthStore } from "@/AuthStore";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,7 +13,11 @@ import {
 
 const BreadCrumb = () => {
   const pathname = usePathname() ?? "";
-  const pathnames = pathname.split("/").filter((x) => x);
+  const role = useAuthStore((state) => state.token?.role);
+  const pathnames = pathname.split("/").filter((x) => {
+    if (role === "HCollaborator" && x.toLowerCase() === "dashboard") return false;
+    return Boolean(x);
+  });
 
   const isClickable = (name: string) => {
     return name.toLowerCase() !== "home" && name.toLowerCase() !== "dashboard";

@@ -16,6 +16,7 @@ import {
   resolveOwnerSheetLocations,
 } from "@/util/ownerSheetLocationFilter";
 import { applyOwnerSheetPropertyTypeFilter } from "@/util/propertyTypeAllowList";
+import { redactOwnerListForRole } from "@/util/collaboratorOwnerAccess";
 
 connectDb();
 export async function POST(req: NextRequest) {
@@ -165,7 +166,10 @@ if (filters.sortByPrice) {
 
      const total = await unregisteredOwner.countDocuments(query);
     // console.log(data);
-    return NextResponse.json({data,total    }, {status: 200});
+    return NextResponse.json(
+      { data: redactOwnerListForRole(role, data), total },
+      { status: 200 },
+    );
   }catch(err){
     console.log(err);
     return NextResponse.json({error: err}, {status: 500});

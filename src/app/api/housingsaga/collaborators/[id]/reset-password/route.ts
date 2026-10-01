@@ -6,10 +6,9 @@ import {
   generateCollaboratorPassword,
   hashCollaboratorPassword,
 } from "@/lib/housingsaga/collaboratorAuth";
+import { canManageHousingCollaborators } from "@/util/housingSagaStaff";
 
 export const dynamic = "force-dynamic";
-
-const STAFF_ROLES = ["SuperAdmin", "Admin", "HAdmin"] as const;
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
@@ -20,9 +19,13 @@ async function resolveId(context: RouteContext): Promise<string> {
 
 async function requireStaffAccess(request: NextRequest) {
   try {
-    const auth = (await getDataFromToken(request)) as { role?: unknown } | null;
+    const auth = (await getDataFromToken(request)) as {
+      role?: unknown;
+      email?: unknown;
+    } | null;
     const role = typeof auth?.role === "string" ? auth.role : "";
-    if (!(STAFF_ROLES as readonly string[]).includes(role)) {
+    const email = typeof auth?.email === "string" ? auth.email : "";
+    if (!canManageHousingCollaborators(role, email)) {
       return {
         ok: false as const,
         response: NextResponse.json(

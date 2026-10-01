@@ -6,6 +6,7 @@ import { scheduleShortTermLocationGeoSync } from "@/services/unregistered-owner-
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
 import { normalizeOwnerSheetCityName } from "@/util/ownerSheetLocationFilter";
+import { collaboratorOwnerWriteForbidden } from "@/util/collaboratorOwnerAccess";
 import { NextRequest, NextResponse } from "next/server";
 
 const GEO_TRIGGER_FIELDS = new Set(["address", "location", "area"]);
@@ -30,6 +31,8 @@ export async function PUT(
 
     const denied = await enforceOwnerSheetRentalTypeAccess(token, "short-term");
     if (denied) return denied;
+    const collaboratorDenied = collaboratorOwnerWriteForbidden(token.role);
+    if (collaboratorDenied) return collaboratorDenied;
 
     const body = await req.json();
     const { field, value, unavailableUntil } = body as {
@@ -115,12 +118,22 @@ export async function DELETE(
 ) {
   const { _id } = params;
   try {
+    const token = await getDataFromToken(req);
+    const collaboratorDenied = collaboratorOwnerWriteForbidden(token.role);
+    if (collaboratorDenied) return collaboratorDenied;
     await unregisteredOwnerShortTerm.findByIdAndDelete(_id);
     return NextResponse.json(
       { message: "Data deleted successfully" },
       { status: 200 },
     );
   } catch (err) {
+    const error = err as { status?: number; code?: string };
+    if (error?.status) {
+      return NextResponse.json(
+        { code: error.code || "AUTH_FAILED" },
+        { status: error.status },
+      );
+    }
     console.log(err);
     return NextResponse.json({ error: err }, { status: 500 });
   }

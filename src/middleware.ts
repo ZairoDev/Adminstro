@@ -5,6 +5,7 @@ import {
   canAccessOwnerSheetVariant,
   getDefaultOwnerSheetPath,
 } from "@/util/employeeRentalTypeAccess";
+import { isHousingSagaStaffEmail } from "@/util/housingSagaStaff";
 
 
 const roleAccess: { [key: string]: (string | RegExp)[] } = {
@@ -336,6 +337,12 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/createquery(\/.*)?$/,
     "/dashboard/rolebaseLead",
     /^\/dashboard\/rolebaseLead(\/.*)?$/,
+    "/spreadsheet",
+    /^\/spreadsheet(\/.*)?$/,
+    "/spreadsheet-short-term",
+    /^\/spreadsheet-short-term(\/.*)?$/,
+    "/dashboard/geo-search",
+    /^\/dashboard\/geo-search(\/.*)?$/,
   ],
 };
 
@@ -479,6 +486,16 @@ export async function middleware(request: NextRequest) {
         if (path !== "/norole") { 
           return NextResponse.redirect(new URL("/norole", request.url));
         }
+        return NextResponse.next();
+      }
+
+      const email = String(
+        (decodedToken?.payload as { email?: unknown })?.email ?? "",
+      );
+      if (
+        (path === "/housingsaga" || path.startsWith("/housingsaga/")) &&
+        isHousingSagaStaffEmail(email)
+      ) {
         return NextResponse.next();
       }
 

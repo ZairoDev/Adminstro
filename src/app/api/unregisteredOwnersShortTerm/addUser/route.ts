@@ -9,6 +9,7 @@ import {
 import { isLocationExempt } from "@/util/apiSecurity";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
+import { collaboratorOwnerWriteForbidden } from "@/util/collaboratorOwnerAccess";
 import {
   normalizeOwnerSheetCityName,
   resolveDefaultOwnerRowLocation,
@@ -41,6 +42,8 @@ export async function POST(req: NextRequest) {
 
     const denied = await enforceOwnerSheetRentalTypeAccess(token, "short-term");
     if (denied) return denied;
+    const collaboratorDenied = collaboratorOwnerWriteForbidden(token.role);
+    if (collaboratorDenied) return collaboratorDenied;
 
     const body = await req.json();
     const role = token.role ?? "";

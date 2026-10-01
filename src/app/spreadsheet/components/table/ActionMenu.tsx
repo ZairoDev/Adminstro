@@ -17,12 +17,14 @@ interface ActionMenuProps {
   item: unregisteredOwners;
   apiBasePath?: string;
   onUploadComplete?: (id: string, newUrls: string[]) => void;
+  readOnly?: boolean;
 }
 
 export function ActionMenu({
   item,
   apiBasePath = OWNER_SHEET_LONG_TERM_CONFIG.apiBasePath,
   onUploadComplete,
+  readOnly = false,
 }: ActionMenuProps) {
   // ✅ Determine if there's something to download
   const hasDownloadable = useMemo(() => {
@@ -53,16 +55,17 @@ export function ActionMenu({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="start" className="w-32">
-        <DropdownMenuItem asChild >
-          <div  onClick={(e) => e.stopPropagation()}>
-            <UploadCell
-              item={item}
-              apiBasePath={apiBasePath}
-              onUploadComplete={onUploadComplete}
-            />
-            
-          </div>
-        </DropdownMenuItem>
+        {!readOnly && (
+          <DropdownMenuItem asChild >
+            <div  onClick={(e) => e.stopPropagation()}>
+              <UploadCell
+                item={item}
+                apiBasePath={apiBasePath}
+                onUploadComplete={onUploadComplete}
+              />
+            </div>
+          </DropdownMenuItem>
+        )}
 
         <DropdownMenuItem asChild>
           <div onClick={(e) => e.stopPropagation()}>

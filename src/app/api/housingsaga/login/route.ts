@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const password = parsed.data.password;
 
     const collaborator = await HousingCollaborator.findOne({ email }).select(
-      "+password name email isActive webSession",
+      "+password name email isActive webSession allotedArea",
     );
 
     if (!collaborator || collaborator.isActive === false) {
@@ -85,6 +85,9 @@ export async function POST(request: NextRequest) {
       email: collaborator.email,
       role: HOUSING_COLLABORATOR_ROLE,
       accountType: HOUSING_COLLABORATOR_ACCOUNT_TYPE,
+      allotedArea: Array.isArray(collaborator.allotedArea)
+        ? collaborator.allotedArea
+        : [],
     };
 
     const token = jwt.sign(tokenPayload, tokenSecret, { expiresIn: "12h" });

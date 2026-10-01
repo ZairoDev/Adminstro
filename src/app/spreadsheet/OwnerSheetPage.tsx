@@ -127,11 +127,12 @@ export function OwnerSheetPage({ config }: { config: OwnerSheetConfig }) {
   const canShowGeoSearch =
     !!role &&
     !isSalesInternOnly &&
-    (role === "Sales" ||
+    (      role === "Sales" ||
       role === "Sales-TeamLead" ||
       role === "Advert" ||
       role === "SuperAdmin" ||
-      role === "LeadGen-TeamLead");
+      role === "LeadGen-TeamLead" ||
+      role === "HCollaborator");
 
   useEffect(() => {
     setFilters(loadPersistedFilters(config.filterStorageKey));

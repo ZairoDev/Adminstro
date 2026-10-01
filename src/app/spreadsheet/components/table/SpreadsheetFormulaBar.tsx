@@ -15,6 +15,7 @@ interface SpreadsheetFormulaBarProps {
   selectedCell: SelectedCell | null;
   onCellValueChange: ( newValue: string) => void;
   onAddRow: () => void;
+  readOnly?: boolean;
 }
 
 // Map display field names to actual database field names
@@ -24,6 +25,7 @@ export function SpreadsheetFormulaBar({
   selectedCell,
   onCellValueChange,
   onAddRow,
+  readOnly = false,
 }: SpreadsheetFormulaBarProps) {
   const [localValue, setLocalValue] = useState("");
 
@@ -33,6 +35,7 @@ export function SpreadsheetFormulaBar({
   }, [selectedCell]);
 
   const handleBlur = () => {
+    if (readOnly) return;
     if (selectedCell && localValue !== selectedCell.value) {
       // Map the display field name to the actual database field name
   
@@ -41,6 +44,7 @@ export function SpreadsheetFormulaBar({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (readOnly) return;
     if (e.key === "Enter" && selectedCell) {
  
       onCellValueChange( localValue);
@@ -52,13 +56,14 @@ export function SpreadsheetFormulaBar({
 
   return (
     <div className="border-b bg-muted/50 px-3 py-2 flex items-center gap-2">
-      <Button
-        onClick={onAddRow}
-        className="flex items-center gap-2 rounded-full"
-      >
-        <Plus className="h-4 w-4" />
-        {/* Add New Lead */}
-      </Button>
+      {!readOnly && (
+        <Button
+          onClick={onAddRow}
+          className="flex items-center gap-2 rounded-full"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      )}
 
       <span className="text-xs font-medium text-muted-foreground min-w-[60px]">
         {selectedCell ? `${selectedCell.field}:` : "Cell:"}
@@ -66,11 +71,19 @@ export function SpreadsheetFormulaBar({
 
       <Input
         value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
+        onChange={(e) => {
+          if (readOnly) return;
+          setLocalValue(e.target.value);
+        }}
         onBlur={handleBlur}
         onKeyDown={handleKeyDown}
+        readOnly={readOnly}
         className="h-8 text-xs bg-background flex-1"
-        placeholder="Select a cell to view and edit its value"
+        placeholder={
+          readOnly
+            ? "Select a cell to view its value"
+            : "Select a cell to view and edit its value"
+        }
       />
     </div>
   );

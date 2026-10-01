@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import axios from "@/util/axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +56,7 @@ const EMPTY_FORM: AddCollaboratorFormValues = {
   country: "",
   city: "",
   area: "",
+  allotedArea: [],
   supplies: "buyer",
   sendContractViaEmail: false,
   password: "",
@@ -75,6 +77,8 @@ export function AddCollaboratorForm({
   const [form, setForm] = useState<AddCollaboratorFormValues>(EMPTY_FORM);
   const { data: areaTargets, isLoading: targetsLoading } = useAreaFilterTargets();
   const [areas, setAreas] = useState<AreaOption[]>(EMPTY_AREAS);
+  const [allotedCities, setAllotedCities] = useState<string[]>([]);
+  const [citiesLoading, setCitiesLoading] = useState(true);
 
   const targets = useMemo(
     () => (areaTargets ?? []) as unknown as TargetType[],
@@ -102,6 +106,29 @@ export function AddCollaboratorForm({
       .filter((city, index, list) => list.indexOf(city) === index)
       .sort((a, b) => a.localeCompare(b));
   }, [targets, form.country]);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadCities = async () => {
+      try {
+        const response = await axios.get<{ data?: string[] }>(
+          "/api/addons/target/getLocations?target=city",
+        );
+        const cities = Array.isArray(response.data?.data)
+          ? response.data.data.map((city) => String(city).trim()).filter(Boolean)
+          : [];
+        if (mounted) setAllotedCities(cities);
+      } catch {
+        if (mounted) setAllotedCities([]);
+      } finally {
+        if (mounted) setCitiesLoading(false);
+      }
+    };
+    void loadCities();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!form.city) {
@@ -145,7 +172,7 @@ export function AddCollaboratorForm({
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!form.country || !form.city || !form.area) {
+    if (!form.country || !form.city || !form.area || form.allotedArea.length === 0) {
       return;
     }
     if (form.password !== form.confirmPassword) {
@@ -159,6 +186,7 @@ export function AddCollaboratorForm({
       country: form.country.trim(),
       city: form.city.trim(),
       area: form.area.trim(),
+      allotedArea: form.allotedArea.map((city) => city.trim()).filter(Boolean),
       supplies: form.supplies,
       sendContractViaEmail: form.sendContractViaEmail,
       password: form.password,
@@ -315,6 +343,33 @@ export function AddCollaboratorForm({
           </div>
         </div>
 
+        <div className="space-y-2">
+          <Label>Alloted Area *</Label>
+          <Select
+            value={form.allotedArea[0] || undefined}
+            onValueChange={(value) => updateField("allotedArea", [value])}
+            disabled={citiesLoading || allotedCities.length === 0}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue
+                placeholder={
+                  citiesLoading ? "Loading areas…" : "Select area"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Areas</SelectLabel>
+                {allotedCities.map((city) => (
+                  <SelectItem key={city} value={city}>
+                    {city}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="space-y-3">
           <Label>Supplies *</Label>
           <RadioGroup
@@ -372,7 +427,11 @@ export function AddCollaboratorForm({
         <Button
           type="submit"
           disabled={
-            saving || !form.country || !form.city || !form.area
+            saving ||
+            !form.country ||
+            !form.city ||
+            !form.area ||
+            form.allotedArea.length === 0
           }
         >
           {saving ? "Submitting…" : "Submit"}

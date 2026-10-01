@@ -250,6 +250,14 @@ useEffect(() => {
 }, [focusRowId, tableData]);
 
 
+  const ownerSheetReadOnly =
+    useAuthStore((state) => state.token?.role) === "HCollaborator";
+  const effectiveHiddenColumns = ownerSheetReadOnly
+    ? Array.from(
+        new Set([...hiddenColumns, "phoneNumber", "refLink", "address"]),
+      )
+    : hiddenColumns;
+
   const columns = [
     {
       label: "#",
@@ -374,7 +382,7 @@ useEffect(() => {
       sortable: false,
       width: columnWidths.actions,
     },
-  ].filter((column) => !hiddenColumns.includes(column.field));
+  ].filter((column) => !effectiveHiddenColumns.includes(column.field));
 
   const visibleStickyFields = getVisibleStickyRightFields(
     columns.map((column) => column.field),
@@ -763,6 +771,7 @@ useEffect(() => {
     newValue: string,
     unavailableUntilPayload?: string | null
   ) => {
+    if (ownerSheetReadOnly) return;
     const valueToSave =
       key === "phoneNumber"
         ? normalizeOwnerPhoneInput(newValue)
@@ -890,6 +899,7 @@ useEffect(() => {
 
   const performDeleteRow = useCallback(
     async (rowId: string) => {
+      if (ownerSheetReadOnly) return;
       const snapshot = tableData;
 
       setTableData((prev) => prev.filter((row) => row._id !== rowId));
@@ -917,21 +927,23 @@ useEffect(() => {
         });
       }
     },
-    [tableData, toast, setTableData],
+    [ownerSheetReadOnly, tableData, toast, setTableData],
   );
 
   const requestDeleteRow = useCallback(
     async (rowId: string) => {
+      if (ownerSheetReadOnly) return;
       const ok = await confirmDeleteRow();
       if (!ok) return;
       await performDeleteRow(rowId);
     },
-    [confirmDeleteRow, performDeleteRow],
+    [ownerSheetReadOnly, confirmDeleteRow, performDeleteRow],
   );
 
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       // Delete row with Ctrl+Delete (confirmation required)
+      if (ownerSheetReadOnly) return;
       if (e.ctrlKey && e.key === "Delete" && selectedRow) {
         e.preventDefault();
         await requestDeleteRow(selectedRow);
@@ -1019,7 +1031,7 @@ useEffect(() => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedRow, selectedCell, tableData, sortedData, requestDeleteRow]);
+  }, [ownerSheetReadOnly, selectedRow, selectedCell, tableData, sortedData, requestDeleteRow]);
 
  useEffect(() => {
   if (selectedCell) {
@@ -1037,6 +1049,7 @@ useEffect(() => {
 }, [selectedCell]);
 
   const handlePetStatus = (petId: string | undefined, index: number) => {
+    if (ownerSheetReadOnly) return;
     if (!petId) return;
 
     const newPetStatus = [...petStatus];
@@ -1182,7 +1195,7 @@ useEffect(() => {
           selectedCell={selectedCell}
           onAddRow={handleAddRow}
           onCellValueChange={handleFormulaBarChange}
-
+          readOnly={ownerSheetReadOnly}
         />
 
         <div className="overflow-auto flex-1 relative" ref={tableBodyRef}>
@@ -1291,7 +1304,7 @@ useEffect(() => {
                     }}
                   >
                     <div className="truncate">
-                      <EditableCell
+                      <EditableCell readOnly={ownerSheetReadOnly}
                         value={item.name}
                         onSave={(newValue) =>
                           handleSave(item?._id, "name", newValue)
@@ -1308,7 +1321,7 @@ useEffect(() => {
                     }}
                     className={`${
                       columnWidths.phone
-                    } px-3 py-2 h-10 whitespace-nowrap border-r border-border flex items-center flex-shrink-0 ${
+                    } ${effectiveHiddenColumns.includes("phoneNumber") ? "hidden" : ""} px-3 py-2 h-10 whitespace-nowrap border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
                       selectedCell?.colIndex === 1
                         ? "ring-2 ring-primary ring-inset"
@@ -1325,7 +1338,7 @@ useEffect(() => {
                       setSelectedRow(item._id);
                     }}
                   >
-                    <EditableCopyCell
+                    <EditableCopyCell readOnly={ownerSheetReadOnly}
                       value={item?.phoneNumber?.toString()}
                       onSave={(newValue) =>
                         handleSave(item._id, "phoneNumber", newValue)
@@ -1334,7 +1347,7 @@ useEffect(() => {
                      
                     />
 
-                    {item?.phoneNumber ? (
+                    {!ownerSheetReadOnly && item?.phoneNumber ? (
                       <button
                         type="button"
                         className="inline-flex shrink-0 items-center justify-center rounded p-0.5 hover:bg-muted/80"
@@ -1369,7 +1382,7 @@ useEffect(() => {
                       }}
                     >
                       <div className="min-w-0 flex-1">
-                        <EditableCell
+                        <EditableCell readOnly={ownerSheetReadOnly}
                           value={item.email?.toString() ?? ""}
                           onSave={(newValue) =>
                             handleSave(item._id, "email", newValue)
@@ -1422,7 +1435,7 @@ useEffect(() => {
                       setSelectedRow(item._id);
                     }}
                   >
-                    <SelectableCell
+                    <SelectableCell readOnly={ownerSheetReadOnly}
                       maxWidth="100px"
                       value={item.location}
                       data={
@@ -1459,7 +1472,7 @@ useEffect(() => {
                       setSelectedRow(item._id);
                     }}
                   >
-                    <EditableCell
+                    <EditableCell readOnly={ownerSheetReadOnly}
                       maxWidth="70px"
                       value={item.price}
                       onSave={(newValue) =>
@@ -1533,7 +1546,7 @@ useEffect(() => {
                       setSelectedRow(item._id);
                     }}
                   >
-                    <SelectableCell
+                    <SelectableCell readOnly={ownerSheetReadOnly}
                       maxWidth="100px"
                       data={avail}
                       value={item.availability}
@@ -1566,7 +1579,7 @@ useEffect(() => {
                       setSelectedRow(item._id);
                     }}
                   >
-                    <SelectableCell
+                    <SelectableCell readOnly={ownerSheetReadOnly}
                       maxWidth="200px"
                       data={interiorStatus}
                       value={item.interiorStatus}
@@ -1600,7 +1613,7 @@ useEffect(() => {
                       setSelectedRow(item._id);
                     }}
                   >
-                    <SelectableCell
+                    <SelectableCell readOnly={ownerSheetReadOnly}
                       maxWidth="80px"
                       data={ownerPropertyFloorSelectOptions}
                       value={ownerPropertyFloorToSelectValue(item.propertyFloor)}
@@ -1642,7 +1655,7 @@ useEffect(() => {
                         item.propertyType
                       )}`}
                     >
-                      <SelectableCell
+                      <SelectableCell readOnly={ownerSheetReadOnly}
                         maxWidth="200px"
                         data={apartmentTypes}
                         value={item.propertyType}
@@ -1678,7 +1691,7 @@ useEffect(() => {
                     }}
                   >
                     {/* <RemarksDropdown item={item} onSave={handleSave} /> */}
-                    <EditableCell
+                    <EditableCell readOnly={ownerSheetReadOnly}
                       value={item.remarks}
                       onSave={(newValue) =>
                         handleSave(item._id, "remarks", newValue)
@@ -1693,7 +1706,7 @@ useEffect(() => {
                     }}
                     className={`${
                       columnWidths.refLink
-                    } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
+                    } ${effectiveHiddenColumns.includes("refLink") ? "hidden" : ""} px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
                       selectedCell?.colIndex === ci(10)
                         ? "ring-2 ring-primary ring-inset"
@@ -1712,7 +1725,7 @@ useEffect(() => {
                     }}
                   >
                     <div className="flex items-center gap-1 w-full">
-                      <EditableCell
+                      <EditableCell readOnly={ownerSheetReadOnly}
                         value={item.referenceLink}
                         onSave={(newValue) =>
                           handleSave(item._id, "referenceLink", newValue)
@@ -1763,7 +1776,7 @@ useEffect(() => {
                   >
                     <div className="flex items-center gap-1 w-full">
                       {canEditLinkAndVsid ? (
-                        <EditableCell
+                        <EditableCell readOnly={ownerSheetReadOnly}
                           value={item.link}
                           onSave={(newValue) =>
                             handleSave(item._id, "link", newValue)
@@ -1826,7 +1839,7 @@ useEffect(() => {
                     }}
                   >
                     {canEditLinkAndVsid ? (
-                      <EditableCell
+                      <EditableCell readOnly={ownerSheetReadOnly}
                         value={item.VSID}
                         onSave={(newValue) =>
                           handleSave(item?._id, "VSID", newValue)
@@ -1846,7 +1859,7 @@ useEffect(() => {
                     }}
                     className={`${
                       columnWidths.address
-                    } px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
+                    } ${effectiveHiddenColumns.includes("address") ? "hidden" : ""} px-3 py-2 h-10 border-r border-border flex items-center flex-shrink-0 ${
                       selectedCell?.rowId === item._id &&
                       selectedCell?.colIndex === ci(13)
                         ? "ring-2 ring-primary ring-inset"
@@ -1864,7 +1877,7 @@ useEffect(() => {
                       setSelectedRow(item._id);
                     }}
                   >
-                    <EditableCell
+                    <EditableCell readOnly={ownerSheetReadOnly}
                       maxWidth="200px"
                       value={item.address}
                       onSave={(newValue) =>
@@ -1979,6 +1992,7 @@ useEffect(() => {
                   >
                     <ActionMenu
                       item={item}
+                      readOnly={ownerSheetReadOnly}
                       apiBasePath={apiBasePath}
                       onUploadComplete={(id, newUrls) => {
                         setTableData((prev) =>

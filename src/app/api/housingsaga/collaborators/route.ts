@@ -8,19 +8,21 @@ import {
   hashCollaboratorPassword,
   toStaffCollaboratorView,
 } from "@/lib/housingsaga/collaboratorAuth";
+import { normalizeAllotedArea } from "@/util/location";
+import { canManageHousingCollaborators } from "@/util/housingSagaStaff";
 
 export const dynamic = "force-dynamic";
-
-const STAFF_ROLES = ["SuperAdmin", "Admin", "HAdmin"] as const;
 
 async function requireStaffAccess(request: NextRequest) {
   try {
     const auth = (await getDataFromToken(request)) as {
       role?: unknown;
+      email?: unknown;
       id?: unknown;
     } | null;
     const role = typeof auth?.role === "string" ? auth.role : "";
-    if (!(STAFF_ROLES as readonly string[]).includes(role)) {
+    const email = typeof auth?.email === "string" ? auth.email : "";
+    if (!canManageHousingCollaborators(role, email)) {
       return {
         ok: false as const,
         response: NextResponse.json(
@@ -131,6 +133,7 @@ export async function POST(request: NextRequest) {
       country,
       city,
       area,
+      allotedArea,
       supplies,
       sendContractViaEmail,
       password,
@@ -159,6 +162,13 @@ export async function POST(request: NextRequest) {
     }
 
     const hashedPassword = await hashCollaboratorPassword(password);
+    const normalizedAllotedArea = normalizeAllotedArea(allotedArea);
+    if (normalizedAllotedArea.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "Alloted area is required" },
+        { status: 400 },
+      );
+    }
 
     const collaborator = await HousingCollaborator.create({
       firstName,
@@ -168,6 +178,7 @@ export async function POST(request: NextRequest) {
       country,
       city,
       area,
+      allotedArea: normalizedAllotedArea,
       supplies,
       sendContractViaEmail: Boolean(sendContractViaEmail),
       password: hashedPassword,

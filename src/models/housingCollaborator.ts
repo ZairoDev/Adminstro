@@ -22,6 +22,7 @@ export interface IHousingCollaborator extends Document {
   country: string;
   city: string;
   area: string;
+  allotedArea: string[];
   supplies: HousingCollaboratorSupplies;
   sendContractViaEmail: boolean;
   password: string;
@@ -76,6 +77,11 @@ const housingCollaboratorSchema = new Schema<IHousingCollaborator>(
       type: String,
       required: [true, "Area is required"],
       trim: true,
+    },
+    allotedArea: {
+      type: [String],
+      required: [true, "Alloted area is required"],
+      default: [],
     },
     supplies: {
       type: String,

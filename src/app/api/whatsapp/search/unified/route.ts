@@ -5,19 +5,25 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import type { PipelineStage } from "mongoose";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-
+import {
+  buildInboxContactSearchClause,
+  escapeRegex,
+  isPhoneQuery,
+  normalizePhoneNumber,
+} from "@/lib/whatsapp/searchUtils";
 export const dynamic = "force-dynamic";
 import WhatsAppConversation from "@/models/whatsappConversation";
-import { normalizePhoneNumber, isPhoneQuery } from "@/lib/whatsapp/searchUtils";
+import WhatsAppMessage from "@/models/whatsappMessage";
+import { buildInboxListQueryAsync } from "@/lib/whatsapp/inboxQuery";
+import type { WhatsAppToken } from "@/lib/whatsapp/apiContext";
 import {
-  calculateUnifiedRelevanceScore,
   generateMatchContext,
   extractMessageSnippet,
   highlightSearchTerm,
   deduplicateConversations,
-  normalizePhoneForDeduplication,
   type UnifiedConversationResult,
   type UnifiedSearchResults,
 } from "@/lib/whatsapp/unifiedSearchUtils";
@@ -29,8 +35,168 @@ import {
 } from "@/lib/whatsapp/phoneMask";
 
 const SEARCH_TIMEOUT = 3000; // 3 seconds
+const MESSAGE_SEARCH_TIMEOUT = 2000;
+const MESSAGE_RAW_CAP = 150;
 const MAX_RESULTS_PER_QUERY = 50;
 const MAX_MESSAGES_PER_CONVERSATION = 3; // Show top 3 message matches per conversation
+
+type SnippetMessage = {
+  messageId: string;
+  snippet: string;
+  timestamp: Date;
+  direction: "incoming" | "outgoing";
+  mediaUrl?: string;
+};
+
+function toSnippetMessage(
+  msg: {
+    _id?: { toString(): string };
+    messageId?: string;
+    content?: { text?: string; caption?: string };
+    timestamp: Date;
+    direction: "incoming" | "outgoing";
+    mediaUrl?: string;
+  },
+  normalizedQuery: string,
+): SnippetMessage {
+  const text = msg.content?.text || msg.content?.caption || "";
+  return {
+    messageId: msg.messageId || msg._id?.toString() || "",
+    snippet: highlightSearchTerm(extractMessageSnippet(text, normalizedQuery), normalizedQuery),
+    timestamp: msg.timestamp,
+    direction: msg.direction,
+    mediaUrl: msg.mediaUrl,
+  };
+}
+
+/**
+ * Message-body hits, then dropped unless the conversation passes the inbox filter.
+ * A timeout returns incomplete so People results can still be shown.
+ */
+type MessageConversationHit = {
+  conversationId: string;
+  participantPhone: string;
+  participantName: string;
+  participantProfilePic?: string;
+  lastMessageContent?: string;
+  lastMessageTime: Date;
+  unreadCount: number;
+  conversationType?: "owner" | "guest";
+  assignedAgent?: string;
+  status?: string;
+  snippets: SnippetMessage[];
+};
+
+async function findBoundedMessageHits(
+  escapedQuery: string,
+  normalizedQuery: string,
+  inboxFilter: Record<string, unknown>,
+): Promise<{ hits: MessageConversationHit[]; incomplete: boolean }> {
+  try {
+    const grouped = await WhatsAppMessage.aggregate<{
+      _id: { toString(): string };
+      messages: Array<{
+        _id?: { toString(): string };
+        messageId?: string;
+        content?: { text?: string; caption?: string };
+        timestamp: Date;
+        direction: "incoming" | "outgoing";
+        mediaUrl?: string;
+      }>;
+    }>([
+      {
+        $match: {
+          type: { $nin: ["reaction", "system"] },
+          $or: [
+            { "content.text": { $regex: escapedQuery, $options: "i" } },
+            { "content.caption": { $regex: escapedQuery, $options: "i" } },
+          ],
+        },
+      },
+      { $sort: { timestamp: -1 } },
+      { $limit: MESSAGE_RAW_CAP },
+      {
+        $group: {
+          _id: "$conversationId",
+          messages: {
+            $push: {
+              _id: "$_id",
+              messageId: "$messageId",
+              content: "$content",
+              timestamp: "$timestamp",
+              direction: "$direction",
+              mediaUrl: "$mediaUrl",
+            },
+          },
+        },
+      },
+    ])
+      .option({ maxTimeMS: MESSAGE_SEARCH_TIMEOUT })
+      .exec();
+
+    if (grouped.length === 0) {
+      return { hits: [], incomplete: false };
+    }
+
+    const ids = grouped.map((group) => group._id).filter(Boolean);
+    const visible = await WhatsAppConversation.find({
+      $and: [inboxFilter, { _id: { $in: ids } }],
+    })
+      .select(
+        "participantPhone participantName participantProfilePic lastMessageContent lastMessageTime unreadCount conversationType assignedAgent status",
+      )
+      .lean<
+        Array<{
+          _id: { toString(): string };
+          participantPhone: string;
+          participantName: string;
+          participantProfilePic?: string;
+          lastMessageContent?: string;
+          lastMessageTime: Date;
+          unreadCount?: number;
+          conversationType?: "owner" | "guest";
+          assignedAgent?: string;
+          status?: string;
+        }>
+      >();
+
+    const visibleById = new Map(visible.map((conv) => [String(conv._id), conv]));
+    const hits: MessageConversationHit[] = [];
+    for (const group of grouped) {
+      const id = String(group._id);
+      const conv = visibleById.get(id);
+      if (!conv) continue;
+      const snippets = group.messages
+        .slice(0, MAX_MESSAGES_PER_CONVERSATION)
+        .map((msg) => toSnippetMessage(msg, normalizedQuery))
+        .filter((msg) => msg.messageId);
+      if (snippets.length === 0) continue;
+      hits.push({
+        conversationId: id,
+        participantPhone: conv.participantPhone,
+        participantName: conv.participantName,
+        participantProfilePic: conv.participantProfilePic,
+        lastMessageContent: conv.lastMessageContent,
+        lastMessageTime: conv.lastMessageTime,
+        unreadCount: conv.unreadCount || 0,
+        conversationType: conv.conversationType,
+        assignedAgent:
+          typeof conv.assignedAgent === "string"
+            ? conv.assignedAgent
+            : conv.assignedAgent
+              ? String(conv.assignedAgent)
+              : undefined,
+        status: conv.status,
+        snippets,
+      });
+    }
+
+    return { hits, incomplete: false };
+  } catch (error) {
+    console.error("Message search failed:", error);
+    return { hits: [], incomplete: true };
+  }
+}
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
@@ -43,6 +209,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get("query");
     const locationFilterParam = searchParams.get("locationFilter")?.trim() || "";
+    const adminQueue = searchParams.get("adminQueue") === "true";
     const limit = Math.min(
       parseInt(searchParams.get("limit") || String(MAX_RESULTS_PER_QUERY)),
       MAX_RESULTS_PER_QUERY
@@ -70,12 +237,11 @@ export async function GET(request: NextRequest) {
     
     const userRole = user.role;
     
-    // Verify WhatsApp access
-    const { buildConversationVisibilityFilterAsync } = await import("@/lib/whatsapp/locationAccess");
+    // Advert may search names. The inbox filter below keeps them on retarget chats.
     const { WHATSAPP_ACCESS_ROLES } = await import("@/lib/whatsapp/config");
-    const hasAccess =
-      (WHATSAPP_ACCESS_ROLES as readonly string[]).includes(userRole as string) ||
-      (userRole === "Advert" && isPhoneQuery(query || ""));
+    const hasAccess = (WHATSAPP_ACCESS_ROLES as readonly string[]).includes(
+      userRole as string,
+    );
 
     if (!hasAccess) {
       return NextResponse.json(
@@ -93,150 +259,85 @@ export async function GET(request: NextRequest) {
     const normalizedQuery = query.trim();
     const isPhone = isPhoneQuery(normalizedQuery);
     const normalizedPhone = isPhone ? normalizePhoneNumber(normalizedQuery) : null;
+    const phoneDigits = normalizedPhone ?? "";
+    const phoneLast10 =
+      phoneDigits.length >= 10 ? phoneDigits.slice(-10) : phoneDigits;
+    const escapedQuery = escapeRegex(normalizedQuery);
     
     // ========================================================================
     // 4. BUILD SINGLE UNIFIED AGGREGATION PIPELINE
     // ========================================================================
     
-    // Permission filter — canonical visibility: phone AND location key
-    const permissionMatch: any = {
-      ...(await buildConversationVisibilityFilterAsync(user as any)),
-      status: { $in: ["active", "pending"] },
-      source: { $ne: "internal" },
-    };
-    
-    const { applyInboxLocationFilter } = await import("@/lib/whatsapp/locationAccess");
-    applyInboxLocationFilter(permissionMatch, user as { role?: string; email?: string; allotedArea?: string | string[] }, locationFilterParam);
-
-    // Archive filter
-    if (!includeArchived) {
-      permissionMatch.archived = { $ne: true };
+    // Same envelope as the inbox list: city, line, rental, channel, handoff, retarget.
+    // Do not write the search $or onto this object.
+    const inboxFilter = await buildInboxListQueryAsync(user as WhatsAppToken, {
+      status: "active",
+      adminQueue,
+      locationFilter: adminQueue ? "" : locationFilterParam,
+    });
+    if (includeArchived) {
+      inboxFilter.archived = true;
+    } else {
+      inboxFilter.archived = { $ne: true };
     }
+
+    if ("_id" in inboxFilter && inboxFilter._id === null) {
+      return NextResponse.json({
+        success: true,
+        query: normalizedQuery,
+        results: {
+          conversations: [],
+          totalResults: 0,
+          searchTime: Date.now() - startTime,
+          messageSearchIncomplete: false,
+        },
+      });
+    }
+
+    const contactClause = buildInboxContactSearchClause(normalizedQuery);
+    const searchMatch = { $and: [inboxFilter, contactClause] };
     
-    // Build the aggregation pipeline
-    const pipeline: any[] = [
-      // Stage 1: Initial permission filter (use index)
-      {
-        $match: permissionMatch,
-      },
-      
-      // Stage 2: Limit working set early for performance
-      {
-        $limit: 500, // Process max 500 conversations
-      },
-      
-      // Stage 3: Add computed match fields
+    // Match the whole allowed inbox first, score, then cap the rows we show.
+    // Message lookup runs only on those rows so it cannot hide a contact.
+    const pipeline: Record<string, unknown>[] = [
+      { $match: searchMatch },
+
       {
         $addFields: {
-          // Phone number matching
           phoneExactMatch: isPhone
-            ? { $eq: ["$participantPhone", normalizedPhone] }
+            ? { $eq: ["$participantPhone", phoneDigits] }
             : false,
-          phoneSuffixMatch: isPhone
-            ? {
-                $regexMatch: {
-                  input: "$participantPhone",
-                  regex: `${normalizedPhone}$`,
-                  options: "i",
-                },
-              }
-            : false,
-          phoneContainsMatch: isPhone
-            ? {
-                $regexMatch: {
-                  input: "$participantPhone",
-                  regex: normalizedPhone!,
-                  options: "i",
-                },
-              }
-            : false,
-          
-          // Name matching (case-insensitive)
+          phoneSuffixMatch:
+            isPhone && phoneLast10
+              ? {
+                  $regexMatch: {
+                    input: "$participantPhone",
+                    regex: `${escapeRegex(phoneLast10)}$`,
+                  },
+                }
+              : false,
+          phoneContainsMatch: false,
           nameMatch: {
             $regexMatch: {
-              input: "$participantName",
-              regex: normalizedQuery,
+              input: { $ifNull: ["$participantName", ""] },
+              regex: escapedQuery,
               options: "i",
             },
           },
-          
-          // Notes matching
           notesMatch: {
             $regexMatch: {
               input: { $ifNull: ["$notes", ""] },
-              regex: normalizedQuery,
+              regex: escapedQuery,
               options: "i",
             },
           },
         },
       },
-      
-      // Stage 4: Lookup matching messages
-      {
-        $lookup: {
-          from: "whatsappmessages",
-          let: { convId: "$_id" },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ["$conversationId", "$$convId"] },
-                type: { $nin: ["reaction", "system"] },
-                $or: [
-                  {
-                    "content.text": {
-                      $regex: normalizedQuery,
-                      $options: "i",
-                    },
-                  },
-                  {
-                    "content.caption": {
-                      $regex: normalizedQuery,
-                      $options: "i",
-                    },
-                  },
-                ],
-              },
-            },
-            {
-              $sort: { timestamp: -1 }, // Most recent first
-            },
-            {
-              $limit: 10, // Get top 10 message matches
-            },
-            {
-              $project: {
-                _id: 1,
-                content: 1,
-                timestamp: 1,
-                direction: 1,
-                mediaUrl: 1,
-              },
-            },
-          ],
-          as: "matchedMessages",
-        },
-      },
-      
-      // Stage 5: Filter out conversations with no matches
-      {
-        $match: {
-          $or: [
-            { phoneExactMatch: true },
-            { phoneSuffixMatch: true },
-            { phoneContainsMatch: true },
-            { nameMatch: true },
-            { notesMatch: true },
-            { matchedMessages: { $ne: [] } },
-          ],
-        },
-      },
-      
-      // Stage 6: Calculate relevance score
+
       {
         $addFields: {
           relevanceScore: {
             $add: [
-              // Phone match scores
               { $cond: [{ $eq: ["$phoneExactMatch", true] }, 100, 0] },
               {
                 $cond: [
@@ -250,52 +351,22 @@ export async function GET(request: NextRequest) {
                   0,
                 ],
               },
-              {
-                $cond: [
-                  {
-                    $and: [
-                      { $eq: ["$phoneExactMatch", false] },
-                      { $eq: ["$phoneSuffixMatch", false] },
-                      { $eq: ["$phoneContainsMatch", true] },
-                    ],
-                  },
-                  30,
-                  0,
-                ],
-              },
-              
-              // Name match score
               { $cond: [{ $eq: ["$nameMatch", true] }, 40, 0] },
-              
-              // Message matches score (10 per match, max 30)
-              {
-                $min: [
-                  { $multiply: [{ $size: "$matchedMessages" }, 10] },
-                  30,
-                ],
-              },
-              
-              // Notes match score
               { $cond: [{ $eq: ["$notesMatch", true] }, 5, 0] },
             ],
           },
         },
       },
-      
-      // Stage 7: Sort by relevance and recency
+
       {
         $sort: {
           relevanceScore: -1,
           lastMessageTime: -1,
         },
       },
-      
-      // Stage 8: Limit results
-      {
-        $limit: limit,
-      },
-      
-      // Stage 9: Project final shape
+
+      { $limit: limit },
+
       {
         $project: {
           conversationId: { $toString: "$_id" },
@@ -308,8 +379,6 @@ export async function GET(request: NextRequest) {
           conversationType: 1,
           assignedAgent: 1,
           status: 1,
-          
-          // Match details
           phoneExactMatch: 1,
           phoneSuffixMatch: 1,
           phoneContainsMatch: 1,
@@ -317,7 +386,6 @@ export async function GET(request: NextRequest) {
           notesMatch: 1,
           matchedMessages: 1,
           relevanceScore: 1,
-          
           _id: 0,
         },
       },
@@ -327,15 +395,21 @@ export async function GET(request: NextRequest) {
     // 5. EXECUTE AGGREGATION WITH TIMEOUT
     // ========================================================================
     
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Search timeout")), SEARCH_TIMEOUT)
-    );
-    
-    const searchPromise = WhatsAppConversation.aggregate(pipeline)
-      .allowDiskUse(false) // Force memory-only execution
-      .exec();
-    
-    const rawResults = await Promise.race([searchPromise, timeoutPromise]) as any[];
+    const searchMessages =
+      normalizedQuery.length >= 2 && !isPhone;
+
+    const [rawResults, messageHits] = await Promise.all([
+      WhatsAppConversation.aggregate(pipeline as unknown as PipelineStage[])
+        .allowDiskUse(true)
+        .option({ maxTimeMS: SEARCH_TIMEOUT })
+        .exec() as Promise<any[]>,
+      searchMessages
+        ? findBoundedMessageHits(escapedQuery, normalizedQuery, inboxFilter)
+        : Promise.resolve({
+            hits: [] as MessageConversationHit[],
+            incomplete: false,
+          }),
+    ]);
     
     // ========================================================================
     // 6. TRANSFORM TO UNIFIED RESULT FORMAT
@@ -349,18 +423,9 @@ export async function GET(request: NextRequest) {
       else if (conv.phoneContainsMatch) phoneMatchType = 'contains';
       
       // Process message matches
-      const processedMessages = conv.matchedMessages.slice(0, MAX_MESSAGES_PER_CONVERSATION).map((msg: any) => {
-        const text = msg.content?.text || msg.content?.caption || '';
-        const snippet = extractMessageSnippet(text, normalizedQuery);
-        
-        return {
-          messageId: msg._id.toString(),
-          snippet: highlightSearchTerm(snippet, normalizedQuery),
-          timestamp: msg.timestamp,
-          direction: msg.direction,
-          mediaUrl: msg.mediaUrl,
-        };
-      });
+      const processedMessages = (conv.matchedMessages || [])
+        .slice(0, MAX_MESSAGES_PER_CONVERSATION)
+        .map((msg: any) => toSnippetMessage(msg, normalizedQuery));
       
       const matches = {
         matchedInPhone: !!phoneMatchType,
@@ -376,7 +441,7 @@ export async function GET(request: NextRequest) {
         notesSnippet: conv.notesMatch ? `Found in notes` : undefined,
         
         matchedMessages: processedMessages,
-        totalMessageMatches: conv.matchedMessages.length,
+        totalMessageMatches: processedMessages.length,
         
         relevanceScore: conv.relevanceScore,
       };
@@ -402,6 +467,40 @@ export async function GET(request: NextRequest) {
     // 7. DEDUPLICATION (SAFETY NET)
     // ========================================================================
     
+    for (const hit of messageHits.hits) {
+      const existing = conversations.find(
+        (conv) => conv.conversationId === hit.conversationId,
+      );
+      if (existing) {
+        existing.matches.matchedMessages = hit.snippets;
+        existing.matches.totalMessageMatches = hit.snippets.length;
+        existing.matchContext = generateMatchContext(existing.matches, normalizedQuery);
+        continue;
+      }
+      const matches = {
+        matchedInPhone: false,
+        matchedInName: false,
+        matchedInNotes: false,
+        matchedMessages: hit.snippets,
+        totalMessageMatches: hit.snippets.length,
+        relevanceScore: Math.min(hit.snippets.length * 10, 30),
+      };
+      conversations.push({
+        conversationId: hit.conversationId,
+        participantPhone: hit.participantPhone,
+        participantName: hit.participantName,
+        participantProfilePic: hit.participantProfilePic,
+        lastMessageContent: hit.lastMessageContent,
+        lastMessageTime: hit.lastMessageTime,
+        unreadCount: hit.unreadCount,
+        conversationType: hit.conversationType,
+        assignedAgent: hit.assignedAgent,
+        status: hit.status,
+        matches,
+        matchContext: generateMatchContext(matches, normalizedQuery),
+      });
+    }
+
     const deduplicated = deduplicateConversations(conversations);
 
     const phoneMaskRules = await resolveMaskRulesForToken(user as {
@@ -473,6 +572,7 @@ export async function GET(request: NextRequest) {
       searchTime,
       hasStartNewChat,
       startNewChatPhone,
+      messageSearchIncomplete: messageHits.incomplete,
     };
     
     return NextResponse.json({

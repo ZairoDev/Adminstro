@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import WhatsAppMessage from "@/models/whatsappMessage";
@@ -56,6 +57,7 @@ export async function GET(
     const limit = parseInt(searchParams.get("limit") || "20");
     const beforeMessageId = searchParams.get("beforeMessageId"); // For cursor-based pagination
     const beforeTimestamp = searchParams.get("beforeTimestamp"); // Alternative: timestamp-based
+    const aroundMessageId = searchParams.get("aroundMessageId");
 
     // Load conversation and enforce access
     const conversationDoc = await WhatsAppConversation.findById(conversationId).lean();
@@ -73,10 +75,45 @@ export async function GET(
 
     // Build query
     const query: any = { conversationId };
+    let aroundRawMessages: any[] | null = null;
+    let aroundHasMore = false;
+
+    if (aroundMessageId && !beforeMessageId && !beforeTimestamp) {
+      const aroundOr: Record<string, unknown>[] = [{ messageId: aroundMessageId }];
+      if (mongoose.isValidObjectId(aroundMessageId)) {
+        aroundOr.push({ _id: aroundMessageId });
+      }
+      const target = await WhatsAppMessage.findOne({
+        conversationId,
+        $or: aroundOr,
+      })
+        .select("timestamp")
+        .lean() as { timestamp?: Date } | null;
+
+      if (target?.timestamp) {
+        const olderDesc = await WhatsAppMessage.find({
+          conversationId,
+          timestamp: { $lte: target.timestamp },
+        })
+          .sort({ timestamp: -1 })
+          .limit(limit + 1)
+          .lean();
+        aroundHasMore = olderDesc.length > limit;
+        const older = aroundHasMore ? olderDesc.slice(0, limit) : olderDesc;
+        const newer = await WhatsAppMessage.find({
+          conversationId,
+          timestamp: { $gt: target.timestamp },
+        })
+          .sort({ timestamp: 1 })
+          .limit(Math.ceil(limit / 2))
+          .lean();
+        aroundRawMessages = [...newer].reverse().concat(older);
+      }
+    }
     
-    // For initial load, get latest messages
-    // For loading older messages, use cursor
-    if (beforeMessageId) {
+    // For initial load, get latest messages.
+    // Around-window loads skip the cursor. Older pages still use it.
+    if (!aroundRawMessages && beforeMessageId) {
       // Find the message with this ID to get its timestamp
       const beforeMessage = await WhatsAppMessage.findOne({ 
         _id: beforeMessageId,
@@ -91,14 +128,22 @@ export async function GET(
     }
 
     // Fetch messages (sorted by timestamp descending for latest first)
-    const rawMessages = await WhatsAppMessage.find(query)
-      .sort({ timestamp: -1 })
-      .limit(limit + 1) // Fetch one extra to determine if there are more
-      .lean();
+    const rawMessages = aroundRawMessages
+      ? aroundRawMessages
+      : await WhatsAppMessage.find(query)
+          .sort({ timestamp: -1 })
+          .limit(limit + 1) // Fetch one extra to determine if there are more
+          .lean();
 
     // Check if there are more messages
-    const hasMore = rawMessages.length > limit;
-    const messagesToReturn = hasMore ? rawMessages.slice(0, limit) : rawMessages;
+    const hasMore = aroundRawMessages
+      ? aroundHasMore
+      : rawMessages.length > limit;
+    const messagesToReturn = aroundRawMessages
+      ? rawMessages
+      : hasMore
+        ? rawMessages.slice(0, limit)
+        : rawMessages;
 
     // Get all message IDs to query reactions
     const messageIds = messagesToReturn.map((msg: any) => msg.messageId);

@@ -1309,16 +1309,8 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
     hasScrolledInitiallyRef.current = false;
   }, [conversationId]);
 
-  // Filter messages by search
-  const filteredMessages = useMemo(
-    () =>
-      messages.filter((msg) => {
-        if (!messageSearchQuery) return true;
-        const displayText = getMessageDisplayText(msg);
-        return displayText.toLowerCase().includes(messageSearchQuery.toLowerCase());
-      }),
-    [messages, messageSearchQuery],
-  );
+  // Keep the full thread. messageSearchQuery highlights matches instead of hiding rows.
+  const filteredMessages = messages;
 
   // Group messages with image clustering (incremental when structure unchanged).
   const groupedMessages = useMemo(() => {
@@ -1359,28 +1351,28 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
   );
 
   const scrollToMessage = useCallback(
-    (messageId: string) => {
+    (messageId: string): boolean => {
+      const index = findGroupedIndexForMessageId(groupedMessages, messageId);
+      if (index === -1) return false;
+
       if (useVirtualization) {
-        const index = findGroupedIndexForMessageId(groupedMessages, messageId);
-        if (index !== -1) {
-          rowVirtualizer.scrollToIndex(index, {
-            behavior: "smooth",
-            align: "center",
-          });
-          setHighlightedMessageId(messageId);
-          setTimeout(() => setHighlightedMessageId(null), 2000);
-        }
-        return;
+        rowVirtualizer.scrollToIndex(index, {
+          behavior: "smooth",
+          align: "center",
+        });
+        setHighlightedMessageId(messageId);
+        setTimeout(() => setHighlightedMessageId(null), 2000);
+        return true;
       }
 
       const container = scrollContainerRef.current;
-      if (!container) return;
+      if (!container) return false;
       const el = container.querySelector(`[data-message-id="${messageId}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        setHighlightedMessageId(messageId);
-        setTimeout(() => setHighlightedMessageId(null), 2000);
-      }
+      if (!el) return false;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightedMessageId(messageId);
+      setTimeout(() => setHighlightedMessageId(null), 2000);
+      return true;
     },
     [useVirtualization, groupedMessages, rowVirtualizer],
   );
@@ -1389,18 +1381,19 @@ export const MessageList = forwardRef<{ scrollToMessage: (messageId: string) => 
 
   const handleScrollToMessage = scrollToMessage;
 
-  // Handle pending scroll to message from search results
+  // Handle pending scroll to message from search results.
+  // Keep the pending id until the message is actually in the loaded thread.
   useEffect(() => {
-    if (pendingScrollToMessageId && messages.length > 0 && !messagesLoading) {
-      // Wait a bit for the DOM to render
-      const timer = setTimeout(() => {
-        handleScrollToMessage(pendingScrollToMessageId);
-        if (onScrolledToMessage) {
-          onScrolledToMessage();
-        }
-      }, 100);
-      return () => clearTimeout(timer);
+    if (!pendingScrollToMessageId || messages.length === 0 || messagesLoading) {
+      return;
     }
+    const timer = setTimeout(() => {
+      const found = handleScrollToMessage(pendingScrollToMessageId);
+      if (found) {
+        onScrolledToMessage?.();
+      }
+    }, 100);
+    return () => clearTimeout(timer);
   }, [pendingScrollToMessageId, messages.length, messagesLoading, handleScrollToMessage, onScrolledToMessage]);
 
   // Get all images from messages for gallery navigation

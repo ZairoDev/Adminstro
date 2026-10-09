@@ -261,11 +261,13 @@ export const ConversationSidebar = memo(function ConversationSidebar({
   const {
     results: unifiedSearchResults,
     loading: searchLoading,
+    error: searchError,
     search: executeSearch,
     clearSearch,
   } = useUnifiedWhatsAppSearch({
     debounceMs: 300,
     includeArchived: showingArchived,
+    adminQueue,
     limit: 50,
     locationFilter:
       showInboxLocationFilter &&
@@ -350,31 +352,27 @@ export const ConversationSidebar = memo(function ConversationSidebar({
     clearSearch();
   }, [onSearchQueryChange, clearSearch]);
 
-  const handleJumpToMessage = useCallback(async (conversationId: string, messageId: string) => {
-    let conv = conversations.find(c => c._id === conversationId);
-    if (!conv && unifiedSearchResults) {
-      const r = unifiedSearchResults.conversations.find(c => c.conversationId === conversationId);
-      if (r) {
-        conv = {
-          _id: r.conversationId,
-          participantPhone: r.participantPhone,
-          participantName: r.participantName,
-          participantProfilePic: r.participantProfilePic,
-          lastMessageContent: r.lastMessageContent,
-          lastMessageTime: r.lastMessageTime,
-          unreadCount: r.unreadCount || 0,
-          conversationType: r.conversationType,
-          status: r.status || 'active',
-        } as any;
+  const openSearchedConversation = useCallback(
+    async (conversationId: string, messageId?: string) => {
+      handleClearSearch();
+      try {
+        const response = await fetch(
+          `/api/whatsapp/conversations?conversation=${encodeURIComponent(conversationId)}`,
+        );
+        if (!response.ok) return;
+        const data = await response.json();
+        const conv = data.conversations?.[0];
+        if (!conv) return;
+        onSelectConversation(conv);
+        if (messageId) {
+          onJumpToMessage?.(conversationId, messageId);
+        }
+      } catch (error) {
+        console.error("Failed to open search result:", error);
       }
-    }
-    if (conv) {
-      onSelectConversation(conv);
-      if (onJumpToMessage) {
-        onJumpToMessage(conversationId, messageId);
-      }
-    }
-  }, [conversations, unifiedSearchResults, onSelectConversation, onJumpToMessage]);
+    },
+    [handleClearSearch, onJumpToMessage, onSelectConversation],
+  );
 
   const handleSelectConversation = useCallback(
     (conversation: Conversation) => {
@@ -1021,61 +1019,15 @@ export const ConversationSidebar = memo(function ConversationSidebar({
               results={unifiedSearchResults}
               query={searchQuery}
               loading={searchLoading}
+              error={searchError}
               phoneMaskRules={phoneMaskRules}
               userRole={userRole}
-              onSelectConversation={async (conversationId) => {
-                // Clear search first to show all chats
-                handleClearSearch();
-
-                // Try to find conversation in local array first
-                let conv = conversations.find((c) => c._id === conversationId);
-
-                // If not found locally, construct from search results
-                if (!conv && unifiedSearchResults) {
-                  const searchResult = unifiedSearchResults.conversations.find(
-                    (c) => c.conversationId === conversationId,
-                  );
-
-                  if (searchResult) {
-                    // Map search result to Conversation type
-                    conv = {
-                      _id: searchResult.conversationId,
-                      participantPhone: searchResult.participantPhone,
-                      participantName: searchResult.participantName,
-                      participantProfilePic: searchResult.participantProfilePic,
-                      lastMessageContent: searchResult.lastMessageContent,
-                      lastMessageTime: searchResult.lastMessageTime,
-                      unreadCount: searchResult.unreadCount,
-                      conversationType: searchResult.conversationType,
-                      status: searchResult.status || "active",
-                    };
-                  }
-                }
-
-                // If still not found, fetch from API as last resort
-                if (!conv) {
-                  try {
-                    const response = await fetch(
-                      `/api/whatsapp/conversations?conversation=${encodeURIComponent(conversationId)}`,
-                    );
-                    if (response.ok) {
-                      const data = await response.json();
-                      if (data.success && data.conversations?.[0]) {
-                        conv = data.conversations[0];
-                      }
-                    }
-                  } catch (error) {
-                    console.error("Failed to fetch conversation:", error);
-                  }
-                }
-
-                if (conv) {
-                  onSelectConversation(conv);
-                } else {
-                  console.error("Conversation not found:", conversationId);
-                }
+              onSelectConversation={(conversationId) => {
+                void openSearchedConversation(conversationId);
               }}
-              onJumpToMessage={handleJumpToMessage}
+              onJumpToMessage={(conversationId, messageId) => {
+                void openSearchedConversation(conversationId, messageId);
+              }}
             />
           ) : loading && conversations.length === 0 ? (
             <div className="flex items-center justify-center py-20">

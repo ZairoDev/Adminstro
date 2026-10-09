@@ -296,8 +296,8 @@ export function mutateWhatsAppMessagesCache(
   conversationId: string,
   mutator: (messages: Message[]) => Message[],
 ): void {
-  queryClient.setQueryData<InfiniteData<WhatsAppMessagesListPage>>(
-    buildMessagesQueryKey(conversationId),
+  queryClient.setQueriesData<InfiniteData<WhatsAppMessagesListPage>>(
+    { queryKey: buildMessagesQueryKey(conversationId) },
     (old) => {
       if (!old?.pages?.length) {
         // No cache yet — nothing to update.

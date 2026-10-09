@@ -62,6 +62,7 @@ export interface UnifiedSearchResults {
   searchTime: number;
   hasStartNewChat?: boolean;
   startNewChatPhone?: string;
+  messageSearchIncomplete?: boolean;
 }
 
 // ============================================================================

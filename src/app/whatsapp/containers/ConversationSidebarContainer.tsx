@@ -237,16 +237,11 @@ export const ConversationSidebarContainer = memo(function ConversationSidebarCon
 
   // ── Jump to message from search results ───────────────────────────────────
   const handleJumpToMessage = useCallback(
-    (conversationId: string, messageId: string) => {
-      const allConvs = showingArchived ? archivedConversations : conversations;
-      const conv = allConvs.find((c) => c._id === conversationId);
-      if (conv) {
-        threadActionsRef.current.selectConversation(conv);
-        threadActionsRef.current.setPendingScrollToMessageId(messageId);
-        threadActionsRef.current.setMessageSearchQuery(searchQuery);
-      }
+    (_conversationId: string, messageId: string) => {
+      threadActionsRef.current.setPendingScrollToMessageId(messageId);
+      threadActionsRef.current.setMessageSearchQuery(searchQuery);
     },
-    [showingArchived, archivedConversations, conversations, searchQuery, threadActionsRef],
+    [searchQuery, threadActionsRef],
   );
 
   // ── CRM action from sidebar (select conversation before CRM opens) ─────────

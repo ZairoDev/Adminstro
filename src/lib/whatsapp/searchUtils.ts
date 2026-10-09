@@ -7,6 +7,45 @@
  * Normalize phone number by stripping all non-digit characters
  * Handles international formats: +91, 91, 0091, (91), etc.
  */
+import { normalizePhone } from "./normalizePhone";
+
+/**
+ * Name / phone / notes predicate for inbox search.
+ * AND this with the visibility filter. Do not assign it onto a visibility $or.
+ * One-character queries stay valid.
+ */
+export function buildInboxContactSearchClause(
+  rawQuery: string,
+): Record<string, unknown> {
+  const query = rawQuery.trim();
+  const escaped = escapeRegex(query);
+  const textMatches: Record<string, unknown>[] = [
+    { participantName: { $regex: escaped, $options: "i" } },
+    { notes: { $regex: escaped, $options: "i" } },
+  ];
+
+  if (!isPhoneQuery(query)) {
+    return { $or: textMatches };
+  }
+
+  const digits = normalizePhone(query);
+  if (!digits) {
+    return { $or: textMatches };
+  }
+
+  const last10 = digits.length >= 10 ? digits.slice(-10) : digits;
+  const phones = new Set<string>();
+  phones.add(digits);
+  if (last10) phones.add(last10);
+  if (last10.length === 10) phones.add(`91${last10}`);
+
+  const phoneMatch: Record<string, unknown> =
+    digits.length >= 10
+      ? { participantPhone: { $in: [...phones] } }
+      : { participantPhone: { $regex: `${escapeRegex(digits)}$` } };
+
+  return { $or: [phoneMatch, ...textMatches] };
+}
 export function normalizePhoneNumber(phone: string): string {
   if (!phone) return "";
   // Strip all non-digit characters

@@ -3,9 +3,15 @@ import axios from "@/util/axios";
 import { buildMessagesQueryKey } from "../lib/whatsappQueryCache";
 import type { WhatsAppMessagesListPage } from "../types";
 
-export function useMessages(conversationId: string | null) {
+export function useMessages(
+  conversationId: string | null,
+  aroundMessageId?: string | null,
+) {
   return useInfiniteQuery<WhatsAppMessagesListPage>({
-    queryKey: buildMessagesQueryKey(conversationId ?? ""),
+    queryKey: [
+      ...buildMessagesQueryKey(conversationId ?? ""),
+      aroundMessageId ?? "latest",
+    ],
     queryFn: async ({ pageParam }) => {
       if (!conversationId) {
         throw new Error("conversationId is required");
@@ -14,6 +20,8 @@ export function useMessages(conversationId: string | null) {
       const params = new URLSearchParams({ limit: "20" });
       if (pageParam) {
         params.set("beforeMessageId", String(pageParam));
+      } else if (aroundMessageId) {
+        params.set("aroundMessageId", aroundMessageId);
       }
 
       const response = await axios.get(

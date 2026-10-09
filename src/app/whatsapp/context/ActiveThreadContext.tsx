@@ -121,6 +121,7 @@ export function ActiveThreadProvider({ children }: { children: ReactNode }) {
   const [pendingScrollToMessageId, setPendingScrollToMessageId] = useState<
     string | null
   >(null);
+  const [aroundMessageId, setAroundMessageId] = useState<string | null>(null);
 
   const markReadInFlightRef = useRef(new Set<string>());
   const lastMarkedReadMessageRef = useRef<Record<string, string>>({});
@@ -129,6 +130,22 @@ export function ActiveThreadProvider({ children }: { children: ReactNode }) {
   >(async () => {});
 
   const selectedConversationId = selectedConversation?._id ?? null;
+  const pendingScrollRef = useRef(pendingScrollToMessageId);
+  pendingScrollRef.current = pendingScrollToMessageId;
+
+  useEffect(() => {
+    if (pendingScrollToMessageId) {
+      setAroundMessageId(pendingScrollToMessageId);
+    }
+  }, [pendingScrollToMessageId]);
+
+  useEffect(() => {
+    if (pendingScrollRef.current) {
+      setAroundMessageId(pendingScrollRef.current);
+    } else {
+      setAroundMessageId(null);
+    }
+  }, [selectedConversationId]);
 
   const readersQueryEnabled =
     Boolean(selectedConversationId) &&
@@ -188,7 +205,7 @@ export function ActiveThreadProvider({ children }: { children: ReactNode }) {
     isFetchingNextPage: loadingOlderMessages,
     isLoading: messagesInitialLoading,
     isFetching: messagesFetching,
-  } = useMessages(selectedConversationId);
+  } = useMessages(selectedConversationId, aroundMessageId);
 
   const { data: templatesData, isLoading: templatesLoading } =
     useQuery<TemplatesQueryData>({
@@ -350,6 +367,11 @@ export function ActiveThreadProvider({ children }: { children: ReactNode }) {
           (conversation.unreadCount || 0) > 0 ||
           conversation.lastMessageDirection === "incoming";
         setSkipReadersFetch(shouldMarkRead);
+
+        if (!isSameConversation) {
+          setPendingScrollToMessageId(null);
+          setMessageSearchQuery("");
+        }
 
         if (isSameConversation && alreadyRead) {
           return;

@@ -18,8 +18,9 @@ function sanitizeHighlight(html: string): string {
 }
 
 interface UnifiedSearchResultsProps {
-  results: { conversations: any[] } | null;
+  results: { conversations: any[]; messageSearchIncomplete?: boolean } | null;
   loading: boolean;
+  error?: string | null;
   query: string;
   onSelectConversation: (conversationId: string) => void;
   onJumpToMessage?: (conversationId: string, messageId: string) => void;
@@ -30,6 +31,7 @@ interface UnifiedSearchResultsProps {
 export function UnifiedSearchResults({
   results,
   loading,
+  error = null,
   query,
   onSelectConversation,
   onJumpToMessage,
@@ -48,6 +50,22 @@ export function UnifiedSearchResults({
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-4">
+        <div className="w-16 h-16 rounded-full bg-[#f0f2f5] dark:bg-[#202c33] flex items-center justify-center mb-4">
+          <Search className="h-8 w-8 text-[#8696a0]" />
+        </div>
+        <p className="text-[#111b21] dark:text-[#e9edef] font-medium mb-1">
+          Search failed
+        </p>
+        <p className="text-sm text-[#667781] dark:text-[#8696a0] text-center">
+          {error}
+        </p>
+      </div>
+    );
+  }
+
   if (!results || results.conversations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -58,7 +76,9 @@ export function UnifiedSearchResults({
           No results found
         </p>
         <p className="text-sm text-[#667781] dark:text-[#8696a0] text-center">
-          Try searching by name, phone number, or message
+          {results?.messageSearchIncomplete
+            ? "Message search did not finish. No name or phone matches."
+            : "Try searching by name, phone number, or message"}
         </p>
       </div>
     );
@@ -67,7 +87,10 @@ export function UnifiedSearchResults({
   const conversations = results.conversations;
   const people = conversations.filter(
     (c: any) =>
-      (c.matches?.matchedInPhone || c.matches?.matchedInName) ?? false
+      (c.matches?.matchedInPhone ||
+        c.matches?.matchedInName ||
+        c.matches?.matchedInNotes) ??
+      false
   );
   const chats = conversations.filter(
     (c: any) =>
@@ -77,6 +100,11 @@ export function UnifiedSearchResults({
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-1 overflow-y-auto pb-4">
+        {results.messageSearchIncomplete && (
+          <p className="px-4 py-2 text-xs text-[#667781] dark:text-[#8696a0]">
+            Message search did not finish. Name and phone matches are still shown.
+          </p>
+        )}
         {/* People section - contacts matched by name or phone */}
         {people.length > 0 && (
           <div className="flex-shrink-0">

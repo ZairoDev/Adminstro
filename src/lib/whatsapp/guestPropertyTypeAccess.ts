@@ -134,6 +134,17 @@ function locationKeysFromRules(rules: {
   return [...keys];
 }
 
+/** Lead phones and chat phones are not always stored with the same country code. */
+function phoneFormsForExclusion(digits: string): string[] {
+  const forms = new Set<string>();
+  if (!digits) return [];
+  forms.add(digits);
+  const last10 = digits.length >= 10 ? digits.slice(-10) : digits;
+  if (last10) forms.add(last10);
+  if (last10.length === 10) forms.add(`91${last10}`);
+  return [...forms];
+}
+
 function phonesFailingAllowList(
   newestTypeByPhone: Map<string, string>,
   allowed: string[],
@@ -141,10 +152,10 @@ function phonesFailingAllowList(
   const phones: string[] = [];
   for (const [digits, type] of newestTypeByPhone) {
     if (allowed.length === 0 || !listIncludesType(allowed, type)) {
-      phones.push(digits);
+      phones.push(...phoneFormsForExclusion(digits));
     }
   }
-  return phones;
+  return [...new Set(phones)];
 }
 
 async function newestTypedLeadByPhone(

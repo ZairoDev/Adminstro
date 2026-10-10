@@ -287,6 +287,7 @@ export async function GET(request: NextRequest) {
         query: normalizedQuery,
         results: {
           conversations: [],
+          query: normalizedQuery,
           totalResults: 0,
           searchTime: Date.now() - startTime,
           messageSearchIncomplete: false,
@@ -568,6 +569,7 @@ export async function GET(request: NextRequest) {
     
     const response: UnifiedSearchResults = {
       conversations: maskedDeduplicated,
+      query: normalizedQuery,
       totalResults: maskedDeduplicated.length,
       searchTime,
       hasStartNewChat,

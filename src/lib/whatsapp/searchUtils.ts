@@ -33,16 +33,11 @@ export function buildInboxContactSearchClause(
     return { $or: textMatches };
   }
 
-  const last10 = digits.length >= 10 ? digits.slice(-10) : digits;
-  const phones = new Set<string>();
-  phones.add(digits);
-  if (last10) phones.add(last10);
-  if (last10.length === 10) phones.add(`91${last10}`);
-
-  const phoneMatch: Record<string, unknown> =
-    digits.length >= 10
-      ? { participantPhone: { $in: [...phones] } }
-      : { participantPhone: { $regex: `${escapeRegex(digits)}$` } };
+  // Always use suffix regex for consistency across digit counts
+  // Let aggregation pipeline score exact matches higher (already done in API route)
+  const phoneMatch: Record<string, unknown> = {
+    participantPhone: { $regex: `${escapeRegex(digits)}$` }
+  };
 
   return { $or: [phoneMatch, ...textMatches] };
 }

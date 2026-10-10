@@ -18,7 +18,7 @@ function sanitizeHighlight(html: string): string {
 }
 
 interface UnifiedSearchResultsProps {
-  results: { conversations: any[]; messageSearchIncomplete?: boolean } | null;
+  results: { conversations: any[]; query?: string; messageSearchIncomplete?: boolean } | null;
   loading: boolean;
   error?: string | null;
   query: string;
@@ -67,6 +67,16 @@ export function UnifiedSearchResults({
   }
 
   if (!results || results.conversations.length === 0) {
+    // If results.query doesn't match current query, this is stale data - show spinner instead
+    if (results && results.query && results.query !== query) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-[#25d366]" />
+        </div>
+      );
+    }
+    
+    // Now safe to show empty state - results match current query
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
         <div className="w-16 h-16 rounded-full bg-[#f0f2f5] dark:bg-[#202c33] flex items-center justify-center mb-4">

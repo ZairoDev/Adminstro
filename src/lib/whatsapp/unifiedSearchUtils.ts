@@ -58,6 +58,7 @@ export interface UnifiedConversationResult {
 
 export interface UnifiedSearchResults {
   conversations: UnifiedConversationResult[];
+  query?: string;
   totalResults: number;
   searchTime: number;
   hasStartNewChat?: boolean;

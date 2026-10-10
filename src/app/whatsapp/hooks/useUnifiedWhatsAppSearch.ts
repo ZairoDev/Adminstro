@@ -11,6 +11,7 @@ interface UseUnifiedSearchOptions {
 
 interface UnifiedSearchResultsShape {
   conversations: any[];
+  query?: string;
   totalResults?: number;
   searchTime?: number;
   hasStartNewChat?: boolean;
@@ -35,6 +36,7 @@ export function useUnifiedWhatsAppSearch(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastQueryRef = useRef<string>("");
+  const requestIdRef = useRef<number>(0);
   
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -47,6 +49,8 @@ export function useUnifiedWhatsAppSearch(
       return;
     }
     
+    // Increment request ID to track this specific request
+    const requestId = ++requestIdRef.current;
     lastQueryRef.current = searchQuery;
     
     if (abortControllerRef.current) {
@@ -76,6 +80,11 @@ export function useUnifiedWhatsAppSearch(
 
       const data = await response.json().catch(() => null);
       
+      // Only update state if this is still the current request
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+      
       if (!response.ok || !data?.success || !data.results) {
         setResults(null);
         setError(
@@ -86,16 +95,21 @@ export function useUnifiedWhatsAppSearch(
         return;
       }
 
-      setResults(data.results);
+      // Store results with the query so UI can validate
+      setResults({ ...data.results, query: searchQuery });
       setError(null);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") {
         return;
       }
+      // Only update state if this is still the current request
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
       setResults(null);
       setError(err instanceof Error ? err.message : "Search failed");
     } finally {
-      if (!abortController.signal.aborted) {
+      if (!abortController.signal.aborted && requestId === requestIdRef.current) {
         setLoading(false);
       }
     }
@@ -108,6 +122,12 @@ export function useUnifiedWhatsAppSearch(
   }, [locationFilter, adminQueue, includeArchived, executeSearch]);
   
   const search = useCallback((searchQuery: string) => {
+    // Abort previous request immediately, not after debounce
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }

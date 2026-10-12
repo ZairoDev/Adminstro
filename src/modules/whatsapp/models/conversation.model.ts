@@ -2,6 +2,12 @@ import mongoose, { Schema, Document } from "mongoose";
 
 export interface IWhatsAppConversation extends Document {
   participantPhone: string;
+  /**
+   * Meta business-scoped user id (for example US.1349…).
+   * Set from delivered/read webhooks so a later reply that hides the phone
+   * still lands on this conversation.
+   */
+  participantBsuid?: string;
   participantName?: string;
   participantProfilePic?: string;
 
@@ -148,6 +154,11 @@ const whatsAppConversationSchema = new Schema<IWhatsAppConversation>(
     participantPhone: {
       type: String,
       required: true,
+      index: true,
+    },
+
+    participantBsuid: {
+      type: String,
       index: true,
     },
 
@@ -515,6 +526,12 @@ whatsAppConversationSchema.index({
 whatsAppConversationSchema.index(
   { participantPhone: 1, whatsappChannelId: 1 },
   { unique: true, sparse: true, name: "identity_v2" },
+);
+
+// Username replies omit the phone and only send this id.
+whatsAppConversationSchema.index(
+  { participantBsuid: 1, businessPhoneId: 1 },
+  { sparse: true, name: "participant_bsuid" },
 );
 
 // Index for fetching conversations by agent

@@ -1,0 +1,21 @@
+- Finding files
+Processed 1434 files (3.2s) (2 warnings)
+
+✖ Found 15 circular dependencies!
+
+1) src/actions/(VS)/queryActions.ts > src/features/sales/hooks/useWeeksVisit.ts
+2) src/app/dashboard/catalogue/page.tsx > src/app/dashboard/catalogue/catalogue-list.tsx > src/app/dashboard/catalogue/catalogue-card.tsx
+3) src/app/dashboard/catalogue/page.tsx > src/app/dashboard/catalogue/catalogue-list.tsx
+4) src/util/propertyTypeAllowList.ts > src/util/propertyVisibilityRule.ts
+5) src/app/dashboard/invoice/page.tsx > src/app/dashboard/invoice/components/invoice-builder.tsx > src/app/dashboard/invoice/components/format.tsx
+6) src/app/dashboard/invoice/page.tsx > src/app/dashboard/invoice/components/invoice-builder.tsx > src/app/dashboard/invoice/components/invoice-form.tsx
+7) src/app/dashboard/invoice/page.tsx > src/app/dashboard/invoice/components/invoice-builder.tsx > src/app/dashboard/invoice/components/invoice-pdf-button.tsx > src/app/dashboard/invoice/components/invoice-pdf.tsx
+8) src/app/dashboard/invoice/page.tsx > src/app/dashboard/invoice/components/invoice-builder.tsx > src/app/dashboard/invoice/components/invoice-pdf-button.tsx
+9) src/app/dashboard/invoice/page.tsx > src/app/dashboard/invoice/components/invoice-builder.tsx > src/app/dashboard/invoice/components/invoice-preview.tsx
+10) src/app/dashboard/invoice/page.tsx > src/app/dashboard/invoice/components/invoice-builder.tsx
+11) src/app/dashboard/newproperty/filteredProperties/page.tsx > src/app/dashboard/newproperty/filteredProperties/filter-bar.tsx
+12) src/app/dashboard/newproperty/filteredProperties/page.tsx > src/app/dashboard/newproperty/filteredProperties/property-list.tsx
+13) src/app/dashboard/target/area-model.tsx > src/app/dashboard/target/page.tsx
+14) src/app/dashboard/target/page.tsx > src/app/dashboard/target/components/BulkFullAreasUploadDialog.tsx
+15) src/app/dashboard/target/page.tsx > src/app/dashboard/target/components/editArea.tsx
+

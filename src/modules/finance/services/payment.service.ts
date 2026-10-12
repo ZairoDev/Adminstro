@@ -3,6 +3,7 @@ import FinancePayment, {
   type IFinancePayment,
 } from "@/modules/finance/models/payment.model";
 import { resolvePaymentFilter } from "@/modules/finance/payment-lookup";
+import { escapeRegex } from "@/modules/finance/escape-regex";
 import Bookings from "@/models/booking";
 import Invoice from "@/models/invoice";
 import { normalizePhone, phonesMatch } from "@/modules/finance/phone";
@@ -486,10 +487,6 @@ async function manualSearchGuests(search: string): Promise<GuestSuggestion[]> {
     }
   }
   return out;
-}
-
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export async function mapPayment(params: {

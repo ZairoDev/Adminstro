@@ -17,6 +17,7 @@ import {
   type SplitAllocationInput,
 } from "@/modules/finance/payment-math";
 import { normalizePhone } from "@/modules/finance/phone";
+import { escapeRegex } from "@/modules/finance/escape-regex";
 
 /* ------------------------------------------------------------------ */
 /*  Shared types                                                        */
@@ -50,10 +51,6 @@ type BookingGuestDoc = {
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                             */
 /* ------------------------------------------------------------------ */
-
-function escapeRegex(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 function findGuestByIdOrEmail(
   guests: BookingGuestDoc[],

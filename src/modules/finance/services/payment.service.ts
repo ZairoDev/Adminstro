@@ -2,6 +2,7 @@ import type { FilterQuery } from "mongoose";
 import FinancePayment, {
   type IFinancePayment,
 } from "@/modules/finance/models/payment.model";
+import { resolvePaymentFilter } from "@/modules/finance/payment-lookup";
 import Bookings from "@/models/booking";
 import Invoice from "@/models/invoice";
 import { normalizePhone, phonesMatch } from "@/modules/finance/phone";
@@ -165,10 +166,8 @@ export async function getTransactionByPublicId(params: {
   paymentId?: string;
   paymentLinkId?: string;
 }) {
-  const filter: FilterQuery<IFinancePayment> = {};
-  if (params.paymentId) filter.paymentId = params.paymentId;
-  else if (params.paymentLinkId) filter.paymentLinkId = params.paymentLinkId;
-  else return null;
+  const filter = resolvePaymentFilter(params, "null");
+  if (!filter) return null;
 
   const doc = await FinancePayment.findOne(filter);
   if (!doc) return null;
@@ -503,10 +502,7 @@ export async function mapPayment(params: {
   mappedBy: string;
   mappedByName?: string;
 }) {
-  const filter: FilterQuery<IFinancePayment> = {};
-  if (params.paymentId) filter.paymentId = params.paymentId;
-  else if (params.paymentLinkId) filter.paymentLinkId = params.paymentLinkId;
-  else throw new Error("paymentId or paymentLinkId is required");
+  const filter = resolvePaymentFilter(params, "throw");
 
   const payment = await FinancePayment.findOne(filter);
   if (!payment) throw new Error("Payment not found");

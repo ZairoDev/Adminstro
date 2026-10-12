@@ -10,6 +10,7 @@
 
 import type { FilterQuery } from "mongoose";
 import FinancePayment, { type IFinancePayment } from "@/modules/finance/models/payment.model";
+import { resolvePaymentFilter } from "@/modules/finance/payment-lookup";
 import FinanceInvoice, { type IFinanceInvoice } from "@/modules/finance/models/invoice.model";
 import { generateFinanceInvoicePdf } from "@/modules/finance/services/invoice-pdf.service";
 import { sendInvoiceEmail } from "@/modules/finance/services/invoice-mailer.service";
@@ -38,10 +39,7 @@ export async function sendInvoices(
   },
   auth: { id?: string; name?: string },
 ): Promise<{ results: SendInvoiceResult[]; payment: IFinancePayment }> {
-  const filter: FilterQuery<IFinancePayment> = {};
-  if (params.paymentId) filter.paymentId = params.paymentId;
-  else if (params.paymentLinkId) filter.paymentLinkId = params.paymentLinkId;
-  else throw new Error("paymentId or paymentLinkId is required");
+  const filter = resolvePaymentFilter(params, "throw");
 
   const payment = await FinancePayment.findOne(filter);
   if (!payment) throw new Error("Payment not found");

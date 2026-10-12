@@ -7,8 +7,8 @@
  * Called by POST /api/finance/generate-invoice.
  */
 
-import type { FilterQuery } from "mongoose";
 import FinancePayment, { type IFinancePayment } from "@/modules/finance/models/payment.model";
+import { resolvePaymentFilter } from "@/modules/finance/payment-lookup";
 import FinanceInvoice, { type IFinanceInvoice } from "@/modules/finance/models/invoice.model";
 import { getNextFinanceInvoiceNumber } from "@/modules/finance/invoice-counter";
 import type { GenerateInvoiceBody } from "@/modules/finance/schemas/payment.schema";
@@ -77,15 +77,6 @@ export function toPublicInvoice(doc: IFinanceInvoice): PublicFinanceInvoice {
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                             */
 /* ------------------------------------------------------------------ */
-
-function resolvePaymentFilter(params: {
-  paymentId?: string;
-  paymentLinkId?: string;
-}): FilterQuery<IFinancePayment> {
-  if (params.paymentId) return { paymentId: params.paymentId };
-  if (params.paymentLinkId) return { paymentLinkId: params.paymentLinkId };
-  throw new Error("paymentId or paymentLinkId is required");
-}
 
 async function markPreviousInvoicesSuperseded(financePaymentId: string): Promise<void> {
   await FinanceInvoice.updateMany(
@@ -183,7 +174,7 @@ export async function generateInvoice(
   body: GenerateInvoiceBody,
   auth: { id?: string; name?: string },
 ): Promise<{ payment: IFinancePayment; invoices: PublicFinanceInvoice[] }> {
-  const filter = resolvePaymentFilter(body);
+  const filter = resolvePaymentFilter(body, "throw");
   const payment = await FinancePayment.findOne(filter);
   if (!payment) throw new Error("Payment not found");
 

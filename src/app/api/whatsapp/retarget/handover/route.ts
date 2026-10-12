@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import WhatsAppConversation from "@/models/whatsappConversation";
 import Employee from "@/models/employee";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import mongoose from "mongoose";

@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from "mongoose";
 import type {
   WebhookInspectorEventType,
   WebhookInspectorOutcome,
-} from "@/modules/whatsapp";
+} from "@/lib/whatsapp/webhookInspector/types";
 
 export interface IWebhookInspectorEvent extends Document {
   timestamp: Date;

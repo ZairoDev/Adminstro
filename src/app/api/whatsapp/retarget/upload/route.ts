@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import RetargetContact from "@/modules/whatsapp/models/retarget-contact.model";
+import RetargetContact from "@/models/retargetContact";
 import * as XLSX from "xlsx";
 
 connectDb();

@@ -33,7 +33,7 @@ import { IQuery } from "@/util/type";
 import Link from "next/link";
 import { ScrollArea } from "./ui/scroll-area";
 import { FaWhatsapp } from "react-icons/fa6";
-import { buildWhatsAppLeadOpenUrl } from "@/modules/whatsapp/services/lead-open-url";
+import { buildWhatsAppLeadOpenUrl } from "@/lib/whatsapp/leadOpenUrl";
 
 export default function QueryCard(query: IQuery) {
   const InfoItem = ({

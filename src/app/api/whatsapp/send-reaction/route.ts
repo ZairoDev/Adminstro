@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
-import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import WhatsAppMessage from "@/models/whatsappMessage";
+import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
-import { WHATSAPP_API_BASE_URL } from "@/modules/whatsapp/services/config";
-import { canAccessConversationAsync } from "@/modules/whatsapp/services/access";
-import { normalizeWhatsAppToken } from "@/modules/whatsapp/services/api-context";
-import { resolveOutboundBusinessPhoneId } from "@/modules/whatsapp/services/resolve-outbound-phone";
-import { getOutboundTokenForPhoneId } from "@/modules/whatsapp/services/channel.service";
+import { WHATSAPP_API_BASE_URL } from "@/lib/whatsapp/config";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
+import { getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
 
 connectDb();
 

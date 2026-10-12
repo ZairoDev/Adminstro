@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { getWebhookLogStats } from "@/modules/whatsapp/services/webhook-log/persist";
+import { getWebhookLogStats } from "@/lib/whatsapp/webhookLog/persist";
 
 export const dynamic = "force-dynamic";
 

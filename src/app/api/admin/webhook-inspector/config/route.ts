@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getWebhookInspectorFilter,
   setWebhookInspectorRuntimeFilter,
-} from "@/modules/whatsapp";
+} from "@/lib/whatsapp/webhookInspector";
 import { requireSuperAdmin } from "@/lib/admin/requireSuperAdmin";
 
 export const dynamic = "force-dynamic";

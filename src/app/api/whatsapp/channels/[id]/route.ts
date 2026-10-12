@@ -3,15 +3,15 @@ import { z } from "zod";
 import mongoose from "mongoose";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsappChannel, { IWhatsappChannel } from "@/modules/whatsapp/models/channel.model";
-import WhatsappChannelAssignment from "@/modules/whatsapp/models/channel-assignment.model";
+import WhatsappChannel, { IWhatsappChannel } from "@/models/whatsappChannel";
+import WhatsappChannelAssignment from "@/models/whatsappChannelAssignment";
 import {
   assertChannelTripleUnique,
   normalizeChannelLocationKeys,
   deactivateChannel,
   createChannelWithAssignment,
-} from "@/modules/whatsapp/services/channel.service";
-import { invalidatePhoneAreaCache } from "@/modules/whatsapp/services/phone-area-config.service";
+} from "@/lib/whatsapp/channelService";
+import { invalidatePhoneAreaCache } from "@/lib/whatsapp/phoneAreaConfigService";
 
 export const dynamic = "force-dynamic";
 

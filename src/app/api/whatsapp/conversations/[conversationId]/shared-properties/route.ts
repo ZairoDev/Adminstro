@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
-import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
+import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppMessage from "@/models/whatsappMessage";
 import { Properties } from "@/models/property";
 import Users from "@/models/user";
-import { canAccessConversationAsync } from "@/modules/whatsapp/services/access";
-import { normalizeWhatsAppToken, type WhatsAppToken } from "@/modules/whatsapp/services/api-context";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken, type WhatsAppToken } from "@/lib/whatsapp/apiContext";
 import {
   extractPropertyRefsFromText,
   mergePropertyRefs,
-} from "@/modules/whatsapp/services/property-link-extractor";
+} from "@/lib/whatsapp/propertyLinkExtractor";
 
 export const dynamic = "force-dynamic";
 

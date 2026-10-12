@@ -1,23 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
-import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import WhatsAppMessage from "@/models/whatsappMessage";
+import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import {
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
   INTERNAL_YOU_PHONE_ID,
-} from "@/modules/whatsapp/services/config";
-import { findOrCreateConversationWithSnapshot } from "@/modules/whatsapp/services/find-or-create-conversation.service";
-import { normalizePhone } from "@/modules/whatsapp/services/normalize-phone";
+} from "@/lib/whatsapp/config";
+import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
 import crypto from "crypto";
-import { canAccessConversationAsync } from "@/modules/whatsapp/services/access";
-import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/modules/whatsapp/services/api-context";
-import { isSalesWhatsAppRole } from "@/modules/whatsapp/services/config";
-import { leadGenCreateHandoffFields } from "@/modules/whatsapp/services/lead-gen-handoff";
-import { resolveOutboundBusinessPhoneId } from "@/modules/whatsapp/services/resolve-outbound-phone";
-import { getChannelByPhoneNumberId, getOutboundTokenForPhoneId } from "@/modules/whatsapp/services/channel.service";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
+import { isSalesWhatsAppRole } from "@/lib/whatsapp/config";
+import { leadGenCreateHandoffFields } from "@/lib/whatsapp/leadGenHandoff";
+import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
+import { getChannelByPhoneNumberId, getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
 import fs from "fs/promises";
 import os from "os";
 import path from "path";

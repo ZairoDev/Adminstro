@@ -1,34 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
-import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import WhatsAppMessage from "@/models/whatsappMessage";
+import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import {
   WHATSAPP_API_BASE_URL,
   INTERNAL_YOU_PHONE_ID,
-} from "@/modules/whatsapp/services/config";
-import { findOrCreateConversationWithSnapshot } from "@/modules/whatsapp/services/find-or-create-conversation.service";
-import { normalizePhone } from "@/modules/whatsapp/services/normalize-phone";
+} from "@/lib/whatsapp/config";
+import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
 import crypto from "crypto";
-import { canAccessConversationAsync } from "@/modules/whatsapp/services/access";
-import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/modules/whatsapp/services/api-context";
-import { leadGenCreateHandoffFields } from "@/modules/whatsapp/services/lead-gen-handoff";
-import { resolveOutboundBusinessPhoneId } from "@/modules/whatsapp/services/resolve-outbound-phone";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
+import { leadGenCreateHandoffFields } from "@/lib/whatsapp/leadGenHandoff";
+import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
 import {
   assertCanInitiateGuestConversation,
   guestWasPreviouslyEngaged,
   maybeReserveGuestInitiation,
-} from "@/modules/whatsapp/services/initiation-limit.service";
+} from "@/lib/whatsapp/initiationLimitService";
 import {
   explainOutboundSendCredentialsFailure,
   getChannelByPhoneNumberId,
   resolveOutboundSendCredentials,
   toOutboundTokenConversation,
-} from "@/modules/whatsapp/services/channel.service";
-import { buildWhatsAppRoomPayload } from "@/modules/whatsapp/services/socket-payload";
-import { isWithinMessagingWindow } from "@/modules/whatsapp/services/messaging-window";
-import { resolveMessagingWindowAnchor } from "@/modules/whatsapp/services/messaging-window-server";
+} from "@/lib/whatsapp/channelService";
+import { buildWhatsAppRoomPayload } from "@/lib/whatsapp/socketPayload";
+import { isWithinMessagingWindow } from "@/lib/whatsapp/messagingWindow";
+import { resolveMessagingWindowAnchor } from "@/lib/whatsapp/messagingWindowServer";
 
 connectDb();
 
@@ -736,7 +736,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    void import("@/modules/whatsapp/services/webhook-inspector").then(({ recordSendApiEvent }) =>
+    void import("@/lib/whatsapp/webhookInspector").then(({ recordSendApiEvent }) =>
       recordSendApiEvent({
         messageId: whatsappMessageId,
         customerPhone: formattedPhone,
@@ -757,7 +757,7 @@ export async function POST(req: NextRequest) {
     });
 
     const { recordOutgoingMessageMetrics } = await import(
-      "@/modules/whatsapp/services/conversation-metrics.service"
+      "@/lib/whatsapp/conversationMetricsService"
     );
     await recordOutgoingMessageMetrics(conversation._id, timestamp, {
       templateName: type === "template" ? templateName : undefined,

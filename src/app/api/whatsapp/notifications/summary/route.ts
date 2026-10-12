@@ -1,25 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { FULL_ACCESS_ROLES } from "@/modules/whatsapp/services/config";
-import { loadGlobalArchivedConversationIds } from "@/modules/whatsapp/services/conversations-list-enrichment";
-import { buildConversationVisibilityFilterAsync } from "@/modules/whatsapp/services/location-access";
+import { FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { loadGlobalArchivedConversationIds } from "@/lib/whatsapp/conversationsListEnrichment";
+import { buildConversationVisibilityFilterAsync } from "@/lib/whatsapp/locationAccess";
 import {
   normalizeWhatsAppToken,
   resolveAllowedPhoneIdsAsync,
   type WhatsAppToken,
-} from "@/modules/whatsapp/services/api-context";
+} from "@/lib/whatsapp/apiContext";
 import {
   aggregateSummaryUnreadCount,
   buildSummaryCandidateFilter,
   countExpiringSummaryConversations,
   fetchTopExpiringSummaryConversations,
   fetchTopUnreadSummaryConversations,
-} from "@/modules/whatsapp/services/notification-summary-query";
+} from "@/lib/whatsapp/notificationSummaryQuery";
 import {
   getCachedNotificationSummary,
   setCachedNotificationSummary,
-} from "@/modules/whatsapp/services/notification-summary-cache";
+} from "@/lib/whatsapp/notificationSummaryCache";
 
 connectDb();
 

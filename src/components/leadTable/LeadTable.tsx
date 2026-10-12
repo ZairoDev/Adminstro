@@ -76,7 +76,7 @@ import { Button } from "../ui/button";
 import { Calendar } from "../ui/calendar";
 import { Textarea } from "../ui/textarea";
 import CustomTooltip from "../CustomToolTip";
-import { getWhatsAppErrorInfo, getActionMessage, getFullErrorMessage } from "@/modules/whatsapp/services/meta-error-catalog.service";
+import { getWhatsAppErrorInfo, getActionMessage, getFullErrorMessage } from "@/lib/whatsapp/errorHandler";
 import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
 import { EditableCell } from "@/app/dashboard/goodtogoleads/EditableCell";
 import { TooltipEditableCell } from "@/app/dashboard/goodtogoleads/ToolTipEditableProp";
@@ -84,7 +84,7 @@ import { SelectableCell } from "@/app/spreadsheet/components/cells/SelectableCel
 import { AreaSelect} from "../leadTableSearch/page";
 import { FaWhatsapp } from "react-icons/fa6";
 import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
-import { buildWhatsAppLeadOpenUrl } from "@/modules/whatsapp/services/lead-open-url";
+import { buildWhatsAppLeadOpenUrl } from "@/lib/whatsapp/leadOpenUrl";
 
 interface AreaType {
   _id: string;

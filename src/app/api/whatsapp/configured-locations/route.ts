@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { getAssignableLocationOptionsForUser } from "@/modules/whatsapp/services/assignable-locations";
-import { canAssignWhatsAppParticipantLocation } from "@/modules/whatsapp/services/participant-location-privileges";
+import { getAssignableLocationOptionsForUser } from "@/lib/whatsapp/assignableLocations";
+import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
 
 export const dynamic = "force-dynamic";
 

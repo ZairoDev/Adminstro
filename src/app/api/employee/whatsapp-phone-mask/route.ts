@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import type { WhatsAppPhoneMaskRules } from "@/modules/whatsapp";
+import type { WhatsAppPhoneMaskRules } from "@/lib/whatsapp/phoneMask";
 
 export const dynamic = "force-dynamic";
 

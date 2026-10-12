@@ -6,10 +6,10 @@ import {
   getRetargetPhoneId,
   getWhatsAppToken,
   WHATSAPP_API_BASE_URL,
-} from "@/modules/whatsapp/services/config";
-import { getOutboundTokenForPhoneId } from "@/modules/whatsapp/services/channel.service";
-import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/modules/whatsapp/services/api-context";
-import { canUserAccessPhoneId } from "@/modules/whatsapp/services/phone-area-config.service";
+} from "@/lib/whatsapp/config";
+import { getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
+import { canUserAccessPhoneId } from "@/lib/whatsapp/phoneAreaConfigService";
 
 export const dynamic = "force-dynamic";
 

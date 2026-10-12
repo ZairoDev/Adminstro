@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
-import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
-import { getRetargetPhoneId, FULL_ACCESS_ROLES } from "@/modules/whatsapp/services/config";
-import { buildConversationVisibilityFilterAsync } from "@/modules/whatsapp/services/location-access";
-import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/modules/whatsapp/services/api-context";
-import { canAccessConversationAsync } from "@/modules/whatsapp/services/access";
+import WhatsAppMessage from "@/models/whatsappMessage";
+import WhatsAppConversation from "@/models/whatsappConversation";
+import { getRetargetPhoneId, FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { buildConversationVisibilityFilterAsync } from "@/lib/whatsapp/locationAccess";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 
 export const dynamic = "force-dynamic";
 

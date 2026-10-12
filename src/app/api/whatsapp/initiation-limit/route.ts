@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { normalizeWhatsAppToken, type WhatsAppToken } from "@/modules/whatsapp/services/api-context";
-import { getInitiationLimitStatus } from "@/modules/whatsapp/services/initiation-limit.service";
+import { normalizeWhatsAppToken, type WhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { getInitiationLimitStatus } from "@/lib/whatsapp/initiationLimitService";
 
 export const dynamic = "force-dynamic";
 

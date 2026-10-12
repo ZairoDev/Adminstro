@@ -79,8 +79,8 @@ import { EditableCell } from "@/app/spreadsheet/components/cells/EditableCell";
 import { TooltipEditableCell } from "./ToolTipEditableProp";
 import { AreaSelect } from "@/components/leadTableSearch/page";import { options } from "@fullcalendar/core/preact.js";
 import { FaWhatsapp } from "react-icons/fa6";
-import { getWhatsAppErrorInfo, getActionMessage } from "@/modules/whatsapp/services/meta-error-catalog.service";
-import { buildWhatsAppLeadOpenUrl } from "@/modules/whatsapp/services/lead-open-url";
+import { getWhatsAppErrorInfo, getActionMessage } from "@/lib/whatsapp/errorHandler";
+import { buildWhatsAppLeadOpenUrl } from "@/lib/whatsapp/leadOpenUrl";
 import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
 
 interface Timers {

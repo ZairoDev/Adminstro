@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import { isWhatsAppAccessRole } from "@/modules/whatsapp/services/config";
+import { isWhatsAppAccessRole } from "@/lib/whatsapp/config";
 import {
   applyPhoneMaskToConversation,
   resolveMaskRulesForToken,
-} from "@/modules/whatsapp/services/phone-mask";
-import { resolveYouConversationForInbox } from "@/modules/whatsapp/services/you-conversation.service";
+} from "@/lib/whatsapp/phoneMask";
+import { resolveYouConversationForInbox } from "@/lib/whatsapp/youConversationService";
 
 export const dynamic = "force-dynamic";
 

@@ -1,52 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
-import { findOrCreateConversationWithSnapshot } from "@/modules/whatsapp/services/find-or-create-conversation.service";
-import { normalizePhone } from "@/modules/whatsapp/services/normalize-phone";
+import WhatsAppConversation from "@/models/whatsappConversation";
+import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
 import {
   getAllowedPhoneIds,
   getDefaultPhoneId,
   getRetargetPhoneId,
   FULL_ACCESS_ROLES,
-} from "@/modules/whatsapp/services/config";
-import { canAccessConversationAsync } from "@/modules/whatsapp/services/access";
+} from "@/lib/whatsapp/config";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import {
   assertLocationAllowedForCreate,
-} from "@/modules/whatsapp/services/location-access";
+} from "@/lib/whatsapp/locationAccess";
 import {
   buildInboxListQueryAsync,
   parseInboxListParams,
-} from "@/modules/whatsapp/services/inbox-query";
+} from "@/lib/whatsapp/inboxQuery";
 import {
   normalizeWhatsAppToken,
   resolveAllowedPhoneIdsAsync,
-} from "@/modules/whatsapp/services/api-context";
-import { canUserAccessPhoneId } from "@/modules/whatsapp/services/phone-area-config.service";
+} from "@/lib/whatsapp/apiContext";
+import { canUserAccessPhoneId } from "@/lib/whatsapp/phoneAreaConfigService";
 import {
   isLocationAllowedForPhone,
-} from "@/modules/whatsapp/services/phone-area-config.service";
+} from "@/lib/whatsapp/phoneAreaConfigService";
 import {
   inferChannelTypeFromConversation,
   resolveWhatsappChannel,
   getChannelByPhoneNumberId,
-} from "@/modules/whatsapp/services/channel.service";
+} from "@/lib/whatsapp/channelService";
 import {
   assertCanInitiateGuestConversation,
-} from "@/modules/whatsapp/services/initiation-limit.service";
-import { resolveLeadLinkedConversationRentalType } from "@/modules/whatsapp/services/rental-type-access";
+} from "@/lib/whatsapp/initiationLimitService";
+import { resolveLeadLinkedConversationRentalType } from "@/lib/whatsapp/rentalTypeAccess";
 import {
   applyPhoneMaskToConversation,
   resolveMaskRulesForToken,
-} from "@/modules/whatsapp/services/phone-mask";
+} from "@/lib/whatsapp/phoneMask";
 import {
   isLeadGenInboxRestrictedRole,
   leadGenCreateHandoffFields,
-} from "@/modules/whatsapp/services/lead-gen-handoff";
+} from "@/lib/whatsapp/leadGenHandoff";
 import {
   getGuestOutboundStatsByConversationIds,
   mergeGuestOutboundStats,
-} from "@/modules/whatsapp/services/guest-outbound-stats";
+} from "@/lib/whatsapp/guestOutboundStats";
 import {
   enrichInboxConversationPage,
   applyLeadProfilePicsToInboxPage,
@@ -56,13 +56,13 @@ import {
   scheduleConversationTypeUpdates,
   EMPTY_INBOX_CONVERSATION_COUNTS,
   type InboxConversationLean,
-} from "@/modules/whatsapp/services/conversations-list-enrichment";
+} from "@/lib/whatsapp/conversationsListEnrichment";
 import {
   fetchUnreadInboxConversationPage,
   aggregateUnreadInboxConversationCount,
-} from "@/modules/whatsapp/services/inbox-unread-query";
-import { buildInboxUnreadBadgeMongoQuery } from "@/modules/whatsapp/services/inbox-unread-badge-query";
-import { isUnreadInboxLabelFilter } from "@/modules/whatsapp/services/crm-labels";
+} from "@/lib/whatsapp/inboxUnreadQuery";
+import { buildInboxUnreadBadgeMongoQuery } from "@/lib/whatsapp/inboxUnreadBadgeQuery";
+import { isUnreadInboxLabelFilter } from "@/lib/whatsapp/crmLabels";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
@@ -179,7 +179,7 @@ export async function GET(req: NextRequest) {
     inboxParams.retargetOnly = retargetOnly;
 
     const { canAccessWhatsAppAdminQueue } = await import(
-      "@/modules/whatsapp/services/participant-location-privileges"
+      "@/lib/whatsapp/participantLocationPrivileges"
     );
     if (
       inboxParams.adminQueue &&

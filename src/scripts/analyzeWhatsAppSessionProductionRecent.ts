@@ -1,8 +1,8 @@
 /** Read-only: recent-activity gap analysis on production. */
 import "dotenv/config";
 import { connectDb } from "@/util/db";
-import { WhatsAppConversation } from "@/modules/whatsapp";
-import { WhatsAppMessage } from "@/modules/whatsapp";
+import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppMessage from "@/models/whatsappMessage";
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 

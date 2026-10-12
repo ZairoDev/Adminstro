@@ -6,8 +6,8 @@
  */
 
 import mongoose from "mongoose";
-import { WhatsAppConversation } from "@/modules/whatsapp";
-import { WhatsAppMessage } from "@/modules/whatsapp";
+import WhatsAppConversation from "../models/whatsappConversation";
+import WhatsAppMessage from "../models/whatsappMessage";
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/adminstro";
 

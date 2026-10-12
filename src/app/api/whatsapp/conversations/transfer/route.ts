@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
-import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
+import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppMessage from "@/models/whatsappMessage";
 import ConversationArchiveState from "@/models/conversationArchiveState";
-import { canAccessConversationAsync } from "@/modules/whatsapp/services/access";
-import { stampConversationChannelFromPhone } from "@/modules/whatsapp/services/channel.service";
-import { canUserAccessPhoneId } from "@/modules/whatsapp/services/phone-area-config.service";
-import { getUserAreasFromToken } from "@/modules/whatsapp/services/location-access";
+import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import { stampConversationChannelFromPhone } from "@/lib/whatsapp/channelService";
+import { canUserAccessPhoneId } from "@/lib/whatsapp/phoneAreaConfigService";
+import { getUserAreasFromToken } from "@/lib/whatsapp/locationAccess";
 import { WHATSAPP_EVENTS } from "@/lib/pusher";
-import { emitWhatsAppEventToEligibleUsers } from "@/modules/whatsapp/services/emit-to-eligible-users";
+import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
 import mongoose from "mongoose";
 
 connectDb();

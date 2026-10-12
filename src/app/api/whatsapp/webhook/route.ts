@@ -1,23 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
-import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import WhatsAppMessage from "@/models/whatsappMessage";
+import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, emitSessionWindowUpdated, WHATSAPP_EVENTS } from "@/lib/pusher";
 import { sendExpoPushToEmployee } from "@/services/push/expoPush.service";
-import { getWhatsAppToken, WHATSAPP_API_BASE_URL, WHATSAPP_ACCESS_ROLES } from "@/modules/whatsapp/services/config";
+import { getWhatsAppToken, WHATSAPP_API_BASE_URL, WHATSAPP_ACCESS_ROLES } from "@/lib/whatsapp/config";
 import {
   getActiveChannelByPhoneNumberId,
   getOutboundTokenForPhoneId,
-} from "@/modules/whatsapp/services/channel.service";
+} from "@/lib/whatsapp/channelService";
 import ConversationReadState from "@/models/conversationReadState";
 import ConversationArchiveState from "@/models/conversationArchiveState";
 import Employee from "@/models/employee";
-import { findOrCreateConversationWithSnapshot } from "@/modules/whatsapp/services/find-or-create-conversation.service";
-import { normalizePhone } from "@/modules/whatsapp/services/normalize-phone";
-import { resolveInboundIdentity } from "@/modules/whatsapp/services/inbound-identity";
-import { resolveLocationFromLeadPhone } from "@/modules/whatsapp/services/location-access";
-import { isLocationAllowedForPhone } from "@/modules/whatsapp/services/phone-area-config.service";
-import { getWhatsAppErrorInfo } from "@/modules/whatsapp/services/meta-error-catalog.service";
+import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
+import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
+import { resolveLocationFromLeadPhone } from "@/lib/whatsapp/locationAccess";
+import { isLocationAllowedForPhone } from "@/lib/whatsapp/phoneAreaConfigService";
+import { getWhatsAppErrorInfo } from "@/lib/whatsapp/errorHandler";
 import crypto from "crypto";
 import fs from "fs/promises";
 import os from "os";
@@ -29,10 +28,10 @@ import {
   updateCallFromMetaStatus,
   recordUserInitiatedIncomingOffer,
   createIncomingCallInternalChatMessage,
-} from "@/modules/whatsapp/services/call-history.service";
-import { getEligibleUsersForNotification } from "@/modules/whatsapp/services/notification-recipients";
-import { emitWhatsAppEventToEligibleUsers } from "@/modules/whatsapp/services/emit-to-eligible-users";
-import { MESSAGING_WINDOW_MS } from "@/modules/whatsapp/services/messaging-window";
+} from "@/services/whatsapp-calling/callHistoryService";
+import { getEligibleUsersForNotification } from "@/lib/whatsapp/notificationRecipients";
+import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
+import { MESSAGING_WINDOW_MS } from "@/lib/whatsapp/messagingWindow";
 
 export const dynamic = "force-dynamic";
 
@@ -318,7 +317,7 @@ export async function POST(req: NextRequest) {
 
     await connectDb();
 
-    void import("@/modules/whatsapp/services/webhook-log/persist")
+    void import("@/lib/whatsapp/webhookLog/persist")
       .then((m) => m.persistWebhookPayload(body))
       .catch((err) => console.warn("[webhook-log] persist failed:", err));
 
@@ -666,7 +665,7 @@ async function sendGuestQuestionsTemplate(
     });
 
     const { recordOutgoingMessageMetrics } = await import(
-      "@/modules/whatsapp/services/conversation-metrics.service"
+      "@/lib/whatsapp/conversationMetricsService"
     );
     await recordOutgoingMessageMetrics(conversation._id, timestamp, {
       templateName: "guest_questions",
@@ -699,34 +698,6 @@ async function sendGuestQuestionsTemplate(
   }
 }
 
-async function rememberParticipantBsuid(
-  conversationId: unknown,
-  bsuid: string | null,
-): Promise<void> {
-  if (!conversationId || !bsuid) return;
-  await WhatsAppConversation.updateOne(
-    { _id: conversationId, participantBsuid: { $ne: bsuid } },
-    { $set: { participantBsuid: bsuid } },
-  );
-}
-
-async function phoneFromQuotedMessage(contextId: unknown): Promise<string | null> {
-  const quotedId = contextId == null ? "" : String(contextId).trim();
-  if (!quotedId) return null;
-  const quoted = (await WhatsAppMessage.findOne({ messageId: quotedId })
-    .select("conversationId")
-    .lean()) as { conversationId?: unknown } | null;
-  if (!quoted?.conversationId) return null;
-  const conversation = (await WhatsAppConversation.findById(quoted.conversationId)
-    .select("participantPhone source")
-    .lean()) as { participantPhone?: string; source?: string } | null;
-  if (!conversation || conversation.source === "internal" || !conversation.participantPhone) {
-    return null;
-  }
-  const phone = normalizePhone(String(conversation.participantPhone));
-  return phone.length >= 7 && phone.length <= 15 ? phone : null;
-}
-
 async function processIncomingMessage(
   message: any,
   contact: any,
@@ -734,22 +705,24 @@ async function processIncomingMessage(
 ) {
   try {
     const phoneNumberId = metadata?.phone_number_id;
-    const identity = resolveInboundIdentity(message, contact);
     console.log("📩 [webhook] processIncomingMessage", {
       phoneNumberId: phoneNumberId || null,
       messageId: message?.id || null,
       from: message?.from ? String(message.from).replace(/\d(?=\d{4})/g, "x") : null,
       type: message?.type || null,
-      hasPhone: Boolean(identity.phone),
-      hasBsuid: Boolean(identity.bsuid),
     });
-    let senderPhone = identity.phone ?? "";
-    let senderName = contact?.profile?.name || identity.username || "";
+    const senderPhone = normalizePhone(String(message.from ?? ""));
+    if (senderPhone.length < 7 || senderPhone.length > 15) {
+      console.error("❌ Invalid phone number length:", senderPhone);
+      return;
+    }
+    const senderName = contact?.profile?.name || senderPhone;
     const inboundTimestampMs = parseInt(message.timestamp, 10) * 1000;
     const timestamp = new Date(inboundTimestampMs);
 
-    if (!phoneNumberId) {
-      console.error("❌ Missing required fields - phoneNumberId");
+    // Validate required fields
+    if (!senderPhone || !phoneNumberId) {
+      console.error("❌ Missing required fields - senderPhone:", senderPhone, "phoneNumberId:", phoneNumberId);
       return;
     }
 
@@ -759,52 +732,6 @@ async function processIncomingMessage(
         "[webhook] unresolved phoneNumberId — no channel found:",
         phoneNumberId,
       );
-      return;
-    }
-
-    if (!senderPhone && identity.bsuid) {
-      const linked = (await WhatsAppConversation.findOne({
-        participantBsuid: identity.bsuid,
-        source: { $ne: "internal" },
-        $or: [
-          { whatsappChannelId: channel.channelId },
-          { businessPhoneId: String(phoneNumberId) },
-        ],
-      })
-        .select("participantPhone")
-        .lean()) as { participantPhone?: string } | null;
-      const linkedPhone = linked?.participantPhone
-        ? normalizePhone(String(linked.participantPhone))
-        : "";
-      if (linkedPhone.length >= 7 && linkedPhone.length <= 15) {
-        senderPhone = linkedPhone;
-        console.log("[webhook] inbound reply matched by BSUID", {
-          messageId: message?.id || null,
-          phoneLast4: senderPhone.slice(-4),
-        });
-      }
-    }
-
-    if (!senderPhone && message?.context?.id) {
-      const quotedPhone = await phoneFromQuotedMessage(message.context.id);
-      if (quotedPhone) {
-        senderPhone = quotedPhone;
-        console.log("[webhook] inbound reply matched by quoted message", {
-          messageId: message?.id || null,
-          phoneLast4: senderPhone.slice(-4),
-        });
-      }
-    }
-
-    if (!senderName) senderName = senderPhone;
-
-    if (senderPhone.length < 7 || senderPhone.length > 15) {
-      console.error("[webhook] inbound reply dropped: no phone for this chat", {
-        messageId: message?.id || null,
-        hasBsuid: Boolean(identity.bsuid),
-        hasFrom: Boolean(message?.from),
-        hasWaId: Boolean(contact?.wa_id),
-      });
       return;
     }
 
@@ -838,10 +765,6 @@ async function processIncomingMessage(
       isInboundWebhook: true,
       inboundTimestampMs,
     }) as any; // Cast to any to access Mongoose document properties like _id
-
-    if (identity.bsuid) {
-      await rememberParticipantBsuid(conversation._id, identity.bsuid);
-    }
 
     // ============================================================
     // CRITICAL: Internal vs Meta Message Safety
@@ -1407,7 +1330,7 @@ async function processIncomingMessage(
     }
 
     const { recordIncomingMessageMetrics } = await import(
-      "@/modules/whatsapp/services/conversation-metrics.service"
+      "@/lib/whatsapp/conversationMetricsService"
     );
     await recordIncomingMessageMetrics(conversation._id, timestamp).catch((err) =>
       console.warn("[metrics] incoming:", err),
@@ -1415,7 +1338,7 @@ async function processIncomingMessage(
 
     if (isNewMessage) {
       const { confirmGuestInitiationOnInboundReply } = await import(
-        "@/modules/whatsapp/services/initiation-limit.service"
+        "@/lib/whatsapp/initiationLimitService"
       );
       await confirmGuestInitiationOnInboundReply(String(conversation._id)).catch((err) =>
         console.warn("[initiation] confirm:", err),
@@ -1690,16 +1613,10 @@ async function processStatusUpdate(status: any) {
 
     // STEP 4: Find message first to check current status (idempotency check)
     const existingMessage = await WhatsAppMessage.findOne({ messageId });
-    const statusBsuid = status.recipient_user_id
-      ? String(status.recipient_user_id).trim()
-      : "";
-    if (statusBsuid && existingMessage?.conversationId) {
-      await rememberParticipantBsuid(existingMessage.conversationId, statusBsuid);
-    }
     if (!existingMessage) {
       console.log("ℹ️ [webhook] status for unknown messageId (not in DB)", { messageId });
       const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
-        await import("@/modules/whatsapp/services/webhook-inspector");
+        await import("@/lib/whatsapp/webhookInspector");
       if (isWebhookInspectorActive()) {
         void recordStatusProcessingOutcome({
           messageId,
@@ -1718,7 +1635,7 @@ async function processStatusUpdate(status: any) {
     // Skip if status hasn't changed (duplicate webhook) - silent skip
     if (previousStatus === newStatus) {
       const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
-        await import("@/modules/whatsapp/services/webhook-inspector");
+        await import("@/lib/whatsapp/webhookInspector");
       if (isWebhookInspectorActive()) {
         void recordStatusProcessingOutcome({
           messageId,
@@ -1767,7 +1684,7 @@ async function processStatusUpdate(status: any) {
 
     if (!message) {
       const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
-        await import("@/modules/whatsapp/services/webhook-inspector");
+        await import("@/lib/whatsapp/webhookInspector");
       if (isWebhookInspectorActive()) {
         void recordStatusProcessingOutcome({
           messageId,
@@ -1812,7 +1729,7 @@ async function processStatusUpdate(status: any) {
       previousStatus !== "read";
     if (isFirstDeliveryAck) {
       const { recordGuestInitiationOnOutboundDelivered } = await import(
-        "@/modules/whatsapp/services/initiation-limit.service"
+        "@/lib/whatsapp/initiationLimitService"
       );
       await recordGuestInitiationOnOutboundDelivered(messageId, timestamp).catch(
         (err) => console.warn("[initiation] delivery pending:", err),
@@ -1821,7 +1738,7 @@ async function processStatusUpdate(status: any) {
 
     if (newStatus === "failed") {
       const { releaseGuestInitiationReservationOnOutboundFailed } = await import(
-        "@/modules/whatsapp/services/initiation-limit.service"
+        "@/lib/whatsapp/initiationLimitService"
       );
       await releaseGuestInitiationReservationOnOutboundFailed(messageId).catch(
         (err) => console.warn("[initiation] release reservation:", err),
@@ -1840,7 +1757,7 @@ async function processStatusUpdate(status: any) {
     });
 
     const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
-      await import("@/modules/whatsapp/services/webhook-inspector");
+      await import("@/lib/whatsapp/webhookInspector");
     if (isWebhookInspectorActive()) {
       void recordStatusProcessingOutcome({
         messageId,
@@ -1858,7 +1775,7 @@ async function processStatusUpdate(status: any) {
   } catch (error) {
     console.error("Error processing status update:", error);
     const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
-      await import("@/modules/whatsapp/services/webhook-inspector");
+      await import("@/lib/whatsapp/webhookInspector");
     if (isWebhookInspectorActive()) {
       void recordStatusProcessingOutcome({
         messageId: status?.id ?? "unknown",
@@ -2414,7 +2331,7 @@ async function processMessageEchoEvent(value: any) {
         });
 
         const { recordOutgoingMessageMetrics } = await import(
-          "@/modules/whatsapp/services/conversation-metrics.service"
+          "@/lib/whatsapp/conversationMetricsService"
         );
         await recordOutgoingMessageMetrics(conversation._id, timestamp).catch(
           (err) => console.warn("[metrics] echo:", err),

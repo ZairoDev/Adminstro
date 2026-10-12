@@ -1,5 +1,5 @@
-import type { Message } from "@/modules/whatsapp/ui/inbox.types";
-import { getMessageDisplayText } from "@/modules/whatsapp/ui/conversation-display";
+import type { Message } from "@/app/whatsapp/types";
+import { getMessageDisplayText } from "@/app/whatsapp/utils";
 
 export type MessageTranslationEntry = {
   originalText: string;

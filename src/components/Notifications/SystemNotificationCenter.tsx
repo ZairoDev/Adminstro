@@ -19,7 +19,7 @@ import axios from "@/util/axios";
 import { useAuthStore } from "@/AuthStore";
 import { useSocket } from "@/hooks/useSocket";
 import { cn } from "@/lib/utils";
-import { formatTime } from "@/modules/whatsapp/ui/conversation-display";
+import { formatTime } from "@/app/whatsapp/utils";
 
 interface Notification {
   _id: string;

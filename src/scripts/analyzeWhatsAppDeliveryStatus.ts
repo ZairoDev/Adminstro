@@ -10,9 +10,9 @@
  */
 import "dotenv/config";
 import { connectDb } from "@/util/db";
-import { WhatsAppMessage } from "@/modules/whatsapp";
+import WhatsAppMessage from "@/models/whatsappMessage";
 import WebhookInspectorEvent from "@/models/webhookInspectorEvent";
-import { buildMessageDeliveryReport } from "@/modules/whatsapp";
+import { buildMessageDeliveryReport } from "@/lib/whatsapp/webhookInspector/report";
 
 function arg(name: string, fallback: string): string {
   const hit = process.argv.find((a) => a.startsWith(`--${name}=`));

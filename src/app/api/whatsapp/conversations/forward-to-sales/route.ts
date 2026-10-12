@@ -3,15 +3,15 @@ import { z } from "zod";
 import mongoose from "mongoose";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import WhatsAppConversation from "@/models/whatsappConversation";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import {
   canAccessConversationAsync,
   CONVERSATION_ACCESS_SELECT,
-} from "@/modules/whatsapp/services/access";
-import { normalizeWhatsAppToken } from "@/modules/whatsapp/services/api-context";
-import { canForwardLeadToSales } from "@/modules/whatsapp/services/lead-gen-handoff";
-import { buildWhatsAppRoomPayload } from "@/modules/whatsapp/services/socket-payload";
+} from "@/lib/whatsapp/access";
+import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { canForwardLeadToSales } from "@/lib/whatsapp/leadGenHandoff";
+import { buildWhatsAppRoomPayload } from "@/lib/whatsapp/socketPayload";
 
 export const dynamic = "force-dynamic";
 

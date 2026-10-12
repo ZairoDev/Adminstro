@@ -3,14 +3,14 @@
 import React, { useEffect, useState, useCallback } from "react";
 import axios from "@/util/axios";
 import { useAuthStore } from "@/AuthStore";
-import { RetargetPanel } from "@/modules/whatsapp/ui/components/retarget-panel";
+import { RetargetPanel } from "@/app/whatsapp/components/RetargetPanel";
 import { useToast } from "@/hooks/use-toast";
-import type { Template } from "@/modules/whatsapp/ui/inbox.types";
+import type { Template } from "@/app/whatsapp/types";
 import {
   buildTemplateComponents,
   getTemplatePreviewText,
   getTemplateParamIntents,
-} from "@/modules/whatsapp/ui/conversation-display";
+} from "@/app/whatsapp/utils";
 import { parseMonthlyTargetLocationNames } from "@/util/monthlyTargetLocations";
 
 // Enhanced recipient type with retarget tracking

@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { normalizeUserAreas } from "@/modules/whatsapp";
-import { FULL_ACCESS_ROLES } from "@/modules/whatsapp";
-import { buildWhatsAppOverview } from "@/modules/whatsapp";
-import type { WhatsAppOverviewResponse } from "@/modules/whatsapp";
+import { normalizeUserAreas } from "@/lib/whatsapp/resolveAllowedPhoneConfigs";
+import { FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { buildWhatsAppOverview } from "@/lib/whatsapp/analytics/whatsappAnalyticsService";
+import type { WhatsAppOverviewResponse } from "@/lib/whatsapp/analytics/types";
 
 connectDb();
 
 export const dynamic = "force-dynamic";
 
-export type { WhatsAppOverviewResponse } from "@/modules/whatsapp";
+export type { WhatsAppOverviewResponse } from "@/lib/whatsapp/analytics/types";
 
 const responseCache = new Map<
   string,

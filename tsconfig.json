@@ -35,6 +35,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     "src/app/api/employee/deleteEmploye",
+    "src/createSuggestionItems.js",
     "src/models/offersts",
     "socket.ts",
     "src/app/api/candidates/onboardingDocument",

@@ -6,7 +6,7 @@ import BreadCrumb from "@/components/BreadCrumb";
 import { LogoutButton } from "@/components/logoutAlertBox";
 import ScrollToTopButton from "@/components/dragButton/ScrollToTop";
 import { Notifications } from "@/components/Notifications/Notifications";
-import { WhatsAppNotifications } from "@/modules/whatsapp/ui/whatsapp-notifications";
+import { WhatsAppNotifications } from "@/components/whatsapp/WhatsAppNotifications";
 import { SystemNotificationToast } from "@/components/Notifications/SystemNotificationToast";
 import { SystemNotificationCenter } from "@/components/Notifications/SystemNotificationCenter";
 import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastNotificationForm";

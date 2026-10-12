@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import { FULL_ACCESS_ROLES } from "@/modules/whatsapp/services/config";
+import { FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
 import {
   normalizeUserAreas,
   resolveAllowedPhoneConfigs,
-} from "@/modules/whatsapp/services/resolve-allowed-phone-configs";
+} from "@/lib/whatsapp/resolveAllowedPhoneConfigs";
 
 // Force dynamic rendering since we use request.cookies for authentication
 export const dynamic = 'force-dynamic';

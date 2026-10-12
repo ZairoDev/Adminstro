@@ -274,26 +274,6 @@ export async function applySplitPayments(params: {
   return { snapshots, splitGroupId, totalAmount: params.totalAmount };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Read-only: list guests on a booking (for split allocation UI)       */
-/* ------------------------------------------------------------------ */
-
-export async function getBookingGuests(bookingId: string): Promise<
-  Array<{
-    guestId: string;
-    name: string;
-    email: string;
-    phone: string;
-    amountDue: number;
-    amountPaid: number;
-    pendingAmount: number;
-    status: string;
-  }>
-> {
-  const ctx = await getBookingInvoiceContext(bookingId);
-  return ctx.guests;
-}
-
 export type BookingInvoiceContext = {
   bookingId: string;
   propertyName: string | null;

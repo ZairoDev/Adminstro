@@ -1,15 +1,19 @@
 import { canAccessConversation, shouldEmitToUser } from "@/modules/whatsapp/services/access";
 
-jest.mock("@/modules/whatsapp/services/config", () => ({
-  getAllowedPhoneIds: jest.fn((role: string, areas: string[]) => {
-    if (role === "Sales" && areas?.includes("athens")) return ["phone-athens"];
-    if (role === "Sales" && areas?.includes("milan")) return ["phone-milan"];
-    if (role === "Sales") return ["phone-other"];
-    if (role === "Advert") return [];
-    if (role === "SuperAdmin") return ["phone-athens", "phone-milan", "phone-other"];
-    return [];
-  }),
-}));
+jest.mock("@/modules/whatsapp/services/config", () => {
+  const actual = jest.requireActual("@/modules/whatsapp/services/config");
+  return {
+    ...actual,
+    getAllowedPhoneIds: jest.fn((role: string, areas: string[]) => {
+      if (role === "Sales" && areas?.includes("athens")) return ["phone-athens"];
+      if (role === "Sales" && areas?.includes("milan")) return ["phone-milan"];
+      if (role === "Sales") return ["phone-other"];
+      if (role === "Advert") return [];
+      if (role === "SuperAdmin") return ["phone-athens", "phone-milan", "phone-other"];
+      return [];
+    }),
+  };
+});
 
 describe("canAccessConversation - Basic Retarget Rules", () => {
   test("Sales cannot access retarget before handover", async () => {
@@ -42,7 +46,11 @@ describe("canAccessConversation - Basic Retarget Rules", () => {
 
   test("Non-retarget conversation allowed if phone matches", async () => {
     const user = { role: "Sales", allotedArea: ["athens"] };
-    const conv: any = { isRetarget: false, businessPhoneId: "phone-athens" };
+    const conv: any = {
+      isRetarget: false,
+      businessPhoneId: "phone-athens",
+      participantLocation: "Athens",
+    };
     const allowed = await canAccessConversation(user, conv);
     expect(allowed).toBe(true);
   });

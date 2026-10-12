@@ -3,8 +3,8 @@
  * Run: npx tsx src/scripts/backfillWhatsAppConversationMetrics.ts
  */
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import { syncConversationMetricsFromMessages } from "@/lib/whatsapp/conversationMetricsService";
+import { WhatsAppConversation } from "@/modules/whatsapp";
+import { syncConversationMetricsFromMessages } from "@/modules/whatsapp";
 
 const BATCH = 100;
 

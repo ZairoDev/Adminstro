@@ -17,28 +17,28 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
 import axios from "@/util/axios";
 import { useAuthStore } from "@/AuthStore";
-import type { ChannelPhoneConfig } from "@/lib/whatsapp/resolveAllowedPhoneConfigs";
+import type { ChannelPhoneConfig } from "@/modules/whatsapp/services/resolve-allowed-phone-configs";
 
 const EMPTY_PHONE_CONFIGS: ChannelPhoneConfig[] = [];
-import type { Conversation, Message, Template } from "../types";
-import { useMessages } from "../hooks/useMessages";
+import type { Conversation, Message, Template } from "../inbox.types";
+import { useMessages } from "../hooks/use-messages";
 import {
   useConversationReaders,
   conversationReadersQueryKey,
-} from "../hooks/useConversationReaders";
+} from "../hooks/use-conversation-readers";
 import {
   mutateWhatsAppMessagesCache,
   clearWhatsAppMessagesCache,
   buildMessagesQueryKey,
-} from "../lib/whatsappQueryCache";
+} from "../lib/whatsapp-query-cache";
 import {
   getConversationBusinessPhoneId,
   resolveTemplatesCacheKey,
-} from "../utils";
-import { useMobileView } from "../hooks/useMobileView";
-import { buildWhatsAppInboxUrl } from "../lib/whatsappInboxUrl";
-import { useConversationListActionsRef } from "./ConversationListContext";
-import type { ConversationReader } from "@/lib/whatsapp/conversationReaders";
+} from "../conversation-display";
+import { useMobileView } from "../hooks/use-mobile-view";
+import { buildWhatsAppInboxUrl } from "../lib/whatsapp-inbox-url";
+import { useConversationListActionsRef } from "./conversation-list-context";
+import type { ConversationReader } from "@/modules/whatsapp/services/conversation-readers";
 import type {
   ActiveThreadActionsValue,
   ActiveThreadStateValue,

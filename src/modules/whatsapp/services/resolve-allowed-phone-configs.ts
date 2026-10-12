@@ -5,15 +5,15 @@ import {
   getAllowedPhoneConfigs,
   getRetargetPhoneId,
   type WhatsAppPhoneConfig,
-} from "@/lib/whatsapp/config";
+} from "@/modules/whatsapp/services/config";
 import { normalizeCityKey, toDisplayCity } from "@/lib/city-normalizer";
 import {
   getAllPhoneLocationConfigs,
   getAccessibleChannelIds,
   resolveUserAllowedPhoneIds,
-} from "@/lib/whatsapp/phoneAreaConfigService";
-import WhatsappChannel from "@/models/whatsappChannel";
-import WhatsAppConversation from "@/models/whatsappConversation";
+} from "@/modules/whatsapp/services/phone-area-config.service";
+import WhatsappChannel from "@/modules/whatsapp/models/channel.model";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 
 export type ChannelPhoneConfig = WhatsAppPhoneConfig & {
   channelId?: string;

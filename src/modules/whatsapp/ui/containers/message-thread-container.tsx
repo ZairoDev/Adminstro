@@ -7,42 +7,42 @@ import axios from "@/util/axios";
 import { useToast } from "@/hooks/use-toast";
 import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
 import type { CoreWhatsAppDispositionAction } from "@/lib/leads/leadDisposition";
-import type { DispositionAppliedResult } from "../components/DispositionDialog";
+import type { DispositionAppliedResult } from "../components/disposition-dialog";
 import { cn } from "@/lib/utils";
 import {
   isMessageWindowActive,
   getConversationTemplateContext,
   getConversationBusinessPhoneId,
-} from "../utils";
-import { repositionConversationAfterUpdate } from "../lib/whatsappQueryCache";
-import { shouldMaskConversationPhone } from "@/lib/whatsapp/phoneMask";
-import { useInitiationLimit } from "../hooks/useInitiationLimit";
-import { InitiationLimitBadge } from "../components/InitiationLimitBadge";
-import { useActiveThreadState, useActiveThreadActionsRef } from "../context/ActiveThreadContext";
-import { useConversationListActionsRef } from "../context/ConversationListContext";
-import { useWhatsAppUIState } from "../context/WhatsAppUIContext";
-import { ChatHeader } from "../components/ChatHeader";
-import { MessageList } from "../components/MessageList";
-import { MessageComposer } from "../components/MessageComposer";
-import type { Conversation, Message } from "../types";
-import type { WhatsAppPhoneMaskRules } from "@/lib/whatsapp/phoneMask";
-import type { MobileView } from "../hooks/useMobileView";
+} from "../conversation-display";
+import { repositionConversationAfterUpdate } from "../lib/whatsapp-query-cache";
+import { shouldMaskConversationPhone } from "@/modules/whatsapp/services/phone-mask";
+import { useInitiationLimit } from "../hooks/use-initiation-limit";
+import { InitiationLimitBadge } from "../components/initiation-limit-badge";
+import { useActiveThreadState, useActiveThreadActionsRef } from "../context/active-thread-context";
+import { useConversationListActionsRef } from "../context/conversation-list-context";
+import { useWhatsAppUIState } from "../context/whatsapp-ui-context";
+import { ChatHeader } from "../components/chat-header";
+import { MessageList } from "../components/message-list";
+import { MessageComposer } from "../components/message-composer";
+import type { Conversation, Message } from "../inbox.types";
+import type { WhatsAppPhoneMaskRules } from "@/modules/whatsapp/services/phone-mask";
+import type { MobileView } from "../hooks/use-mobile-view";
 
 // ── Dynamic imports (load on demand) ──────────────────────────────────────
 const DispositionDialog = dynamic(
-  () => import("../components/DispositionDialog").then((m) => ({ default: m.DispositionDialog })),
+  () => import("../components/disposition-dialog").then((m) => ({ default: m.DispositionDialog })),
   { ssr: false, loading: () => null },
 );
 const SetVisitDialog = dynamic(
-  () => import("../components/SetVisitDialog").then((m) => ({ default: m.SetVisitDialog })),
+  () => import("../components/set-visit-dialog").then((m) => ({ default: m.SetVisitDialog })),
   { ssr: false, loading: () => null },
 );
 const ReminderDialog = dynamic(
-  () => import("../components/ReminderDialog").then((m) => ({ default: m.ReminderDialog })),
+  () => import("../components/reminder-dialog").then((m) => ({ default: m.ReminderDialog })),
   { ssr: false, loading: () => null },
 );
 const CrmPanel = dynamic(
-  () => import("../components/CrmPanel").then((m) => ({ default: m.CrmPanel })),
+  () => import("../components/crm-panel").then((m) => ({ default: m.CrmPanel })),
   {
     ssr: false,
     loading: () => (

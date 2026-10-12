@@ -17,15 +17,15 @@ import { useSearchParams, useRouter } from "next/navigation";
 import axios from "@/util/axios";
 import { useAuthStore } from "@/AuthStore";
 import { useToast } from "@/hooks/use-toast";
-import type { Conversation, ConversationsListFilters } from "../types";
+import type { Conversation, ConversationsListFilters } from "../inbox.types";
 import {
   useConversationsList,
   extractConversationsListMeta,
   mergeOpenConversationIntoList,
-} from "../hooks/useConversationsList";
-import { useWhatsAppYouConversation } from "../hooks/useWhatsAppYouConversation";
-import { useWhatsAppUnreadCount } from "../hooks/useWhatsAppUnreadCount";
-import { useMonthlyTargetLocations } from "../hooks/useMonthlyTargetLocations";
+} from "../hooks/use-conversations-list";
+import { useWhatsAppYouConversation } from "../hooks/use-whatsapp-you-conversation";
+import { useWhatsAppUnreadCount } from "../hooks/use-whatsapp-unread-count";
+import { useMonthlyTargetLocations } from "../hooks/use-monthly-target-locations";
 import {
   mutateWhatsAppConversationsListCache,
   broadcastConversationPatch,
@@ -34,10 +34,10 @@ import {
   toUnreadCountQueryFilters,
   buildUnreadCountQueryKey,
   adjustWhatsAppUnreadCountQueryCache,
-} from "../lib/whatsappQueryCache";
-import { fetchConversationsFirstPageFullEnrichment } from "../lib/conversationsListApi";
-import { deferUntilIdle } from "../lib/deferUntilIdle";
-import { mergeYouConversationIntoList } from "../lib/conversationListUpdates";
+} from "../lib/whatsapp-query-cache";
+import { fetchConversationsFirstPageFullEnrichment } from "../lib/conversations-list-api";
+import { deferUntilIdle } from "../lib/defer-until-idle";
+import { mergeYouConversationIntoList } from "../lib/conversation-list-updates";
 import {
   useArchivedConversationIds,
   WHATSAPP_ARCHIVED_IDS_QUERY_KEY,
@@ -47,17 +47,17 @@ import {
   getWhatsAppPhoneMaskFromToken,
   maskConversationsForViewer,
   type WhatsAppPhoneMaskRules,
-} from "@/lib/whatsapp/phoneMask";
+} from "@/modules/whatsapp/services/phone-mask";
 import {
   canUseInboxLocationFilter,
   getInboxLocationFilterOptionsForUser,
   usesGlobalInboxLocationList,
-} from "@/lib/whatsapp/participantLocationPrivileges";
+} from "@/modules/whatsapp/services/participant-location-privileges";
 import {
   buildWhatsAppInboxUrl,
   resolveInboxLocationDefaults,
   persistSuperAdminLocationFilter,
-} from "../lib/whatsappInboxUrl";
+} from "../lib/whatsapp-inbox-url";
 import type {
   ConversationListActionsValue,
   ConversationListStateValue,

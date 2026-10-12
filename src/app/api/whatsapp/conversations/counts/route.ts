@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import { buildInboxListQueryAsync, parseInboxListParams } from "@/lib/whatsapp/inboxQuery";
-import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import { buildInboxListQueryAsync, parseInboxListParams } from "@/modules/whatsapp/services/inbox-query";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/modules/whatsapp/services/api-context";
 
 connectDb();
 

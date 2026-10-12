@@ -1,7 +1,7 @@
-import type { Template } from "@/app/whatsapp/types";
-import { getTemplateBodySnippet } from "@/app/whatsapp/utils";
-import type { CreateConversationRentalType } from "@/lib/whatsapp/rentalTypeAccess";
-import { DEFAULT_CONVERSATION_RENTAL_TYPE } from "@/lib/whatsapp/rentalTypeAccess";
+import type { Template } from "@/modules/whatsapp/ui/inbox.types";
+import { getTemplateBodySnippet } from "@/modules/whatsapp/ui/conversation-display";
+import type { CreateConversationRentalType } from "@/modules/whatsapp/services/rental-type-access";
+import { DEFAULT_CONVERSATION_RENTAL_TYPE } from "@/modules/whatsapp/services/rental-type-access";
 
 export type ConversationTemplateRentalType =
   | CreateConversationRentalType

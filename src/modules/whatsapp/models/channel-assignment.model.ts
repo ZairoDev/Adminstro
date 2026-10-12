@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
-import type { WhatsappChannelType, WhatsappChannelRentalType } from "./whatsappChannel";
+import type { WhatsappChannelType, WhatsappChannelRentalType } from "./channel.model";
 
 /**
  * WhatsappChannelAssignment

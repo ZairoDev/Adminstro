@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { SUPPORTED_TRANSLATION_LANGUAGES } from "@/lib/whatsapp/translation/types";
+import { SUPPORTED_TRANSLATION_LANGUAGES } from "@/modules/whatsapp/services/translation/types";
 import {
   LayoutTemplate,
   Loader2,
@@ -31,18 +31,18 @@ import {
 } from "lucide-react";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
-import type { Template, Message } from "../types";
-import { TemplateDialog } from "./TemplateDialog";
+import type { Template, Message } from "../inbox.types";
+import { TemplateDialog } from "./template-dialog";
 import { cn } from "@/lib/utils";
 import axios from "@/util/axios";
-import { deferUntilIdle } from "../lib/deferUntilIdle";
-import { useConversationPreferences, conversationPreferencesQueryKey } from "../hooks/useConversationPreferences";
-import { getMessageDisplayText, getTemplateBodySnippet } from "../utils";
+import { deferUntilIdle } from "../lib/defer-until-idle";
+import { useConversationPreferences, conversationPreferencesQueryKey } from "../hooks/use-conversation-preferences";
+import { getMessageDisplayText, getTemplateBodySnippet } from "../conversation-display";
 import {
   filterTemplatesBySearchQuery,
   filterTemplatesForConversation,
   filterTemplatesForRentalType,
-} from "@/lib/whatsapp/templateClassification";
+} from "@/modules/whatsapp/services/template-classification";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   MediaSendPreview,
@@ -50,7 +50,7 @@ import {
   createMediaFile,
   revokeMediaFileUrls,
   usePasteMedia,
-} from "./MediaSendPreview";
+} from "./media-send-preview";
 
 type MediaKind = "image" | "document" | "audio" | "video";
 

@@ -1,11 +1,11 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User, Loader2, Search, CheckCheck, MessageSquare } from "lucide-react";
-import { formatTime } from "../utils";
+import { formatTime } from "../conversation-display";
 import {
   getMaskedMessagePreview,
   resolveConversationDisplayLabel,
   type WhatsAppPhoneMaskRules,
-} from "@/lib/whatsapp/phoneMask";
+} from "@/modules/whatsapp/services/phone-mask";
 
 /**
  * Strip every HTML tag except the safe <mark> element used for highlighting.

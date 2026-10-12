@@ -1,9 +1,9 @@
-import type { Conversation, Message, Template } from "./types";
+import type { Conversation, Message, Template } from "./inbox.types";
 import {
   getMessagingWindowRemaining,
   isSessionActive,
   resolveSessionAnchorMs,
-} from "@/lib/whatsapp/messagingWindow";
+} from "@/modules/whatsapp/services/messaging-window";
 
  /** Business line for outbound API calls — from the open chat, not a sidebar phone tab. */
 export function getConversationBusinessPhoneId(

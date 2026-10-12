@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import { isWhatsAppAccessRole } from "@/lib/whatsapp/config";
-import { findLeadByPhoneOrEmail } from "@/lib/whatsapp/leadLookupService";
+import { isWhatsAppAccessRole } from "@/modules/whatsapp/services/config";
+import { findLeadByPhoneOrEmail } from "@/modules/whatsapp/services/lead-lookup.service";
 
 export const dynamic = "force-dynamic";
 

@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { WhatsAppPhoneMaskRules } from "@/lib/whatsapp/phoneMask";
+import type { WhatsAppPhoneMaskRules } from "@/modules/whatsapp/services/phone-mask";
 
 type EmployeeOption = {
   _id: string;

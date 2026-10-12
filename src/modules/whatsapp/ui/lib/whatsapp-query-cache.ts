@@ -1,10 +1,10 @@
 import type { InfiniteData, QueryClient } from "@tanstack/react-query";
-import type { Conversation, Message } from "../types";
+import type { Conversation, Message } from "../inbox.types";
 import type {
   ConversationsListFilters,
   WhatsAppConversationsListPage,
   WhatsAppMessagesListPage,
-} from "../types";
+} from "../inbox.types";
 
 export {
   sortConversationsList,
@@ -16,7 +16,7 @@ export {
   upsertConversationWithReposition,
   patchConversationInList,
   mapConversationsInList,
-} from "./conversationListUpdates";
+} from "./conversation-list-updates";
 
 export const WHATSAPP_CONVERSATIONS_QUERY_KEY = "whatsappConversations" as const;
 export const WHATSAPP_MESSAGES_QUERY_KEY = "whatsappMessages" as const;

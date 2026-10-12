@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import axios from "@/util/axios";
-import type { Conversation } from "../types";
+import type { Conversation } from "../inbox.types";
 
 export const WHATSAPP_YOU_CONVERSATION_QUERY_KEY = [
   "whatsapp",

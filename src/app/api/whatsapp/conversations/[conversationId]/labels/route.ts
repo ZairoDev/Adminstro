@@ -2,17 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import { canAccessConversationAsync, CONVERSATION_ACCESS_SELECT } from "@/lib/whatsapp/access";
-import { normalizeWhatsAppToken, type WhatsAppToken } from "@/lib/whatsapp/apiContext";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import { canAccessConversationAsync, CONVERSATION_ACCESS_SELECT } from "@/modules/whatsapp/services/access";
+import { normalizeWhatsAppToken, type WhatsAppToken } from "@/modules/whatsapp/services/api-context";
 import {
   addLabelsToConversation,
   removeLabelFromConversation,
   setConversationLabels,
   syncPrimaryDispositionLabels,
-} from "@/lib/whatsapp/conversationLabelService";
+} from "@/modules/whatsapp/services/conversation-label.service";
 import { WHATSAPP_EVENTS } from "@/lib/pusher";
-import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
+import { emitWhatsAppEventToEligibleUsers } from "@/modules/whatsapp/services/emit-to-eligible-users";
 
 export const dynamic = "force-dynamic";
 

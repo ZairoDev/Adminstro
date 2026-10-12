@@ -5,7 +5,7 @@ import { connectDb } from "@/util/db";
 import {
   findDuplicateConversationGroups,
   mergeDuplicateConversationGroups,
-} from "@/lib/whatsapp/conversationMergeService";
+} from "@/modules/whatsapp";
 
 export const dynamic = "force-dynamic";
 

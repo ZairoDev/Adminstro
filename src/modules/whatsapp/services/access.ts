@@ -7,15 +7,15 @@ import {
   canUserAccessPhoneId,
   getAccessibleChannelIds,
   getPhoneIdsForUserAreasSync,
-} from "./phoneAreaConfigService";
-import { normalizeWhatsAppToken, type WhatsAppToken } from "./apiContext";
+} from "./phone-area-config.service";
+import { normalizeWhatsAppToken, type WhatsAppToken } from "./api-context";
 import {
   canUserSeeConversation,
   conversationMatchesStaffVisibilityAsync,
   getUserAreasFromToken,
-} from "./locationAccess";
-import { canAccessByLeadGenHandoff } from "./leadGenHandoff";
-import { guestConversationPassesPropertyTypeRule } from "./guestPropertyTypeAccess";
+} from "./location-access";
+import { canAccessByLeadGenHandoff } from "./lead-gen-handoff";
+import { guestConversationPassesPropertyTypeRule } from "./guest-property-type-access";
 
 type AccessUser = {
   id?: string;

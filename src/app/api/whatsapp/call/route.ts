@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import WhatsAppCallLog from "@/models/whatsappCallLog";
-import { WHATSAPP_API_BASE_URL } from "@/lib/whatsapp/config";
-import { getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
-import { canAccessConversationAsync } from "@/lib/whatsapp/access";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import WhatsAppCallLog from "@/modules/whatsapp/models/call-log.model";
+import { WHATSAPP_API_BASE_URL } from "@/modules/whatsapp/services/config";
+import { getOutboundTokenForPhoneId } from "@/modules/whatsapp/services/channel.service";
+import { canAccessConversationAsync } from "@/modules/whatsapp/services/access";
 import {
   normalizeWhatsAppToken,
   resolveAllowedPhoneIdsAsync,
-} from "@/lib/whatsapp/apiContext";
-import { canUserAccessPhoneId } from "@/lib/whatsapp/phoneAreaConfigService";
-import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
+} from "@/modules/whatsapp/services/api-context";
+import { canUserAccessPhoneId } from "@/modules/whatsapp/services/phone-area-config.service";
+import { resolveOutboundBusinessPhoneId } from "@/modules/whatsapp/services/resolve-outbound-phone";
 import { z } from "zod";
-import { collectMetaGraphErrorText } from "@/lib/whatsapp/metaGraphError";
-import { recordCallStarted, updateCallFromMetaStatus } from "@/services/whatsapp-calling/callHistoryService";
+import { collectMetaGraphErrorText } from "@/modules/whatsapp/services/meta-graph-error";
+import { recordCallStarted, updateCallFromMetaStatus } from "@/modules/whatsapp/services/call-history.service";
 
 connectDb();
 

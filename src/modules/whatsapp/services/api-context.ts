@@ -4,8 +4,8 @@ import {
   WHATSAPP_ACCESS_ROLES,
   FULL_ACCESS_ROLES,
 } from "./config";
-import { getUserAreasFromToken } from "./locationAccess";
-import { resolveUserAllowedPhoneIds } from "./phoneAreaConfigService";
+import { getUserAreasFromToken } from "./location-access";
+import { resolveUserAllowedPhoneIds } from "./phone-area-config.service";
 
 export type WhatsAppToken = {
   id?: string;

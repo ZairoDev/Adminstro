@@ -145,7 +145,7 @@ export const emitWhatsAppEvent = (event: string, data: WhatsAppEmitPayload) => {
     }
 
     if (event === WHATSAPP_EVENTS.MESSAGE_STATUS_UPDATE) {
-      void import("@/lib/whatsapp/webhookInspector/record").then(
+      void import("@/modules/whatsapp/services/webhook-inspector/record").then(
         ({ recordStatusSocketEmit }) =>
           recordStatusSocketEmit({
             conversationId:

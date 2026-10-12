@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 import { emitWhatsAppEvent } from "@/lib/pusher";
-import { canAccessConversation } from "@/lib/whatsapp/access";
-import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { canAccessConversation } from "@/modules/whatsapp/services/access";
+import { normalizeWhatsAppToken } from "@/modules/whatsapp/services/api-context";
 
 connectDb();
 

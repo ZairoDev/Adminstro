@@ -1,6 +1,6 @@
-import { canAccessConversation, shouldEmitToUser } from "@/lib/whatsapp/access";
+import { canAccessConversation, shouldEmitToUser } from "@/modules/whatsapp/services/access";
 
-jest.mock("@/lib/whatsapp/config", () => ({
+jest.mock("@/modules/whatsapp/services/config", () => ({
   getAllowedPhoneIds: jest.fn((role: string, areas: string[]) => {
     if (role === "Sales" && areas?.includes("athens")) return ["phone-athens"];
     if (role === "Sales" && areas?.includes("milan")) return ["phone-milan"];

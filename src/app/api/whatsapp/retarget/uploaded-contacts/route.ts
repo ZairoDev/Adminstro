@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import RetargetContact from "@/models/retargetContact";
+import RetargetContact from "@/modules/whatsapp/models/retarget-contact.model";
 
 connectDb();
 

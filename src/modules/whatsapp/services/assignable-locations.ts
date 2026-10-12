@@ -2,12 +2,12 @@ import {
   locationKeyFromDisplay,
   type LocationAssignUser,
   type PhoneLocationOption,
-} from "@/lib/whatsapp/areaTokenUtils";
+} from "@/modules/whatsapp/services/area-token.service";
 import {
   getAllConfiguredLocationEntries,
   isLocationConfiguredForWhatsApp,
-} from "@/lib/whatsapp/phoneAreaConfigService";
-import { filterAssignableLocationsForUser } from "@/lib/whatsapp/participantLocationPrivileges";
+} from "@/modules/whatsapp/services/phone-area-config.service";
+import { filterAssignableLocationsForUser } from "@/modules/whatsapp/services/participant-location-privileges";
 
 export type { PhoneLocationOption };
 

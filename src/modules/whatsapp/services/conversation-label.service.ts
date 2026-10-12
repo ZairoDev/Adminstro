@@ -1,10 +1,10 @@
-import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 import {
   PRIMARY_DISPOSITION_CRM_LABELS,
   WHATSAPP_CRM_LABELS,
   primaryDispositionLabelsForLeadStatus,
   type WhatsAppCrmLabel,
-} from "./crmLabels";
+} from "./crm-labels";
 
 /** Labels replaced when applying a new CRM disposition from WhatsApp */
 const DISPOSITION_LABEL_VALUES: WhatsAppCrmLabel[] = [

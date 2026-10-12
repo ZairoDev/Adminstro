@@ -1,4 +1,4 @@
-import type { SummaryExpiringItem, SummaryUnreadItem } from "./notificationSummaryQuery";
+import type { SummaryExpiringItem, SummaryUnreadItem } from "./notification-summary-query";
 
 export type NotificationSummaryPayload = {
   expiringCount: number;

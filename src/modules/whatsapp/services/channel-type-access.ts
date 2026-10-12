@@ -19,8 +19,8 @@
  *   Full-access                            → guest, owner, support, backup (all)
  */
 
-import type { WhatsappChannelType } from "@/models/whatsappChannel";
-import { FULL_ACCESS_ROLES, WHATSAPP_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import type { WhatsappChannelType } from "@/modules/whatsapp/models/channel.model";
+import { FULL_ACCESS_ROLES, WHATSAPP_ACCESS_ROLES } from "@/modules/whatsapp/services/config";
 
 /** Roles that may open owner threads (owner sheet, add owner) in their allotted area. */
 const OWNER_OUTREACH_ROLES: readonly string[] = [

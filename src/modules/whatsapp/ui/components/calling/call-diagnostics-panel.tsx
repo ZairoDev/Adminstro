@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import type { WebRtcStatsSnapshot } from "@/lib/whatsapp/calling";
+import type { WebRtcStatsSnapshot } from "@/modules/whatsapp/services/calling";
 
 export type CallDiagnosticsPanelProps = {
   open: boolean;

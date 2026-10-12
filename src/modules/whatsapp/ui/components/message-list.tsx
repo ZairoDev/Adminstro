@@ -1,7 +1,7 @@
 import { Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Message } from "../types";
-import { getMessageDisplayText } from "../utils";
+import type { Message } from "../inbox.types";
+import { getMessageDisplayText } from "../conversation-display";
 import {
   FileText,
   Forward,
@@ -55,7 +55,7 @@ import {
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import axios from "@/util/axios";
 import { useToast } from "@/hooks/use-toast";
-import { useMessageTranslation } from "../hooks/useMessageTranslation";
+import { useMessageTranslation } from "../hooks/use-message-translation";
 import {
   getLanguageLabel,
   getMessageTranslationDisplayText,
@@ -66,7 +66,7 @@ import {
 import {
   deriveGroupedMessages,
   type GroupedItem,
-} from "../lib/messageGrouping";
+} from "../lib/message-grouping";
 
 // ReadMoreText component for messages longer than 30 words
 const ReadMoreText = memo(function ReadMoreText({
@@ -171,7 +171,7 @@ const StatusIcon = memo(function StatusIcon({
     if (status !== "failed" || !errorCodeToUse) return null;
     
     try {
-      const { getWhatsAppErrorInfo, getActionMessage } = require("@/lib/whatsapp/errorHandler");
+      const { getWhatsAppErrorInfo, getActionMessage } = require("@/modules/whatsapp/services/meta-error-catalog.service");
       const errorInfo = getWhatsAppErrorInfo(errorCodeToUse);
       const actionMessage = getActionMessage(errorInfo);
       return `${errorInfo.userMessage} ${actionMessage}\n\nError Code: ${errorCodeToUse}\nSeverity: ${errorInfo.severity.toUpperCase()}\n\n${errorInfo.description}`;

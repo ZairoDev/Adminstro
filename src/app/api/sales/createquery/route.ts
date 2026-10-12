@@ -2,8 +2,8 @@ import { format } from "date-fns";
 import { NextRequest, NextResponse } from "next/server";
 
 import Query from "@/models/query";
-import WhatsAppMessage from "@/models/whatsappMessage";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import { WhatsAppMessage } from "@/modules/whatsapp";
+import { WhatsAppConversation } from "@/modules/whatsapp";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import {
@@ -11,11 +11,11 @@ import {
   WHATSAPP_API_BASE_URL,
   getDefaultPhoneId,
   WHATSAPP_PHONE_CONFIGS,
-} from "@/lib/whatsapp/config";
+} from "@/modules/whatsapp";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
-import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
-import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
-import { getActiveChannelByPhoneNumberId } from "@/lib/whatsapp/channelService";
+import { findOrCreateConversationWithSnapshot } from "@/modules/whatsapp";
+import { normalizePhone } from "@/modules/whatsapp";
+import { getActiveChannelByPhoneNumberId } from "@/modules/whatsapp";
 import { sanitizeLeadDocumentsForSave } from "@/util/leadDocuments";
 
 connectDb();

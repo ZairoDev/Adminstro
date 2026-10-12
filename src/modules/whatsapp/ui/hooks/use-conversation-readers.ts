@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import axios from "@/util/axios";
-import type { ConversationReader } from "@/lib/whatsapp/conversationReaders";
+import type { ConversationReader } from "@/modules/whatsapp/services/conversation-readers";
 
 export const conversationReadersQueryKey = (
   conversationId: string,

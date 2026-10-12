@@ -1,8 +1,8 @@
 /** Read-only: list recent inbound conversations with missing window fields. */
 import "dotenv/config";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import WhatsAppMessage from "@/models/whatsappMessage";
+import { WhatsAppConversation } from "@/modules/whatsapp";
+import { WhatsAppMessage } from "@/modules/whatsapp";
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 

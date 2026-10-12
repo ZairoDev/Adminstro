@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import axios from "@/util/axios";
-import { deferUntilIdle } from "../lib/deferUntilIdle";
+import { deferUntilIdle } from "../lib/defer-until-idle";
 
 export type InitiationLimitStatus = {
   limited: boolean;

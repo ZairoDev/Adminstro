@@ -3,7 +3,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import { Properties } from "@/models/property";
 import Users from "@/models/user";
-import { isWhatsAppAccessRole } from "@/lib/whatsapp/config";
+import { isWhatsAppAccessRole } from "@/modules/whatsapp/services/config";
 
 export const dynamic = "force-dynamic";
 

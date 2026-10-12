@@ -1,9 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ConversationListProvider } from "./ConversationListContext";
-import { ActiveThreadProvider } from "./ActiveThreadContext";
-import { WhatsAppUIProvider } from "./WhatsAppUIContext";
+import { ConversationListProvider } from "./conversation-list-context";
+import { ActiveThreadProvider } from "./active-thread-context";
+import { WhatsAppUIProvider } from "./whatsapp-ui-context";
 
 export function WhatsAppProviders({ children }: { children: ReactNode }) {
   return (

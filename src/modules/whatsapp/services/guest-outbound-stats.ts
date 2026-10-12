@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import WhatsAppMessage from "@/models/whatsappMessage";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
 
 /** VacationSaga property listing URLs sent to guests */
 export const VACATIONSAGA_LISTING_LINK_PATTERN =

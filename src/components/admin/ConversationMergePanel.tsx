@@ -6,8 +6,8 @@ import type {
   DryRunResult,
   MergeExecutionResult,
   MergeGroup,
-} from "@/lib/whatsapp/conversationMergeService";
-import { mergeGroupKeyString } from "@/lib/whatsapp/conversationMergeService";
+} from "@/modules/whatsapp/services/conversation-merge.service";
+import { mergeGroupKeyString } from "@/modules/whatsapp/services/conversation-merge.service";
 
 type Step = "idle" | "preview" | "confirm" | "done";
 

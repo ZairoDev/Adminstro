@@ -3,13 +3,13 @@ import WhatsappChannel, {
   IWhatsappChannel,
   WhatsappChannelRentalType,
   WhatsappChannelType,
-} from "@/models/whatsappChannel";
-import WhatsappChannelAssignment from "@/models/whatsappChannelAssignment";
-import { getWhatsAppToken, WHATSAPP_API_BASE_URL } from "@/lib/whatsapp/config";
+} from "@/modules/whatsapp/models/channel.model";
+import WhatsappChannelAssignment from "@/modules/whatsapp/models/channel-assignment.model";
+import { getWhatsAppToken, WHATSAPP_API_BASE_URL } from "@/modules/whatsapp/services/config";
 import {
   normalizeChannelRentalType,
   resolveConversationRentalType,
-} from "@/lib/whatsapp/rentalTypeAccess";
+} from "@/modules/whatsapp/services/rental-type-access";
 import mongoose from "mongoose";
 
 export type ResolvedChannel = {

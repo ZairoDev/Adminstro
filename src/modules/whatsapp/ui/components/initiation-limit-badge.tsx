@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useInitiationLimit } from "../hooks/useInitiationLimit";
+import { useInitiationLimit } from "../hooks/use-initiation-limit";
 
 export function InitiationLimitBadge({
   className,

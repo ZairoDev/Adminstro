@@ -1,7 +1,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import axios from "@/util/axios";
-import { buildMessagesQueryKey } from "../lib/whatsappQueryCache";
-import type { WhatsAppMessagesListPage } from "../types";
+import { buildMessagesQueryKey } from "../lib/whatsapp-query-cache";
+import type { WhatsAppMessagesListPage } from "../inbox.types";
 
 export function useMessages(
   conversationId: string | null,

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import { canAccessConversationAsync, CONVERSATION_ACCESS_SELECT } from "@/lib/whatsapp/access";
-import { normalizeWhatsAppToken, type WhatsAppToken } from "@/lib/whatsapp/apiContext";
-import { SUPPORTED_TRANSLATION_LANGUAGES } from "@/lib/whatsapp/translation/types";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import { canAccessConversationAsync, CONVERSATION_ACCESS_SELECT } from "@/modules/whatsapp/services/access";
+import { normalizeWhatsAppToken, type WhatsAppToken } from "@/modules/whatsapp/services/api-context";
+import { SUPPORTED_TRANSLATION_LANGUAGES } from "@/modules/whatsapp/services/translation/types";
 
 export const dynamic = "force-dynamic";
 

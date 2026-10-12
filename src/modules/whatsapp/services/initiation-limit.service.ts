@@ -1,15 +1,15 @@
 import mongoose from "mongoose";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import WhatsAppMessage from "@/models/whatsappMessage";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
 import Employee from "@/models/employee";
 import { FULL_ACCESS_ROLES, isSalesWhatsAppRole } from "./config";
 import {
   dateKeyForInstant,
   dayBoundsForDateKey,
   todayDateKey,
-} from "./guestInitiationDay";
+} from "./guest-initiation-day";
 
-export { todayDateKey } from "./guestInitiationDay";
+export { todayDateKey } from "./guest-initiation-day";
 
 export const DAILY_GUEST_INITIATION_LIMIT = 15;
 

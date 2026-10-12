@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useSocket } from "@/hooks/useSocket";
 import { useAuthStore } from "@/AuthStore";
 import { useRouter } from "next/navigation";
-import { getAllowedPhoneIds } from "@/lib/whatsapp/config";
+import { getAllowedPhoneIds } from "@/modules/whatsapp/services/config";
 import { useArchivedConversationIds } from "@/hooks/shared/useArchivedConversationIds";
 import axios from "@/util/axios";
 import { cn } from "@/lib/utils";
@@ -40,7 +40,7 @@ import {
   NotificationRateLimiter,
   NotificationLogger,
 } from "@/lib/notifications/rateLimiter";
-import { getWhatsAppNotificationController } from "@/lib/notifications/whatsappNotificationController";
+import { getWhatsAppNotificationController } from "@/modules/whatsapp/services/notification-controller.service";
 
 interface SystemNotificationToastProps {
   onNotificationReceived?: (notification: UnifiedNotification) => void;

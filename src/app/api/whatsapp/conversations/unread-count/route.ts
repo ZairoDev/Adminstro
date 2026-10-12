@@ -4,13 +4,13 @@ import { connectDb } from "@/util/db";
 import {
   buildInboxListQueryAsync,
   parseInboxListParams,
-} from "@/lib/whatsapp/inboxQuery";
+} from "@/modules/whatsapp/services/inbox-query";
 import {
   normalizeWhatsAppToken,
   type WhatsAppToken,
-} from "@/lib/whatsapp/apiContext";
-import { canAccessWhatsAppAdminQueue } from "@/lib/whatsapp/participantLocationPrivileges";
-import { resolveInboxUnreadBadgeCount } from "@/lib/whatsapp/inboxUnreadBadgeQuery";
+} from "@/modules/whatsapp/services/api-context";
+import { canAccessWhatsAppAdminQueue } from "@/modules/whatsapp/services/participant-location-privileges";
+import { resolveInboxUnreadBadgeCount } from "@/modules/whatsapp/services/inbox-unread-badge-query";
 
 export const dynamic = "force-dynamic";
 

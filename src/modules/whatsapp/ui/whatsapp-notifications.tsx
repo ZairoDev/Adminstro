@@ -25,7 +25,7 @@ import axios from "@/util/axios";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/AuthStore";
 import { useSocket } from "@/hooks/useSocket";
-import { useWhatsAppBaseRoom } from "@/app/whatsapp/modules/useWhatsAppSocketRooms";
+import { useWhatsAppBaseRoom } from "@/modules/whatsapp/ui/hooks/use-whatsapp-socket-rooms";
 
 interface NotificationItem {
   _id: string;

@@ -5,7 +5,7 @@ import {
   normalizeAreas,
   type LocationAssignUser,
   type PhoneLocationOption,
-} from "./areaTokenUtils";
+} from "./area-token.service";
 
 export type { LocationAssignUser, PhoneLocationOption };
 

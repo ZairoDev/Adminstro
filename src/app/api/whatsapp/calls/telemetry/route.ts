@@ -3,9 +3,9 @@ import { z } from "zod";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import mongoose from "mongoose";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import { canAccessConversation } from "@/lib/whatsapp/access";
-import { recordClientTelemetry } from "@/services/whatsapp-calling/callHistoryService";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import { canAccessConversation } from "@/modules/whatsapp/services/access";
+import { recordClientTelemetry } from "@/modules/whatsapp/services/call-history.service";
 
 export const dynamic = "force-dynamic";
 

@@ -35,13 +35,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { Conversation } from "../types";
-import type { WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
+import type { Conversation } from "../inbox.types";
+import type { WhatsAppPhoneConfig } from "@/modules/whatsapp/services/config";
 import {
   resolveConversationDisplayLabel,
   type WhatsAppPhoneMaskRules,
-} from "@/lib/whatsapp/phoneMask";
-import { getConversationBusinessPhoneId, getRemainingHours } from "../utils";
+} from "@/modules/whatsapp/services/phone-mask";
+import { getConversationBusinessPhoneId, getRemainingHours } from "../conversation-display";
 import { cn } from "@/lib/utils";
 import axios from "@/util/axios";
 import {
@@ -52,10 +52,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
-import type { ConversationReader } from "@/lib/whatsapp/conversationReaders";
-import { WebhookLogButton } from "./WebhookLogDialog";
-import { canForwardLeadToSales } from "@/lib/whatsapp/leadGenHandoff";
+import { canAssignWhatsAppParticipantLocation } from "@/modules/whatsapp/services/participant-location-privileges";
+import type { ConversationReader } from "@/modules/whatsapp/services/conversation-readers";
+import { WebhookLogButton } from "./webhook-log-dialog";
+import { canForwardLeadToSales } from "@/modules/whatsapp/services/lead-gen-handoff";
 import {
   AlertDialog,
   AlertDialogAction,

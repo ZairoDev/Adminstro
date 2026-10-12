@@ -12,7 +12,7 @@ import Query from "@/models/query";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { applyEmployeeRentalTypeLeadFilter } from "@/lib/enforceEmployeeRentalType";
-import { batchComputeWhatsAppReplyStatus } from "@/lib/whatsapp/replyStatusResolver";
+import { batchComputeWhatsAppReplyStatus } from "@/modules/whatsapp";
 import {
   getBlockedLeadLocations,
   loadEmployeeLeadContext,

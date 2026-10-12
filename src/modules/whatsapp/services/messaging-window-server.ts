@@ -1,8 +1,8 @@
-import WhatsAppMessage from "@/models/whatsappMessage";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
 import {
   getLastCustomerMessageAtForPhone,
   type MessagingWindowConversation,
-} from "@/lib/whatsapp/messagingWindow";
+} from "@/modules/whatsapp/services/messaging-window";
 
 export async function getLastIncomingOnBusinessLine(
   conversationId: string,

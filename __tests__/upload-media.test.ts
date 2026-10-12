@@ -5,7 +5,7 @@ jest.mock("@/util/getDataFromToken", () => ({
   getDataFromToken: jest.fn(),
 }));
 
-jest.mock("@/lib/whatsapp/config", () => ({
+jest.mock("@/modules/whatsapp/services/config", () => ({
   getAllowedPhoneIds: jest.fn((role: string, areas: string[]) => {
     if (role === "Sales" && areas?.includes("athens")) return ["phone-athens"];
     if (role === "Sales") return ["phone-other"];

@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsappChannel, { IWhatsappChannel } from "@/models/whatsappChannel";
+import WhatsappChannel, { IWhatsappChannel } from "@/modules/whatsapp/models/channel.model";
 import {
   assertChannelTripleUnique,
   normalizeChannelLocationKeys,
   createChannelWithAssignment,
-} from "@/lib/whatsapp/channelService";
-import { invalidatePhoneAreaCache } from "@/lib/whatsapp/phoneAreaConfigService";
+} from "@/modules/whatsapp/services/channel.service";
+import { invalidatePhoneAreaCache } from "@/modules/whatsapp/services/phone-area-config.service";
 
 export const dynamic = "force-dynamic";
 

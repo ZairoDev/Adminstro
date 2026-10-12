@@ -36,7 +36,7 @@ import {
 import axios from "@/util/axios";
 import { cn } from "@/lib/utils";
 import { ModeToggle } from "@/components/themeChangeButton";
-import type { Conversation } from "../types";
+import type { Conversation } from "../inbox.types";
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -50,22 +50,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useUnifiedWhatsAppSearch } from "../hooks/useUnifiedWhatsAppSearch";
-import { UnifiedSearchResults } from "./UnifiedSearchResults";
-import { MediaPopup } from "./MediaPopup";
+import { useUnifiedWhatsAppSearch } from "../hooks/use-unified-whatsapp-search";
+import { UnifiedSearchResults } from "./unified-search-results";
+import { MediaPopup } from "./media-popup";
 import { WhatsAppConversationTypeMigrationButton } from "@/components/dashboard/WhatsAppConversationTypeMigrationButton";
 // WhatsAppPhoneLocationsManager hidden — location-to-phone mapping now managed via /dashboard/whatsapp/channels
-import { WhatsAppPhoneMaskForm } from "./WhatsAppPhoneMaskForm";
+import { WhatsAppPhoneMaskForm } from "./whatsapp-phone-mask-form";
 import {
   canAccessWhatsAppAdminQueue,
   canUseInboxLocationFilter,
   usesGlobalInboxLocationList,
-} from "@/lib/whatsapp/participantLocationPrivileges";
-import { type WhatsAppPhoneMaskRules } from "@/lib/whatsapp/phoneMask";
-import { SetParticipantLocationDialog } from "./SetParticipantLocationDialog";
-import { InitiationLimitBadge } from "./InitiationLimitBadge";
-import { ConversationItem } from "./ConversationItem";
-import { SIDEBAR_LABEL_FILTERS } from "@/lib/whatsapp/crmLabels";
+} from "@/modules/whatsapp/services/participant-location-privileges";
+import { type WhatsAppPhoneMaskRules } from "@/modules/whatsapp/services/phone-mask";
+import { SetParticipantLocationDialog } from "./set-participant-location-dialog";
+import { InitiationLimitBadge } from "./initiation-limit-badge";
+import { ConversationItem } from "./conversation-item";
+import { SIDEBAR_LABEL_FILTERS } from "@/modules/whatsapp/services/crm-labels";
 
 function inboxFilterPillClass(active: boolean): string {
   return cn(

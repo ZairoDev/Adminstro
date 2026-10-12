@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import { normalizeWhatsAppToken, type WhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { normalizeWhatsAppToken, type WhatsAppToken } from "@/modules/whatsapp/services/api-context";
 import {
   createWhatsAppReminder,
   getEmployeeWhatsAppReminders,
-} from "@/lib/whatsapp/whatsappReminderService";
+} from "@/modules/whatsapp/services/whatsapp-reminder.service";
 
 export const dynamic = "force-dynamic";
 

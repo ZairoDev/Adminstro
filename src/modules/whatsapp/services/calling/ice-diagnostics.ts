@@ -5,7 +5,7 @@
 import {
   analyzeRawSdpIce,
   type RawSdpIceSummary,
-} from "@/lib/whatsapp/callingSdp";
+} from "@/modules/whatsapp/services/calling-sdp";
 
 export type IceGatheredCandidate = {
   candidate: string;

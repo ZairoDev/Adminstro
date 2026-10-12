@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-import WhatsAppMessage from "@/models/whatsappMessage";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 import { emitWhatsAppEvent, emitSessionWindowUpdated, WHATSAPP_EVENTS } from "@/lib/pusher";
 import { sendExpoPushToEmployee } from "@/services/push/expoPush.service";
-import { getWhatsAppToken, WHATSAPP_API_BASE_URL, WHATSAPP_ACCESS_ROLES } from "@/lib/whatsapp/config";
+import { getWhatsAppToken, WHATSAPP_API_BASE_URL, WHATSAPP_ACCESS_ROLES } from "@/modules/whatsapp/services/config";
 import {
   getActiveChannelByPhoneNumberId,
   getOutboundTokenForPhoneId,
-} from "@/lib/whatsapp/channelService";
+} from "@/modules/whatsapp/services/channel.service";
 import ConversationReadState from "@/models/conversationReadState";
 import ConversationArchiveState from "@/models/conversationArchiveState";
 import Employee from "@/models/employee";
-import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
-import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
-import { resolveLocationFromLeadPhone } from "@/lib/whatsapp/locationAccess";
-import { isLocationAllowedForPhone } from "@/lib/whatsapp/phoneAreaConfigService";
-import { getWhatsAppErrorInfo } from "@/lib/whatsapp/errorHandler";
+import { findOrCreateConversationWithSnapshot } from "@/modules/whatsapp/services/find-or-create-conversation.service";
+import { normalizePhone } from "@/modules/whatsapp/services/normalize-phone";
+import { resolveLocationFromLeadPhone } from "@/modules/whatsapp/services/location-access";
+import { isLocationAllowedForPhone } from "@/modules/whatsapp/services/phone-area-config.service";
+import { getWhatsAppErrorInfo } from "@/modules/whatsapp/services/meta-error-catalog.service";
 import crypto from "crypto";
 import fs from "fs/promises";
 import os from "os";
@@ -28,10 +28,10 @@ import {
   updateCallFromMetaStatus,
   recordUserInitiatedIncomingOffer,
   createIncomingCallInternalChatMessage,
-} from "@/services/whatsapp-calling/callHistoryService";
-import { getEligibleUsersForNotification } from "@/lib/whatsapp/notificationRecipients";
-import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
-import { MESSAGING_WINDOW_MS } from "@/lib/whatsapp/messagingWindow";
+} from "@/modules/whatsapp/services/call-history.service";
+import { getEligibleUsersForNotification } from "@/modules/whatsapp/services/notification-recipients";
+import { emitWhatsAppEventToEligibleUsers } from "@/modules/whatsapp/services/emit-to-eligible-users";
+import { MESSAGING_WINDOW_MS } from "@/modules/whatsapp/services/messaging-window";
 
 export const dynamic = "force-dynamic";
 
@@ -317,7 +317,7 @@ export async function POST(req: NextRequest) {
 
     await connectDb();
 
-    void import("@/lib/whatsapp/webhookLog/persist")
+    void import("@/modules/whatsapp/services/webhook-log/persist")
       .then((m) => m.persistWebhookPayload(body))
       .catch((err) => console.warn("[webhook-log] persist failed:", err));
 
@@ -665,7 +665,7 @@ async function sendGuestQuestionsTemplate(
     });
 
     const { recordOutgoingMessageMetrics } = await import(
-      "@/lib/whatsapp/conversationMetricsService"
+      "@/modules/whatsapp/services/conversation-metrics.service"
     );
     await recordOutgoingMessageMetrics(conversation._id, timestamp, {
       templateName: "guest_questions",
@@ -1330,7 +1330,7 @@ async function processIncomingMessage(
     }
 
     const { recordIncomingMessageMetrics } = await import(
-      "@/lib/whatsapp/conversationMetricsService"
+      "@/modules/whatsapp/services/conversation-metrics.service"
     );
     await recordIncomingMessageMetrics(conversation._id, timestamp).catch((err) =>
       console.warn("[metrics] incoming:", err),
@@ -1338,7 +1338,7 @@ async function processIncomingMessage(
 
     if (isNewMessage) {
       const { confirmGuestInitiationOnInboundReply } = await import(
-        "@/lib/whatsapp/initiationLimitService"
+        "@/modules/whatsapp/services/initiation-limit.service"
       );
       await confirmGuestInitiationOnInboundReply(String(conversation._id)).catch((err) =>
         console.warn("[initiation] confirm:", err),
@@ -1616,7 +1616,7 @@ async function processStatusUpdate(status: any) {
     if (!existingMessage) {
       console.log("ℹ️ [webhook] status for unknown messageId (not in DB)", { messageId });
       const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
-        await import("@/lib/whatsapp/webhookInspector");
+        await import("@/modules/whatsapp/services/webhook-inspector");
       if (isWebhookInspectorActive()) {
         void recordStatusProcessingOutcome({
           messageId,
@@ -1635,7 +1635,7 @@ async function processStatusUpdate(status: any) {
     // Skip if status hasn't changed (duplicate webhook) - silent skip
     if (previousStatus === newStatus) {
       const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
-        await import("@/lib/whatsapp/webhookInspector");
+        await import("@/modules/whatsapp/services/webhook-inspector");
       if (isWebhookInspectorActive()) {
         void recordStatusProcessingOutcome({
           messageId,
@@ -1684,7 +1684,7 @@ async function processStatusUpdate(status: any) {
 
     if (!message) {
       const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
-        await import("@/lib/whatsapp/webhookInspector");
+        await import("@/modules/whatsapp/services/webhook-inspector");
       if (isWebhookInspectorActive()) {
         void recordStatusProcessingOutcome({
           messageId,
@@ -1729,7 +1729,7 @@ async function processStatusUpdate(status: any) {
       previousStatus !== "read";
     if (isFirstDeliveryAck) {
       const { recordGuestInitiationOnOutboundDelivered } = await import(
-        "@/lib/whatsapp/initiationLimitService"
+        "@/modules/whatsapp/services/initiation-limit.service"
       );
       await recordGuestInitiationOnOutboundDelivered(messageId, timestamp).catch(
         (err) => console.warn("[initiation] delivery pending:", err),
@@ -1738,7 +1738,7 @@ async function processStatusUpdate(status: any) {
 
     if (newStatus === "failed") {
       const { releaseGuestInitiationReservationOnOutboundFailed } = await import(
-        "@/lib/whatsapp/initiationLimitService"
+        "@/modules/whatsapp/services/initiation-limit.service"
       );
       await releaseGuestInitiationReservationOnOutboundFailed(messageId).catch(
         (err) => console.warn("[initiation] release reservation:", err),
@@ -1757,7 +1757,7 @@ async function processStatusUpdate(status: any) {
     });
 
     const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
-      await import("@/lib/whatsapp/webhookInspector");
+      await import("@/modules/whatsapp/services/webhook-inspector");
     if (isWebhookInspectorActive()) {
       void recordStatusProcessingOutcome({
         messageId,
@@ -1775,7 +1775,7 @@ async function processStatusUpdate(status: any) {
   } catch (error) {
     console.error("Error processing status update:", error);
     const { isWebhookInspectorActive, recordStatusProcessingOutcome } =
-      await import("@/lib/whatsapp/webhookInspector");
+      await import("@/modules/whatsapp/services/webhook-inspector");
     if (isWebhookInspectorActive()) {
       void recordStatusProcessingOutcome({
         messageId: status?.id ?? "unknown",
@@ -2331,7 +2331,7 @@ async function processMessageEchoEvent(value: any) {
         });
 
         const { recordOutgoingMessageMetrics } = await import(
-          "@/lib/whatsapp/conversationMetricsService"
+          "@/modules/whatsapp/services/conversation-metrics.service"
         );
         await recordOutgoingMessageMetrics(conversation._id, timestamp).catch(
           (err) => console.warn("[metrics] echo:", err),

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-import WhatsAppMessage from "@/models/whatsappMessage";
-import { buildMessageDeliveryReport } from "@/lib/whatsapp/webhookInspector";
+import { WhatsAppMessage } from "@/modules/whatsapp";
+import { buildMessageDeliveryReport } from "@/modules/whatsapp";
 import { requireSuperAdmin } from "@/lib/admin/requireSuperAdmin";
 
 export const dynamic = "force-dynamic";

@@ -5,8 +5,8 @@ import { Mic, MicOff, Minimize2, PhoneOff, Volume2, VolumeX, Bug } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-import type { OutboundCallPhase, OutboundCallSurface, WebRtcStatsSnapshot } from "@/lib/whatsapp/calling";
-import { CallDiagnosticsPanel } from "./CallDiagnosticsPanel";
+import type { OutboundCallPhase, OutboundCallSurface, WebRtcStatsSnapshot } from "@/modules/whatsapp/services/calling";
+import { CallDiagnosticsPanel } from "./call-diagnostics-panel";
 
 export type WhatsAppCallOverlayProps = {
   visible: boolean;

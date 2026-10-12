@@ -39,15 +39,15 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type { Conversation } from "../types";
-import { formatTime } from "../utils";
+import type { Conversation } from "../inbox.types";
+import { formatTime } from "../conversation-display";
 import {
   getMaskedMessagePreview,
   resolveConversationDisplayLabel,
   type WhatsAppPhoneMaskRules,
-} from "@/lib/whatsapp/phoneMask";
-import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
-import { ConversationLabelChips } from "./ConversationLabelChips";
+} from "@/modules/whatsapp/services/phone-mask";
+import { canAssignWhatsAppParticipantLocation } from "@/modules/whatsapp/services/participant-location-privileges";
+import { ConversationLabelChips } from "./conversation-label-chips";
 
 export interface ConversationItemProps {
   conversation: Conversation;

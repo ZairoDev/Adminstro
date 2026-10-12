@@ -1,8 +1,8 @@
 import { connectDb } from "@/util/db";
 import WhatsAppWebhookLog, {
   type WhatsAppWebhookLogKind,
-} from "@/models/whatsappWebhookLog";
-import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
+} from "@/modules/whatsapp/models/webhook-log.model";
+import { normalizePhone } from "@/modules/whatsapp/services/normalize-phone";
 
 function isEnabled(): boolean {
   const v = process.env.WEBHOOK_LOG_ENABLED?.trim().toLowerCase();

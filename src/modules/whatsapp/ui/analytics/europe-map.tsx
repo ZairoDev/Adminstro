@@ -7,7 +7,7 @@ import {
   Geography,
   Marker,
 } from "react-simple-maps";
-import type { LocationAnalyticsRow } from "@/lib/whatsapp/analytics/types";
+import type { LocationAnalyticsRow } from "@/modules/whatsapp/services/analytics/types";
 
 const GEO_URL =
   "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";

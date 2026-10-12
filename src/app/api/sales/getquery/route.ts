@@ -13,7 +13,7 @@ import {
   applyGuestPropertyTypeAllowListToLeadQuery,
   isPropertyTypeRuleBypassRole,
 } from "@/util/propertyTypeAllowList";
-import { batchComputeWhatsAppReplyStatus } from "@/lib/whatsapp/replyStatusResolver";
+import { batchComputeWhatsAppReplyStatus } from "@/modules/whatsapp";
 connectDb();
 export const dynamic = "force-dynamic";
 

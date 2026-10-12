@@ -1,5 +1,5 @@
 import Query from "@/models/query";
-import { normalizeGuestPhone } from "./initiationLimitService";
+import { normalizeGuestPhone } from "./initiation-limit.service";
 
 export type LeadLookupResult = {
   _id: string;

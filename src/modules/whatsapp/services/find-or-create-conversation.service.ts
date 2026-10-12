@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 import WhatsAppConversation, {
   IWhatsAppConversation,
-} from "@/models/whatsappConversation";
-import { locationKeyFromDisplay } from "@/lib/whatsapp/locationAccess";
-import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
+} from "@/modules/whatsapp/models/conversation.model";
+import { locationKeyFromDisplay } from "@/modules/whatsapp/services/location-access";
+import { normalizePhone } from "@/modules/whatsapp/services/normalize-phone";
 import {
   getActiveChannelByPhoneNumberId,
   getChannelByPhoneNumberId,
@@ -11,11 +11,11 @@ import {
   normalizeStoredWabaId,
   resolveWhatsappChannel,
   type ResolvedChannel,
-} from "@/lib/whatsapp/channelService";
-import type { WhatsAppChannelRentalType } from "@/lib/whatsapp/rentalTypeAccess";
-import type { WhatsappChannelType } from "@/models/whatsappChannel";
-import WhatsappChannel from "@/models/whatsappChannel";
-import { MESSAGING_WINDOW_MS } from "@/lib/whatsapp/messagingWindow";
+} from "@/modules/whatsapp/services/channel.service";
+import type { WhatsAppChannelRentalType } from "@/modules/whatsapp/services/rental-type-access";
+import type { WhatsappChannelType } from "@/modules/whatsapp/models/channel.model";
+import WhatsappChannel from "@/modules/whatsapp/models/channel.model";
+import { MESSAGING_WINDOW_MS } from "@/modules/whatsapp/services/messaging-window";
 
 type SnapshotSource = "trusted" | "untrusted";
 

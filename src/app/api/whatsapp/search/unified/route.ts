@@ -13,12 +13,12 @@ import {
   escapeRegex,
   isPhoneQuery,
   normalizePhoneNumber,
-} from "@/lib/whatsapp/searchUtils";
+} from "@/modules/whatsapp/services/inbox-search.service";
 export const dynamic = "force-dynamic";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import WhatsAppMessage from "@/models/whatsappMessage";
-import { buildInboxListQueryAsync } from "@/lib/whatsapp/inboxQuery";
-import type { WhatsAppToken } from "@/lib/whatsapp/apiContext";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
+import { buildInboxListQueryAsync } from "@/modules/whatsapp/services/inbox-query";
+import type { WhatsAppToken } from "@/modules/whatsapp/services/api-context";
 import {
   generateMatchContext,
   extractMessageSnippet,
@@ -26,13 +26,13 @@ import {
   deduplicateConversations,
   type UnifiedConversationResult,
   type UnifiedSearchResults,
-} from "@/lib/whatsapp/unifiedSearchUtils";
+} from "@/modules/whatsapp/services/unified-search.service";
 import {
   applyPhoneMaskToConversation,
   getDisplayPhone,
   resolveMaskRulesForToken,
   shouldMaskConversationPhone,
-} from "@/lib/whatsapp/phoneMask";
+} from "@/modules/whatsapp/services/phone-mask";
 
 const SEARCH_TIMEOUT = 3000; // 3 seconds
 const MESSAGE_SEARCH_TIMEOUT = 2000;
@@ -238,7 +238,7 @@ export async function GET(request: NextRequest) {
     const userRole = user.role;
     
     // Advert may search names. The inbox filter below keeps them on retarget chats.
-    const { WHATSAPP_ACCESS_ROLES } = await import("@/lib/whatsapp/config");
+    const { WHATSAPP_ACCESS_ROLES } = await import("@/modules/whatsapp/services/config");
     const hasAccess = (WHATSAPP_ACCESS_ROLES as readonly string[]).includes(
       userRole as string,
     );

@@ -1,5 +1,5 @@
-import WhatsAppMessage from "@/models/whatsappMessage";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 
 export type WhatsAppReplyClassification = {
   /** Agent sent a message after the customer's latest incoming message */

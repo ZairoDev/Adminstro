@@ -3,14 +3,14 @@ import axios from "@/util/axios";
 import {
   buildConversationsQueryKey,
   sortConversationsList,
-} from "../lib/whatsappQueryCache";
-import { buildConversationsListSearchParams } from "../lib/conversationsListApi";
+} from "../lib/whatsapp-query-cache";
+import { buildConversationsListSearchParams } from "../lib/conversations-list-api";
 import type {
   Conversation,
   ConversationsListFilters,
   WhatsAppConversationsListPage,
-} from "../types";
-import type { WhatsAppPhoneMaskRules } from "@/lib/whatsapp/phoneMask";
+} from "../inbox.types";
+import type { WhatsAppPhoneMaskRules } from "@/modules/whatsapp/services/phone-mask";
 
 function dedupeConversations(conversations: Conversation[]): Conversation[] {
   return Array.from(

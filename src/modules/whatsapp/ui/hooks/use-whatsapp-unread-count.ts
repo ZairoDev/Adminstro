@@ -3,7 +3,7 @@ import axios from "@/util/axios";
 import {
   buildUnreadCountQueryKey,
   type UnreadCountQueryFilters,
-} from "../lib/whatsappQueryCache";
+} from "../lib/whatsapp-query-cache";
 
 export type WhatsAppUnreadCountResponse = {
   success: boolean;

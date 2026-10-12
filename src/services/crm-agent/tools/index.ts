@@ -274,7 +274,7 @@ export async function searchWhatsAppTool(
 
   try {
     const WhatsAppConversation = (
-      await import("@/models/whatsappConversation")
+      await import("@/modules/whatsapp/models/conversation.model")
     ).default;
     await connectDb();
     const digits = query.replace(/\D/g, "");
@@ -319,9 +319,9 @@ export async function getConversationSummaryTool(
   try {
     await connectDb();
     const WhatsAppConversation = (
-      await import("@/models/whatsappConversation")
+      await import("@/modules/whatsapp/models/conversation.model")
     ).default;
-    const WhatsAppMessage = (await import("@/models/whatsappMessage")).default;
+    const WhatsAppMessage = (await import("@/modules/whatsapp/models/message.model")).default;
 
     const digits = conversationIdOrPhone.replace(/\D/g, "");
     const convo = await WhatsAppConversation.findOne(

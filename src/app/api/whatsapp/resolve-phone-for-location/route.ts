@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { getPhoneConfigById } from "@/lib/whatsapp/config";
-import { isWhatsAppRole } from "@/lib/whatsapp/apiContext";
+import { getPhoneConfigById } from "@/modules/whatsapp/services/config";
+import { isWhatsAppRole } from "@/modules/whatsapp/services/api-context";
 import {
   inferChannelTypeFromConversation,
   resolveWhatsappChannel,
-} from "@/lib/whatsapp/channelService";
-import { resolveLeadLinkedConversationRentalType } from "@/lib/whatsapp/rentalTypeAccess";
+} from "@/modules/whatsapp/services/channel.service";
+import { resolveLeadLinkedConversationRentalType } from "@/modules/whatsapp/services/rental-type-access";
 
 export const dynamic = "force-dynamic";
 

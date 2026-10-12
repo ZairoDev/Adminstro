@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collectWebRtcStats, WA_CALL_STATS_INTERVAL_MS, type WebRtcStatsSnapshot } from "@/lib/whatsapp/calling";
+import { collectWebRtcStats, WA_CALL_STATS_INTERVAL_MS, type WebRtcStatsSnapshot } from "@/modules/whatsapp/services/calling";
 
 export function usePeerConnectionStats(pc: RTCPeerConnection | null, enabled: boolean): WebRtcStatsSnapshot | null {
   const [snap, setSnap] = useState<WebRtcStatsSnapshot | null>(null);

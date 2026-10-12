@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import type { Conversation } from "../types";
+import type { Conversation } from "../inbox.types";
 
 type ReminderDialogProps = {
   open: boolean;

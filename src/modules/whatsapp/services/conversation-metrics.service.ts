@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 import WhatsAppConversation, {
   type IWhatsAppConversation,
-} from "@/models/whatsappConversation";
-import WhatsAppMessage from "@/models/whatsappMessage";
+} from "@/modules/whatsapp/models/conversation.model";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
 import Visits from "@/models/visit";
 import Bookings from "@/models/booking";
-import { WHATSAPP_CRM_LABELS } from "@/lib/whatsapp/crmLabels";
+import { WHATSAPP_CRM_LABELS } from "@/modules/whatsapp/services/crm-labels";
 
 export const SLA_RESPONSE_MINUTES = 15;
 
@@ -326,7 +326,7 @@ export async function recordIncomingMessageMetrics(
 
   if (updates.firstCustomerReplyAt) {
     const { confirmGuestInitiationOnInboundReply } = await import(
-      "@/lib/whatsapp/initiationLimitService"
+      "@/modules/whatsapp/services/initiation-limit.service"
     );
     await confirmGuestInitiationOnInboundReply(String(conversationId)).catch(
       () => undefined,

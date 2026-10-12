@@ -7,7 +7,7 @@
  * Normalize phone number by stripping all non-digit characters
  * Handles international formats: +91, 91, 0091, (91), etc.
  */
-import { normalizePhone } from "./normalizePhone";
+import { normalizePhone } from "./normalize-phone";
 
 /**
  * Name / phone / notes predicate for inbox search.
@@ -239,7 +239,7 @@ export function groupMessagesByConversation(messages: any[]): Map<string, any[]>
  * assignedAgent is NOT a visibility criterion — it is ownership only.
  */
 export function buildPermissionFilter(user: any): any {
-  const { buildConversationVisibilityFilter } = require("@/lib/whatsapp/locationAccess");
+  const { buildConversationVisibilityFilter } = require("@/modules/whatsapp/services/location-access");
   return buildConversationVisibilityFilter(user);
 }
 

@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import {
   WHATSAPP_API_BASE_URL,
-} from "@/lib/whatsapp/config";
+} from "@/modules/whatsapp/services/config";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 import {
   getActiveChannelByPhoneNumberId,
   getChannelByPhoneNumberId,
@@ -15,16 +15,16 @@ import {
   resolveWhatsappChannel,
   inferChannelTypeFromConversation,
   toOutboundTokenConversation,
-} from "@/lib/whatsapp/channelService";
+} from "@/modules/whatsapp/services/channel.service";
 import mongoose from "mongoose";
-import { canAccessConversationAsync, CONVERSATION_ACCESS_SELECT } from "@/lib/whatsapp/access";
-import { normalizeWhatsAppToken, type WhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { canAccessConversationAsync, CONVERSATION_ACCESS_SELECT } from "@/modules/whatsapp/services/access";
+import { normalizeWhatsAppToken, type WhatsAppToken } from "@/modules/whatsapp/services/api-context";
 import {
   getUserAreasFromToken,
   locationKeyFromDisplay,
   normalizeAreas,
-} from "@/lib/whatsapp/locationAccess";
-import { resolveConversationRentalType } from "@/lib/whatsapp/rentalTypeAccess";
+} from "@/modules/whatsapp/services/location-access";
+import { resolveConversationRentalType } from "@/modules/whatsapp/services/rental-type-access";
 
 export const dynamic = "force-dynamic";
 

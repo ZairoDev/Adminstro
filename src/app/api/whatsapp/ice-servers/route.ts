@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { NextRequest } from "next/server";
-import { CLIENT_FALLBACK_ICE_SERVERS } from "@/lib/whatsapp/calling/iceServers";
+import { CLIENT_FALLBACK_ICE_SERVERS } from "@/modules/whatsapp/services/calling/ice-servers";
 
 /** Google STUN appended alongside Metered servers for better srflx coverage. */
 const GOOGLE_STUN: RTCIceServer[] = [

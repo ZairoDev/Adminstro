@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import { WhatsAppConversation } from "@/modules/whatsapp";
 
 export const dynamic = "force-dynamic";
 

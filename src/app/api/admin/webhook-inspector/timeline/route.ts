@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-import { buildPhoneTimeline } from "@/lib/whatsapp/webhookInspector";
+import { buildPhoneTimeline } from "@/modules/whatsapp";
 import { requireSuperAdmin } from "@/lib/admin/requireSuperAdmin";
 
 export const dynamic = "force-dynamic";

@@ -10,9 +10,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { LayoutTemplate, Loader2, MessageSquare, Check, AlertTriangle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { Template } from "../types";
-import { getTemplateParameters } from "../utils";
-import { filterTemplatesForConversation } from "@/lib/whatsapp/templateClassification";
+import type { Template } from "../inbox.types";
+import { getTemplateParameters } from "../conversation-display";
+import { filterTemplatesForConversation } from "@/modules/whatsapp/services/template-classification";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 

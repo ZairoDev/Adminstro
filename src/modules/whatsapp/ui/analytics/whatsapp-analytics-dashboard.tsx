@@ -27,11 +27,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { WhatsAppOverviewResponse } from "@/lib/whatsapp/analytics/types";
-import { PhoneNumberHealth } from "@/components/whatsapp/PhoneNumberHealth";
-import { InitiationLimitBadge } from "@/app/whatsapp/components/InitiationLimitBadge";
+import type { WhatsAppOverviewResponse } from "@/modules/whatsapp/services/analytics/types";
+import { PhoneNumberHealth } from "@/modules/whatsapp/ui/phone-number-health";
+import { InitiationLimitBadge } from "@/modules/whatsapp/ui/components/initiation-limit-badge";
 
-const EuropeMap = dynamic(() => import("./EuropeMap"), {
+const EuropeMap = dynamic(() => import("./europe-map"), {
   ssr: false,
   loading: () => (
     <div className="flex h-64 items-center justify-center text-xs text-gray-600" style={{ background: "#0d1117" }}>

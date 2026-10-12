@@ -10,9 +10,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, Radio } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Conversation } from "../types";
-import type { WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
-import { formatPhoneDisplayWithLocation } from "@/lib/whatsapp/config";
+import type { Conversation } from "../inbox.types";
+import type { WhatsAppPhoneConfig } from "@/modules/whatsapp/services/config";
+import { formatPhoneDisplayWithLocation } from "@/modules/whatsapp/services/config";
 
 interface LeadTransferDialogProps {
   open: boolean;

@@ -1,6 +1,6 @@
 import type { RefObject, MutableRefObject } from "react";
-import type { Conversation, ConversationsListFilters } from "../types";
-import type { WhatsAppPhoneMaskRules } from "@/lib/whatsapp/phoneMask";
+import type { Conversation, ConversationsListFilters } from "../inbox.types";
+import type { WhatsAppPhoneMaskRules } from "@/modules/whatsapp/services/phone-mask";
 
 export interface ConversationCounts {
   totalCount: number;

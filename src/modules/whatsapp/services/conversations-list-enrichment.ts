@@ -1,8 +1,8 @@
 import mongoose, { type PipelineStage } from "mongoose";
-import WhatsAppMessage from "@/models/whatsappMessage";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
 import ConversationArchiveState from "@/models/conversationArchiveState";
 import ConversationReadState from "@/models/conversationReadState";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 
 /** Lean conversation document from inbox list query (before enrichment). */
 export type InboxConversationLean = Record<string, unknown> & {

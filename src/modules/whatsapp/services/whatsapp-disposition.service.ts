@@ -1,5 +1,5 @@
 import Query from "@/models/query";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 import {
   isLeadDeclineReason,
   isLeadRejectionReason,
@@ -17,20 +17,20 @@ import {
   getDispositionActionConfig,
   WHATSAPP_CRM_LABELS,
   type WhatsAppDispositionAction,
-} from "./crmLabels";
+} from "./crm-labels";
 import {
   linkLeadToConversation,
   addLabelsToConversation,
   replaceDispositionLabels,
-} from "./conversationLabelService";
-import { createWhatsAppReminder } from "./whatsappReminderService";
+} from "./conversation-label.service";
+import { createWhatsAppReminder } from "./whatsapp-reminder.service";
 import {
   findLeadByPhoneOrEmail,
   type LeadLookupResult,
-} from "./leadLookupService";
+} from "./lead-lookup.service";
 import { canAccessConversationAsync } from "./access";
-import type { WhatsAppToken } from "./apiContext";
-import { normalizeWhatsAppToken } from "./apiContext";
+import type { WhatsAppToken } from "./api-context";
+import { normalizeWhatsAppToken } from "./api-context";
 
 export type ApplyDispositionParams = {
   token: WhatsAppToken;

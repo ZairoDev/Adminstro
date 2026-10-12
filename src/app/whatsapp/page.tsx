@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense } from "react";
-import WhatsAppChat from "./whatsapp";
+import WhatsAppChat from "../../modules/whatsapp/ui/whatsapp-chat";
 
 function WhatsAppSkeleton() {
   return (

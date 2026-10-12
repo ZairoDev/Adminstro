@@ -1,7 +1,7 @@
 import type { MutableRefObject, SetStateAction } from "react";
-import type { ChannelPhoneConfig } from "@/lib/whatsapp/resolveAllowedPhoneConfigs";
-import type { ConversationReader } from "@/lib/whatsapp/conversationReaders";
-import type { Conversation, Message, Template } from "../types";
+import type { ChannelPhoneConfig } from "@/modules/whatsapp/services/resolve-allowed-phone-configs";
+import type { ConversationReader } from "@/modules/whatsapp/services/conversation-readers";
+import type { Conversation, Message, Template } from "../inbox.types";
 
 export interface ActiveThreadStateValue {
   selectedConversation: Conversation | null;

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { CoreWhatsAppDispositionAction } from "@/lib/leads/leadDisposition";
-import type { LeadLookupResult } from "@/lib/whatsapp/leadLookupService";
+import type { LeadLookupResult } from "@/modules/whatsapp/services/lead-lookup.service";
 import {
   formatLeadStatusLabel,
   normalizeLeadStatus,
@@ -19,7 +19,7 @@ import {
   CRM_LABEL_CHIP_COLORS,
   PRIMARY_DISPOSITION_CRM_LABELS,
   primaryDispositionLabelsForLeadStatus,
-} from "@/lib/whatsapp/crmLabels";
+} from "@/modules/whatsapp/services/crm-labels";
 import {
   X,
   Plus,
@@ -35,12 +35,12 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Conversation } from "../types";
-import type { WhatsAppPhoneConfig } from "@/lib/whatsapp/config";
+import type { Conversation } from "../inbox.types";
+import type { WhatsAppPhoneConfig } from "@/modules/whatsapp/services/config";
 import {
   formatPhoneDisplayWithLocation,
   getPhoneConfigById,
-} from "@/lib/whatsapp/config";
+} from "@/modules/whatsapp/services/config";
 
 function primaryLabelsOnConversation(labelList: string[]): string[] {
   const allowed = new Set<string>(PRIMARY_DISPOSITION_CRM_LABELS);

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { getWhatsAppToken, WHATSAPP_API_BASE_URL } from "@/lib/whatsapp/config";
-import { getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
+import { getWhatsAppToken, WHATSAPP_API_BASE_URL } from "@/modules/whatsapp/services/config";
+import { getOutboundTokenForPhoneId } from "@/modules/whatsapp/services/channel.service";
 import {
   normalizeUserAreas,
   resolveAllottedChannelPhones,
-} from "@/lib/whatsapp/resolveAllowedPhoneConfigs";
-import WhatsAppConversation from "@/models/whatsappConversation";
+} from "@/modules/whatsapp/services/resolve-allowed-phone-configs";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 
 connectDb();
 

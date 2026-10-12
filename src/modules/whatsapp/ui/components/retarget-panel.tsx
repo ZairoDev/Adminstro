@@ -65,7 +65,7 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react";
-import type { Template } from "../types";
+import type { Template } from "../inbox.types";
 import {
   getTemplateParameters,
   getTemplatePreviewText,
@@ -74,7 +74,7 @@ import {
   buildAutoFilledParams,
   getTemplateParamIntents,
   type ParamIntent,
-} from "../utils";
+} from "../conversation-display";
 import { cn } from "@/lib/utils";
 
 // =========================================================

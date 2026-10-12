@@ -1,18 +1,18 @@
 import mongoose from "mongoose";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import WhatsAppMessage from "@/models/whatsappMessage";
-import WhatsAppCallLog from "@/models/whatsappCallLog";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
+import WhatsAppCallLog from "@/modules/whatsapp/models/call-log.model";
 import Employees from "@/models/employee";
 import Visits from "@/models/visit";
 import Bookings from "@/models/booking";
-import { WHATSAPP_CRM_LABELS } from "@/lib/whatsapp/crmLabels";
+import { WHATSAPP_CRM_LABELS } from "@/modules/whatsapp/services/crm-labels";
 import {
   SLA_RESPONSE_MINUTES,
   formatDurationMs,
   percentile,
   bulkDeriveMetricsFromMessages,
   type DerivedConversationMetrics,
-} from "@/lib/whatsapp/conversationMetricsService";
+} from "@/modules/whatsapp/services/conversation-metrics.service";
 import type {
   AgentAnalyticsRow,
   LocationAnalyticsRow,

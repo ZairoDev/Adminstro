@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import { normalizeWhatsAppToken, type WhatsAppToken } from "@/lib/whatsapp/apiContext";
-import { applyWhatsAppDisposition } from "@/lib/whatsapp/whatsappDispositionService";
-import type { WhatsAppDispositionAction } from "@/lib/whatsapp/crmLabels";
+import { normalizeWhatsAppToken, type WhatsAppToken } from "@/modules/whatsapp/services/api-context";
+import { applyWhatsAppDisposition } from "@/modules/whatsapp/services/whatsapp-disposition.service";
+import type { WhatsAppDispositionAction } from "@/modules/whatsapp/services/crm-labels";
 
 export const dynamic = "force-dynamic";
 

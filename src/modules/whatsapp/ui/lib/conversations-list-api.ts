@@ -2,7 +2,7 @@ import axios from "@/util/axios";
 import type {
   ConversationsListFilters,
   WhatsAppConversationsListPage,
-} from "../types";
+} from "../inbox.types";
 
 export type ConversationsListRequestOptions = {
   cursor?: string;

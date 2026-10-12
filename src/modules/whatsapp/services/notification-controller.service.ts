@@ -1,4 +1,4 @@
-import { RawWhatsAppMessage } from "./types";
+import { RawWhatsAppMessage } from "../../../lib/notifications/types";
 
 type BroadcastMessage =
   | { type: "heartbeat"; tabId: string; ts: number }

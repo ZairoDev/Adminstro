@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
-import WhatsAppMessage from "@/models/whatsappMessage";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
 import ConversationArchiveState from "@/models/conversationArchiveState";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 import Employee from "@/models/employee";
-import { INTERNAL_YOU_PHONE_ID } from "@/lib/whatsapp/config";
-import type { InboxConversationLean } from "@/lib/whatsapp/conversationsListEnrichment";
+import { INTERNAL_YOU_PHONE_ID } from "@/modules/whatsapp/services/config";
+import type { InboxConversationLean } from "@/modules/whatsapp/services/conversations-list-enrichment";
 
 export type YouConversationInboxOptions = {
   /** When true, skip returning the row (unread tab). */

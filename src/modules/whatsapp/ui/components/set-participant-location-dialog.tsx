@@ -20,8 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
-import type { Conversation } from "../types";
+import { canAssignWhatsAppParticipantLocation } from "@/modules/whatsapp/services/participant-location-privileges";
+import type { Conversation } from "../inbox.types";
 
 type Props = {
   open: boolean;

@@ -1,7 +1,7 @@
 import {
   bookingTermToConversationRentalType,
   type CreateConversationRentalType,
-} from "@/lib/whatsapp/rentalTypeAccess";
+} from "@/modules/whatsapp/services/rental-type-access";
 
 /**
  * Build `/whatsapp` deep link from CRM lead fields (location drives the business line server-side).

@@ -1,8 +1,8 @@
 /** Read-only: verify first-message / lastMessageTime race hypothesis. */
 import "dotenv/config";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import WhatsAppMessage from "@/models/whatsappMessage";
+import { WhatsAppConversation } from "@/modules/whatsapp";
+import { WhatsAppMessage } from "@/modules/whatsapp";
 
 async function main() {
   await connectDb();

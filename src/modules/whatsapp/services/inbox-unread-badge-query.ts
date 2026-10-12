@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
-import { buildInboxListQueryAsync, type InboxListParams } from "./inboxQuery";
-import type { WhatsAppToken } from "./apiContext";
-import { aggregateUnreadInboxConversationCount } from "./inboxUnreadQuery";
-import { loadGlobalArchivedConversationIds } from "./conversationsListEnrichment";
+import { buildInboxListQueryAsync, type InboxListParams } from "./inbox-query";
+import type { WhatsAppToken } from "./api-context";
+import { aggregateUnreadInboxConversationCount } from "./inbox-unread-query";
+import { loadGlobalArchivedConversationIds } from "./conversations-list-enrichment";
 
 export type InboxUnreadBadgeQueryOptions = {
   archivedOnly?: boolean;

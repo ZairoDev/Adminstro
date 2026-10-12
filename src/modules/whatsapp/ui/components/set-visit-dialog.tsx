@@ -27,7 +27,7 @@ import { Loader2, Search, MapPin, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/AuthStore";
-import type { Conversation } from "../types";
+import type { Conversation } from "../inbox.types";
 
 type PropertyCard = {
   propertyId: string;

@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { CRM_LABEL_CHIP_COLORS } from "@/lib/whatsapp/crmLabels";
+import { CRM_LABEL_CHIP_COLORS } from "@/modules/whatsapp/services/crm-labels";
 import { cn } from "@/lib/utils";
 
 export function ConversationLabelChips({

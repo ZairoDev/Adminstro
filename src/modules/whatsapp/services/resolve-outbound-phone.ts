@@ -12,14 +12,14 @@ import {
 
 import { canAccessConversationAsync } from "./access";
 
-import type { WhatsAppToken } from "./apiContext";
+import type { WhatsAppToken } from "./api-context";
 
-import { normalizeWhatsAppToken } from "./apiContext";
+import { normalizeWhatsAppToken } from "./api-context";
 
 import {
   canUserAccessPhoneId,
   getAccessibleChannelIds,
-} from "./phoneAreaConfigService";
+} from "./phone-area-config.service";
 
 import {
 
@@ -29,9 +29,9 @@ import {
 
   resolveWhatsappChannel,
 
-} from "./channelService";
+} from "./channel.service";
 
-import type { WhatsappChannelType } from "@/models/whatsappChannel";
+import type { WhatsappChannelType } from "@/modules/whatsapp/models/channel.model";
 
 
 

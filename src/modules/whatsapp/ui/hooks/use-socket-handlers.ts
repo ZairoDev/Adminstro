@@ -7,13 +7,13 @@ import {
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Socket } from "socket.io-client";
-import type { ChannelPhoneConfig } from "@/lib/whatsapp/resolveAllowedPhoneConfigs";
+import type { ChannelPhoneConfig } from "@/modules/whatsapp/services/resolve-allowed-phone-configs";
 import type { ActiveThreadActionsValue } from "../context/active-thread-context-types";
 import type {
   Conversation,
   ConversationsListFilters,
   Message,
-} from "../types";
+} from "../inbox.types";
 import {
   repositionConversationAfterUpdate,
   insertConversationAtCorrectPosition,
@@ -22,37 +22,37 @@ import {
   invalidateWhatsAppConversationsList,
   clearWhatsAppMessagesCache,
   syncWhatsAppInboxUnreadCountAcrossFilters,
-} from "../lib/whatsappQueryCache";
+} from "../lib/whatsapp-query-cache";
 import {
   FULL_ACCESS_ROLES,
   getRetargetPhoneId,
   INTERNAL_YOU_PHONE_ID,
-} from "@/lib/whatsapp/config";
-import { WHATSAPP_YOU_CONVERSATION_QUERY_KEY } from "../hooks/useWhatsAppYouConversation";
-import { getWhatsAppNotificationController } from "@/lib/notifications/whatsappNotificationController";
+} from "@/modules/whatsapp/services/config";
+import { WHATSAPP_YOU_CONVERSATION_QUERY_KEY } from "./use-whatsapp-you-conversation";
+import { getWhatsAppNotificationController } from "@/modules/whatsapp/services/notification-controller.service";
 import type { RawWhatsAppMessage } from "@/lib/notifications/types";
 import {
   extractMetaConversationPatch,
   inferWhatsAppConversationUpdateType,
   type WhatsAppConversationUpdatePayload,
-} from "@/lib/whatsapp/conversationUpdatePayload";
-import { sanitizeMetaAnswerSdpForBrowser } from "@/lib/whatsapp/callingSdp";
+} from "@/modules/whatsapp/services/conversation-update-payload";
+import { sanitizeMetaAnswerSdpForBrowser } from "@/modules/whatsapp/services/calling-sdp";
 import {
   IncomingCallRingController,
   OutboundCallSoundController,
   logWebRtcMediaDiagnostics,
   type OutboundCallUiState,
-} from "@/lib/whatsapp/calling";
-import { useWhatsAppSocketRooms, useWhatsAppConversationRoom } from "./useWhatsAppSocketRooms";
+} from "@/modules/whatsapp/services/calling";
+import { useWhatsAppSocketRooms, useWhatsAppConversationRoom } from "./use-whatsapp-socket-rooms";
 import { WHATSAPP_EVENTS } from "@/lib/pusher";
-import { showDesktopNotification } from "@/lib/whatsapp/browserDesktopNotify";
+import { showDesktopNotification } from "@/modules/whatsapp/services/browser-desktop-notify";
 import { toast as whatsAppToastFn } from "@/hooks/use-toast";
 import {
   addToLRUSet,
   simpleHashUtf8,
   isRemoteCallTerminalStatus,
   type PendingIncomingCallInvite,
-} from "./socketUtils";
+} from "../socket-call-state";
 
 type AuthToken = {
   id?: string;

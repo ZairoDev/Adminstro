@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 import PersonalReminder from "@/models/personalReminder";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import { WHATSAPP_CRM_LABELS } from "./crmLabels";
-import { addLabelsToConversation } from "./conversationLabelService";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import { WHATSAPP_CRM_LABELS } from "./crm-labels";
+import { addLabelsToConversation } from "./conversation-label.service";
 import { canAccessConversationAsync } from "./access";
-import type { WhatsAppToken } from "./apiContext";
-import { normalizeWhatsAppToken } from "./apiContext";
+import type { WhatsAppToken } from "./api-context";
+import { normalizeWhatsAppToken } from "./api-context";
 
 export type CreateWhatsAppReminderParams = {
   token: WhatsAppToken;

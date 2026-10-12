@@ -3,7 +3,7 @@ import Query from "@/models/query";
 import Candidate from "@/models/candidate";
 import Employees from "@/models/employee";
 import PersonalReminder from "@/models/personalReminder";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import { WhatsAppConversation } from "@/modules/whatsapp";
 import { connectDb } from "@/util/db";
 import { buildCreatedAtRangeQuery } from "@/lib/leads/istDateRange";
 import { getOverdueVisitsForUser } from "@/services/visits/visitService";

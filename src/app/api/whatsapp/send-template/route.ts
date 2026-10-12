@@ -1,36 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppMessage from "@/models/whatsappMessage";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 import {
   getDefaultPhoneId,
   getRetargetPhoneId,
   WHATSAPP_API_BASE_URL,
   isSalesWhatsAppRole,
-} from "@/lib/whatsapp/config";
-import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
-import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
-import { canAccessConversationAsync } from "@/lib/whatsapp/access";
-import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
-import { leadGenCreateHandoffFields } from "@/lib/whatsapp/leadGenHandoff";
-import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
+} from "@/modules/whatsapp/services/config";
+import { findOrCreateConversationWithSnapshot } from "@/modules/whatsapp/services/find-or-create-conversation.service";
+import { normalizePhone } from "@/modules/whatsapp/services/normalize-phone";
+import { canAccessConversationAsync } from "@/modules/whatsapp/services/access";
+import { normalizeWhatsAppToken } from "@/modules/whatsapp/services/api-context";
+import { leadGenCreateHandoffFields } from "@/modules/whatsapp/services/lead-gen-handoff";
+import { resolveOutboundBusinessPhoneId } from "@/modules/whatsapp/services/resolve-outbound-phone";
 import {
   explainOutboundSendCredentialsFailure,
   getChannelByPhoneNumberId,
   getOutboundTokenForPhoneId,
   resolveOutboundSendCredentials,
   toOutboundTokenConversation,
-} from "@/lib/whatsapp/channelService";
+} from "@/modules/whatsapp/services/channel.service";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
-import RetargetContact from "@/models/retargetContact";
-import { isTemplateAllowedForConversationRentalType } from "@/lib/whatsapp/templateClassification";
+import RetargetContact from "@/modules/whatsapp/models/retarget-contact.model";
+import { isTemplateAllowedForConversationRentalType } from "@/modules/whatsapp/services/template-classification";
 import {
   assertCanInitiateGuestConversation,
   guestWasPreviouslyEngaged,
   maybeReserveGuestInitiation,
-} from "@/lib/whatsapp/initiationLimitService";
+} from "@/modules/whatsapp/services/initiation-limit.service";
 
 connectDb();
 

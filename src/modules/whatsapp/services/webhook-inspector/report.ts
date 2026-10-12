@@ -1,5 +1,5 @@
 import WebhookInspectorEvent from "@/models/webhookInspectorEvent";
-import WhatsAppMessage from "@/models/whatsappMessage";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
 import type {
   MessageDeliveryReport,
   TimelineEntry,

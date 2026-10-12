@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import WhatsAppAnalyticsDashboard from "@/components/whatsapp/analytics/WhatsAppAnalyticsDashboard";
+import WhatsAppAnalyticsDashboard from "@/modules/whatsapp/ui/analytics/whatsapp-analytics-dashboard";
 
 export const metadata: Metadata = {
   title: "WhatsApp Analytics | CRM Dashboard",

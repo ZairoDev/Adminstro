@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import mongoose from "mongoose";
-import WhatsAppCallLog from "@/models/whatsappCallLog";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import { FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
-import { canAccessConversationAsync } from "@/lib/whatsapp/access";
-import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
+import WhatsAppCallLog from "@/modules/whatsapp/models/call-log.model";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import { FULL_ACCESS_ROLES } from "@/modules/whatsapp/services/config";
+import { canAccessConversationAsync } from "@/modules/whatsapp/services/access";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/modules/whatsapp/services/api-context";
 
 export const dynamic = "force-dynamic";
 

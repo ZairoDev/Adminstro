@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import { canAccessConversationAsync } from "@/lib/whatsapp/access";
-import { locationKeyFromDisplay } from "@/lib/whatsapp/locationAccess";
-import { assertParticipantLocationAssignable } from "@/lib/whatsapp/assignableLocations";
-import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import { canAccessConversationAsync } from "@/modules/whatsapp/services/access";
+import { locationKeyFromDisplay } from "@/modules/whatsapp/services/location-access";
+import { assertParticipantLocationAssignable } from "@/modules/whatsapp/services/assignable-locations";
+import { canAssignWhatsAppParticipantLocation } from "@/modules/whatsapp/services/participant-location-privileges";
 import { WHATSAPP_EVENTS } from "@/lib/pusher";
-import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
-import { resolveChannelFieldsForConversationLocation } from "@/lib/whatsapp/channelService";
+import { emitWhatsAppEventToEligibleUsers } from "@/modules/whatsapp/services/emit-to-eligible-users";
+import { resolveChannelFieldsForConversationLocation } from "@/modules/whatsapp/services/channel.service";
 import {
   DEFAULT_CONVERSATION_RENTAL_TYPE,
   resolveConversationRentalType,
-} from "@/lib/whatsapp/rentalTypeAccess";
+} from "@/modules/whatsapp/services/rental-type-access";
 
 export const dynamic = "force-dynamic";
 

@@ -11,15 +11,15 @@ import axios from "@/util/axios";
 // Card components no longer needed for WhatsApp Web-style layout
 import { useToast } from "@/hooks/use-toast";
 import { MessageSquare, ArrowLeft } from "lucide-react";
-import type { Message, Conversation, Template } from "./types";
-import { useMobileView, type MobileView } from "./hooks/useMobileView";
+import type { Message, Conversation, Template } from "./inbox.types";
+import { useMobileView, type MobileView } from "./hooks/use-mobile-view";
 import {
   repositionConversationAfterUpdate,
   insertConversationAtCorrectPosition,
   patchConversationInList,
   buildMessagesQueryKey,
-} from "./lib/whatsappQueryCache";
-import { buildWhatsAppInboxUrl } from "./lib/whatsappInboxUrl";
+} from "./lib/whatsapp-query-cache";
+import { buildWhatsAppInboxUrl } from "./lib/whatsapp-inbox-url";
 import { cn } from "@/lib/utils";
 import {
   buildTemplateComponents,
@@ -28,18 +28,18 @@ import {
   getConversationTemplateContext,
   getConversationBusinessPhoneId,
   resolveTemplatesCacheKey,
-} from "./utils";
+} from "./conversation-display";
 import {
   isWhatsAppAccessRole,
-} from "@/lib/whatsapp/config";
-import { ConversationSidebarContainer, type ConversationSidebarContainerProps } from "./containers/ConversationSidebarContainer";
-import { MessageThreadContainer, type MessageThreadContainerProps, type SendActions } from "./containers/MessageThreadContainer";
-import { getWhatsAppNotificationController } from "@/lib/notifications/whatsappNotificationController";
-import { collectMetaGraphErrorText } from "@/lib/whatsapp/metaGraphError";
+} from "@/modules/whatsapp/services/config";
+import { ConversationSidebarContainer, type ConversationSidebarContainerProps } from "./containers/conversation-sidebar-container";
+import { MessageThreadContainer, type MessageThreadContainerProps, type SendActions } from "./containers/message-thread-container";
+import { getWhatsAppNotificationController } from "@/modules/whatsapp/services/notification-controller.service";
+import { collectMetaGraphErrorText } from "@/modules/whatsapp/services/meta-graph-error";
 import {
   shouldMaskConversationPhone,
   type WhatsAppPhoneMaskRules,
-} from "@/lib/whatsapp/phoneMask";
+} from "@/modules/whatsapp/services/phone-mask";
 import {
   restrictPeerConnectionAudioToOpus,
   buildCleanWhatsAppOfferDetailed,
@@ -48,7 +48,7 @@ import {
   sanitizeMetaOfferSdpForBrowser,
   formatNoUsableMetaCandidatesMessage,
   summarizeMetaCandidates,
-} from "@/lib/whatsapp/callingSdp";
+} from "@/modules/whatsapp/services/calling-sdp";
 import {
   OutboundCallSoundController,
   IncomingCallRingController,
@@ -65,53 +65,53 @@ import {
   awaitIceGatheringForMeta,
   getIceGatheredCandidates,
   type IceGatheredCandidate,
-} from "@/lib/whatsapp/calling";
+} from "@/modules/whatsapp/services/calling";
 import {
   requestDesktopNotificationPermission,
   getDesktopNotificationPermission,
   isDesktopNotificationSupported,
-} from "@/lib/whatsapp/browserDesktopNotify";
-import { usePeerConnectionStats } from "./hooks/usePeerConnectionStats";
-import { WhatsAppProviders } from "./context/WhatsAppProviders";
+} from "@/modules/whatsapp/services/browser-desktop-notify";
+import { usePeerConnectionStats } from "./hooks/use-peer-connection-stats";
+import { WhatsAppProviders } from "./context/whatsapp-providers";
 import {
   useConversationListState,
   useConversationListActionsRef,
-} from "./context/ConversationListContext";
+} from "./context/conversation-list-context";
 import {
   useActiveThreadState,
   useActiveThreadActionsRef,
-} from "./context/ActiveThreadContext";
-import { useWhatsAppUIState } from "./context/WhatsAppUIContext";
-import { useSocketHandlers } from "./modules/useSocketHandlers";
+} from "./context/active-thread-context";
+import { useWhatsAppUIState } from "./context/whatsapp-ui-context";
+import { useSocketHandlers } from "./hooks/use-socket-handlers";
 import {
   addToLRUSet,
   simpleHashUtf8,
   type PendingIncomingCallInvite,
-} from "./modules/socketUtils";
+} from "./socket-call-state";
 
 const WhatsAppCallOverlay = dynamic(
   () =>
-    import("./components/calling/WhatsAppCallOverlay").then((m) => ({
+    import("./components/calling/whatsapp-call-overlay").then((m) => ({
       default: m.WhatsAppCallOverlay,
     })),
   { ssr: false, loading: () => null },
 );
 
 const ForwardDialog = dynamic(
-  () => import("./components/ForwardDialog").then((m) => ({ default: m.ForwardDialog })),
+  () => import("./components/forward-dialog").then((m) => ({ default: m.ForwardDialog })),
   { ssr: false, loading: () => null },
 );
 
 const LeadTransferDialog = dynamic(
   () =>
-    import("./components/LeadTransferDialog").then((m) => ({
+    import("./components/lead-transfer-dialog").then((m) => ({
       default: m.LeadTransferDialog,
     })),
   { ssr: false, loading: () => null },
 );
 
 const AddGuestModal = dynamic(
-  () => import("./components/AddGuestModal").then((m) => ({ default: m.AddGuestModal })),
+  () => import("./components/add-guest-modal").then((m) => ({ default: m.AddGuestModal })),
   { ssr: false, loading: () => null },
 );
 

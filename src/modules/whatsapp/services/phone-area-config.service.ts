@@ -3,13 +3,13 @@ import {
   WHATSAPP_PHONE_CONFIGS,
   FULL_ACCESS_ROLES,
   getAllowedPhoneIds,
-} from "@/lib/whatsapp/config";
-import WhatsappChannel, { type IWhatsappChannel } from "@/models/whatsappChannel";
+} from "@/modules/whatsapp/services/config";
+import WhatsappChannel, { type IWhatsappChannel } from "@/modules/whatsapp/models/channel.model";
 import {
   isDualRentalWhatsAppRole,
   resolveWhatsAppEmployeeRentalType,
-} from "@/lib/whatsapp/rentalTypeAccess";
-import { getAllowedChannelTypes } from "@/lib/whatsapp/channelTypeAccess";
+} from "@/modules/whatsapp/services/rental-type-access";
+import { getAllowedChannelTypes } from "@/modules/whatsapp/services/channel-type-access";
 
 const CACHE_TTL_MS = 30_000;
 

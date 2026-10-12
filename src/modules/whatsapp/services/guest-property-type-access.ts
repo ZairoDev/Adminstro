@@ -1,8 +1,8 @@
 import Query from "@/models/query";
 import { loadEmployeeLeadContext } from "@/lib/leads/employeeLeadContext";
-import { getUserAreasFromToken } from "@/lib/whatsapp/areaTokenUtils";
-import { findLeadByPhoneOrEmail } from "@/lib/whatsapp/leadLookupService";
-import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
+import { getUserAreasFromToken } from "@/modules/whatsapp/services/area-token.service";
+import { findLeadByPhoneOrEmail } from "@/modules/whatsapp/services/lead-lookup.service";
+import { normalizePhone } from "@/modules/whatsapp/services/normalize-phone";
 import {
   isPropertyTypeRuleBypassRole,
   listIncludesType,

@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
 import ConversationArchiveState from "@/models/conversationArchiveState";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 import { WHATSAPP_EVENTS } from "@/lib/pusher";
-import { canAccessConversationAsync } from "@/lib/whatsapp/access";
-import { buildConversationVisibilityFilterAsync } from "@/lib/whatsapp/locationAccess";
-import { normalizeWhatsAppToken } from "@/lib/whatsapp/apiContext";
+import { canAccessConversationAsync } from "@/modules/whatsapp/services/access";
+import { buildConversationVisibilityFilterAsync } from "@/modules/whatsapp/services/location-access";
+import { normalizeWhatsAppToken } from "@/modules/whatsapp/services/api-context";
 import {
   collectUnreadCountTargets,
   enrichArchivedConversationsWithUnread,
@@ -15,12 +15,12 @@ import {
   sumArchivedUnreadMessages,
   type ArchivedUnreadMinimal,
   type InboxConversationLean,
-} from "@/lib/whatsapp/conversationsListEnrichment";
-import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
+} from "@/modules/whatsapp/services/conversations-list-enrichment";
+import { emitWhatsAppEventToEligibleUsers } from "@/modules/whatsapp/services/emit-to-eligible-users";
 import {
   applyPhoneMaskToConversation,
   resolveMaskRulesForToken,
-} from "@/lib/whatsapp/phoneMask";
+} from "@/modules/whatsapp/services/phone-mask";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";

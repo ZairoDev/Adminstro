@@ -6,12 +6,12 @@ import {
   buildConversationVisibilityFilter,
   buildConversationVisibilityFilterAsync,
   applyInboxLocationFilter,
-} from "./locationAccess";
-import { canAccessWhatsAppAdminQueue } from "./participantLocationPrivileges";
-import { resolveLabelFilterMongo } from "./crmLabels";
-import type { WhatsAppToken } from "./apiContext";
-import { normalizeWhatsAppToken } from "./apiContext";
-import { applyLeadGenHandoffInboxFilter } from "./leadGenHandoff";
+} from "./location-access";
+import { canAccessWhatsAppAdminQueue } from "./participant-location-privileges";
+import { resolveLabelFilterMongo } from "./crm-labels";
+import type { WhatsAppToken } from "./api-context";
+import { normalizeWhatsAppToken } from "./api-context";
+import { applyLeadGenHandoffInboxFilter } from "./lead-gen-handoff";
 
 export type InboxListParams = {
   status?: string;

@@ -1,8 +1,8 @@
 import crypto from "crypto";
 import mongoose from "mongoose";
-import WhatsAppCallLog from "@/models/whatsappCallLog";
-import WhatsAppMessage from "@/models/whatsappMessage";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppCallLog from "@/modules/whatsapp/models/call-log.model";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
 
 export function hashSdpAnswer(sdp: string): string {

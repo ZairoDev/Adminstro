@@ -4,13 +4,13 @@ import { memo, useCallback } from "react";
 import axios from "@/util/axios";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { useConversationListState, useConversationListActionsRef } from "../context/ConversationListContext";
-import { useActiveThreadSelection, useActiveThreadActionsRef } from "../context/ActiveThreadContext";
-import { useInitiationLimit } from "../hooks/useInitiationLimit";
-import { ConversationSidebar } from "../components/ConversationSidebar";
-import type { Conversation } from "../types";
-import type { WhatsAppPhoneMaskRules } from "@/lib/whatsapp/phoneMask";
-import type { MobileView } from "../hooks/useMobileView";
+import { useConversationListState, useConversationListActionsRef } from "../context/conversation-list-context";
+import { useActiveThreadSelection, useActiveThreadActionsRef } from "../context/active-thread-context";
+import { useInitiationLimit } from "../hooks/use-initiation-limit";
+import { ConversationSidebar } from "../components/conversation-sidebar";
+import type { Conversation } from "../inbox.types";
+import type { WhatsAppPhoneMaskRules } from "@/modules/whatsapp/services/phone-mask";
+import type { MobileView } from "../hooks/use-mobile-view";
 
 export interface ConversationSidebarContainerProps {
   isMobile: boolean;

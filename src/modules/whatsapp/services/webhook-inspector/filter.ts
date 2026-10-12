@@ -1,4 +1,4 @@
-import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
+import { normalizePhone } from "@/modules/whatsapp/services/normalize-phone";
 import type { WebhookInspectorFilter } from "./types";
 
 export function matchesInspectorFilter(

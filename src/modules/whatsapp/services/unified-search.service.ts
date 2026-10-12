@@ -3,7 +3,7 @@
  * Implements intelligent deduplication and result merging
  */
 
-import { escapeRegex } from "./searchUtils";
+import { escapeRegex } from "./inbox-search.service";
 
 // ============================================================================
 // UNIFIED RESULT TYPES

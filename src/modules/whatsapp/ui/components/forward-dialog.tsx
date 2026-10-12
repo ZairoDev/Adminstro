@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Search, Forward, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Conversation } from "../types";
+import type { Conversation } from "../inbox.types";
 
 interface ForwardDialogProps {
   open: boolean;

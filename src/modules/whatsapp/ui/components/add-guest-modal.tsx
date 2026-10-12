@@ -29,15 +29,15 @@ import { normalizeCityKey } from "@/lib/city-normalizer";
 import {
   formatPhoneDisplayWithLocation,
   getPhoneConfigById,
-} from "@/lib/whatsapp/config";
-import { parseConfiguredLocationDisplays } from "@/lib/whatsapp/areaTokenUtils";
-import { canAssignWhatsAppParticipantLocation } from "@/lib/whatsapp/participantLocationPrivileges";
+} from "@/modules/whatsapp/services/config";
+import { parseConfiguredLocationDisplays } from "@/modules/whatsapp/services/area-token.service";
+import { canAssignWhatsAppParticipantLocation } from "@/modules/whatsapp/services/participant-location-privileges";
 import { normalizeEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
 import {
   DEFAULT_CONVERSATION_RENTAL_TYPE,
   type CreateConversationRentalType,
-} from "@/lib/whatsapp/rentalTypeAccess";
-import type { Conversation } from "../types";
+} from "@/modules/whatsapp/services/rental-type-access";
+import type { Conversation } from "../inbox.types";
 
 interface AddGuestModalProps {
   open: boolean;

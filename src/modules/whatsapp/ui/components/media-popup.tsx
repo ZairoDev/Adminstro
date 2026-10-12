@@ -15,7 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Conversation } from "../types";
+import type { Conversation } from "../inbox.types";
 import axios from "@/util/axios";
 
 interface MediaPopupProps {

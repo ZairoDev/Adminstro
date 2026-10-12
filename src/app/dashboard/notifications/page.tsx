@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import axios from "@/util/axios";
 import { useAuthStore } from "@/AuthStore";
 import { cn } from "@/lib/utils";
-import { formatTime } from "@/app/whatsapp/utils";
+import { formatTime } from "@/modules/whatsapp/ui/conversation-display";
 import { BroadcastNotificationForm } from "@/components/Notifications/BroadcastNotificationForm";
 
 interface Notification {

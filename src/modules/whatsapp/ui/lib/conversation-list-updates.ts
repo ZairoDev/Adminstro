@@ -1,4 +1,4 @@
-import type { Conversation } from "../types";
+import type { Conversation } from "../inbox.types";
 
 export function isInternalConversation(conv: Conversation): boolean {
   return Boolean(conv.isInternal || conv.source === "internal");

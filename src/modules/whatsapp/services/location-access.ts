@@ -12,32 +12,32 @@
  */
 
 import { toDisplayCity } from "@/lib/city-normalizer";
-import { FULL_ACCESS_ROLES } from "@/lib/whatsapp/config";
-import { getPhoneIdsForUserAreasSync } from "@/lib/whatsapp/phoneAreaConfigService";
+import { FULL_ACCESS_ROLES } from "@/modules/whatsapp/services/config";
+import { getPhoneIdsForUserAreasSync } from "@/modules/whatsapp/services/phone-area-config.service";
 import {
   canAccessWhatsAppAdminQueue,
   getUserScopedLocationKeys,
   usesGlobalInboxLocationList,
-} from "@/lib/whatsapp/participantLocationPrivileges";
+} from "@/modules/whatsapp/services/participant-location-privileges";
 import {
   buildRentalTypeVisibilityClause,
   rentalTypeVisibleToUser,
-} from "@/lib/whatsapp/rentalTypeAccess";
+} from "@/modules/whatsapp/services/rental-type-access";
 import {
   buildChannelTypeVisibilityClause,
   channelTypeVisibleToRole,
-} from "@/lib/whatsapp/channelTypeAccess";
+} from "@/modules/whatsapp/services/channel-type-access";
 import Query from "@/models/query";
 import {
   SUPERADMIN_INBOX_LOCATION_ALL,
   SUPERADMIN_DEFAULT_INBOX_LOCATION,
-} from "@/lib/whatsapp/locationConstants";
-import { withGuestPropertyTypeClause } from "@/lib/whatsapp/guestPropertyTypeAccess";
+} from "@/modules/whatsapp/services/location-constants";
+import { withGuestPropertyTypeClause } from "@/modules/whatsapp/services/guest-property-type-access";
 
 export {
   SUPERADMIN_INBOX_LOCATION_ALL,
   SUPERADMIN_DEFAULT_INBOX_LOCATION,
-} from "@/lib/whatsapp/locationConstants";
+} from "@/modules/whatsapp/services/location-constants";
 
 type VisibilityUser = {
   id?: string;
@@ -75,12 +75,12 @@ export {
   normalizeAreas,
   locationKeyFromDisplay,
   getUserAreasFromToken,
-} from "@/lib/whatsapp/areaTokenUtils";
+} from "@/modules/whatsapp/services/area-token.service";
 import {
   getUserAreasFromToken,
   locationKeyFromDisplay,
   normalizeAreas,
-} from "@/lib/whatsapp/areaTokenUtils";
+} from "@/modules/whatsapp/services/area-token.service";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mongo filter builders
@@ -193,7 +193,7 @@ export async function conversationMatchesStaffVisibilityAsync(
 
   const userAreas = getUserAreasFromToken(user);
   const { resolveUserAllowedPhoneIds, getAccessibleChannelIds, canUserAccessPhoneId } =
-    await import("@/lib/whatsapp/phoneAreaConfigService");
+    await import("@/modules/whatsapp/services/phone-area-config.service");
 
   const allowedPhoneIds = await resolveUserAllowedPhoneIds(role, userAreas);
   const accessibleChannelIds = await getAccessibleChannelIds(
@@ -316,7 +316,7 @@ export async function buildConversationVisibilityFilterAsync(
   opts: { adminQueue?: boolean } = {},
 ): Promise<Record<string, unknown>> {
   const { getAccessibleChannelIds, resolveUserAllowedPhoneIds } = await import(
-    "@/lib/whatsapp/phoneAreaConfigService"
+    "@/modules/whatsapp/services/phone-area-config.service"
   );
 
   const role = user.role || "";

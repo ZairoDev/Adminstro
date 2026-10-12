@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { connectDb } from "@/util/db";
-import WhatsAppMessage from "@/models/whatsappMessage";
-import WhatsAppConversation from "@/models/whatsappConversation";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
 import { emitWhatsAppEvent, WHATSAPP_EVENTS } from "@/lib/pusher";
-import { WHATSAPP_API_BASE_URL } from "@/lib/whatsapp/config";
-import { canAccessConversationAsync } from "@/lib/whatsapp/access";
-import { isSalesWhatsAppRole } from "@/lib/whatsapp/config";
-import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversationHelper";
-import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
-import { getChannelByPhoneNumberId, getOutboundTokenForPhoneId } from "@/lib/whatsapp/channelService";
-import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/lib/whatsapp/apiContext";
-import { resolveOutboundBusinessPhoneId } from "@/lib/whatsapp/resolveOutboundPhone";
-import { buildWhatsAppRoomPayload } from "@/lib/whatsapp/socketPayload";
-import { leadGenCreateHandoffFields } from "@/lib/whatsapp/leadGenHandoff";
+import { WHATSAPP_API_BASE_URL } from "@/modules/whatsapp/services/config";
+import { canAccessConversationAsync } from "@/modules/whatsapp/services/access";
+import { isSalesWhatsAppRole } from "@/modules/whatsapp/services/config";
+import { findOrCreateConversationWithSnapshot } from "@/modules/whatsapp/services/find-or-create-conversation.service";
+import { normalizePhone } from "@/modules/whatsapp/services/normalize-phone";
+import { getChannelByPhoneNumberId, getOutboundTokenForPhoneId } from "@/modules/whatsapp/services/channel.service";
+import { normalizeWhatsAppToken, resolveAllowedPhoneIdsAsync } from "@/modules/whatsapp/services/api-context";
+import { resolveOutboundBusinessPhoneId } from "@/modules/whatsapp/services/resolve-outbound-phone";
+import { buildWhatsAppRoomPayload } from "@/modules/whatsapp/services/socket-payload";
+import { leadGenCreateHandoffFields } from "@/modules/whatsapp/services/lead-gen-handoff";
 
 connectDb();
 

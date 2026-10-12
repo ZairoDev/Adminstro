@@ -1,6 +1,6 @@
 import { emitWhatsAppEvent } from "@/lib/pusher";
-import { getEligibleUsersForNotification } from "./notificationRecipients";
-import { buildWhatsAppRoomPayload } from "./socketPayload";
+import { getEligibleUsersForNotification } from "./notification-recipients";
+import { buildWhatsAppRoomPayload } from "./socket-payload";
 
 type EmitPayload = Record<string, unknown> & {
   businessPhoneId?: string;

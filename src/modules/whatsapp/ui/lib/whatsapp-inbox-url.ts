@@ -1,5 +1,5 @@
 import type { ReadonlyURLSearchParams } from "next/navigation";
-import { SUPERADMIN_DEFAULT_INBOX_LOCATION } from "@/lib/whatsapp/locationConstants";
+import { SUPERADMIN_DEFAULT_INBOX_LOCATION } from "@/modules/whatsapp/services/location-constants";
 
 export const WHATSAPP_LOCATION_FILTER_STORAGE_KEY = "whatsapp_location_filter";
 

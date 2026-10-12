@@ -1,6 +1,6 @@
 import mongoose, { type PipelineStage } from "mongoose";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import type { InboxConversationLean } from "./conversationsListEnrichment";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import type { InboxConversationLean } from "./conversations-list-enrichment";
 
 const READ_STATE_COLLECTION = "conversationreadstates";
 

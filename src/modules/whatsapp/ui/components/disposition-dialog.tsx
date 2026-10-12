@@ -33,9 +33,9 @@ import {
 } from "@/lib/leads/leadDisposition";
 import {
   CORE_WHATSAPP_DISPOSITION_ACTIONS,
-} from "@/lib/whatsapp/crmLabels";
-import type { LeadLookupResult } from "@/lib/whatsapp/leadLookupService";
-import type { Conversation } from "../types";
+} from "@/modules/whatsapp/services/crm-labels";
+import type { LeadLookupResult } from "@/modules/whatsapp/services/lead-lookup.service";
+import type { Conversation } from "../inbox.types";
 
 export type DispositionAppliedResult = {
   labels: string[];

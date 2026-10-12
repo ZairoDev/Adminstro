@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
-import WhatsAppConversation from "@/models/whatsappConversation";
-import WhatsAppMessage from "@/models/whatsappMessage";
-import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
+import WhatsAppConversation from "@/modules/whatsapp/models/conversation.model";
+import WhatsAppMessage from "@/modules/whatsapp/models/message.model";
+import { normalizePhone } from "@/modules/whatsapp/services/normalize-phone";
 
 export interface MergeGroupKey {
   phone: string;

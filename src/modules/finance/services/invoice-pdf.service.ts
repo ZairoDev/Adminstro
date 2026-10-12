@@ -8,7 +8,9 @@
 import fs from "fs";
 import path from "path";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import type { FinanceInvoiceClassification } from "@/modules/finance/models/invoice.model";
+import FinanceInvoice, {
+  type FinanceInvoiceClassification,
+} from "@/modules/finance/models/invoice.model";
 
 const COMPANY = {
   title: "Vacation Saga",
@@ -95,6 +97,55 @@ function wrapText(
   }
   if (line) lines.push(line);
   return lines;
+}
+
+type FinanceInvoicePdfSource = {
+  invoiceNumber: string;
+  createdAt: Date;
+  classification: FinanceInvoiceClassification;
+  guestName?: string;
+  guestEmail?: string;
+  guestPhone?: string;
+  bookingId?: string;
+  propertyName?: string;
+  propertyAddress?: string;
+  checkIn?: Date;
+  checkOut?: Date;
+  amountBilled: number;
+  currency: string;
+  discountGiven?: number;
+  pendingAmount?: number;
+  splitTotalAmount?: number;
+  notes?: string;
+};
+
+export function toFinanceInvoicePdfData(doc: FinanceInvoicePdfSource): FinanceInvoiceData {
+  return {
+    invoiceNumber: doc.invoiceNumber,
+    invoiceDate: doc.createdAt,
+    classification: doc.classification,
+    guestName: doc.guestName ?? "—",
+    guestEmail: doc.guestEmail ?? "",
+    guestPhone: doc.guestPhone,
+    bookingId: doc.bookingId,
+    propertyName: doc.propertyName,
+    propertyAddress: doc.propertyAddress,
+    checkIn: doc.checkIn,
+    checkOut: doc.checkOut,
+    amountBilled: doc.amountBilled,
+    currency: doc.currency,
+    discountGiven: doc.discountGiven,
+    pendingAmount: doc.pendingAmount,
+    splitTotalAmount: doc.splitTotalAmount,
+    notes: doc.notes,
+  };
+}
+
+export async function loadFinanceInvoicePdf(invoiceNumber: string): Promise<Buffer | null> {
+  const inv = await FinanceInvoice.findOne({ invoiceNumber }).lean();
+  if (!inv) return null;
+  const doc = inv as typeof inv & FinanceInvoicePdfSource;
+  return generateFinanceInvoicePdf(toFinanceInvoicePdfData(doc));
 }
 
 export async function generateFinanceInvoicePdf(data: FinanceInvoiceData): Promise<Buffer> {

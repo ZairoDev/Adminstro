@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { requireFinanceAccess, financeAuthErrorResponse } from "@/modules/finance/access";
-import FinanceInvoice from "@/modules/finance/models/invoice.model";
-import { generateFinanceInvoicePdf } from "@/modules/finance/services/invoice-pdf.service";
+import { loadFinanceInvoicePdf } from "@/modules/finance/services/invoice-pdf.service";
 
 type RouteContext = { params: Promise<{ invoiceNumber: string }> };
 
@@ -12,50 +11,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
     await connectDb();
 
     const { invoiceNumber } = await context.params;
-    const inv = await FinanceInvoice.findOne({ invoiceNumber }).lean();
+    const pdfBuffer = await loadFinanceInvoicePdf(invoiceNumber);
 
-    if (!inv) {
+    if (!pdfBuffer) {
       return NextResponse.json({ success: false, message: "Invoice not found" }, { status: 404 });
     }
-
-    const doc = inv as typeof inv & {
-      guestName?: string;
-      guestEmail?: string;
-      guestPhone?: string;
-      bookingId?: string;
-      propertyName?: string;
-      propertyAddress?: string;
-      checkIn?: Date;
-      checkOut?: Date;
-      classification: "complete" | "partial" | "split";
-      amountBilled: number;
-      currency: string;
-      discountGiven?: number;
-      pendingAmount?: number;
-      splitTotalAmount?: number;
-      notes?: string;
-      createdAt: Date;
-    };
-
-    const pdfBuffer = await generateFinanceInvoicePdf({
-      invoiceNumber: doc.invoiceNumber,
-      invoiceDate: doc.createdAt,
-      classification: doc.classification,
-      guestName: doc.guestName ?? "—",
-      guestEmail: doc.guestEmail ?? "",
-      guestPhone: doc.guestPhone,
-      bookingId: doc.bookingId,
-      propertyName: doc.propertyName,
-      propertyAddress: doc.propertyAddress,
-      checkIn: doc.checkIn,
-      checkOut: doc.checkOut,
-      amountBilled: doc.amountBilled,
-      currency: doc.currency,
-      discountGiven: doc.discountGiven,
-      pendingAmount: doc.pendingAmount,
-      splitTotalAmount: doc.splitTotalAmount,
-      notes: doc.notes,
-    });
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,

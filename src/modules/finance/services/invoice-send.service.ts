@@ -12,7 +12,10 @@ import type { FilterQuery } from "mongoose";
 import FinancePayment, { type IFinancePayment } from "@/modules/finance/models/payment.model";
 import { resolvePaymentFilter } from "@/modules/finance/payment-lookup";
 import FinanceInvoice, { type IFinanceInvoice } from "@/modules/finance/models/invoice.model";
-import { generateFinanceInvoicePdf } from "@/modules/finance/services/invoice-pdf.service";
+import {
+  generateFinanceInvoicePdf,
+  toFinanceInvoicePdfData,
+} from "@/modules/finance/services/invoice-pdf.service";
 import { sendInvoiceEmail } from "@/modules/finance/services/invoice-mailer.service";
 
 /* ------------------------------------------------------------------ */
@@ -86,25 +89,7 @@ export async function sendInvoices(
     // Regenerate PDF on demand
     let pdfBuffer: Buffer;
     try {
-      pdfBuffer = await generateFinanceInvoicePdf({
-        invoiceNumber: inv.invoiceNumber,
-        invoiceDate: inv.createdAt,
-        classification: inv.classification,
-        guestName: inv.guestName ?? "—",
-        guestEmail: to,
-        guestPhone: inv.guestPhone,
-        bookingId: inv.bookingId,
-        propertyName: inv.propertyName,
-        propertyAddress: inv.propertyAddress,
-        checkIn: inv.checkIn,
-        checkOut: inv.checkOut,
-        amountBilled: inv.amountBilled,
-        currency: inv.currency,
-        discountGiven: inv.discountGiven,
-        pendingAmount: inv.pendingAmount,
-        splitTotalAmount: inv.splitTotalAmount,
-        notes: inv.notes,
-      });
+      pdfBuffer = await generateFinanceInvoicePdf(toFinanceInvoicePdfData(inv));
     } catch (pdfErr) {
       const msg = pdfErr instanceof Error ? pdfErr.message : "PDF generation failed";
       inv.status = "failed";

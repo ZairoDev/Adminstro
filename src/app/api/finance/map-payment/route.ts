@@ -3,9 +3,9 @@ import { connectDb } from "@/util/db";
 import {
   financeAuthErrorResponse,
   requireFinanceAccess,
-} from "@/lib/finance/auth";
-import { mapPaymentBodySchema } from "@/schemas/financePayment.schema";
-import { mapPayment } from "@/services/finance/financePaymentService";
+} from "@/modules/finance/access";
+import { mapPaymentBodySchema } from "@/modules/finance/schemas/payment.schema";
+import { mapPayment } from "@/modules/finance/services/payment.service";
 
 export async function POST(request: NextRequest) {
   try {

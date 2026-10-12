@@ -3,7 +3,7 @@ import {
   computePendingAmount,
   validateSplitAllocations,
   AMOUNT_TOLERANCE,
-} from "../paymentMath";
+} from "../payment-math";
 
 describe("computeCompleteAdjustment", () => {
   it("returns discount when paid < due (beyond tolerance)", () => {

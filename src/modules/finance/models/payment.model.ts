@@ -2,7 +2,7 @@ import mongoose, { Schema, type Document, type Model } from "mongoose";
 import type {
   FinancePaymentStatus,
   MappingHistoryEntry,
-} from "@/schemas/financePayment.schema";
+} from "@/modules/finance/schemas/payment.schema";
 
 export interface IFinancePayment extends Document {
   paymentId?: string;

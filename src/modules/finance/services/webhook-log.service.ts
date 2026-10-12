@@ -1,7 +1,7 @@
 import type { FilterQuery } from "mongoose";
 import RazorpayWebhookLog, {
   type IRazorpayWebhookLog,
-} from "@/models/razorpayWebhookLog";
+} from "@/modules/finance/models/razorpay-webhook-log.model";
 
 export type WebhookLogListParams = {
   page: number;

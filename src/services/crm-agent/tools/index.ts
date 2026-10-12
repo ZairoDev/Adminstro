@@ -393,7 +393,7 @@ export async function getFinanceTransactionTool(
   if (!canUseTool(name, caller.role)) return deny(name, caller.role);
   try {
     await connectDb();
-    const FinancePayment = (await import("@/models/financePayment")).default;
+    const { FinancePayment } = await import("@/modules/finance");
     const doc = await FinancePayment.findById(id)
       .select(
         "_id amount status currency paymentId customerName customerPhone createdAt updatedAt",
@@ -442,8 +442,7 @@ export async function getWebhookLogHintTool(
   if (!canUseTool(name, caller.role)) return deny(name, caller.role);
   try {
     await connectDb();
-    const RazorpayWebhookLog = (await import("@/models/razorpayWebhookLog"))
-      .default;
+    const { RazorpayWebhookLog } = await import("@/modules/finance");
     const logs = await RazorpayWebhookLog.find({
       $or: [
         { event: { $regex: hint, $options: "i" } },

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { processRazorpayWebhook } from "@/services/finance/razorpayWebhookService";
+import { processRazorpayWebhook } from "@/modules/finance/services/razorpay-webhook.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

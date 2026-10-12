@@ -9,10 +9,10 @@
  */
 
 import type { FilterQuery } from "mongoose";
-import FinancePayment, { type IFinancePayment } from "@/models/financePayment";
-import FinanceInvoice, { type IFinanceInvoice } from "@/models/financeInvoice";
-import { generateFinanceInvoicePdf } from "@/services/finance/financeInvoicePdf";
-import { sendInvoiceEmail } from "@/services/finance/financeInvoiceMailer";
+import FinancePayment, { type IFinancePayment } from "@/modules/finance/models/payment.model";
+import FinanceInvoice, { type IFinanceInvoice } from "@/modules/finance/models/invoice.model";
+import { generateFinanceInvoicePdf } from "@/modules/finance/services/invoice-pdf.service";
+import { sendInvoiceEmail } from "@/modules/finance/services/invoice-mailer.service";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                               */

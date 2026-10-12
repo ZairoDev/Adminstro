@@ -8,7 +8,7 @@
 import fs from "fs";
 import path from "path";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import type { FinanceInvoiceClassification } from "@/models/financeInvoice";
+import type { FinanceInvoiceClassification } from "@/modules/finance/models/invoice.model";
 
 const COMPANY = {
   title: "Vacation Saga",

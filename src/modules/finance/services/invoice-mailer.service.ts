@@ -6,7 +6,7 @@
  */
 
 import nodemailer from "nodemailer";
-import type { FinanceInvoiceClassification } from "@/models/financeInvoice";
+import type { FinanceInvoiceClassification } from "@/modules/finance/models/invoice.model";
 
 /* ------------------------------------------------------------------ */
 /*  Transporter (lazy singleton)                                        */

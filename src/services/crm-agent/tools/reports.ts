@@ -7,7 +7,7 @@ import WhatsAppConversation from "@/models/whatsappConversation";
 import { connectDb } from "@/util/db";
 import { buildCreatedAtRangeQuery } from "@/lib/leads/istDateRange";
 import { getOverdueVisitsForUser } from "@/services/visits/visitService";
-import { getFinanceOverview } from "@/services/finance/financePaymentService";
+import { getFinanceOverview } from "@/modules/finance";
 import {
   canUseTool,
   sanitizeToolData,

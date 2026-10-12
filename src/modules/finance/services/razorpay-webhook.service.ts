@@ -1,12 +1,12 @@
 import crypto from "crypto";
 import { connectDb } from "@/util/db";
-import FinancePayment from "@/models/financePayment";
-import RazorpayWebhookLog from "@/models/razorpayWebhookLog";
+import FinancePayment from "@/modules/finance/models/payment.model";
+import RazorpayWebhookLog from "@/modules/finance/models/razorpay-webhook-log.model";
 import {
   isSupportedEvent,
   parseWebhookPayload,
-} from "@/services/finance/razorpayWebhookParser";
-import { syncBookingFromPaymentLink } from "@/services/finance/syncBookingFromPaymentLink";
+} from "@/modules/finance/services/razorpay-webhook-parser";
+import { syncBookingFromPaymentLink } from "@/modules/finance/services/sync-booking-from-payment-link.service";
 
 type HeaderMap = Record<string, string>;
 

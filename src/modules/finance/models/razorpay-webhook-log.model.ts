@@ -1,5 +1,5 @@
 import mongoose, { Schema, type Document, type Model } from "mongoose";
-import type { RazorpayWebhookLogValidation } from "@/schemas/razorpayWebhookLog.schema";
+import type { RazorpayWebhookLogValidation } from "@/modules/finance/schemas/razorpay-webhook-log.schema";
 
 export type RazorpayWebhookLogStatus =
   RazorpayWebhookLogValidation["status"];

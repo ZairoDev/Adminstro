@@ -15,8 +15,8 @@ import {
   computePendingAmount,
   validateSplitAllocations,
   type SplitAllocationInput,
-} from "@/lib/finance/paymentMath";
-import { normalizePhone } from "@/lib/finance/phone";
+} from "@/modules/finance/payment-math";
+import { normalizePhone } from "@/modules/finance/phone";
 
 /* ------------------------------------------------------------------ */
 /*  Shared types                                                        */

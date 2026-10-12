@@ -3,9 +3,9 @@ import { connectDb } from "@/util/db";
 import {
   financeAuthErrorResponse,
   requireFinanceAccess,
-} from "@/lib/finance/auth";
-import { listWebhookLogsQuerySchema } from "@/schemas/razorpayWebhookLog.schema";
-import { listWebhookLogs } from "@/services/finance/webhookLogService";
+} from "@/modules/finance/access";
+import { listWebhookLogsQuerySchema } from "@/modules/finance/schemas/razorpay-webhook-log.schema";
+import { listWebhookLogs } from "@/modules/finance/services/webhook-log.service";
 
 export async function GET(request: NextRequest) {
   try {

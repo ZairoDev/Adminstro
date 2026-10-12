@@ -1,5 +1,5 @@
-import type { FinancePaymentStatus } from "@/schemas/financePayment.schema";
-import { normalizePhone } from "@/lib/finance/phone";
+import type { FinancePaymentStatus } from "@/modules/finance/schemas/payment.schema";
+import { normalizePhone } from "@/modules/finance/phone";
 
 export const SUPPORTED_RAZORPAY_EVENTS = [
   "payment.authorized",

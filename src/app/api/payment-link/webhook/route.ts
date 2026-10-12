@@ -5,7 +5,7 @@ import Bookings from "@/models/booking";
 import { connectDb } from "@/util/db";
 import Invoice from "@/models/invoice";
 import { generateInvoicePdfBuffer } from "@/components/generatePdfBuffer";
-import { processRazorpayWebhook } from "@/services/finance/razorpayWebhookService";
+import { processRazorpayWebhook } from "@/modules/finance/services/razorpay-webhook.service";
 
 export async function POST(req: Request) {
   try {

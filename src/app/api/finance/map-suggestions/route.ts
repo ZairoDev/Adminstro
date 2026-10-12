@@ -3,9 +3,9 @@ import { connectDb } from "@/util/db";
 import {
   financeAuthErrorResponse,
   requireFinanceAccess,
-} from "@/lib/finance/auth";
-import { mapSuggestionsQuerySchema } from "@/schemas/financePayment.schema";
-import { suggestGuestsForPayment } from "@/services/finance/financePaymentService";
+} from "@/modules/finance/access";
+import { mapSuggestionsQuerySchema } from "@/modules/finance/schemas/payment.schema";
+import { suggestGuestsForPayment } from "@/modules/finance/services/payment.service";
 
 export async function GET(request: NextRequest) {
   try {

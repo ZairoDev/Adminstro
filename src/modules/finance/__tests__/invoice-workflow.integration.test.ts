@@ -9,18 +9,18 @@
  */
 
 import mongoose from "mongoose";
-import { setupTestDb, teardownTestDb, clearCollections } from "../../../lib/finance/__tests__/testDbHelper";
+import { setupTestDb, teardownTestDb, clearCollections } from "./test-db";
 
 // ── Model imports (must be registered before service imports) ─────────────
-import FinancePayment from "@/models/financePayment";
-import FinanceInvoice from "@/models/financeInvoice";
+import FinancePayment from "@/modules/finance/models/payment.model";
+import FinanceInvoice from "@/modules/finance/models/invoice.model";
 // Import the booking model so Mongoose registers it
 import "@/models/booking";
 
 // ── Services under test ───────────────────────────────────────────────────
-import { mapPayment } from "@/services/finance/financePaymentService";
-import { generateInvoice } from "@/services/finance/invoiceGenerationService";
-import { sendInvoices } from "@/services/finance/invoiceSendService";
+import { mapPayment } from "@/modules/finance/services/payment.service";
+import { generateInvoice } from "@/modules/finance/services/invoice-generation.service";
+import { sendInvoices } from "@/modules/finance/services/invoice-send.service";
 
 // ── Mock nodemailer so no real email is sent ──────────────────────────────
 jest.mock("nodemailer", () => ({

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-import { requireFinanceAccess, financeAuthErrorResponse } from "@/lib/finance/auth";
-import { generateInvoiceBodySchema } from "@/schemas/financePayment.schema";
-import { generateInvoice } from "@/services/finance/invoiceGenerationService";
+import { requireFinanceAccess, financeAuthErrorResponse } from "@/modules/finance/access";
+import { generateInvoiceBodySchema } from "@/modules/finance/schemas/payment.schema";
+import { generateInvoice } from "@/modules/finance/services/invoice-generation.service";
 
 export async function POST(request: NextRequest) {
   try {

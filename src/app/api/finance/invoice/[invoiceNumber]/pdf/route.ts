@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-import { requireFinanceAccess, financeAuthErrorResponse } from "@/lib/finance/auth";
-import FinanceInvoice from "@/models/financeInvoice";
-import { generateFinanceInvoicePdf } from "@/services/finance/financeInvoicePdf";
+import { requireFinanceAccess, financeAuthErrorResponse } from "@/modules/finance/access";
+import FinanceInvoice from "@/modules/finance/models/invoice.model";
+import { generateFinanceInvoicePdf } from "@/modules/finance/services/invoice-pdf.service";
 
 type RouteContext = { params: Promise<{ invoiceNumber: string }> };
 

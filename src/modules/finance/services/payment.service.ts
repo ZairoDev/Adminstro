@@ -1,13 +1,13 @@
 import type { FilterQuery } from "mongoose";
 import FinancePayment, {
   type IFinancePayment,
-} from "@/models/financePayment";
+} from "@/modules/finance/models/payment.model";
 import Bookings from "@/models/booking";
 import Invoice from "@/models/invoice";
-import { normalizePhone, phonesMatch } from "@/lib/finance/phone";
+import { normalizePhone, phonesMatch } from "@/modules/finance/phone";
 import type {
   MappingHistoryEntry,
-} from "@/schemas/financePayment.schema";
+} from "@/modules/finance/schemas/payment.schema";
 
 export type TransactionListParams = {
   page: number;

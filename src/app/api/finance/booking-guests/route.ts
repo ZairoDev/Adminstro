@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
-import { requireFinanceAccess, financeAuthErrorResponse } from "@/lib/finance/auth";
+import { requireFinanceAccess, financeAuthErrorResponse } from "@/modules/finance/access";
 import { z } from "zod";
-import { getBookingInvoiceContext } from "@/services/finance/bookingLedgerService";
+import { getBookingInvoiceContext } from "@/modules/finance/services/booking-ledger.service";
 
 const querySchema = z.object({
   bookingId: z.string().min(1, "bookingId is required"),

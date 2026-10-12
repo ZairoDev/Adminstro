@@ -8,17 +8,17 @@
  */
 
 import type { FilterQuery } from "mongoose";
-import FinancePayment, { type IFinancePayment } from "@/models/financePayment";
-import FinanceInvoice, { type IFinanceInvoice } from "@/models/financeInvoice";
-import { getNextFinanceInvoiceNumber } from "@/lib/finance/invoiceCounter";
-import type { GenerateInvoiceBody } from "@/schemas/financePayment.schema";
+import FinancePayment, { type IFinancePayment } from "@/modules/finance/models/payment.model";
+import FinanceInvoice, { type IFinanceInvoice } from "@/modules/finance/models/invoice.model";
+import { getNextFinanceInvoiceNumber } from "@/modules/finance/invoice-counter";
+import type { GenerateInvoiceBody } from "@/modules/finance/schemas/payment.schema";
 import {
   applyCompletePayment,
   applyPartialPayment,
   applySplitPayments,
   getBookingInvoiceContext,
   type GuestLedgerSnapshot,
-} from "@/services/finance/bookingLedgerService";
+} from "@/modules/finance/services/booking-ledger.service";
 
 /* ------------------------------------------------------------------ */
 /*  Public output shape                                                 */

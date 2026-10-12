@@ -87,7 +87,7 @@ async function main() {
   const Query = (await import("../models/query.js")).default;
   const Visits = (await import("../models/visit.js")).default;
   const Bookings = (await import("../models/booking.js")).default;
-  const FinancePayment = (await import("../models/financePayment.js")).default;
+  const FinancePayment = (await import("../modules/finance/models/payment.model.js")).default;
 
   // ─── STEP 1: Lead ─────────────────────────────────────────────────────
   step(1, "Create Lead (Query)");
@@ -280,7 +280,7 @@ async function main() {
   // ─── AUTO: Map ────────────────────────────────────────────────────────
   step(5, "Map payment → booking + guest");
 
-  const { mapPayment } = await import("../services/finance/financePaymentService.js");
+  const { mapPayment } = await import("../modules/finance/services/payment.service.js");
   const mapped = await mapPayment({
     paymentId,
     bookingId: booking.bookingId!,
@@ -296,7 +296,7 @@ async function main() {
   step(6, "Generate invoice (complete payment)");
 
   const { generateInvoice } = await import(
-    "../services/finance/invoiceGenerationService.js"
+    "../modules/finance/services/invoice-generation.service.js"
   );
   const generated = await generateInvoice(
     {
@@ -333,7 +333,7 @@ async function main() {
   // ─── AUTO: Send ───────────────────────────────────────────────────────
   step(7, "Send invoice email (dry-run unless FINANCE_INVOICE_EMAIL_DRY_RUN=false)");
 
-  const { sendInvoices } = await import("../services/finance/invoiceSendService.js");
+  const { sendInvoices } = await import("../modules/finance/services/invoice-send.service.js");
   const sent = await sendInvoices(
     { paymentId },
     { id: "seed-walkthrough", name: "Finance Walkthrough" },

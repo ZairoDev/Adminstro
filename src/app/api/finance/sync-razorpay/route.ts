@@ -3,8 +3,8 @@ import { connectDb } from "@/util/db";
 import {
   financeAuthErrorResponse,
   requireFinanceAccess,
-} from "@/lib/finance/auth";
-import { syncRazorpayPaymentsToFinance } from "@/services/finance/razorpaySyncService";
+} from "@/modules/finance/access";
+import { syncRazorpayPaymentsToFinance } from "@/modules/finance/services/razorpay-sync.service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

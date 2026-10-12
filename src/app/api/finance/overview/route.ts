@@ -3,8 +3,8 @@ import { connectDb } from "@/util/db";
 import {
   financeAuthErrorResponse,
   requireFinanceAccess,
-} from "@/lib/finance/auth";
-import { getFinanceOverview } from "@/services/finance/financePaymentService";
+} from "@/modules/finance/access";
+import { getFinanceOverview } from "@/modules/finance/services/payment.service";
 
 export async function GET(request: NextRequest) {
   try {

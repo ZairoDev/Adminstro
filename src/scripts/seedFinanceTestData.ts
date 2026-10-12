@@ -29,7 +29,7 @@ if (!MONGODB_URI) {
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
-import FinancePayment from "../models/financePayment.js";
+import FinancePayment from "../modules/finance/models/payment.model.js";
 
 // Booking model import (for adding matching test bookings)
 async function getBookingsModel(): Promise<mongoose.Model<mongoose.Document>> {

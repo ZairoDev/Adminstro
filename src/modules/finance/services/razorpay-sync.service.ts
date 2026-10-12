@@ -1,5 +1,5 @@
 import { getRazorpayClient } from "@/lib/razorpay";
-import { upsertFinancePayment } from "@/services/finance/razorpayWebhookService";
+import { upsertFinancePayment } from "@/modules/finance/services/razorpay-webhook.service";
 
 type RazorpayRecord = Record<string, unknown>;
 

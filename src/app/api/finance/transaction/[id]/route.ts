@@ -3,10 +3,10 @@ import { connectDb } from "@/util/db";
 import {
   financeAuthErrorResponse,
   requireFinanceAccess,
-} from "@/lib/finance/auth";
-import { getTransactionByPublicId } from "@/services/finance/financePaymentService";
-import { listWebhookLogsForPayment } from "@/services/finance/webhookLogService";
-import { getInvoicesForPayment } from "@/services/finance/invoiceGenerationService";
+} from "@/modules/finance/access";
+import { getTransactionByPublicId } from "@/modules/finance/services/payment.service";
+import { listWebhookLogsForPayment } from "@/modules/finance/services/webhook-log.service";
+import { getInvoicesForPayment } from "@/modules/finance/services/invoice-generation.service";
 
 type RouteContext = { params: Promise<{ id: string }> };
 

@@ -1,6 +1,8 @@
 import { connectDb } from "@/util/db";
 import WhatsAppWebhookLog, {
   type WhatsAppWebhookLogKind,
+  type WhatsAppWebhookProcessingStatus,
+  type WhatsAppWebhookSignatureStatus,
 } from "@/models/whatsappWebhookLog";
 import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
 
@@ -28,33 +30,86 @@ type WebhookBody = {
   }>;
 };
 
-function pushRow(
-  rows: Array<{
-    receivedAt: Date;
-    eventAt?: Date;
-    field: string;
-    kind: WhatsAppWebhookLogKind;
-    status?: string;
-    messageId?: string;
-    businessPhoneId?: string;
-    wabaId?: string;
-    customerPhone?: string;
-    payload?: Record<string, unknown>;
-  }>,
-  row: (typeof rows)[number],
-): void {
-  rows.push(row);
+type WebhookLogRow = {
+  receivedAt: Date;
+  eventAt?: Date;
+  field: string;
+  kind: WhatsAppWebhookLogKind;
+  status?: string;
+  messageId?: string;
+  businessPhoneId?: string;
+  wabaId?: string;
+  customerPhone?: string;
+  messageType?: string;
+  preview?: string;
+  signatureStatus?: WhatsAppWebhookSignatureStatus;
+  processingStatus?: WhatsAppWebhookProcessingStatus;
+  payload?: Record<string, unknown>;
+};
+
+const PREVIEW_MAX = 140;
+
+/** Short text preview of a Meta inbound message payload (for the monitor UI). */
+function buildInboundPreview(msg: Record<string, unknown>): string | undefined {
+  const type = String(msg.type ?? "");
+  const asRecord = (v: unknown): Record<string, unknown> | undefined =>
+    v && typeof v === "object" ? (v as Record<string, unknown>) : undefined;
+
+  let text: string | undefined;
+  switch (type) {
+    case "text":
+      text = asRecord(msg.text)?.body as string | undefined;
+      break;
+    case "button": {
+      const b = asRecord(msg.button);
+      text = (b?.text ?? b?.payload) as string | undefined;
+      break;
+    }
+    case "interactive": {
+      const i = asRecord(msg.interactive);
+      const reply = asRecord(i?.button_reply) ?? asRecord(i?.list_reply);
+      text = (reply?.title ?? reply?.id) as string | undefined;
+      break;
+    }
+    case "image":
+    case "video":
+    case "document":
+      text =
+        (asRecord(msg[type])?.caption as string | undefined) || `[${type}]`;
+      break;
+    case "reaction":
+      text = `Reacted ${String(asRecord(msg.reaction)?.emoji ?? "")}`;
+      break;
+    case "unsupported":
+      text = "[unsupported message type]";
+      break;
+    default:
+      text = type ? `[${type}]` : undefined;
+  }
+  return text ? String(text).slice(0, PREVIEW_MAX) : undefined;
 }
 
-/** Persist every webhook sub-event from a Meta POST body (fire-and-forget). */
-export async function persistWebhookPayload(body: unknown): Promise<number> {
+export type PersistWebhookOptions = {
+  signatureStatus?: WhatsAppWebhookSignatureStatus;
+};
+
+/**
+ * Persist every webhook sub-event from a Meta POST body.
+ * Must be AWAITED by the caller before processing starts so the outcome
+ * updates (recordInboundProcessingOutcome) always find their row.
+ */
+export async function persistWebhookPayload(
+  body: unknown,
+  options: PersistWebhookOptions = {},
+): Promise<number> {
   if (!isEnabled()) return 0;
 
   const parsed = body as WebhookBody;
   if (parsed?.object !== "whatsapp_business_account") return 0;
 
   const receivedAt = new Date();
-  const rows: Parameters<typeof pushRow>[1][] = [];
+  const signatureStatus = options.signatureStatus;
+  const rows: WebhookLogRow[] = [];
 
   for (const entry of parsed.entry ?? []) {
     const wabaId = entry.id ? String(entry.id) : undefined;
@@ -73,7 +128,7 @@ export async function persistWebhookPayload(body: unknown): Promise<number> {
         const customerPhone = statusObj.recipient_id
           ? normalizePhone(String(statusObj.recipient_id))
           : undefined;
-        pushRow(rows, {
+        rows.push({
           receivedAt,
           eventAt: metaTimestamp(statusObj.timestamp),
           field,
@@ -83,23 +138,31 @@ export async function persistWebhookPayload(body: unknown): Promise<number> {
           businessPhoneId,
           wabaId,
           customerPhone,
+          signatureStatus,
           payload: statusObj,
         });
       }
 
       const messages = Array.isArray(value.messages) ? value.messages : [];
+      // smb_message_echoes carries messages SENT BY the business — not customer replies.
+      const isEchoField = field === "smb_message_echoes";
       for (const msg of messages) {
         const msgObj = msg as Record<string, unknown>;
-        const from = msgObj.from ? normalizePhone(String(msgObj.from)) : undefined;
-        pushRow(rows, {
+        const party = isEchoField ? msgObj.to : msgObj.from;
+        const customerPhone = party ? normalizePhone(String(party)) : undefined;
+        rows.push({
           receivedAt,
           eventAt: metaTimestamp(msgObj.timestamp),
           field,
-          kind: "inbound_message",
+          kind: isEchoField ? "message_echo" : "inbound_message",
           messageId: msgObj.id ? String(msgObj.id) : undefined,
           businessPhoneId,
           wabaId,
-          customerPhone: from,
+          customerPhone,
+          messageType: msgObj.type ? String(msgObj.type) : undefined,
+          preview: buildInboundPreview(msgObj),
+          signatureStatus,
+          ...(isEchoField ? {} : { processingStatus: "pending" as const }),
           payload: msgObj,
         });
       }
@@ -110,7 +173,7 @@ export async function persistWebhookPayload(body: unknown): Promise<number> {
       for (const echo of echoes) {
         const echoObj = echo as Record<string, unknown>;
         const to = echoObj.to ? normalizePhone(String(echoObj.to)) : undefined;
-        pushRow(rows, {
+        rows.push({
           receivedAt,
           eventAt: metaTimestamp(echoObj.timestamp),
           field,
@@ -119,6 +182,7 @@ export async function persistWebhookPayload(body: unknown): Promise<number> {
           businessPhoneId,
           wabaId,
           customerPhone: to,
+          signatureStatus,
           payload: echoObj,
         });
       }
@@ -137,12 +201,13 @@ export async function persistWebhookPayload(body: unknown): Promise<number> {
                 ? "app_state_sync"
                 : "other";
 
-        pushRow(rows, {
+        rows.push({
           receivedAt,
           field,
           kind,
           businessPhoneId,
           wabaId,
+          signatureStatus,
           payload: value,
         });
       }
@@ -154,6 +219,58 @@ export async function persistWebhookPayload(body: unknown): Promise<number> {
   await connectDb();
   await WhatsAppWebhookLog.insertMany(rows, { ordered: false });
   return rows.length;
+}
+
+export type InboundProcessingOutcome = {
+  messageId?: string;
+  businessPhoneId?: string;
+  processingStatus: Exclude<WhatsAppWebhookProcessingStatus, "pending">;
+  processingReason?: string;
+  processingError?: string;
+  conversationId?: string;
+  mongoMessageId?: string;
+  eligibleUserCount?: number;
+  socketEmittedCount?: number;
+};
+
+/**
+ * Stamp what the handler did with an inbound message onto its webhook-log row.
+ * Never throws — diagnostics must not break message handling.
+ */
+export async function recordInboundProcessingOutcome(
+  outcome: InboundProcessingOutcome,
+): Promise<void> {
+  if (!isEnabled() || !outcome.messageId) return;
+  try {
+    await connectDb();
+    await WhatsAppWebhookLog.updateMany(
+      {
+        kind: "inbound_message",
+        messageId: outcome.messageId,
+        ...(outcome.businessPhoneId
+          ? { businessPhoneId: outcome.businessPhoneId }
+          : {}),
+        // Meta retries: don't let a later "duplicate" overwrite the real outcome.
+        ...(outcome.processingStatus === "duplicate"
+          ? { processingStatus: { $in: ["pending", "duplicate"] } }
+          : {}),
+      },
+      {
+        $set: {
+          processingStatus: outcome.processingStatus,
+          processingReason: outcome.processingReason,
+          processingError: outcome.processingError?.slice(0, 500),
+          processedAt: new Date(),
+          conversationId: outcome.conversationId,
+          mongoMessageId: outcome.mongoMessageId,
+          eligibleUserCount: outcome.eligibleUserCount,
+          socketEmittedCount: outcome.socketEmittedCount,
+        },
+      },
+    );
+  } catch (err) {
+    console.warn("[webhook-log] failed to record inbound outcome:", err);
+  }
 }
 
 export type WebhookLogStats = {

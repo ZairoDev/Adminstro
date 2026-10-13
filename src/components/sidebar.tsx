@@ -641,6 +641,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <FaWhatsapp size={18} />,
     },
     {
+      path: "/dashboard/whatsapp-webhook-monitor",
+      label: "WhatsApp Webhook Monitor",
+      Icon: <ScrollText size={18} />,
+    },
+    {
       path: "/dashboard/website-leads",
       label: "Web & Mobile Leads",
       Icon: <Globe size={18} />,

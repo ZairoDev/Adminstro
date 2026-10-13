@@ -32,6 +32,13 @@ import {
 import { getEligibleUsersForNotification } from "@/lib/whatsapp/notificationRecipients";
 import { emitWhatsAppEventToEligibleUsers } from "@/lib/whatsapp/emitToEligibleUsers";
 import { MESSAGING_WINDOW_MS } from "@/lib/whatsapp/messagingWindow";
+import { recordInboundProcessingOutcome } from "@/lib/whatsapp/webhookLog/persist";
+import {
+  createInboundTrace,
+  traceDropped,
+  type InboundTrace,
+} from "@/lib/whatsapp/webhookLog/inboundTrace";
+import type { WhatsAppWebhookSignatureStatus } from "@/models/whatsappWebhookLog";
 
 export const dynamic = "force-dynamic";
 
@@ -317,22 +324,38 @@ export async function POST(req: NextRequest) {
 
     await connectDb();
 
-    void import("@/lib/whatsapp/webhookLog/persist")
-      .then((m) => m.persistWebhookPayload(body))
-      .catch((err) => console.warn("[webhook-log] persist failed:", err));
-
     const signature = req.headers.get('x-hub-signature-256');
+    const appSecret = process.env.WHATSAPP_APP_SECRET;
 
-    if (signature && process.env.WHATSAPP_APP_SECRET) {
-      const expectedSignature = crypto
-        .createHmac('sha256', process.env.WHATSAPP_APP_SECRET)
-        .update(rawBody)
-        .digest('hex');
-      
-      if (signature !== `sha256=${expectedSignature}`) {
-        console.error('❌ Invalid webhook signature');
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
+    let signatureStatus: WhatsAppWebhookSignatureStatus = "unchecked";
+    if (appSecret) {
+      if (!signature) {
+        signatureStatus = "missing_header";
+      } else {
+        const expectedSignature = crypto
+          .createHmac('sha256', appSecret)
+          .update(rawBody)
+          .digest('hex');
+        signatureStatus =
+          signature === `sha256=${expectedSignature}` ? "valid" : "invalid";
       }
+    }
+
+    // AWAITED (not fire-and-forget): on serverless the runtime can be frozen right
+    // after the response, and outcome updates below need the row to exist. Also runs
+    // BEFORE the signature rejection so rejected deliveries are visible in the monitor.
+    try {
+      const { persistWebhookPayload } = await import(
+        "@/lib/whatsapp/webhookLog/persist"
+      );
+      await persistWebhookPayload(body, { signatureStatus });
+    } catch (err) {
+      console.warn("[webhook-log] persist failed:", err);
+    }
+
+    if (signatureStatus === "invalid") {
+      console.error('❌ Invalid webhook signature');
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
     }
 
     // Process the webhook event
@@ -355,7 +378,11 @@ export async function POST(req: NextRequest) {
             // Handle incoming messages
             if (value.messages && value.messages.length > 0) {
               for (const message of value.messages) {
-                await processIncomingMessage(message, value.contacts?.[0], value.metadata);
+                await handleInboundMessageSafely(
+                  message,
+                  value.contacts?.[0],
+                  value.metadata,
+                );
               }
             }
             
@@ -698,10 +725,64 @@ async function sendGuestQuestionsTemplate(
   }
 }
 
+/**
+ * Runs processIncomingMessage for ONE message and records its outcome on the
+ * webhook-log row. A failure here must never stop the remaining messages in the
+ * same Meta delivery (previously one throw skipped the rest of the batch).
+ */
+async function handleInboundMessageSafely(
+  message: any,
+  contact: any,
+  metadata: any,
+): Promise<void> {
+  const trace = createInboundTrace();
+  const messageId: string | undefined = message?.id ? String(message.id) : undefined;
+  const businessPhoneId: string | undefined = metadata?.phone_number_id
+    ? String(metadata.phone_number_id)
+    : undefined;
+
+  try {
+    await processIncomingMessage(message, contact, metadata, trace);
+    await recordInboundProcessingOutcome({
+      messageId,
+      businessPhoneId,
+      processingStatus: trace.status ?? "saved",
+      processingReason: trace.reason,
+      conversationId: trace.conversationId,
+      mongoMessageId: trace.mongoMessageId,
+      eligibleUserCount: trace.eligibleUserCount,
+      socketEmittedCount: trace.socketEmittedCount,
+    });
+  } catch (error) {
+    console.error("❌ [webhook] inbound message failed (message NOT stored):", {
+      messageId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    await recordInboundProcessingOutcome({
+      messageId,
+      businessPhoneId,
+      processingStatus: trace.mongoMessageId
+        ? trace.status === "duplicate"
+          ? "duplicate"
+          : "saved"
+        : "error",
+      processingReason: trace.mongoMessageId
+        ? "saved_but_post_processing_failed"
+        : "handler_exception",
+      processingError: error instanceof Error ? error.message : String(error),
+      conversationId: trace.conversationId,
+      mongoMessageId: trace.mongoMessageId,
+      eligibleUserCount: trace.eligibleUserCount,
+      socketEmittedCount: trace.socketEmittedCount,
+    });
+  }
+}
+
 async function processIncomingMessage(
   message: any,
   contact: any,
-  metadata: any
+  metadata: any,
+  trace: InboundTrace,
 ) {
   try {
     const phoneNumberId = metadata?.phone_number_id;
@@ -714,6 +795,7 @@ async function processIncomingMessage(
     const senderPhone = normalizePhone(String(message.from ?? ""));
     if (senderPhone.length < 7 || senderPhone.length > 15) {
       console.error("❌ Invalid phone number length:", senderPhone);
+      traceDropped(trace, `invalid_sender_phone:${senderPhone.length}_digits`);
       return;
     }
     const senderName = contact?.profile?.name || senderPhone;
@@ -723,6 +805,7 @@ async function processIncomingMessage(
     // Validate required fields
     if (!senderPhone || !phoneNumberId) {
       console.error("❌ Missing required fields - senderPhone:", senderPhone, "phoneNumberId:", phoneNumberId);
+      traceDropped(trace, "missing_sender_or_phone_number_id");
       return;
     }
 
@@ -732,6 +815,7 @@ async function processIncomingMessage(
         "[webhook] unresolved phoneNumberId — no channel found:",
         phoneNumberId,
       );
+      traceDropped(trace, `no_active_channel_for_phone_number_id:${phoneNumberId}`);
       return;
     }
 
@@ -766,6 +850,8 @@ async function processIncomingMessage(
       inboundTimestampMs,
     }) as any; // Cast to any to access Mongoose document properties like _id
 
+    trace.conversationId = String(conversation._id);
+
     // ============================================================
     // CRITICAL: Internal vs Meta Message Safety
     // ============================================================
@@ -773,6 +859,7 @@ async function processIncomingMessage(
     // Internal conversations must NEVER be processed by webhook logic
     if (conversation.source === "internal") {
       console.log(`⏭️ [SKIP] Internal conversation detected - skipping webhook processing for conversation ${conversation._id}`);
+      traceDropped(trace, "conversation_is_internal");
       return;
     }
 
@@ -1003,6 +1090,9 @@ async function processIncomingMessage(
     
     const isNewMessage = result.lastErrorObject?.updateExisting === false;
     const savedMessage = result.value;
+
+    trace.mongoMessageId = savedMessage?._id ? String(savedMessage._id) : undefined;
+    trace.status = isNewMessage ? "saved" : "duplicate";
 
     logWebhookNotify("message.saved", {
       messageId: message.id,
@@ -1321,6 +1411,10 @@ async function processIncomingMessage(
       console.log(
         `⏭️ [SKIP] Conversation ${conversation._id} preview already newer (window fields refreshed)`,
       );
+      // Message IS stored, but this path skips socket/push notifications entirely.
+      trace.reason = "saved_no_notification:conversation_preview_already_newer";
+      trace.eligibleUserCount = 0;
+      trace.socketEmittedCount = 0;
       emitSessionWindowUpdated({
         conversationId: conversation._id.toString(),
         sessionExpiresAt: sessionFields.sessionExpiresAt,
@@ -1349,6 +1443,7 @@ async function processIncomingMessage(
     // GET ELIGIBLE USERS AND EMIT NOTIFICATIONS
     // ============================================================
     const eligibleUsers = await getEligibleUsersForNotification(conversation);
+    trace.eligibleUserCount = eligibleUsers.length;
 
     emitSessionWindowUpdated({
       conversationId: conversation._id.toString(),
@@ -1373,6 +1468,8 @@ async function processIncomingMessage(
         reason: "no_eligible_users",
       });
       console.log(`✅ [NEW] ${message.id} saved (no eligible users)`);
+      trace.reason = "saved_no_notification:no_eligible_users";
+      trace.socketEmittedCount = 0;
       return;
     }
 
@@ -1509,6 +1606,8 @@ async function processIncomingMessage(
       
 
     }
+
+    trace.socketEmittedCount = notificationsEmitted;
 
     // Concise success log
     logWebhookNotify("new.done", {

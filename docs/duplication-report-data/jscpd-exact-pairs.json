@@ -1,0 +1,439 @@
+{
+  "label": "exact",
+  "totalClones": 1782,
+  "intraFileClones": 497,
+  "statistics": {
+    "clones": 1782,
+    "duplicatedLines": 32409,
+    "duplicatedTokens": 172939,
+    "lines": 283498,
+    "newClones": 0,
+    "newDuplicatedLines": 0,
+    "percentage": 11.431826679553295,
+    "percentageTokens": 11.982160376469544,
+    "sources": 1338,
+    "tokens": 1443304
+  },
+  "topPairs": [
+    {
+      "a": "src/app/dashboard/candidatePortal/[id]/offer-letter/page.tsx",
+      "b": "src/app/dashboard/candidatePortal/[id]/training-agreement/page.tsx",
+      "clones": 25,
+      "lines": 769,
+      "tokens": 3491
+    },
+    {
+      "a": "src/app/api/unregisteredOwners/nearby/route.ts",
+      "b": "src/app/api/unregisteredOwnersShortTerm/nearby/route.ts",
+      "clones": 5,
+      "lines": 742,
+      "tokens": 4505
+    },
+    {
+      "a": "src/app/dashboard/employeedetails/[...id]/page.tsx",
+      "b": "src/app/dashboard/people/[candidateId]/page.tsx",
+      "clones": 38,
+      "lines": 692,
+      "tokens": 3628
+    },
+    {
+      "a": "src/app/dashboard/goodtogoleads/good-table.tsx",
+      "b": "src/components/leadTable/LeadTable.tsx",
+      "clones": 22,
+      "lines": 634,
+      "tokens": 3018
+    },
+    {
+      "a": "src/app/api/candidates/hrPolicies/route.ts",
+      "b": "src/app/api/candidates/trainingAgreement/route.ts",
+      "clones": 6,
+      "lines": 557,
+      "tokens": 2659
+    },
+    {
+      "a": "src/app/api/candidates/hrPolicies/route.ts",
+      "b": "src/app/api/candidates/letterOfIntent/route.ts",
+      "clones": 7,
+      "lines": 448,
+      "tokens": 2123
+    },
+    {
+      "a": "src/app/dashboard/reviewLeads/reviewTable.tsx",
+      "b": "src/components/leadTable/LeadTable.tsx",
+      "clones": 11,
+      "lines": 361,
+      "tokens": 1672
+    },
+    {
+      "a": "src/app/dashboard/goodtogoleads/good-table.tsx",
+      "b": "src/app/dashboard/reviewLeads/reviewTable.tsx",
+      "clones": 11,
+      "lines": 339,
+      "tokens": 1520
+    },
+    {
+      "a": "src/app/dashboard/newproperty/editPortionAvailability/[id]/page.tsx",
+      "b": "src/app/dashboard/property/edit/availability/[...id]/page.tsx",
+      "clones": 8,
+      "lines": 336,
+      "tokens": 1793
+    },
+    {
+      "a": "src/app/dashboard/declinedleads/lead-page.tsx",
+      "b": "src/app/dashboard/rejectedleads/lead-page.tsx",
+      "clones": 6,
+      "lines": 331,
+      "tokens": 1640
+    },
+    {
+      "a": "src/app/api/candidates/hrPolicies/route.ts",
+      "b": "src/app/api/candidates/offerLetter/route.ts",
+      "clones": 3,
+      "lines": 326,
+      "tokens": 1530
+    },
+    {
+      "a": "src/app/dashboard/declinedleads/declined-lead-table.tsx",
+      "b": "src/app/dashboard/goodtogoleads/good-table.tsx",
+      "clones": 14,
+      "lines": 322,
+      "tokens": 1479
+    },
+    {
+      "a": "src/app/dashboard/newproperty/page.tsx",
+      "b": "src/app/holidaysera/properties/page.tsx",
+      "clones": 10,
+      "lines": 319,
+      "tokens": 1636
+    },
+    {
+      "a": "src/app/api/candidates/letterOfIntent/route.ts",
+      "b": "src/app/api/candidates/offerLetter/route.ts",
+      "clones": 14,
+      "lines": 298,
+      "tokens": 1469
+    },
+    {
+      "a": "src/app/dashboard/closedleads/lead-page.tsx",
+      "b": "src/app/dashboard/declinedleads/lead-page.tsx",
+      "clones": 9,
+      "lines": 286,
+      "tokens": 1551
+    },
+    {
+      "a": "src/app/dashboard/reminders/lead-page.tsx",
+      "b": "src/app/dashboard/reviewLeads/lead-page.tsx",
+      "clones": 7,
+      "lines": 280,
+      "tokens": 1371
+    },
+    {
+      "a": "src/app/api/leads/getDeclinedLeads/route.ts",
+      "b": "src/app/api/leads/getRejectedLeads/route.ts",
+      "clones": 3,
+      "lines": 252,
+      "tokens": 1224
+    },
+    {
+      "a": "src/app/dashboard/declinedleads/declined-lead-table.tsx",
+      "b": "src/app/dashboard/reviewLeads/reviewTable.tsx",
+      "clones": 10,
+      "lines": 239,
+      "tokens": 1092
+    },
+    {
+      "a": "src/app/dashboard/declinedleads/lead-page.tsx",
+      "b": "src/app/dashboard/rolebaseLead/lead-page.tsx",
+      "clones": 5,
+      "lines": 229,
+      "tokens": 1159
+    },
+    {
+      "a": "src/app/dashboard/completedproperties/page.tsx",
+      "b": "src/app/dashboard/remainingproperties/page.tsx",
+      "clones": 8,
+      "lines": 227,
+      "tokens": 1131
+    },
+    {
+      "a": "src/app/dashboard/declinedleads/lead-page.tsx",
+      "b": "src/app/dashboard/notReplying/lead-page.tsx",
+      "clones": 5,
+      "lines": 225,
+      "tokens": 1221
+    },
+    {
+      "a": "src/app/dashboard/editemployeedetails/[...id]/page.tsx",
+      "b": "src/app/dashboard/edituserdetails/[...id]/page.tsx",
+      "clones": 7,
+      "lines": 208,
+      "tokens": 1108
+    },
+    {
+      "a": "src/app/api/unregisteredOwners/getCounts/route.ts",
+      "b": "src/app/api/unregisteredOwnersShortTerm/getCounts/route.ts",
+      "clones": 4,
+      "lines": 198,
+      "tokens": 1116
+    },
+    {
+      "a": "src/app/dashboard/closedleads/lead-page.tsx",
+      "b": "src/app/dashboard/reminders/lead-page.tsx",
+      "clones": 10,
+      "lines": 188,
+      "tokens": 959
+    },
+    {
+      "a": "src/app/api/candidates/[id]/schedule-interview/route.ts",
+      "b": "src/app/api/candidates/[id]/schedule-second-round/route.ts",
+      "clones": 5,
+      "lines": 179,
+      "tokens": 843
+    },
+    {
+      "a": "src/app/api/leads/getClosedLeads/route.ts",
+      "b": "src/app/api/leads/getDeclinedLeads/route.ts",
+      "clones": 8,
+      "lines": 179,
+      "tokens": 984
+    },
+    {
+      "a": "src/app/api/leads/getClosedLeads/route.ts",
+      "b": "src/app/api/leads/getReminderLeads/route.ts",
+      "clones": 7,
+      "lines": 166,
+      "tokens": 866
+    },
+    {
+      "a": "src/app/api/leads/getDeclinedLeads/route.ts",
+      "b": "src/app/api/leads/getReminderLeads/route.ts",
+      "clones": 4,
+      "lines": 166,
+      "tokens": 799
+    },
+    {
+      "a": "src/app/api/unregisteredOwners/getAvailableList/route.ts",
+      "b": "src/app/api/unregisteredOwnersShortTerm/getAvailableList/route.ts",
+      "clones": 4,
+      "lines": 160,
+      "tokens": 944
+    },
+    {
+      "a": "src/app/api/leads/getGoodToGoLeads/route.ts",
+      "b": "src/app/api/leads/getLeads/route.ts",
+      "clones": 4,
+      "lines": 159,
+      "tokens": 766
+    },
+    {
+      "a": "src/app/dashboard/closedleads/lead-page.tsx",
+      "b": "src/app/dashboard/goodtogoleads/lead-page.tsx",
+      "clones": 6,
+      "lines": 158,
+      "tokens": 927
+    },
+    {
+      "a": "src/app/api/candidates/hrPolicies/route.ts",
+      "b": "src/app/api/candidates/onboardingDocument/route.ts",
+      "clones": 6,
+      "lines": 155,
+      "tokens": 699
+    },
+    {
+      "a": "src/app/dashboard/allblogs/editblog/[...id]/page.tsx",
+      "b": "src/app/dashboard/createblog/page.tsx",
+      "clones": 8,
+      "lines": 155,
+      "tokens": 785
+    },
+    {
+      "a": "src/app/dashboard/target/area-model.tsx",
+      "b": "src/app/dashboard/target/components/editArea.tsx",
+      "clones": 9,
+      "lines": 146,
+      "tokens": 792
+    },
+    {
+      "a": "src/app/dashboard/declinedleads/declined-lead-table.tsx",
+      "b": "src/components/leadTable/LeadTable.tsx",
+      "clones": 8,
+      "lines": 142,
+      "tokens": 629
+    },
+    {
+      "a": "src/app/dashboard/candidatePortal/[id]/offer-letter/page.tsx",
+      "b": "src/app/dashboard/candidatePortal/[id]/onboarding/page.tsx",
+      "clones": 8,
+      "lines": 141,
+      "tokens": 619
+    },
+    {
+      "a": "src/app/api/unregisteredOwners/getAvailableList/route.ts",
+      "b": "src/app/api/unregisteredOwners/getNotAvailableList/route.ts",
+      "clones": 2,
+      "lines": 140,
+      "tokens": 826
+    },
+    {
+      "a": "src/app/api/leads/getDeclinedLeads/route.ts",
+      "b": "src/app/api/leads/getGoodToGoLeads/route.ts",
+      "clones": 6,
+      "lines": 135,
+      "tokens": 644
+    },
+    {
+      "a": "src/app/dashboard/attendedCandidate/page.tsx",
+      "b": "src/app/dashboard/leftoverCandidate/page.tsx",
+      "clones": 6,
+      "lines": 133,
+      "tokens": 718
+    },
+    {
+      "a": "src/app/dashboard/notReplying/lead-page.tsx",
+      "b": "src/app/dashboard/reviewLeads/lead-page.tsx",
+      "clones": 3,
+      "lines": 130,
+      "tokens": 768
+    },
+    {
+      "a": "src/app/api/unregisteredOwners/updateData/[_id]/route.ts",
+      "b": "src/app/api/unregisteredOwnersShortTerm/updateData/[_id]/route.ts",
+      "clones": 6,
+      "lines": 128,
+      "tokens": 779
+    },
+    {
+      "a": "src/app/dashboard/invoice/components/invoice-pdf-button.tsx",
+      "b": "src/components/razorpayButton.tsx",
+      "clones": 4,
+      "lines": 128,
+      "tokens": 585
+    },
+    {
+      "a": "src/app/dashboard/closedleads/lead-page.tsx",
+      "b": "src/app/dashboard/lowBudget/LeadPage.tsx",
+      "clones": 5,
+      "lines": 127,
+      "tokens": 699
+    },
+    {
+      "a": "src/app/dashboard/closedleads/lead-page.tsx",
+      "b": "src/app/dashboard/createquery/page.tsx",
+      "clones": 4,
+      "lines": 119,
+      "tokens": 663
+    },
+    {
+      "a": "src/app/api/sales/getQueryByArea/route.ts",
+      "b": "src/app/api/sales/searchInRejectedLeads/route.ts",
+      "clones": 2,
+      "lines": 118,
+      "tokens": 565
+    },
+    {
+      "a": "src/app/dashboard/areadetails/page.tsx",
+      "b": "src/app/dashboard/areapriceinfo/page.tsx",
+      "clones": 6,
+      "lines": 111,
+      "tokens": 624
+    },
+    {
+      "a": "src/app/dashboard/owners/onwer-address.tsx",
+      "b": "src/app/dashboard/sales-offer/address-details.tsx",
+      "clones": 4,
+      "lines": 111,
+      "tokens": 599
+    },
+    {
+      "a": "src/app/dashboard/closedleads/lead-page.tsx",
+      "b": "src/app/dashboard/reviewLeads/lead-page.tsx",
+      "clones": 6,
+      "lines": 108,
+      "tokens": 609
+    },
+    {
+      "a": "src/app/api/offers/[id]/rebuttal/route.ts",
+      "b": "src/app/api/offers/[id]/reminder/route.ts",
+      "clones": 4,
+      "lines": 107,
+      "tokens": 1057
+    },
+    {
+      "a": "src/app/dashboard/closedleads/lead-page.tsx",
+      "b": "src/app/dashboard/rolebaseLead/lead-page.tsx",
+      "clones": 5,
+      "lines": 107,
+      "tokens": 580
+    },
+    {
+      "a": "src/app/api/sales/getQueryByArea/route.ts",
+      "b": "src/app/api/sales/searchInReminders/route.ts",
+      "clones": 2,
+      "lines": 105,
+      "tokens": 506
+    },
+    {
+      "a": "src/app/dashboard/declinedleads/lead-page.tsx",
+      "b": "src/app/dashboard/goodtogoleads/lead-page.tsx",
+      "clones": 5,
+      "lines": 102,
+      "tokens": 477
+    },
+    {
+      "a": "src/app/dashboard/declinedleads/lead-page.tsx",
+      "b": "src/app/dashboard/reminders/lead-page.tsx",
+      "clones": 3,
+      "lines": 101,
+      "tokens": 466
+    },
+    {
+      "a": "src/app/dashboard/notReplying/lead-page.tsx",
+      "b": "src/app/dashboard/rejectedleads/lead-page.tsx",
+      "clones": 2,
+      "lines": 98,
+      "tokens": 575
+    },
+    {
+      "a": "src/app/api/candidates/letterOfIntent/route.ts",
+      "b": "src/app/api/candidates/onboardingDocument/route.ts",
+      "clones": 3,
+      "lines": 96,
+      "tokens": 421
+    },
+    {
+      "a": "src/app/api/leads/getDeclinedLeads/route.ts",
+      "b": "src/app/api/leads/getLeads/route.ts",
+      "clones": 3,
+      "lines": 96,
+      "tokens": 413
+    },
+    {
+      "a": "src/app/api/unregisteredOwners/getNotAvailableList/route.ts",
+      "b": "src/app/api/unregisteredOwnersShortTerm/getNotAvailableList/route.ts",
+      "clones": 1,
+      "lines": 91,
+      "tokens": 589
+    },
+    {
+      "a": "src/app/dashboard/notReplying/lead-page.tsx",
+      "b": "src/app/dashboard/reminders/lead-page.tsx",
+      "clones": 2,
+      "lines": 91,
+      "tokens": 529
+    },
+    {
+      "a": "src/app/api/sales/createquery/route.ts",
+      "b": "src/app/api/whatsapp/webhook/route.ts",
+      "clones": 5,
+      "lines": 90,
+      "tokens": 317
+    },
+    {
+      "a": "src/app/dashboard/sales-offer/blacklisted-leads/page.tsx",
+      "b": "src/app/dashboard/sales-offer/rejected-leads/page.tsx",
+      "clones": 5,
+      "lines": 90,
+      "tokens": 505
+    }
+  ]
+}

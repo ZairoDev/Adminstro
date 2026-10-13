@@ -8,9 +8,50 @@ export type WhatsAppInboxUrlPatch = {
   locationFilter?: string | null;
   adminQueue?: boolean | null;
   retargetOnly?: boolean | null;
+  /**
+   * Keep one-shot "open chat" deep-link params (phone, location, ...) so an inbox
+   * URL sync cannot erase a pending lead / notification redirect.
+   */
+  preserveDeepLink?: boolean;
 };
 
 type SearchParamsLike = ReadonlyURLSearchParams | URLSearchParams | null | undefined;
+
+/** One-shot params that ask the inbox to open (or create) a chat for a phone number. */
+export const WHATSAPP_DEEP_LINK_PARAMS = [
+  "phone",
+  "location",
+  "conversationType",
+  "rentalType",
+  "name",
+  "profilePic",
+] as const;
+
+export type WhatsAppDeepLink = {
+  phone: string;
+  location: string;
+  conversationType?: "guest" | "owner";
+  rentalType?: "Short Term" | "Long Term";
+  name?: string;
+  profilePic?: string;
+};
+
+/** Parse the open-by-phone deep link; null when the URL carries no phone. */
+export function parseWhatsAppDeepLink(current: SearchParamsLike): WhatsAppDeepLink | null {
+  const phone = (current?.get("phone") ?? "").replace(/\D/g, "");
+  if (!phone) return null;
+
+  const type = current?.get("conversationType");
+  const rental = current?.get("rentalType");
+  return {
+    phone,
+    location: current?.get("location")?.trim() ?? "",
+    conversationType: type === "guest" || type === "owner" ? type : undefined,
+    rentalType: rental === "Short Term" || rental === "Long Term" ? rental : undefined,
+    name: current?.get("name") || undefined,
+    profilePic: current?.get("profilePic") || undefined,
+  };
+}
 
 function readRetargetOnly(current: SearchParamsLike): boolean {
   const v = current?.get("retargetOnly");
@@ -65,6 +106,13 @@ export function buildWhatsAppInboxUrl(
   }
 
   if (conversation) next.set("conversation", conversation);
+
+  if (patch.preserveDeepLink && current) {
+    for (const key of WHATSAPP_DEEP_LINK_PARAMS) {
+      const value = current.get(key);
+      if (value) next.set(key, value);
+    }
+  }
 
   const qs = next.toString();
   return qs ? `/whatsapp?${qs}` : "/whatsapp";

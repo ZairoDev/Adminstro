@@ -48,12 +48,21 @@ export interface UnifiedConversationResult {
   conversationType?: 'owner' | 'guest';
   assignedAgent?: string;
   status?: string;
+  /** Global archive state (search covers archived and active chats). */
+  isArchived?: boolean;
   
   // Aggregated match information
   matches: UnifiedSearchMatch;
   
   // Human-readable match context
   matchContext: string;
+}
+
+/** Offer to open a chat for a phone number that has no visible conversation yet. */
+export interface StartNewChatInfo {
+  phone: string;
+  leadName?: string;
+  leadLocation?: string;
 }
 
 export interface UnifiedSearchResults {
@@ -63,7 +72,11 @@ export interface UnifiedSearchResults {
   searchTime: number;
   hasStartNewChat?: boolean;
   startNewChatPhone?: string;
+  startNewChat?: StartNewChatInfo;
+  /** Message-body search hit its time budget; contact matches are still complete. */
   messageSearchIncomplete?: boolean;
+  /** Message search only covered the most recent visible conversations. */
+  scopeTruncated?: boolean;
 }
 
 // ============================================================================

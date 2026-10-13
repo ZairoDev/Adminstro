@@ -511,6 +511,12 @@ whatsAppConversationSchema.index({
   businessPhoneId: 1,
 });
 
+// Phone search: exact / anchored-prefix lookups by participant phone
+whatsAppConversationSchema.index(
+  { participantPhone: 1, lastMessageTime: -1 },
+  { name: "wa_participant_phone_recency_idx" },
+);
+
 // Permanent identity: one conversation per participant per business channel
 whatsAppConversationSchema.index(
   { participantPhone: 1, whatsappChannelId: 1 },

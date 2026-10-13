@@ -128,7 +128,6 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
   const [initiationLimitRefreshKey, setInitiationLimitRefreshKey] = useState(0);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [newCountryCode, setNewCountryCode] = useState("91");
   const [newPhoneNumber, setNewPhoneNumber] = useState("");
 
@@ -140,7 +139,6 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
   const viewerRoleRef = useRef(token?.role || "");
 
   const conversationsFiltersRef = useRef<ConversationsListFilters>({
-    search: "",
     labelFilter: "",
     adminQueue: false,
     retargetOnly: false,
@@ -186,14 +184,6 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     }
   }, []);
 
-  useEffect(() => {
-    const delay = searchQuery.trim() ? 300 : 0;
-    const timeoutId = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, delay);
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
-
   const conversationsFilters = useMemo((): ConversationsListFilters => {
     const privilegeUser = {
       role: token?.role,
@@ -210,7 +200,6 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
       locationFilter = adminLocationFilter;
     }
     return {
-      search: debouncedSearchQuery.trim(),
       labelFilter: labelFilter !== "all" ? labelFilter : "",
       adminQueue,
       locationFilter,
@@ -218,7 +207,6 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
       enabled: inboxFiltersReady && !!token,
     };
   }, [
-    debouncedSearchQuery,
     labelFilter,
     adminQueue,
     adminLocationFilter,
@@ -270,8 +258,7 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
     !!token &&
     !isRetargetOnly &&
     labelFilter !== "unread" &&
-    !showingArchived &&
-    !debouncedSearchQuery.trim();
+    !showingArchived;
 
   const { data: youConversationData } =
     useWhatsAppYouConversation(youConversationEnabled);
@@ -298,7 +285,6 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
 
     // Build a stable key for the current filter set.
     const filtersKey = [
-      conversationsFilters.search ?? "",
       conversationsFilters.labelFilter ?? "",
       conversationsFilters.adminQueue ? "1" : "0",
       conversationsFilters.locationFilter ?? "",
@@ -704,6 +690,7 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
           buildWhatsAppInboxUrl(searchParams, {
             adminQueue: true,
             locationFilter: null,
+            preserveDeepLink: true,
           }),
           { scroll: false },
         );
@@ -712,6 +699,7 @@ export function ConversationListProvider({ children }: { children: ReactNode }) 
           buildWhatsAppInboxUrl(searchParams, {
             locationFilter: defaults.urlLocationFilter,
             adminQueue: false,
+            preserveDeepLink: true,
           }),
           { scroll: false },
         );

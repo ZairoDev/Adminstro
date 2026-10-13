@@ -28,18 +28,77 @@ export function buildInboxContactSearchClause(
     return { $or: textMatches };
   }
 
-  const digits = normalizePhone(query);
-  if (!digits) {
-    return { $or: textMatches };
+  return { $or: [...buildPhoneMatchClauses(query), ...textMatches] };
+}
+
+/** Digits below this length only match as a prefix (keeps short queries index-friendly). */
+const PHONE_CONTAINS_MIN_DIGITS = 4;
+/** National significant number length used to bridge country-code differences. */
+const PHONE_NATIONAL_DIGITS = 10;
+
+/**
+ * Canonical digits for phone search: strips formatting and the international
+ * `00` dialing prefix ("0048 512..." -> "48512...").
+ */
+export function normalizePhoneSearchDigits(rawQuery: string): string {
+  let digits = normalizePhone(rawQuery);
+  if (digits.startsWith("00") && digits.length > 2) {
+    digits = digits.slice(2);
+  }
+  return digits;
+}
+
+/**
+ * Mongo predicates for `participantPhone`:
+ *  - exact equality (indexed)
+ *  - anchored prefix (indexed) for short input
+ *  - contains for 4+ digits (prefix, middle or suffix typing)
+ *  - last-10 suffix so "512831150" finds "48512831150" and vice versa
+ */
+export function buildPhoneMatchClauses(rawQuery: string): Record<string, unknown>[] {
+  const digits = normalizePhoneSearchDigits(rawQuery);
+  if (!digits) return [];
+
+  const clauses: Record<string, unknown>[] = [{ participantPhone: digits }];
+
+  if (digits.length < PHONE_CONTAINS_MIN_DIGITS) {
+    clauses.push({ participantPhone: { $regex: `^${escapeRegex(digits)}` } });
+    return clauses;
   }
 
-  // Always use suffix regex for consistency across digit counts
-  // Let aggregation pipeline score exact matches higher (already done in API route)
-  const phoneMatch: Record<string, unknown> = {
-    participantPhone: { $regex: `${escapeRegex(digits)}$` }
-  };
+  clauses.push({ participantPhone: { $regex: escapeRegex(digits) } });
 
-  return { $or: [phoneMatch, ...textMatches] };
+  if (digits.length > PHONE_NATIONAL_DIGITS) {
+    clauses.push({
+      participantPhone: {
+        $regex: `${escapeRegex(digits.slice(-PHONE_NATIONAL_DIGITS))}$`,
+      },
+    });
+  }
+
+  return clauses;
+}
+
+export type PhoneMatchType = "exact" | "suffix" | "contains";
+
+/** In-memory classification used for ranking after the Mongo fetch. */
+export function classifyPhoneMatch(
+  participantPhone: string,
+  rawQuery: string,
+): PhoneMatchType | undefined {
+  const digits = normalizePhoneSearchDigits(rawQuery);
+  const phone = normalizePhone(participantPhone || "");
+  if (!digits || !phone) return undefined;
+
+  if (phone === digits) return "exact";
+  if (phone.endsWith(digits)) return "suffix";
+  if (digits.length > PHONE_NATIONAL_DIGITS && phone.endsWith(digits.slice(-PHONE_NATIONAL_DIGITS))) {
+    return "suffix";
+  }
+  if (digits.length < PHONE_CONTAINS_MIN_DIGITS) {
+    return phone.startsWith(digits) ? "contains" : undefined;
+  }
+  return phone.includes(digits) ? "contains" : undefined;
 }
 export function normalizePhoneNumber(phone: string): string {
   if (!phone) return "";

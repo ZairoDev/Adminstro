@@ -1,0 +1,26 @@
+[
+  [
+    {
+      "file": "src/features/leadgen/hooks/useLeadStats.ts",
+      "name": "useLeadStats",
+      "line": 5,
+      "seq": [
+        "useState",
+        "useState",
+        "useRef",
+        "useQuery"
+      ]
+    },
+    {
+      "file": "src/features/sales/hooks/useVisitStats.ts",
+      "name": "useVisitStats",
+      "line": 5,
+      "seq": [
+        "useState",
+        "useState",
+        "useRef",
+        "useQuery"
+      ]
+    }
+  ]
+]

@@ -1,0 +1,88 @@
+{
+  "files": {
+    "ts": 880,
+    "tsx": 492,
+    "js": 0,
+    "jsx": 0,
+    "lines": 285175
+  },
+  "components": {
+    "functions": 585,
+    "files": 437
+  },
+  "hooks": {
+    "functions": 79,
+    "files": 69
+  },
+  "modals": {
+    "files": 38,
+    "paths": [
+      "src/app/dashboard/agents/agent-modal.tsx",
+      "src/app/dashboard/brokers/broker-modal.tsx",
+      "src/app/dashboard/candidatePortal/components/employment-type-required-dialog.tsx",
+      "src/app/dashboard/candidatePortal/components/interview-remarks-dialog.tsx",
+      "src/app/dashboard/candidatePortal/components/notes-modal.tsx",
+      "src/app/dashboard/candidatePortal/components/reject-candidate-dialog.tsx",
+      "src/app/dashboard/candidatePortal/components/select-candidate-dialog.tsx",
+      "src/app/dashboard/candidatePortal/components/shortlist-candidate-dialog.tsx",
+      "src/app/dashboard/candidatePortal/components/signature-preview-modal.tsx",
+      "src/app/dashboard/candidatePortal/components/terms-conditions-modal.tsx",
+      "src/app/dashboard/finance/_components/generate-invoice-modal.tsx",
+      "src/app/dashboard/finance/_components/map-payment-modal.tsx",
+      "src/app/dashboard/goodtogoleads/visit-modal.tsx",
+      "src/app/dashboard/roles/role-modal.tsx",
+      "src/app/dashboard/sales-offer/components/action-dialogs.tsx",
+      "src/app/dashboard/sales-offer/org-selector-modal.tsx",
+      "src/app/dashboard/target/components/BulkFullAreasUploadDialog.tsx",
+      "src/app/dashboard/visits/booking-modal.tsx",
+      "src/app/dashboard/visits/reschedule-visit-modal.tsx",
+      "src/app/dashboard/website-leads/TakeLeadDialog.tsx",
+      "src/components/CustomDialog.tsx",
+      "src/components/EmailPreviewDialog.tsx",
+      "src/components/monthly-target/TargetSetupModal.tsx",
+      "src/components/pip/PipDetailsDialog.tsx",
+      "src/components/pip/PipIssueConfirmationDialog.tsx",
+      "src/components/ui/alert-dialog.tsx",
+      "src/components/ui/dialog.tsx",
+      "src/features/people/components/OfficeDetailsDialog.tsx",
+      "src/features/people/components/SeparatePersonDialog.tsx",
+      "src/modules/whatsapp/ui/components/add-guest-modal.tsx",
+      "src/modules/whatsapp/ui/components/disposition-dialog.tsx",
+      "src/modules/whatsapp/ui/components/forward-dialog.tsx",
+      "src/modules/whatsapp/ui/components/lead-transfer-dialog.tsx",
+      "src/modules/whatsapp/ui/components/reminder-dialog.tsx",
+      "src/modules/whatsapp/ui/components/set-participant-location-dialog.tsx",
+      "src/modules/whatsapp/ui/components/set-visit-dialog.tsx",
+      "src/modules/whatsapp/ui/components/template-dialog.tsx",
+      "src/modules/whatsapp/ui/components/webhook-log-dialog.tsx"
+    ]
+  },
+  "pages": {
+    "files": 129
+  },
+  "apiRouteFiles": 412,
+  "apiHandlers": {
+    "GET": 153,
+    "POST": 233,
+    "PUT": 27,
+    "PATCH": 30,
+    "DELETE": 26,
+    "HEAD": 0,
+    "OPTIONS": 0,
+    "total": 469
+  },
+  "serverActionFiles": [
+    "src/actions/(VS)/queryActions.ts",
+    "src/app/dashboard/owners/ownerActions.ts"
+  ],
+  "serverActionExports": 0,
+  "zodObjectLiterals": 88,
+  "zodSchemaFiles": 15,
+  "exportedTypes": 314,
+  "exportedInterfaces": 260,
+  "helperExports": {
+    "util": 203,
+    "helper": 10,
+    "libNonComponent": 289
+  }
+}

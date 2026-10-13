@@ -13,6 +13,7 @@ import {
 import { canAccessConversationAsync } from "@/lib/whatsapp/access";
 import {
   assertLocationAllowedForCreate,
+  locationKeyFromDisplay,
 } from "@/lib/whatsapp/locationAccess";
 import {
   buildInboxListQueryAsync,
@@ -63,6 +64,8 @@ import {
 } from "@/lib/whatsapp/inboxUnreadQuery";
 import { buildInboxUnreadBadgeMongoQuery } from "@/lib/whatsapp/inboxUnreadBadgeQuery";
 import { isUnreadInboxLabelFilter } from "@/lib/whatsapp/crmLabels";
+import { andMerge } from "@/lib/whatsapp/mongoMerge";
+import { buildInboxContactSearchClause } from "@/lib/whatsapp/searchUtils";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
@@ -206,7 +209,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const query: Record<string, unknown> = { ...visibilityQuery };
+    let query: Record<string, unknown> = { ...visibilityQuery };
 
     // Handle archive filtering (global archive)
     if (archivedOnly) {
@@ -233,11 +236,11 @@ export async function GET(req: NextRequest) {
       // If search is present, don't exclude archived conversations - let them appear in search results
     }
 
+    // Legacy fallback only: the client uses GET /api/whatsapp/search/unified for search.
+    // The clause is ANDed in (never assigned to `$or`) so it cannot overwrite the
+    // phone/location/rental/channel visibility `$or`, and the input is regex-escaped.
     if (search) {
-      query.$or = [
-        { participantPhone: { $regex: search, $options: "i" } },
-        { participantName: { $regex: search, $options: "i" } },
-      ];
+      query = andMerge(query, buildInboxContactSearchClause(search.slice(0, 100)));
     }
 
     // Cursor-based pagination: if cursor provided, fetch conversations before this timestamp
@@ -617,6 +620,46 @@ export async function POST(req: NextRequest) {
         )
       : false;
 
+    // Visibility gate: staff may only open an existing chat that is inside their
+    // allotted location / rental type / channel type / handoff scope. The chat is
+    // evaluated with the location this request would backfill (adoption of an
+    // unassigned chat into the employee's own allotted city is allowed).
+    if (!(FULL_ACCESS_ROLES as readonly string[]).includes(userRole)) {
+      const existingForAccess =
+        existingSameAccount ??
+        ((await WhatsAppConversation.findOne({
+          participantPhone: normalizedPhone,
+          businessPhoneId: selectedPhoneId,
+        }).lean()) as Record<string, unknown> | null);
+
+      if (existingForAccess) {
+        const hasLocation = Boolean(
+          String(existingForAccess.participantLocationKey || "").trim() ||
+            String(existingForAccess.participantLocation || "").trim(),
+        );
+        const projected: Record<string, unknown> =
+          !hasLocation && resolvedLocation
+            ? {
+                ...existingForAccess,
+                participantLocation: resolvedLocation,
+                participantLocationKey: locationKeyFromDisplay(resolvedLocation),
+              }
+            : existingForAccess;
+
+        const visible = await canAccessConversationAsync(token, projected);
+        if (!visible) {
+          return NextResponse.json(
+            {
+              error:
+                "This number is already handled by another team or location, so it cannot be opened from your account.",
+              code: "CONVERSATION_OUTSIDE_SCOPE",
+            },
+            { status: 403 },
+          );
+        }
+      }
+    }
+
     if (!existingSameAccount && explicitType !== "owner") {
       const initiationCheck = await assertCanInitiateGuestConversation({
         employeeId: String(token.id || token._id),
@@ -667,9 +710,16 @@ export async function POST(req: NextRequest) {
       ...leadGenCreateHandoffFields(userRole),
     });
 
+    const createMaskRules = await resolveMaskRulesForToken(token);
+    const plainConversation = (
+      typeof (conversation as { toObject?: () => unknown }).toObject === "function"
+        ? (conversation as { toObject: () => unknown }).toObject()
+        : conversation
+    ) as Record<string, unknown>;
+
     return NextResponse.json({
       success: true,
-      conversation,
+      conversation: applyPhoneMaskToConversation(plainConversation, createMaskRules, userRole),
       alreadyExisted: Boolean(existingSameAccount),
       existsInOtherAccount,
     });

@@ -1,0 +1,817 @@
+[
+  {
+    "file": "src/app/api/unregisteredOwners/nearby/route.ts",
+    "wc": 763,
+    "commits12m": 7,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/app/api/unregisteredOwnersShortTerm/nearby/route.ts",
+    "wc": 750,
+    "commits12m": 2,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/app/api/unregisteredOwners/getAvailableList/route.ts",
+    "wc": 168,
+    "commits12m": 13,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "added filters in spreadsheet all fixed as needed"
+    ],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/app/api/unregisteredOwnersShortTerm/getAvailableList/route.ts",
+    "wc": 168,
+    "commits12m": 3,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/app/api/unregisteredOwners/getNotAvailableList/route.ts",
+    "wc": 176,
+    "commits12m": 14,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "spradsheet page fixes",
+      "added filters in spreadsheet all fixed as needed"
+    ],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/app/api/unregisteredOwnersShortTerm/getNotAvailableList/route.ts",
+    "wc": 176,
+    "commits12m": 3,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/app/api/unregisteredOwners/getCounts/route.ts",
+    "wc": 131,
+    "commits12m": 12,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "adding retarget seperately and fixing login"
+    ],
+    "last": "2026-09-30\taryan216\tAdd housingsaga queries, update CRM agent, leads and whatsapp changes"
+  },
+  {
+    "file": "src/app/api/unregisteredOwnersShortTerm/getCounts/route.ts",
+    "wc": 131,
+    "commits12m": 2,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [],
+    "last": "2026-09-30\taryan216\tAdd housingsaga queries, update CRM agent, leads and whatsapp changes"
+  },
+  {
+    "file": "src/app/api/unregisteredOwners/getList/route.ts",
+    "wc": 62,
+    "commits12m": 3,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/app/api/unregisteredOwnersShortTerm/getList/route.ts",
+    "wc": 62,
+    "commits12m": 2,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/app/api/unregisteredOwners/updatePetStatus/route.ts",
+    "wc": 62,
+    "commits12m": 3,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/app/api/unregisteredOwnersShortTerm/updatePetStatus/route.ts",
+    "wc": 62,
+    "commits12m": 2,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/app/api/unregisteredOwners/addUser/route.ts",
+    "wc": 113,
+    "commits12m": 8,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/app/api/unregisteredOwnersShortTerm/addUser/route.ts",
+    "wc": 127,
+    "commits12m": 3,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/app/api/unregisteredOwners/updateData/[_id]/route.ts",
+    "wc": 159,
+    "commits12m": 10,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/app/api/unregisteredOwnersShortTerm/updateData/[_id]/route.ts",
+    "wc": 140,
+    "commits12m": 2,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-01\taryan216\tcollaborators page and owner sheet for housing saga collaborators"
+  },
+  {
+    "file": "src/models/unregisteredOwner.ts",
+    "wc": 150,
+    "commits12m": 6,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-06-06\taryan216\tadded the long term changes"
+  },
+  {
+    "file": "src/models/unregisteredOwnerShortTerm.ts",
+    "wc": 169,
+    "commits12m": 2,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [],
+    "last": "2026-06-11\taryan216\tadded short term owner changes"
+  },
+  {
+    "file": "src/app/dashboard/declinedleads/lead-page.tsx",
+    "wc": 439,
+    "commits12m": 11,
+    "authors": [
+      "abhay6969",
+      "aryan216"
+    ],
+    "fixSubjects": [
+      "fixed filters",
+      "fixed the pages error",
+      "fixed sockets"
+    ],
+    "last": "2026-07-01\tabhay6969\tmaking changes in leads page to make them smooth"
+  },
+  {
+    "file": "src/app/dashboard/rejectedleads/lead-page.tsx",
+    "wc": 455,
+    "commits12m": 11,
+    "authors": [
+      "abhay6969",
+      "aryan216"
+    ],
+    "fixSubjects": [
+      "fixed filters",
+      "fixed the pages error",
+      "fixed sockets"
+    ],
+    "last": "2026-07-01\tabhay6969\tmaking changes in leads page to make them smooth"
+  },
+  {
+    "file": "src/app/dashboard/closedleads/lead-page.tsx",
+    "wc": 421,
+    "commits12m": 4,
+    "authors": [
+      "abhay6969",
+      "aryan216"
+    ],
+    "fixSubjects": [
+      "fixed the pages error"
+    ],
+    "last": "2026-07-01\tabhay6969\tmaking changes in leads page to make them smooth"
+  },
+  {
+    "file": "src/app/dashboard/reviewLeads/lead-page.tsx",
+    "wc": 457,
+    "commits12m": 5,
+    "authors": [
+      "abhay6969",
+      "aryan216"
+    ],
+    "fixSubjects": [
+      "fixed the pages error"
+    ],
+    "last": "2026-07-01\tabhay6969\tmaking changes in leads page to make them smooth"
+  },
+  {
+    "file": "src/app/dashboard/goodtogoleads/lead-page.tsx",
+    "wc": 625,
+    "commits12m": 14,
+    "authors": [
+      "abhay6969",
+      "aryan216"
+    ],
+    "fixSubjects": [
+      "fixed filters",
+      "fixed the pages error",
+      "added the broker feature and fixed the email content",
+      "fixed sockets"
+    ],
+    "last": "2026-07-03\tabhay6969\tslight changes in teh leads page"
+  },
+  {
+    "file": "src/app/dashboard/notReplying/lead-page.tsx",
+    "wc": 433,
+    "commits12m": 7,
+    "authors": [
+      "abhay6969",
+      "aryan216"
+    ],
+    "fixSubjects": [
+      "fixed filters",
+      "fixed the pages error"
+    ],
+    "last": "2026-07-01\tabhay6969\tmaking changes in leads page to make them smooth"
+  },
+  {
+    "file": "src/app/dashboard/rolebaseLead/lead-page.tsx",
+    "wc": 523,
+    "commits12m": 16,
+    "authors": [
+      "abhay6969",
+      "aryan216"
+    ],
+    "fixSubjects": [
+      "fixed filters",
+      "fixed the pages error",
+      "fixed sockets"
+    ],
+    "last": "2026-07-01\tabhay6969\tmaking changes in leads page to make them smooth"
+  },
+  {
+    "file": "src/app/dashboard/reminders/lead-page.tsx",
+    "wc": 489,
+    "commits12m": 5,
+    "authors": [
+      "abhay6969",
+      "aryan216"
+    ],
+    "fixSubjects": [
+      "fixed reminders and the filters of reminder page"
+    ],
+    "last": "2026-07-01\tabhay6969\tmaking changes in leads page to make them smooth"
+  },
+  {
+    "file": "src/app/dashboard/lowBudget/LeadPage.tsx",
+    "wc": 555,
+    "commits12m": 6,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "fixed filters",
+      "fixed the pages error"
+    ],
+    "last": "2026-06-11\taryan216\tfixed filters"
+  },
+  {
+    "file": "src/components/leadTable/LeadTable.tsx",
+    "wc": 1387,
+    "commits12m": 24,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "fixed filters",
+      "fixed the pages error",
+      "fixed the message status function"
+    ],
+    "last": "2026-10-12\taryan216\trevert(whatsapp): restore tree before module move"
+  },
+  {
+    "file": "src/app/dashboard/goodtogoleads/good-table.tsx",
+    "wc": 1389,
+    "commits12m": 19,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "fixed filters",
+      "fixed the pages error",
+      "fixing whatsapp bugs",
+      "added the broker feature and fixed the email content",
+      "fixed the message status function"
+    ],
+    "last": "2026-10-12\taryan216\trevert(whatsapp): restore tree before module move"
+  },
+  {
+    "file": "src/app/dashboard/reviewLeads/reviewTable.tsx",
+    "wc": 833,
+    "commits12m": 3,
+    "authors": [
+      "abhay6969",
+      "aryan216"
+    ],
+    "fixSubjects": [
+      "fixed the pages error"
+    ],
+    "last": "2026-03-05\tabhay6969\tadding auth settings more prominant"
+  },
+  {
+    "file": "src/app/dashboard/declinedleads/declined-lead-table.tsx",
+    "wc": 700,
+    "commits12m": 5,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "fixed filters",
+      "fixed the pages error",
+      "fixed multiple selection in the property boost , fixed the not searching lead problem"
+    ],
+    "last": "2026-06-11\taryan216\tfixed filters"
+  },
+  {
+    "file": "src/components/reminderTable/ReminderTable.tsx",
+    "wc": 431,
+    "commits12m": 3,
+    "authors": [
+      "abhay6969",
+      "aryan216"
+    ],
+    "fixSubjects": [
+      "fixed reminders and the filters of reminder page"
+    ],
+    "last": "2026-03-05\tabhay6969\tadding auth settings more prominant"
+  },
+  {
+    "file": "src/app/api/leads/getDeclinedLeads/route.ts",
+    "wc": 283,
+    "commits12m": 5,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-09-30\taryan216\tAdd housingsaga queries, update CRM agent, leads and whatsapp changes"
+  },
+  {
+    "file": "src/app/api/leads/getRejectedLeads/route.ts",
+    "wc": 283,
+    "commits12m": 6,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-09-30\taryan216\tAdd housingsaga queries, update CRM agent, leads and whatsapp changes"
+  },
+  {
+    "file": "src/app/api/leads/getClosedLeads/route.ts",
+    "wc": 292,
+    "commits12m": 4,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-09-30\taryan216\tAdd housingsaga queries, update CRM agent, leads and whatsapp changes"
+  },
+  {
+    "file": "src/app/api/leads/getGoodToGoLeads/route.ts",
+    "wc": 364,
+    "commits12m": 11,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "fixed filters",
+      "fixed the add broker problem"
+    ],
+    "last": "2026-10-12\taryan216\trevert(whatsapp): restore tree before module move"
+  },
+  {
+    "file": "src/app/api/leads/getLeads/route.ts",
+    "wc": 322,
+    "commits12m": 10,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "fixed filters"
+    ],
+    "last": "2026-09-30\taryan216\tadded the login and given the access for the housing saga lead listing"
+  },
+  {
+    "file": "src/app/api/leads/getReminderLeads/route.ts",
+    "wc": 329,
+    "commits12m": 4,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [
+      "fixed reminders and the filters of reminder page"
+    ],
+    "last": "2026-09-30\taryan216\tAdd housingsaga queries, update CRM agent, leads and whatsapp changes"
+  },
+  {
+    "file": "src/app/api/leads/notReplying/route.ts",
+    "wc": 53,
+    "commits12m": 1,
+    "authors": [
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-07-01\tabhay6969\tmaking changes in leads page to make them smooth"
+  },
+  {
+    "file": "src/app/api/sales/getRejectedLeads/route.ts",
+    "wc": 40,
+    "commits12m": 0,
+    "authors": [],
+    "fixSubjects": [],
+    "last": "2024-12-26\taviralm52\tremove extra logs, and fixed verify-otp page"
+  },
+  {
+    "file": "src/app/api/sales/reminders/getAllReminders/route.ts",
+    "wc": 25,
+    "commits12m": 0,
+    "authors": [],
+    "fixSubjects": [],
+    "last": "2024-12-21\taviralm52\tcreated reminder notifications"
+  },
+  {
+    "file": "src/app/api/sales/searchInRejectedLeads/route.ts",
+    "wc": 170,
+    "commits12m": 0,
+    "authors": [],
+    "fixSubjects": [],
+    "last": "2025-06-24\taviralm52\tadded check from location array in rejected leads"
+  },
+  {
+    "file": "src/app/api/sales/searchInReminders/route.ts",
+    "wc": 177,
+    "commits12m": 1,
+    "authors": [
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-03-11\tabhay6969\tadding changes so that the auto logout doesn't happen"
+  },
+  {
+    "file": "src/actions/(VS)/queryActions.ts",
+    "wc": 4924,
+    "commits12m": 41,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "adding some fixes in website leads page and properties listing page",
+      "added hr option, fixed hr pipeline",
+      "fixed the review and leads by location filter",
+      "fixed the filters bug",
+      "month selector bug fix-2",
+      "fixes in property  boost graph"
+    ],
+    "last": "2026-09-03\taryan216\tupdated the visit flow"
+  },
+  {
+    "file": "src/app/api/candidates/hrPolicies/route.ts",
+    "wc": 972,
+    "commits12m": 5,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "fixes and improvements"
+    ],
+    "last": "2026-07-14\taryan216\taddning changes in the candidate address change"
+  },
+  {
+    "file": "src/app/api/candidates/trainingAgreement/route.ts",
+    "wc": 727,
+    "commits12m": 8,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "fixes and improvements",
+      "fixes",
+      "fixes"
+    ],
+    "last": "2026-07-14\taryan216\taddning changes in the candidate address change"
+  },
+  {
+    "file": "src/app/api/candidates/letterOfIntent/route.ts",
+    "wc": 1087,
+    "commits12m": 14,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "fixed the hr dashboard problems",
+      "fixes and improvements",
+      "fixes",
+      "fixes"
+    ],
+    "last": "2026-07-14\taryan216\taddning changes in the candidate address change"
+  },
+  {
+    "file": "src/app/api/candidates/offerLetter/route.ts",
+    "wc": 1320,
+    "commits12m": 5,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "fixes and improvements"
+    ],
+    "last": "2026-07-14\taryan216\taddning changes in the candidate address change"
+  },
+  {
+    "file": "src/app/dashboard/candidatePortal/[id]/offer-letter/page.tsx",
+    "wc": 1123,
+    "commits12m": 5,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "fixes and improvements"
+    ],
+    "last": "2026-09-04\taryan216\tadded the migrations cripts"
+  },
+  {
+    "file": "src/app/dashboard/candidatePortal/[id]/training-agreement/page.tsx",
+    "wc": 1655,
+    "commits12m": 21,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "fixes and improvements",
+      "fixes",
+      "added the hr dashboard changes fixed",
+      "Revert \"fixes of middleware\"",
+      "fixes of middleware",
+      "interview calendar fix",
+      "minor error fix"
+    ],
+    "last": "2026-05-22\taryan216\tadding intern changes"
+  },
+  {
+    "file": "src/app/api/employee/guest-lead-location-block/route.ts",
+    "wc": 70,
+    "commits12m": 1,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [],
+    "last": "2026-03-31\taryan216\trules page"
+  },
+  {
+    "file": "src/app/api/employee/owner-location-block/route.ts",
+    "wc": 70,
+    "commits12m": 2,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-04-13\taryan216\tadded whatsapp changes"
+  },
+  {
+    "file": "src/app/dashboard/newproperty/editPortionAvailability/[id]/page.tsx",
+    "wc": 434,
+    "commits12m": 1,
+    "authors": [
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-03-05\tabhay6969\tadding auth settings more prominant"
+  },
+  {
+    "file": "src/app/dashboard/property/edit/availability/[...id]/page.tsx",
+    "wc": 363,
+    "commits12m": 1,
+    "authors": [
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-03-05\tabhay6969\tadding auth settings more prominant"
+  },
+  {
+    "file": "src/app/api/editPrices/route.ts",
+    "wc": 67,
+    "commits12m": 2,
+    "authors": [
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "adding some fixes in website leads page and properties listing page"
+    ],
+    "last": "2026-05-02\tabhay6969\tadding some fixes in website leads page and properties listing page"
+  },
+  {
+    "file": "src/app/api/property/editPrices/route.ts",
+    "wc": 74,
+    "commits12m": 1,
+    "authors": [
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-03-05\tabhay6969\tadding auth settings more prominant"
+  },
+  {
+    "file": "src/app/dashboard/owners/onwer-address.tsx",
+    "wc": 118,
+    "commits12m": 0,
+    "authors": [],
+    "fixSubjects": [],
+    "last": "2025-04-23\taviralm52\tcreated owner model"
+  },
+  {
+    "file": "src/app/dashboard/sales-offer/address-details.tsx",
+    "wc": 125,
+    "commits12m": 1,
+    "authors": [
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-04-18\tabhay6969\tadding property count opeiton in send offer"
+  },
+  {
+    "file": "src/features/leadgen/hooks/useLeadStats.ts",
+    "wc": 47,
+    "commits12m": 1,
+    "authors": [
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-06-20\tabhay6969\tmajor updats in dashboard"
+  },
+  {
+    "file": "src/features/sales/hooks/useVisitStats.ts",
+    "wc": 47,
+    "commits12m": 1,
+    "authors": [
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-06-20\tabhay6969\tmajor updats in dashboard"
+  },
+  {
+    "file": "src/models/invoice.ts",
+    "wc": 61,
+    "commits12m": 1,
+    "authors": [
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2025-12-03\tabhay6969\tadding invoice with more features"
+  },
+  {
+    "file": "src/modules/finance/models/invoice.model.ts",
+    "wc": 104,
+    "commits12m": 1,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-12\taryan216\trefactor(finance): move slice into modules/finance"
+  },
+  {
+    "file": "src/models/housingPayment.ts",
+    "wc": 38,
+    "commits12m": 1,
+    "authors": [
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-04-06\tabhay6969\tadding owners journey"
+  },
+  {
+    "file": "src/modules/finance/models/payment.model.ts",
+    "wc": 188,
+    "commits12m": 1,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [],
+    "last": "2026-10-12\taryan216\trefactor(finance): move slice into modules/finance"
+  },
+  {
+    "file": "src/app/dashboard/employeedetails/[...id]/page.tsx",
+    "wc": 2712,
+    "commits12m": 16,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [
+      "added the broker feature and fixed the email content"
+    ],
+    "last": "2026-09-14\taryan216\tadded the pip acknowledgment feature"
+  },
+  {
+    "file": "src/app/dashboard/people/[candidateId]/page.tsx",
+    "wc": 2888,
+    "commits12m": 5,
+    "authors": [
+      "aryan216"
+    ],
+    "fixSubjects": [],
+    "last": "2026-09-14\taryan216\tadded the pip acknowledgment feature"
+  },
+  {
+    "file": "src/lib/leads/istDateRange.ts",
+    "wc": 100,
+    "commits12m": 1,
+    "authors": [
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-07-01\tabhay6969\tmaking changes in leads page to make them smooth"
+  },
+  {
+    "file": "src/lib/leads/LeadQueryService.ts",
+    "wc": 120,
+    "commits12m": 1,
+    "authors": [
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-07-01\tabhay6969\tmaking changes in leads page to make them smooth"
+  },
+  {
+    "file": "src/lib/leads/buildAllLeadsMatchQuery.ts",
+    "wc": 297,
+    "commits12m": 2,
+    "authors": [
+      "aryan216",
+      "abhay6969"
+    ],
+    "fixSubjects": [],
+    "last": "2026-09-30\taryan216\tAdd housingsaga queries, update CRM agent, leads and whatsapp changes"
+  }
+]

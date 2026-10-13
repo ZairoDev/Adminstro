@@ -1,0 +1,202 @@
+[
+  {
+    "a": "src/app/api/unregisteredOwners/addUser/route.ts",
+    "b": "src/app/api/unregisteredOwnersShortTerm/addUser/route.ts",
+    "linesA": 96,
+    "linesB": 109,
+    "wcA": 113,
+    "wcB": 127,
+    "rawLineJaccard": 0.788,
+    "normalizedLineJaccard": 0.825,
+    "onlyA": [
+      "scheduleLocationGeoSync,",
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"long-term\");",
+      "scheduleLocationGeoSync(data._id, ownerFields);"
+    ],
+    "onlyB": [
+      "scheduleVARIANTLocationGeoSync,",
+      "import { notifyAdvertPendingOwner } from \"@/services/advert-owner-listing-notify\";",
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"VARIANT\");",
+      "email: String(body.email ?? \"\").trim(),",
+      "advertListingStatus: \"pending\",",
+      "scheduleVARIANTLocationGeoSync(data._id, ownerFields);",
+      "void notifyAdvertPendingOwner(",
+      "ownerSheetId: String(data._id),",
+      "name: data.name,",
+      "location: data.location,",
+      "phoneNumber: data.phoneNumber,",
+      "createdAt: data.createdAt,",
+      "String((token as { id?: string }).id ?? \"\"),",
+      ").catch((err) => console.error(\"notifyAdvertPendingOwner failed:\", err));"
+    ]
+  },
+  {
+    "a": "src/app/api/unregisteredOwners/getAvailableList/route.ts",
+    "b": "src/app/api/unregisteredOwnersShortTerm/getAvailableList/route.ts",
+    "linesA": 140,
+    "linesB": 140,
+    "wcA": 169,
+    "wcB": 169,
+    "rawLineJaccard": 0.917,
+    "normalizedLineJaccard": 0.983,
+    "onlyA": [
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"long-term\");"
+    ],
+    "onlyB": [
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"VARIANT\");"
+    ]
+  },
+  {
+    "a": "src/app/api/unregisteredOwners/getCounts/route.ts",
+    "b": "src/app/api/unregisteredOwnersShortTerm/getCounts/route.ts",
+    "linesA": 115,
+    "linesB": 115,
+    "wcA": 131,
+    "wcB": 131,
+    "rawLineJaccard": 0.902,
+    "normalizedLineJaccard": 0.98,
+    "onlyA": [
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"long-term\");"
+    ],
+    "onlyB": [
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"VARIANT\");"
+    ]
+  },
+  {
+    "a": "src/app/api/unregisteredOwners/getList/route.ts",
+    "b": "src/app/api/unregisteredOwnersShortTerm/getList/route.ts",
+    "linesA": 53,
+    "linesB": 53,
+    "wcA": 63,
+    "wcB": 63,
+    "rawLineJaccard": 0.88,
+    "normalizedLineJaccard": 0.958,
+    "onlyA": [
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"long-term\");"
+    ],
+    "onlyB": [
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"VARIANT\");"
+    ]
+  },
+  {
+    "a": "src/app/api/unregisteredOwners/getNotAvailableList/route.ts",
+    "b": "src/app/api/unregisteredOwnersShortTerm/getNotAvailableList/route.ts",
+    "linesA": 149,
+    "linesB": 149,
+    "wcA": 177,
+    "wcB": 177,
+    "rawLineJaccard": 0.922,
+    "normalizedLineJaccard": 0.984,
+    "onlyA": [
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"long-term\");"
+    ],
+    "onlyB": [
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"VARIANT\");"
+    ]
+  },
+  {
+    "a": "src/app/api/unregisteredOwners/nearby/route.ts",
+    "b": "src/app/api/unregisteredOwnersShortTerm/nearby/route.ts",
+    "linesA": 654,
+    "linesB": 642,
+    "wcA": 763,
+    "wcB": 750,
+    "rawLineJaccard": 0.956,
+    "normalizedLineJaccard": 0.973,
+    "onlyA": [
+      "const isGeoAllowedRole =",
+      "role === \"SuperAdmin\" ||",
+      "role === \"Advert\" ||",
+      "role === \"Sales\" ||",
+      "role === \"Sales-TeamLead\" ||",
+      "role === \"LeadGen-TeamLead\" ||",
+      "role === \"HCollaborator\";",
+      "if (!isGeoAllowedRole) {",
+      "return NextResponse.json({ error: \"Forbidden\" }, { status: 403 });",
+      "if (role !== \"Sales\" && role !== \"Sales-TeamLead\") {",
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"long-term\");"
+    ],
+    "onlyB": [
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"VARIANT\");"
+    ]
+  },
+  {
+    "a": "src/app/api/unregisteredOwners/updateData/[_id]/route.ts",
+    "b": "src/app/api/unregisteredOwnersShortTerm/updateData/[_id]/route.ts",
+    "linesA": 147,
+    "linesB": 128,
+    "wcA": 159,
+    "wcB": 140,
+    "rawLineJaccard": 0.694,
+    "normalizedLineJaccard": 0.737,
+    "onlyA": [
+      "import {",
+      "isGeoTriggerField,",
+      "isValidLocationGeo,",
+      "resolveLocationGeoAfterSync,",
+      "syncLocationGeoForOwner,",
+      "type LocationGeoPoint,",
+      "} from \"@/services/unregistered-owner-geocode\";",
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"long-term\");",
+      "let locationGeo: LocationGeoPoint | null = isValidLocationGeo(",
+      "data.locationGeo,",
+      ")",
+      "? data.locationGeo",
+      ": null;",
+      "let geoSyncStatus: string | undefined;",
+      "if (isGeoTriggerField(field)) {",
+      "const existingGeo = locationGeo;",
+      "const geoResult = await syncLocationGeoForOwner(data._id, {",
+      "geoSyncStatus = geoResult.status;",
+      "locationGeo = resolveLocationGeoAfterSync(geoResult, existingGeo);",
+      "{",
+      "message: \"Data updated successfully\",",
+      "...(geoSyncStatus !== undefined",
+      "? { locationGeo, geoSyncStatus }",
+      ": {}),",
+      "},"
+    ],
+    "onlyB": [
+      "import { scheduleVARIANTLocationGeoSync } from \"@/services/unregistered-owner-geocode\";",
+      "const GEO_TRIGGER_FIELDS = new Set([\"address\", \"location\", \"area\"]);",
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"VARIANT\");",
+      "if (GEO_TRIGGER_FIELDS.has(field)) {",
+      "scheduleVARIANTLocationGeoSync(data._id, {",
+      "{ message: \"Data updated successfully\" },"
+    ]
+  },
+  {
+    "a": "src/app/api/unregisteredOwners/updatePetStatus/route.ts",
+    "b": "src/app/api/unregisteredOwnersShortTerm/updatePetStatus/route.ts",
+    "linesA": 52,
+    "linesB": 52,
+    "wcA": 62,
+    "wcB": 62,
+    "rawLineJaccard": 0.86,
+    "normalizedLineJaccard": 0.951,
+    "onlyA": [
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"long-term\");"
+    ],
+    "onlyB": [
+      "const denied = await enforceOwnerSheetRentalTypeAccess(token, \"VARIANT\");"
+    ]
+  },
+  {
+    "a": null,
+    "b": "src/app/api/unregisteredOwnersShortTerm/[id]/link-owner/route.ts",
+    "missing": true,
+    "linesB": 47
+  },
+  {
+    "a": null,
+    "b": "src/app/api/unregisteredOwnersShortTerm/[id]/listing-prefill/route.ts",
+    "missing": true,
+    "linesB": 90
+  },
+  {
+    "a": null,
+    "b": "src/app/api/unregisteredOwnersShortTerm/by-owner/[userId]/route.ts",
+    "missing": true,
+    "linesB": 44
+  }
+]

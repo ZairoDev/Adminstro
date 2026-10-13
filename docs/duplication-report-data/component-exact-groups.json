@@ -1,0 +1,116 @@
+[
+  {
+    "tagKey": "div>p>div>div>Label>Select>SelectTrigger>SelectValue>SelectContent>SelectGroup>SelectLabel>SelectItem>div>div>Label>Select>SelectTrigger>SelectValue>SelectContent>SelectGroup>SelectLabel>SelectItem>div>div>Label>Select>SelectTrigger>SelectValue>SelectContent>SelectGroup>SelectLabel>SelectItem>div",
+    "tagCount": 33,
+    "members": [
+      {
+        "file": "src/app/dashboard/owners/onwer-address.tsx",
+        "name": "OwnerAddress",
+        "line": 18,
+        "n": 33
+      },
+      {
+        "file": "src/app/dashboard/sales-offer/address-details.tsx",
+        "name": "AddressDetails",
+        "line": 19,
+        "n": 33
+      }
+    ]
+  },
+  {
+    "tagKey": "div>div>h2>p>div>div>label>Select>SelectTrigger>SelectValue>SelectContent>SelectItem>Input>div>table>thead>tr>th>span>span>tbody>tr>td>tr>td",
+    "tagCount": 25,
+    "members": [
+      {
+        "file": "src/app/dashboard/areadetails/page.tsx",
+        "name": "AreaDetailsPage",
+        "line": 42,
+        "n": 25
+      },
+      {
+        "file": "src/app/dashboard/areapriceinfo/page.tsx",
+        "name": "AreaPricePage",
+        "line": 16,
+        "n": 25
+      }
+    ]
+  },
+  {
+    "tagKey": "Drawer>DrawerTrigger>Button>Pencil>DrawerContent>div>DrawerHeader>DrawerTitle>DrawerDescription>div>div>DateRangePicker>div>Label>Input>DrawerFooter>Button>DrawerClose>Button",
+    "tagCount": 19,
+    "members": [
+      {
+        "file": "src/app/dashboard/newproperty/editPortionAvailability/[id]/page.tsx",
+        "name": "renderPriceEditDrawer",
+        "line": 235,
+        "n": 19
+      },
+      {
+        "file": "src/app/dashboard/property/edit/availability/[...id]/page.tsx",
+        "name": "renderPriceEditDrawer",
+        "line": 229,
+        "n": 19
+      }
+    ]
+  },
+  {
+    "tagKey": "Dialog>DialogContent>DialogHeader>DialogTitle>div>div>Label>Select>SelectTrigger>SelectValue>SelectContent>SelectItem>div>Label>Textarea>DialogFooter>Button>Button",
+    "tagCount": 18,
+    "members": [
+      {
+        "file": "src/app/dashboard/sales-offer/components/action-dialogs.tsx",
+        "name": "RejectLeadDialog",
+        "line": 140,
+        "n": 18
+      },
+      {
+        "file": "src/app/dashboard/sales-offer/components/bulk-action-bar.tsx",
+        "name": "BulkRejectDialog",
+        "line": 215,
+        "n": 18
+      }
+    ]
+  },
+  {
+    "tagKey": "Dialog>DialogContent>DialogHeader>DialogTitle>div>div>Label>Input>div>Label>Input>div>Label>Textarea>DialogFooter>Button>Button",
+    "tagCount": 17,
+    "members": [
+      {
+        "file": "src/app/dashboard/sales-offer/components/action-dialogs.tsx",
+        "name": "AddCallbackDialog",
+        "line": 80,
+        "n": 17
+      },
+      {
+        "file": "src/app/dashboard/sales-offer/components/bulk-action-bar.tsx",
+        "name": "BulkCallbackDialog",
+        "line": 168,
+        "n": 17
+      },
+      {
+        "file": "src/app/dashboard/visits/reschedule-visit-modal.tsx",
+        "name": "RescheduleVisitModal",
+        "line": 41,
+        "n": 17
+      }
+    ]
+  },
+  {
+    "tagKey": "Dialog>DialogContent>DialogHeader>DialogTitle>div>div>Label>Input>div>Label>Textarea>DialogFooter>Button>Button",
+    "tagCount": 14,
+    "members": [
+      {
+        "file": "src/app/dashboard/sales-offer/components/action-dialogs.tsx",
+        "name": "BlacklistLeadDialog",
+        "line": 208,
+        "n": 14
+      },
+      {
+        "file": "src/app/dashboard/sales-offer/components/bulk-action-bar.tsx",
+        "name": "BulkBlacklistDialog",
+        "line": 264,
+        "n": 14
+      }
+    ]
+  }
+]

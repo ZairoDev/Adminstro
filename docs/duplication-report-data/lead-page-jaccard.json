@@ -1,0 +1,50 @@
+[
+  {
+    "file": "src/app/dashboard/declinedleads/lead-page.tsx",
+    "wc": 439,
+    "rawVsGood": 0.556,
+    "normVsGood": 0.563
+  },
+  {
+    "file": "src/app/dashboard/rejectedleads/lead-page.tsx",
+    "wc": 455,
+    "rawVsGood": 0.537,
+    "normVsGood": 0.544
+  },
+  {
+    "file": "src/app/dashboard/closedleads/lead-page.tsx",
+    "wc": 421,
+    "rawVsGood": 0.502,
+    "normVsGood": 0.505
+  },
+  {
+    "file": "src/app/dashboard/reviewLeads/lead-page.tsx",
+    "wc": 457,
+    "rawVsGood": 0.446,
+    "normVsGood": 0.448
+  },
+  {
+    "file": "src/app/dashboard/goodtogoleads/lead-page.tsx",
+    "wc": 625,
+    "rawVsGood": 1,
+    "normVsGood": 1
+  },
+  {
+    "file": "src/app/dashboard/notReplying/lead-page.tsx",
+    "wc": 433,
+    "rawVsGood": 0.484,
+    "normVsGood": 0.484
+  },
+  {
+    "file": "src/app/dashboard/rolebaseLead/lead-page.tsx",
+    "wc": 523,
+    "rawVsGood": 0.551,
+    "normVsGood": 0.554
+  },
+  {
+    "file": "src/app/dashboard/reminders/lead-page.tsx",
+    "wc": 489,
+    "rawVsGood": 0.451,
+    "normVsGood": 0.454
+  }
+]

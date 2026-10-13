@@ -1,0 +1,10 @@
+[
+  {
+    "name": "getRejectedLeads",
+    "leads": "src/app/api/leads/getRejectedLeads/route.ts",
+    "sales": "src/app/api/sales/getRejectedLeads/route.ts",
+    "wcLeads": 283,
+    "wcSales": 40,
+    "raw": 0.056
+  }
+]

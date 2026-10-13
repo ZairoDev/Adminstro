@@ -1,0 +1,30 @@
+# Duplication audit commands (read-only). 2026-10-12.
+# Application source was not modified. Script lives in /tmp/dup-audit/analyze.mjs.
+
+# jscpd 5.4.1 — exact clones
+npx jscpd src \
+  --min-lines 5 --min-tokens 50 \
+  --format "typescript,tsx,javascript,jsx" \
+  --ignore "**/*.d.ts,**/*.test.ts,**/*.test.tsx" \
+  --reporters json \
+  --output docs/duplication-report-data/jscpd \
+  --report-name jscpd-exact \
+  --absolute --threshold 100 --silent
+
+# jscpd — renamed clones (identifiers and literals ignored)
+npx jscpd src \
+  --min-lines 5 --min-tokens 50 \
+  --format "typescript,tsx,javascript,jsx" \
+  --ignore "**/*.d.ts,**/*.test.ts,**/*.test.tsx" \
+  --ignore-identifiers --ignore-literals --kind renamed \
+  --reporters json \
+  --output docs/duplication-report-data/jscpd \
+  --report-name jscpd-renamed \
+  --absolute --threshold 100 --silent
+
+# AST fingerprints: TypeScript compiler API (typescript in node_modules).
+# ts-morph was not installed. Script: /tmp/dup-audit/analyze.mjs
+node /tmp/dup-audit/analyze.mjs
+
+# git window
+git log --since=2025-10-12 --pretty=format:'%ad %an %s' --date=short -- <file>

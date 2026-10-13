@@ -50,6 +50,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useRouter } from "next/navigation";
+import { buildWhatsAppLeadOpenUrl } from "@/lib/whatsapp/leadOpenUrl";
+import type { StartNewChatInfo } from "@/lib/whatsapp/unifiedSearchUtils";
 import { useUnifiedWhatsAppSearch } from "../hooks/useUnifiedWhatsAppSearch";
 import { UnifiedSearchResults } from "./UnifiedSearchResults";
 import { MediaPopup } from "./MediaPopup";
@@ -263,19 +266,9 @@ export const ConversationSidebar = memo(function ConversationSidebar({
     loading: searchLoading,
     error: searchError,
     search: executeSearch,
+    retry: retrySearch,
     clearSearch,
-  } = useUnifiedWhatsAppSearch({
-    debounceMs: 300,
-    includeArchived: showingArchived,
-    adminQueue,
-    limit: 50,
-    locationFilter:
-      showInboxLocationFilter &&
-      adminLocationFilter !== "all" &&
-      !adminQueue
-        ? adminLocationFilter
-        : undefined,
-  });
+  } = useUnifiedWhatsAppSearch({ debounceMs: 300 });
 
   const isSearchMode = searchQuery.trim().length > 0;
 
@@ -372,6 +365,29 @@ export const ConversationSidebar = memo(function ConversationSidebar({
       }
     },
     [handleClearSearch, onJumpToMessage, onSelectConversation],
+  );
+
+  const router = useRouter();
+
+  /** "Start chat" row: hand off to the permission-aware open-by-phone flow. */
+  const startChatFromSearch = useCallback(
+    (info: StartNewChatInfo) => {
+      handleClearSearch();
+      const target = new URL(
+        buildWhatsAppLeadOpenUrl({
+          phone: info.phone,
+          name: info.leadName,
+          location: info.leadLocation,
+          conversationType: "guest",
+        }),
+        window.location.origin,
+      );
+      // Keep the current inbox filters (city / admin queue) in the URL.
+      const next = new URLSearchParams(window.location.search);
+      target.searchParams.forEach((value, key) => next.set(key, value));
+      router.push(`/whatsapp?${next.toString()}`, { scroll: false });
+    },
+    [handleClearSearch, router],
   );
 
   const handleSelectConversation = useCallback(
@@ -1020,6 +1036,8 @@ export const ConversationSidebar = memo(function ConversationSidebar({
               query={searchQuery}
               loading={searchLoading}
               error={searchError}
+              onRetry={retrySearch}
+              onStartChat={startChatFromSearch}
               phoneMaskRules={phoneMaskRules}
               userRole={userRole}
               onSelectConversation={(conversationId) => {

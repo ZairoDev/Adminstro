@@ -22,9 +22,7 @@ export function buildConversationsListSearchParams(
   const params = new URLSearchParams();
   params.append("limit", "25");
 
-  if (filters.search) {
-    params.append("search", filters.search);
-  } else if (options.cursor) {
+  if (options.cursor) {
     params.append("cursor", options.cursor);
   }
 

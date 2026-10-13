@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MessageSquare, ArrowLeft } from "lucide-react";
 import type { Message, Conversation, Template } from "./types";
 import { useMobileView, type MobileView } from "./hooks/useMobileView";
+import { useOpenConversationByPhone } from "./hooks/useOpenConversationByPhone";
 import {
   repositionConversationAfterUpdate,
   insertConversationAtCorrectPosition,
@@ -1547,6 +1548,8 @@ function WhatsAppChatInner() {
     if (locationParam) next.set("location", locationParam);
     if (typeParam) next.set("conversationType", typeParam);
     if (phoneParam) next.set("phone", phoneParam);
+    const rentalParam = searchParams?.get("rentalType");
+    if (rentalParam) next.set("rentalType", rentalParam);
     if (nameParam) next.set("name", nameParam);
     if (profilePicParam) next.set("profilePic", profilePicParam);
     const qs = next.toString();
@@ -1676,142 +1679,16 @@ function WhatsAppChatInner() {
     }
   };
 
-  const openedByPhoneRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    const phoneParam = searchParams?.get("phone");
-    if (!phoneParam || !token) return;
-
-    const locationParam = searchParams?.get("location")?.trim() || "";
-    const typeParam = searchParams?.get("conversationType");
-    const openType =
-      typeParam === "guest" || typeParam === "owner" ? typeParam : undefined;
-    const rentalTypeParam = searchParams?.get("rentalType");
-    const openRentalType =
-      rentalTypeParam === "Short Term" || rentalTypeParam === "Long Term"
-        ? rentalTypeParam
-        : undefined;
-    const cacheKey = `${phoneParam}_${locationParam}_${openType ?? ""}_${openRentalType ?? ""}`;
-    if (openedByPhoneRef.current === cacheKey) return;
-    openedByPhoneRef.current = cacheKey;
-
-    const normalized = phoneParam.replace(/\D/g, "");
-    const nameParam = searchParams?.get("name") || undefined;
-    const profilePicParam = searchParams?.get("profilePic") || undefined;
-
-    (async () => {
-      try {
-        let phoneNumberId = "";
-
-        if (locationParam) {
-          try {
-            const resolveRes = await axios.get(
-              "/api/whatsapp/resolve-phone-for-location",
-              {
-                params: {
-                  location: locationParam,
-                  ...(openType ? { conversationType: openType } : {}),
-                  ...(openRentalType ? { rentalType: openRentalType } : {}),
-                },
-              },
-            );
-            phoneNumberId = resolveRes.data.phoneNumberId || phoneNumberId;
-          } catch {
-            // fall through
-          }
-        }
-
-        if (!phoneNumberId) {
-          toast({
-            title: "Cannot open chat",
-            description: locationParam
-              ? `No WhatsApp line configured for ${locationParam}`
-              : "Missing location or phone line",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        const convs = await refetchConversationsList();
-        const found = convs.find((c: Conversation) => {
-          const phoneMatch = (c.participantPhone || "")
-            .replace(/\D/g, "")
-            .endsWith(normalized);
-          const lineMatch =
-            !phoneNumberId || c.businessPhoneId === phoneNumberId;
-          return phoneMatch && lineMatch;
-        });
-
-        if (found) {
-          let conversationToOpen = found;
-          if (
-            openType &&
-            found.conversationType !== openType
-          ) {
-            try {
-              await axios.post(
-                `/api/whatsapp/conversations/${found._id}/meta`,
-                { conversationType: openType },
-              );
-              conversationToOpen = {
-                ...found,
-                conversationType: openType,
-              };
-            } catch {
-              // non-blocking ? still open the thread
-            }
-          }
-          patchConversationsList((prev) => {
-            const exists = prev.find((c) => c._id === conversationToOpen._id);
-            if (exists) {
-              return repositionConversationAfterUpdate(
-                prev,
-                conversationToOpen._id,
-                () => conversationToOpen,
-                { reposition: false },
-              );
-            }
-            return insertConversationAtCorrectPosition(prev, conversationToOpen);
-          });
-          selectConversation(conversationToOpen);
-        } else {
-          const createRes = await axios.post("/api/whatsapp/conversations", {
-            participantPhone: normalized,
-            participantName: nameParam || phoneParam,
-            phoneNumberId,
-            participantLocation: locationParam || undefined,
-            location: locationParam || undefined,
-            conversationType: openType,
-            ...(openRentalType ? { rentalType: openRentalType } : {}),
-            ...(profilePicParam ? { participantProfilePic: profilePicParam } : {}),
-          });
-          if (createRes.data.success) {
-            const conversation = createRes.data.conversation as Conversation;
-            patchConversationsList((prev) => {
-              const exists = prev.find((c) => c._id === conversation._id);
-              if (exists) {
-                return repositionConversationAfterUpdate(
-                  prev,
-                  conversation._id,
-                  () => conversation,
-                  { reposition: false },
-                );
-              }
-              return insertConversationAtCorrectPosition(prev, conversation);
-            });
-            selectConversation(conversation);
-          }
-        }
-      } catch (err) {
-        console.error("Error opening conversation by phone", err);
-        toast({
-          title: "Error",
-          description: "Failed to open conversation",
-          variant: "destructive",
-        });
-      }
-    })();
-  }, [searchParams, token]);
+  // Lead buttons, owner sheet, notifications and search "Start chat" all open chats
+  // through /whatsapp?phone=... — handled by one permission-aware flow.
+  useOpenConversationByPhone({
+    enabled: Boolean(token),
+    searchParams,
+    replaceUrl: (url) => router.replace(url, { scroll: false }),
+    patchConversationsList,
+    selectConversation,
+    notify: toast,
+  });
 
   // Deep-link: ?conversation=<id> ? restore the selected conversation on
   // page load / refresh / back-forward navigation.

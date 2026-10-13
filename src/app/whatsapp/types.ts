@@ -151,7 +151,6 @@ export interface Template {
 }
 
 export interface ConversationsListFilters {
-  search: string;
   labelFilter: string;
   adminQueue: boolean;
   locationFilter?: string;

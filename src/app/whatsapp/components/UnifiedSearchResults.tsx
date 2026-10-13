@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Loader2, Search, CheckCheck, MessageSquare } from "lucide-react";
+import { User, Loader2, Search, CheckCheck, MessageSquare, UserPlus, Archive } from "lucide-react";
+import type { StartNewChatInfo } from "@/lib/whatsapp/unifiedSearchUtils";
 import { formatTime } from "../utils";
 import {
   getMaskedMessagePreview,
@@ -18,14 +19,53 @@ function sanitizeHighlight(html: string): string {
 }
 
 interface UnifiedSearchResultsProps {
-  results: { conversations: any[]; query?: string; messageSearchIncomplete?: boolean } | null;
+  results: {
+    conversations: any[];
+    query?: string;
+    messageSearchIncomplete?: boolean;
+    scopeTruncated?: boolean;
+    startNewChat?: StartNewChatInfo;
+  } | null;
   loading: boolean;
   error?: string | null;
   query: string;
   onSelectConversation: (conversationId: string) => void;
   onJumpToMessage?: (conversationId: string, messageId: string) => void;
+  onRetry?: () => void;
+  onStartChat?: (info: StartNewChatInfo) => void;
   phoneMaskRules?: WhatsAppPhoneMaskRules;
   userRole?: string;
+}
+
+function StartChatRow({
+  info,
+  onStartChat,
+}: {
+  info: StartNewChatInfo;
+  onStartChat?: (info: StartNewChatInfo) => void;
+}) {
+  if (!onStartChat) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => onStartChat(info)}
+      className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[#f5f6f6] dark:hover:bg-[#202c33] transition-colors border-b border-[#e9edef] dark:border-[#2a3942]"
+    >
+      <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[#25d366] text-white">
+        <UserPlus className="h-5 w-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[17px] text-[#111b21] dark:text-[#e9edef]">
+          Start chat with +{info.phone}
+        </span>
+        <span className="block truncate text-[14px] text-[#667781] dark:text-[#8696a0]">
+          {info.leadName
+            ? `${info.leadName}${info.leadLocation ? ` · ${info.leadLocation}` : ""}`
+            : "No existing chat for this number"}
+        </span>
+      </span>
+    </button>
+  );
 }
 
 export function UnifiedSearchResults({
@@ -35,6 +75,8 @@ export function UnifiedSearchResults({
   query,
   onSelectConversation,
   onJumpToMessage,
+  onRetry,
+  onStartChat,
   phoneMaskRules,
   userRole = "",
 }: UnifiedSearchResultsProps) {
@@ -62,34 +104,56 @@ export function UnifiedSearchResults({
         <p className="text-sm text-[#667781] dark:text-[#8696a0] text-center">
           {error}
         </p>
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-4 rounded-full bg-[#25d366] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#1fb855] transition-colors"
+          >
+            Try again
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Results answer a specific query; ignore anything that does not match the text box.
+  if (results && results.query && results.query.trim() !== query.trim()) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-[#25d366]" />
       </div>
     );
   }
 
   if (!results || results.conversations.length === 0) {
-    // If results.query doesn't match current query, this is stale data - show spinner instead
-    if (results && results.query && results.query !== query) {
-      return (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-[#25d366]" />
-        </div>
-      );
-    }
-    
-    // Now safe to show empty state - results match current query
     return (
-      <div className="flex flex-col items-center justify-center py-12 px-4">
-        <div className="w-16 h-16 rounded-full bg-[#f0f2f5] dark:bg-[#202c33] flex items-center justify-center mb-4">
-          <Search className="h-8 w-8 text-[#8696a0]" />
+      <div className="flex flex-col h-full">
+        {results?.startNewChat && (
+          <StartChatRow info={results.startNewChat} onStartChat={onStartChat} />
+        )}
+        <div className="flex flex-col items-center justify-center py-12 px-4">
+          <div className="w-16 h-16 rounded-full bg-[#f0f2f5] dark:bg-[#202c33] flex items-center justify-center mb-4">
+            <Search className="h-8 w-8 text-[#8696a0]" />
+          </div>
+          <p className="text-[#111b21] dark:text-[#e9edef] font-medium mb-1">
+            No results found
+          </p>
+          <p className="text-sm text-[#667781] dark:text-[#8696a0] text-center">
+            {results?.messageSearchIncomplete
+              ? "Message search did not finish. No name or phone matches."
+              : "Try searching by name, phone number, or message"}
+          </p>
+          {results?.messageSearchIncomplete && onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-4 rounded-full bg-[#25d366] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#1fb855] transition-colors"
+            >
+              Retry
+            </button>
+          )}
         </div>
-        <p className="text-[#111b21] dark:text-[#e9edef] font-medium mb-1">
-          No results found
-        </p>
-        <p className="text-sm text-[#667781] dark:text-[#8696a0] text-center">
-          {results?.messageSearchIncomplete
-            ? "Message search did not finish. No name or phone matches."
-            : "Try searching by name, phone number, or message"}
-        </p>
       </div>
     );
   }
@@ -110,9 +174,22 @@ export function UnifiedSearchResults({
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-1 overflow-y-auto pb-4">
+        {results.startNewChat && (
+          <StartChatRow info={results.startNewChat} onStartChat={onStartChat} />
+        )}
         {results.messageSearchIncomplete && (
           <p className="px-4 py-2 text-xs text-[#667781] dark:text-[#8696a0]">
-            Message search did not finish. Name and phone matches are still shown.
+            Message search did not finish. Name and phone matches are still shown.{" "}
+            {onRetry && (
+              <button type="button" onClick={onRetry} className="underline">
+                Retry
+              </button>
+            )}
+          </p>
+        )}
+        {!results.messageSearchIncomplete && results.scopeTruncated && (
+          <p className="px-4 py-2 text-xs text-[#667781] dark:text-[#8696a0]">
+            Message search covers your most recent chats only.
           </p>
         )}
         {/* People section - contacts matched by name or phone */}
@@ -243,6 +320,12 @@ function ContactResultItem({
           <p className="text-[14px] text-[#667781] dark:text-[#8696a0] truncate">
             {preview}
           </p>
+        )}
+        {conversation.isArchived && (
+          <span className="mt-0.5 inline-flex items-center gap-1 text-[12px] text-[#667781] dark:text-[#8696a0]">
+            <Archive className="h-3 w-3" />
+            Archived
+          </span>
         )}
       </div>
     </div>

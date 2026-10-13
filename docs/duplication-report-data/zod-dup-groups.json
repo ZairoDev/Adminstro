@@ -1,0 +1,77 @@
+[
+  {
+    "keys": "accessToken,businessPortfolioId,businessPortfolioName,channelType,displayPhoneNumber,locations,metadata,name,phoneNumberId,rentalType,wabaId,wabaName",
+    "members": [
+      {
+        "file": "src/app/api/whatsapp/channels/[id]/migrate/route.ts",
+        "line": 48,
+        "n": 12
+      },
+      {
+        "file": "src/app/api/whatsapp/channels/[id]/route.ts",
+        "line": 54,
+        "n": 12
+      }
+    ]
+  },
+  {
+    "keys": "corridorWidthMeters,destination,filters,focusOwnerId,lat,limit,lng,mapOnly,mode,page,radiusMeters,selectedTab,statusMode,zoom",
+    "members": [
+      {
+        "file": "src/app/api/unregisteredOwners/nearby/route.ts",
+        "line": 34,
+        "n": 14
+      },
+      {
+        "file": "src/app/api/unregisteredOwnersShortTerm/nearby/route.ts",
+        "line": 34,
+        "n": 14
+      }
+    ]
+  },
+  {
+    "keys": "area,maxPrice,metroZone,minPrice,place,propertyType,searchType,searchValue,sortByPrice,zone",
+    "members": [
+      {
+        "file": "src/app/api/unregisteredOwners/nearby/route.ts",
+        "line": 18,
+        "n": 10
+      },
+      {
+        "file": "src/app/api/unregisteredOwnersShortTerm/nearby/route.ts",
+        "line": 18,
+        "n": 10
+      }
+    ]
+  },
+  {
+    "keys": "aliasId,html,note,organization,subject,templateId",
+    "members": [
+      {
+        "file": "src/app/api/offers/[id]/rebuttal/route.ts",
+        "line": 14,
+        "n": 6
+      },
+      {
+        "file": "src/app/api/offers/[id]/reminder/route.ts",
+        "line": 14,
+        "n": 6
+      }
+    ]
+  },
+  {
+    "keys": "html,isActive,name,organization",
+    "members": [
+      {
+        "file": "src/app/api/templates/[id]/route.ts",
+        "line": 13,
+        "n": 4
+      },
+      {
+        "file": "src/app/api/templates/route.ts",
+        "line": 73,
+        "n": 4
+      }
+    ]
+  }
+]

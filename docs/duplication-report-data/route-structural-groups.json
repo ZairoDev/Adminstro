@@ -1,0 +1,2585 @@
+[
+  {
+    "key": "GET||||||getDataFromToken",
+    "count": 24,
+    "members": [
+      {
+        "file": "src/app/api/analytics/whatsapp-overview/route.ts",
+        "method": "GET",
+        "lines": 63,
+        "responseKeys": [
+          "error"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/crm-agent/status/route.ts",
+        "method": "GET",
+        "lines": 15,
+        "responseKeys": [
+          "enabled",
+          "flag",
+          "pilotRoles",
+          "role"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/check-session/route.tsx",
+        "method": "GET",
+        "lines": 13,
+        "responseKeys": [
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/getAreaFromToken/route.ts",
+        "method": "GET",
+        "lines": 12,
+        "responseKeys": [
+          "area",
+          "code"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/holidaysera/guests-list/route.ts",
+        "method": "GET",
+        "lines": 35,
+        "responseKeys": [
+          "error",
+          "page",
+          "pageSize",
+          "success",
+          "total",
+          "totalPages",
+          "users"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/holidaysera/guests-stats/route.ts",
+        "method": "GET",
+        "lines": 17,
+        "responseKeys": [
+          "code",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/holidaysera/overview/route.ts",
+        "method": "GET",
+        "lines": 20,
+        "responseKeys": [
+          "code",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/holidaysera/properties-stats/route.ts",
+        "method": "GET",
+        "lines": 17,
+        "responseKeys": [
+          "code",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/monthlyTargets/getLocations/route.ts",
+        "method": "GET",
+        "lines": 16,
+        "responseKeys": [
+          "code",
+          "error",
+          "locations"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/short-term-owner/[id]/journey/route.ts",
+        "method": "GET",
+        "lines": 28,
+        "responseKeys": [
+          "error"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/short-term-owner/by-user/[userId]/journey/route.ts",
+        "method": "GET",
+        "lines": 28,
+        "responseKeys": [
+          "error"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/user/getloggedinuser/route.ts",
+        "method": "GET",
+        "lines": 24,
+        "responseKeys": [
+          "message",
+          "success",
+          "user"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/visits/overdue/route.ts",
+        "method": "GET",
+        "lines": 19,
+        "responseKeys": [
+          "count",
+          "visits"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/configured-locations/route.ts",
+        "method": "GET",
+        "lines": 36,
+        "responseKeys": [
+          "error",
+          "locations",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/conversations/unread-count/route.ts",
+        "method": "GET",
+        "lines": 61,
+        "responseKeys": [
+          "error",
+          "success",
+          "unreadCount"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/conversations/you/route.ts",
+        "method": "GET",
+        "lines": 52,
+        "responseKeys": [
+          "conversation",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/ice-servers/route.ts",
+        "method": "GET",
+        "lines": 87,
+        "responseKeys": [
+          "error",
+          "iceConfig",
+          "relayConfigured",
+          "servers"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/initiation-limit/route.ts",
+        "method": "GET",
+        "lines": 26,
+        "responseKeys": [
+          "...",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/leads/lookup/route.ts",
+        "method": "GET",
+        "lines": 28,
+        "responseKeys": [
+          "error",
+          "lead",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/notifications/summary/route.ts",
+        "method": "GET",
+        "lines": 85,
+        "responseKeys": [
+          "error",
+          "success",
+          "summary"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/phone-configs/route.ts",
+        "method": "GET",
+        "lines": 31,
+        "responseKeys": [
+          "error",
+          "phoneConfigs",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/reminders/route.ts",
+        "method": "GET",
+        "lines": 20,
+        "responseKeys": [
+          "error",
+          "reminders",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/resolve-phone-for-location/route.ts",
+        "method": "GET",
+        "lines": 79,
+        "responseKeys": [
+          "channelId",
+          "channelType",
+          "displayName",
+          "displayNumber",
+          "error",
+          "hint",
+          "location",
+          "phoneNumberId",
+          "rentalType",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/upload-media/route.ts",
+        "method": "GET",
+        "lines": 88,
+        "responseKeys": [
+          "error",
+          "fileSize",
+          "mediaId",
+          "mimeType",
+          "sha256",
+          "success",
+          "url"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||||||",
+    "count": 9,
+    "members": [
+      {
+        "file": "src/app/api/admin/merge-conversations/route.ts",
+        "method": "GET",
+        "lines": 13,
+        "responseKeys": [
+          "error"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/admin/webhook-inspector/config/route.ts",
+        "method": "GET",
+        "lines": 5,
+        "responseKeys": [
+          "filter"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/admin/webhook-inspector/report/route.ts",
+        "method": "GET",
+        "lines": 25,
+        "responseKeys": [
+          "error",
+          "report"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/admin/webhook-inspector/timeline/route.ts",
+        "method": "GET",
+        "lines": 23,
+        "responseKeys": [
+          "error",
+          "phone",
+          "timeline"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/finance/invoice/[invoiceNumber]/pdf/route.ts",
+        "method": "GET",
+        "lines": 29,
+        "responseKeys": [
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/finance/overview/route.ts",
+        "method": "GET",
+        "lines": 18,
+        "responseKeys": [
+          "data",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/finance/transaction/[id]/route.ts",
+        "method": "GET",
+        "lines": 56,
+        "responseKeys": [
+          "data",
+          "invoices",
+          "message",
+          "success",
+          "webhookHistory"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/holidaysera/properties/route.ts",
+        "method": "GET",
+        "lines": 9,
+        "responseKeys": [
+          "message"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/razorpay/webhook/route.ts",
+        "method": "GET",
+        "lines": 8,
+        "responseKeys": [
+          "endpoint",
+          "message",
+          "ok"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "PUT||employee||findByIdAndUpdate||getDataFromToken",
+    "count": 7,
+    "members": [
+      {
+        "file": "src/app/api/employee/guest-lead-location-block/route.ts",
+        "method": "PUT",
+        "lines": 50,
+        "responseKeys": [
+          "code",
+          "employee",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/owner-location-block/route.ts",
+        "method": "PUT",
+        "lines": 50,
+        "responseKeys": [
+          "code",
+          "employee",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/owner-property-type-visibility-rule/route.ts",
+        "method": "PUT",
+        "lines": 53,
+        "responseKeys": [
+          "code",
+          "employee",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/pricing-rule/route.ts",
+        "method": "PUT",
+        "lines": 73,
+        "responseKeys": [
+          "code",
+          "employee",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/property-visibility-rule/route.ts",
+        "method": "PUT",
+        "lines": 75,
+        "responseKeys": [
+          "code",
+          "employee",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/whatsapp-phone-mask/route.ts",
+        "method": "PUT",
+        "lines": 45,
+        "responseKeys": [
+          "code",
+          "employee",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee-ui-rules/assign/route.ts",
+        "method": "PUT",
+        "lines": 36,
+        "responseKeys": [
+          "employee",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||||||",
+    "count": 5,
+    "members": [
+      {
+        "file": "src/app/api/admin/webhook-inspector/config/route.ts",
+        "method": "POST",
+        "lines": 36,
+        "responseKeys": [
+          "filter"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/email/generateTemplate/route.ts",
+        "method": "POST",
+        "lines": 93,
+        "responseKeys": [
+          "error",
+          "html",
+          "subject",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/finance/sync-razorpay/route.ts",
+        "method": "POST",
+        "lines": 25,
+        "responseKeys": [
+          "data",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/ical/route.ts",
+        "method": "POST",
+        "lines": 20,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "status"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/razorpay/webhook/route.ts",
+        "method": "POST",
+        "lines": 20,
+        "responseKeys": [
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||||||getDataFromToken",
+    "count": 5,
+    "members": [
+      {
+        "file": "src/app/api/employee/session/heartbeat/route.ts",
+        "method": "POST",
+        "lines": 12,
+        "responseKeys": [
+          "code",
+          "ok"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/leads/notReplying/route.ts",
+        "method": "POST",
+        "lines": 42,
+        "responseKeys": [
+          "code",
+          "error",
+          "message"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/push/test/route.ts",
+        "method": "POST",
+        "lines": 34,
+        "responseKeys": [
+          "error",
+          "message",
+          "result",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/upload-media/route.ts",
+        "method": "POST",
+        "lines": 133,
+        "responseKeys": [
+          "error",
+          "filename",
+          "mediaId",
+          "mimeType",
+          "phoneNumberId",
+          "size",
+          "success",
+          "url"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/upload-to-bunny/route.ts",
+        "method": "POST",
+        "lines": 185,
+        "responseKeys": [
+          "details",
+          "error",
+          "fileName",
+          "filename",
+          "mimeType",
+          "providedType",
+          "size",
+          "statusCode",
+          "success",
+          "url"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||conversation.model||findById||getDataFromToken",
+    "count": 5,
+    "members": [
+      {
+        "file": "src/app/api/whatsapp/conversations/[conversationId]/labels/route.ts",
+        "method": "GET",
+        "lines": 32,
+        "responseKeys": [
+          "error",
+          "labels",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/conversations/[conversationId]/preferences/route.ts",
+        "method": "GET",
+        "lines": 45,
+        "responseKeys": [
+          "error",
+          "preferredLanguage",
+          "preferredLanguageCode",
+          "preferredLanguageUpdatedAt",
+          "success",
+          "supportedLanguages"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/conversations/[conversationId]/readers/route.ts",
+        "method": "GET",
+        "lines": 45,
+        "responseKeys": [
+          "error",
+          "readers",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/conversations/route.ts",
+        "method": "GET",
+        "lines": 293,
+        "responseKeys": [
+          "archivedCount",
+          "contextPhoneId",
+          "conversations",
+          "counts",
+          "error",
+          "pagination",
+          "phoneMaskRules",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/templates/route.ts",
+        "method": "GET",
+        "lines": 256,
+        "responseKeys": [
+          "channelScoped",
+          "code",
+          "error",
+          "metaUnavailable",
+          "success",
+          "templates",
+          "upstreamMessage",
+          "wabaId",
+          "wabaSource",
+          "warning"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "PATCH||candidate,employee||findById,findByIdAndUpdate||getDataFromToken",
+    "count": 4,
+    "members": [
+      {
+        "file": "src/app/api/candidates/[id]/approve-reschedule/route.ts",
+        "method": "PATCH",
+        "lines": 221,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": [
+          "approved",
+          "pending",
+          "rejected"
+        ]
+      },
+      {
+        "file": "src/app/api/candidates/[id]/hr-verification/route.ts",
+        "method": "PATCH",
+        "lines": 99,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/[id]/interview-remarks/route.ts",
+        "method": "PATCH",
+        "lines": 206,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/[id]/verification/route.ts",
+        "method": "PATCH",
+        "lines": 148,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||candidate||findById||",
+    "count": 4,
+    "members": [
+      {
+        "file": "src/app/api/candidates/[id]/request-reschedule/route.ts",
+        "method": "GET",
+        "lines": 61,
+        "responseKeys": [
+          "data",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/[id]/route.ts",
+        "method": "GET",
+        "lines": 25,
+        "responseKeys": [
+          "data",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/[id]/validate-resignature/route.ts",
+        "method": "GET",
+        "lines": 93,
+        "responseKeys": [
+          "data",
+          "error",
+          "expired",
+          "success",
+          "valid"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/[id]/validate-reupload/route.ts",
+        "method": "GET",
+        "lines": 119,
+        "responseKeys": [
+          "completed",
+          "data",
+          "error",
+          "expired",
+          "success",
+          "valid"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||employee||find||getDataFromToken",
+    "count": 4,
+    "members": [
+      {
+        "file": "src/app/api/celebrations/today/route.ts",
+        "method": "GET",
+        "lines": 82,
+        "responseKeys": [
+          "error",
+          "message"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/getLoggedInEmployees/route.ts",
+        "method": "GET",
+        "lines": 63,
+        "responseKeys": [
+          "count",
+          "employees",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/getSalesEmployee/route.ts",
+        "method": "GET",
+        "lines": 18,
+        "responseKeys": [
+          "code",
+          "emp",
+          "error"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/resetAllPasswords/route.ts",
+        "method": "GET",
+        "lines": 63,
+        "responseKeys": [
+          "code",
+          "error",
+          "message",
+          "updatedEmployees"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||property||findById||getDataFromToken",
+    "count": 4,
+    "members": [
+      {
+        "file": "src/app/api/editPrices/route.ts",
+        "method": "POST",
+        "lines": 60,
+        "responseKeys": [
+          "code",
+          "error",
+          "message"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/property/blockDatesInProperty/route.ts",
+        "method": "POST",
+        "lines": 51,
+        "responseKeys": [
+          "code",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/property/editPrices/route.ts",
+        "method": "POST",
+        "lines": 67,
+        "responseKeys": [
+          "code",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/property/getPropertyById/route.ts",
+        "method": "POST",
+        "lines": 29,
+        "responseKeys": [
+          "code",
+          "data",
+          "error"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||query||||getDataFromToken",
+    "count": 4,
+    "members": [
+      {
+        "file": "src/app/api/leads/getDeclinedLeads/route.ts",
+        "method": "POST",
+        "lines": 244,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "totalPages",
+          "totalQueries"
+        ],
+        "statusStrings": [
+          "declined"
+        ]
+      },
+      {
+        "file": "src/app/api/leads/getGoodToGoLeads/route.ts",
+        "method": "POST",
+        "lines": 318,
+        "responseKeys": [
+          "...",
+          "code",
+          "data",
+          "error",
+          "message",
+          "success",
+          "totalPages",
+          "totalQueries",
+          "wordsCount"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/leads/getLeads/route.ts",
+        "method": "POST",
+        "lines": 280,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "message",
+          "totalPages",
+          "totalQueries",
+          "wordsCount"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/leads/getRejectedLeads/route.ts",
+        "method": "POST",
+        "lines": 244,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "totalPages",
+          "totalQueries"
+        ],
+        "statusStrings": [
+          "rejected"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "POST||employee,offer||findById,findOneAndUpdate,zod:BodySchema,zod:ParamsSchema||getDataFromToken",
+    "count": 4,
+    "members": [
+      {
+        "file": "src/app/api/offers/[id]/blacklist/route.ts",
+        "method": "POST",
+        "lines": 54,
+        "responseKeys": [
+          "code",
+          "details",
+          "error",
+          "offer"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/offers/[id]/payment-complete/route.ts",
+        "method": "POST",
+        "lines": 62,
+        "responseKeys": [
+          "code",
+          "details",
+          "error",
+          "offer"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/offers/[id]/reject/route.ts",
+        "method": "POST",
+        "lines": 72,
+        "responseKeys": [
+          "code",
+          "details",
+          "error",
+          "offer"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/offers/[id]/revert/route.ts",
+        "method": "POST",
+        "lines": 83,
+        "responseKeys": [
+          "code",
+          "details",
+          "error",
+          "offer"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||candidate||findByIdAndUpdate||",
+    "count": 3,
+    "members": [
+      {
+        "file": "src/app/api/candidates/[id]/action/route.ts",
+        "method": "POST",
+        "lines": 101,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": [
+          "pending",
+          "rejected"
+        ]
+      },
+      {
+        "file": "src/app/api/candidates/[id]/offer-letter/route.ts",
+        "method": "POST",
+        "lines": 64,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/[id]/training-agreement/route.ts",
+        "method": "POST",
+        "lines": 63,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||candidate,employee||findById,findByIdAndUpdate||getDataFromToken",
+    "count": 3,
+    "members": [
+      {
+        "file": "src/app/api/candidates/[id]/exit/route.ts",
+        "method": "POST",
+        "lines": 144,
+        "responseKeys": [
+          "code",
+          "data",
+          "emailSent",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/[id]/request-resignature/route.ts",
+        "method": "POST",
+        "lines": 219,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/[id]/request-reupload/route.ts",
+        "method": "POST",
+        "lines": 294,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||candidate,employee||findById||",
+    "count": 3,
+    "members": [
+      {
+        "file": "src/app/api/candidates/[id]/interview-remarks/route.ts",
+        "method": "GET",
+        "lines": 29,
+        "responseKeys": [
+          "data",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/[id]/request-reupload/route.ts",
+        "method": "GET",
+        "lines": 31,
+        "responseKeys": [
+          "data",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/public/[model]/[id]/route.ts",
+        "method": "GET",
+        "lines": 37,
+        "responseKeys": [
+          "data",
+          "error",
+          "model",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||candidate,role||create,findById,findOne||",
+    "count": 3,
+    "members": [
+      {
+        "file": "src/app/api/candidates/letterOfIntent/route.ts",
+        "method": "POST",
+        "lines": 1001,
+        "responseKeys": [
+          "...",
+          "details",
+          "error"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/offerLetter/route.ts",
+        "method": "POST",
+        "lines": 1239,
+        "responseKeys": [
+          "...",
+          "details",
+          "error"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/onboardingDocument/route.ts",
+        "method": "POST",
+        "lines": 2089,
+        "responseKeys": [
+          "...",
+          "details",
+          "error"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||query||findOne||getDataFromToken",
+    "count": 3,
+    "members": [
+      {
+        "file": "src/app/api/checkNumberInOffers/route.ts",
+        "method": "POST",
+        "lines": 37,
+        "responseKeys": [
+          "availableOnTT",
+          "availableOnVS",
+          "code",
+          "error",
+          "isAvailable"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/leads/globalLeadSearch/route.ts",
+        "method": "POST",
+        "lines": 54,
+        "responseKeys": [
+          "code",
+          "error"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/sales/checkNumber/route.ts",
+        "method": "POST",
+        "lines": 67,
+        "responseKeys": [
+          "code",
+          "error",
+          "exists",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||coupon||findOne||",
+    "count": 3,
+    "members": [
+      {
+        "file": "src/app/api/coupon/route.ts",
+        "method": "POST",
+        "lines": 63,
+        "responseKeys": [
+          "coupon",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/coupon/use/route.ts",
+        "method": "POST",
+        "lines": 47,
+        "responseKeys": [
+          "message",
+          "success",
+          "usageLimit",
+          "usedCount"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/coupon/validate/route.ts",
+        "method": "POST",
+        "lines": 116,
+        "responseKeys": [
+          "coupon",
+          "discount",
+          "finalAmount",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||property||findById||",
+    "count": 3,
+    "members": [
+      {
+        "file": "src/app/api/editproperty/deleteImages/route.ts",
+        "method": "POST",
+        "lines": 61,
+        "responseKeys": [
+          "error",
+          "status"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/property/editProperty/deleteImages/route.ts",
+        "method": "POST",
+        "lines": 95,
+        "responseKeys": [
+          "deleted",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/singleproperty/getproperty/route.ts",
+        "method": "POST",
+        "lines": 39,
+        "responseKeys": [
+          "message"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||employee||findById,findByIdAndUpdate||getDataFromToken",
+    "count": 3,
+    "members": [
+      {
+        "file": "src/app/api/employee/appreciations/route.ts",
+        "method": "POST",
+        "lines": 96,
+        "responseKeys": [
+          "appreciations",
+          "code",
+          "emailSent",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/separation/route.ts",
+        "method": "POST",
+        "lines": 105,
+        "responseKeys": [
+          "emailSent",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/warnings/route.ts",
+        "method": "POST",
+        "lines": 103,
+        "responseKeys": [
+          "code",
+          "emailSent",
+          "error",
+          "message",
+          "success",
+          "warnings"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||employee||findById||",
+    "count": 3,
+    "members": [
+      {
+        "file": "src/app/api/employee/appreciations/route.ts",
+        "method": "GET",
+        "lines": 34,
+        "responseKeys": [
+          "appreciations",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/separation/route.ts",
+        "method": "GET",
+        "lines": 60,
+        "responseKeys": [
+          "code",
+          "employeeEmail",
+          "error",
+          "success",
+          "template"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/warnings/route.ts",
+        "method": "GET",
+        "lines": 29,
+        "responseKeys": [
+          "error",
+          "success",
+          "warnings"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||||zod:bodySchema||getDataFromToken",
+    "count": 3,
+    "members": [
+      {
+        "file": "src/app/api/employee/forceLogout/route.ts",
+        "method": "POST",
+        "lines": 100,
+        "responseKeys": [
+          "code",
+          "errors",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/housingsaga/queries/check-phone/route.ts",
+        "method": "POST",
+        "lines": 38,
+        "responseKeys": [
+          "code",
+          "error",
+          "exists",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/disposition/route.ts",
+        "method": "POST",
+        "lines": 36,
+        "responseKeys": [
+          "...",
+          "error",
+          "issues",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||query||findById||getDataFromToken",
+    "count": 3,
+    "members": [
+      {
+        "file": "src/app/api/leads/disposition/route.ts",
+        "method": "POST",
+        "lines": 43,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/sales/createNote/route.ts",
+        "method": "POST",
+        "lines": 53,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/sales/getQuerybyId/route.ts",
+        "method": "POST",
+        "lines": 81,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||personalReminder||find||",
+    "count": 3,
+    "members": [
+      {
+        "file": "src/app/api/personal-reminders/dates/route.ts",
+        "method": "GET",
+        "lines": 42,
+        "responseKeys": [
+          "dates",
+          "error"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/personal-reminders/due/route.ts",
+        "method": "GET",
+        "lines": 40,
+        "responseKeys": [
+          "count",
+          "dueTodayCount",
+          "error",
+          "overdueCount",
+          "reminders"
+        ],
+        "statusStrings": [
+          "pending"
+        ]
+      },
+      {
+        "file": "src/app/api/personal-reminders/route.ts",
+        "method": "GET",
+        "lines": 47,
+        "responseKeys": [
+          "error",
+          "reminders"
+        ],
+        "statusStrings": [
+          "pending"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "POST||blog||||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/blog/createnewblog/route.ts",
+        "method": "POST",
+        "lines": 48,
+        "responseKeys": [
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/blog/deleteblog/route.ts",
+        "method": "POST",
+        "lines": 43,
+        "responseKeys": [
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||booking||findById||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/bookings/getBookingById/route.ts",
+        "method": "POST",
+        "lines": 36,
+        "responseKeys": [
+          "code",
+          "data",
+          "error"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/bookings/manual-payment/route.ts",
+        "method": "POST",
+        "lines": 211,
+        "responseKeys": [
+          "booking",
+          "code",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": [
+          "pending"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "POST||candidate||findById,findByIdAndUpdate||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/candidates/[id]/notes/route.ts",
+        "method": "POST",
+        "lines": 72,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/[id]/send-offer-letter/route.ts",
+        "method": "POST",
+        "lines": 134,
+        "responseKeys": [
+          "code",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||candidate||findById,findByIdAndUpdate||",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/candidates/[id]/onboarding/resignature/route.ts",
+        "method": "POST",
+        "lines": 107,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/[id]/request-reschedule/route.ts",
+        "method": "POST",
+        "lines": 110,
+        "responseKeys": [
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": [
+          "pending"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "DELETE||candidate,employee||findByIdAndUpdate||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/candidates/[id]/request-resignature/route.ts",
+        "method": "DELETE",
+        "lines": 50,
+        "responseKeys": [
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/[id]/request-reupload/route.ts",
+        "method": "DELETE",
+        "lines": 56,
+        "responseKeys": [
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "PATCH||candidate,employee,officeAddress||findById,findByIdAndUpdate||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/candidates/[id]/schedule-interview/route.ts",
+        "method": "PATCH",
+        "lines": 208,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/[id]/schedule-second-round/route.ts",
+        "method": "PATCH",
+        "lines": 207,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||candidate||distinct||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/candidates/colleges/route.ts",
+        "method": "GET",
+        "lines": 50,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/positions/route.ts",
+        "method": "GET",
+        "lines": 27,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||candidate||create,findById||",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/candidates/hrPolicies/route.ts",
+        "method": "POST",
+        "lines": 902,
+        "responseKeys": [
+          "...",
+          "details",
+          "error"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/candidates/trainingAgreement/route.ts",
+        "method": "POST",
+        "lines": 657,
+        "responseKeys": [
+          "...",
+          "details",
+          "error"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||candidate||countDocuments,find||",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/candidates/reschedule-requests/route.ts",
+        "method": "GET",
+        "lines": 169,
+        "responseKeys": [
+          "count",
+          "data",
+          "debug",
+          "error",
+          "success",
+          "timestamp"
+        ],
+        "statusStrings": [
+          "PENDING",
+          "Pending",
+          "pending"
+        ]
+      },
+      {
+        "file": "src/app/api/hrportal/finalCandidate/route.ts",
+        "method": "GET",
+        "lines": 39,
+        "responseKeys": [
+          "candidates",
+          "error",
+          "pagination"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||property||findOneAndUpdate||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/editproperty/editpropertydata/route.ts",
+        "method": "POST",
+        "lines": 78,
+        "responseKeys": [
+          "code",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/holidaysera/properties/approve/route.ts",
+        "method": "POST",
+        "lines": 78,
+        "responseKeys": [
+          "data",
+          "error",
+          "message"
+        ],
+        "statusStrings": [
+          "approved",
+          "pending"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "DELETE||employee||findByIdAndUpdate||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/employee/appreciations/route.ts",
+        "method": "DELETE",
+        "lines": 37,
+        "responseKeys": [
+          "appreciations",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/warnings/route.ts",
+        "method": "DELETE",
+        "lines": 42,
+        "responseKeys": [
+          "code",
+          "error",
+          "message",
+          "success",
+          "warnings"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||employee||findOne||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/employee/getEmployeeByEmail/route.ts",
+        "method": "POST",
+        "lines": 25,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "message",
+          "status"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/getEmployeeDetails/route.ts",
+        "method": "POST",
+        "lines": 34,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "message",
+          "status"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "PUT||employee||findByIdAndUpdate,zod:bodySchema||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/employee/owner-pricing-rule/route.ts",
+        "method": "PUT",
+        "lines": 64,
+        "responseKeys": [
+          "code",
+          "details",
+          "employee",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/owner-visibility-rule/route.ts",
+        "method": "PUT",
+        "lines": 89,
+        "responseKeys": [
+          "code",
+          "details",
+          "employee",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||employee||findById||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/employee/pip/me/route.ts",
+        "method": "GET",
+        "lines": 35,
+        "responseKeys": [
+          "activePips",
+          "code",
+          "error",
+          "unacknowledgedPips"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/employee/whatsapp-phone-mask/route.ts",
+        "method": "GET",
+        "lines": 57,
+        "responseKeys": [
+          "code",
+          "email",
+          "employeeId",
+          "error",
+          "name",
+          "success",
+          "whatsappPhoneMask"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||property||countDocuments,find||",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/getallproperty/route.ts",
+        "method": "GET",
+        "lines": 52,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "page",
+          "totalPages",
+          "totalProperties"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/remainingproperty/route.ts",
+        "method": "GET",
+        "lines": 64,
+        "responseKeys": [
+          "data",
+          "error",
+          "incompletePropertiesCount",
+          "message",
+          "page",
+          "totalPages",
+          "totalProperties"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||employee,query||aggregate,countDocuments,findById||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/leads/getClosedLeads/route.ts",
+        "method": "POST",
+        "lines": 246,
+        "responseKeys": [
+          "PAGE",
+          "data",
+          "error",
+          "message",
+          "totalPages",
+          "totalQueries"
+        ],
+        "statusStrings": [
+          "closed"
+        ]
+      },
+      {
+        "file": "src/app/api/leads/getReminderLeads/route.ts",
+        "method": "POST",
+        "lines": 287,
+        "responseKeys": [
+          "PAGE",
+          "data",
+          "error",
+          "message",
+          "totalPages",
+          "totalQueries"
+        ],
+        "statusStrings": [
+          "reminder"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "GET||query||aggregate||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/leads/getStatusCount/route.ts",
+        "method": "GET",
+        "lines": 160,
+        "responseKeys": [
+          "code",
+          "message",
+          "statusSummary",
+          "success"
+        ],
+        "statusStrings": [
+          "declined",
+          "rejected"
+        ]
+      },
+      {
+        "file": "src/app/api/sales/getDailyLeadStats/route.ts",
+        "method": "GET",
+        "lines": 127,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "groupedStats",
+          "message",
+          "totalQueries"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||employee,offer||countDocuments,find,findById,zod:QuerySchema||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/leads/list/route.ts",
+        "method": "GET",
+        "lines": 63,
+        "responseKeys": [
+          "code",
+          "error",
+          "items",
+          "page",
+          "pageSize",
+          "total",
+          "totalPages"
+        ],
+        "statusStrings": [
+          "pending"
+        ]
+      },
+      {
+        "file": "src/app/api/offers/route.ts",
+        "method": "GET",
+        "lines": 88,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "items",
+          "page",
+          "pageSize",
+          "total",
+          "totalCount",
+          "totalPages"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||room||findById||",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/room/getPropertiesFromRoom/route.ts",
+        "method": "POST",
+        "lines": 29,
+        "responseKeys": [
+          "error",
+          "rejectedProperties",
+          "showcaseProperties"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/room/scheduleVisit/route.ts",
+        "method": "POST",
+        "lines": 44,
+        "responseKeys": [
+          "error",
+          "message"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||room||findById||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/room/joinRoom/route.ts",
+        "method": "POST",
+        "lines": 50,
+        "responseKeys": [
+          "customerName",
+          "error",
+          "message",
+          "role"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/room/updateVisit/route.ts",
+        "method": "POST",
+        "lines": 71,
+        "responseKeys": [
+          "code",
+          "error",
+          "message"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||query||findByIdAndUpdate||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/sales/editquery/route.ts",
+        "method": "POST",
+        "lines": 22,
+        "responseKeys": [
+          "data",
+          "error",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/sales/reviewLeadQuality/route.ts",
+        "method": "POST",
+        "lines": 42,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||query||aggregate,countDocuments||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/sales/getQueryByArea/route.ts",
+        "method": "GET",
+        "lines": 154,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "page",
+          "totalPages",
+          "totalQueries"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/sales/getquery/route.ts",
+        "method": "GET",
+        "lines": 226,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "page",
+          "totalPages",
+          "totalQueries"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||query||findByIdAndUpdate||",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/sales/queryStatusUpdate/route.ts",
+        "method": "POST",
+        "lines": 39,
+        "responseKeys": [
+          "data",
+          "error",
+          "message"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/sales/reviewByTeamLead/route.tsx",
+        "method": "POST",
+        "lines": 34,
+        "responseKeys": [
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": [
+          "Approved"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "POST||query||findOneAndUpdate||",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/sales/reminders/addBackToLeads/route.ts",
+        "method": "POST",
+        "lines": 30,
+        "responseKeys": [
+          "error",
+          "message"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/sales/reminders/addReminder/route.ts",
+        "method": "POST",
+        "lines": 45,
+        "responseKeys": [
+          "error",
+          "reminderDate"
+        ],
+        "statusStrings": [
+          "reminder"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "GET||query||find||",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/sales/reminders/getAllReminders/route.ts",
+        "method": "GET",
+        "lines": 18,
+        "responseKeys": [
+          "allReminders",
+          "error",
+          "status"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/sales/reminders/getThreeDaysReminders/route.ts",
+        "method": "GET",
+        "lines": 70,
+        "responseKeys": [
+          "allReminders",
+          "count",
+          "error"
+        ],
+        "statusStrings": [
+          "reminder"
+        ]
+      }
+    ]
+  },
+  {
+    "key": "POST||query||findOneAndUpdate||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/sales/updateMessageStatus/route.ts",
+        "method": "POST",
+        "lines": 42,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "message"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/sales/updateSalesPriority/route.ts",
+        "method": "POST",
+        "lines": 41,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "message"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "PATCH||emailTemplate||findByIdAndUpdate,zod:ParamsSchema,zod:PatchSchema||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/sales-offer/templates/[id]/route.ts",
+        "method": "PATCH",
+        "lines": 39,
+        "responseKeys": [
+          "code",
+          "details",
+          "error",
+          "template"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/templates/[id]/route.ts",
+        "method": "PATCH",
+        "lines": 31,
+        "responseKeys": [
+          "code",
+          "error",
+          "template"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "GET||emailTemplate,employee||find,findById,zod:OrganizationZod,zod:QuerySchema||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/sales-offer/templates/route.ts",
+        "method": "GET",
+        "lines": 67,
+        "responseKeys": [
+          "code",
+          "error",
+          "templates"
+        ],
+        "statusStrings": [
+          "REMINDER"
+        ]
+      },
+      {
+        "file": "src/app/api/templates/route.ts",
+        "method": "GET",
+        "lines": 53,
+        "responseKeys": [
+          "code",
+          "error",
+          "templates"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||question||findById||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/travellerquestions/deleteQuestion/route.ts",
+        "method": "POST",
+        "lines": 37,
+        "responseKeys": [
+          "code",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/travellerquestions/getSingleQuestion/route.ts",
+        "method": "POST",
+        "lines": 35,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||area,employee,unregisteredOwner||aggregate,countDocuments,find,findById||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/unregisteredOwners/getAvailableList/route.ts",
+        "method": "POST",
+        "lines": 148,
+        "responseKeys": [
+          "data",
+          "error",
+          "total"
+        ],
+        "statusStrings": [
+          "Available"
+        ]
+      },
+      {
+        "file": "src/app/api/unregisteredOwners/getNotAvailableList/route.ts",
+        "method": "POST",
+        "lines": 156,
+        "responseKeys": [
+          "data",
+          "error",
+          "total"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||area,employee,unregisteredOwnerShortTerm||aggregate,countDocuments,find,findById||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/unregisteredOwnersShortTerm/getAvailableList/route.ts",
+        "method": "POST",
+        "lines": 148,
+        "responseKeys": [
+          "data",
+          "error",
+          "total"
+        ],
+        "statusStrings": [
+          "Available"
+        ]
+      },
+      {
+        "file": "src/app/api/unregisteredOwnersShortTerm/getNotAvailableList/route.ts",
+        "method": "POST",
+        "lines": 156,
+        "responseKeys": [
+          "data",
+          "error",
+          "total"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||user||findOne||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/user/getuserDetails/route.ts",
+        "method": "POST",
+        "lines": 35,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "message",
+          "status",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/user/getuserbyid/route.ts",
+        "method": "POST",
+        "lines": 28,
+        "responseKeys": [
+          "code",
+          "data",
+          "error",
+          "loggedInUserEmail",
+          "message"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "DELETE||property||||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/user/listings/[id]/route.ts",
+        "method": "DELETE",
+        "lines": 37,
+        "responseKeys": [
+          "code",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/user/properties/[id]/route.ts",
+        "method": "DELETE",
+        "lines": 37,
+        "responseKeys": [
+          "code",
+          "message",
+          "success"
+        ],
+        "statusStrings": []
+      }
+    ]
+  },
+  {
+    "key": "POST||conversation.model,message.model||create,findById,findByIdAndUpdate||getDataFromToken",
+    "count": 2,
+    "members": [
+      {
+        "file": "src/app/api/whatsapp/send-interactive/route.ts",
+        "method": "POST",
+        "lines": 232,
+        "responseKeys": [
+          "conversationId",
+          "data",
+          "error",
+          "messageId",
+          "savedMessageId",
+          "success",
+          "timestamp"
+        ],
+        "statusStrings": []
+      },
+      {
+        "file": "src/app/api/whatsapp/send-media/route.ts",
+        "method": "POST",
+        "lines": 373,
+        "responseKeys": [
+          "conversationId",
+          "data",
+          "error",
+          "messageId",
+          "savedMessageId",
+          "source",
+          "success",
+          "timestamp"
+        ],
+        "statusStrings": []
+      }
+    ]
+  }
+]

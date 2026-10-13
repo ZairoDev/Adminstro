@@ -1,0 +1,436 @@
+{
+  "collisions": [
+    [
+      "counters",
+      [
+        {
+          "file": "src/models/booking.ts",
+          "name": "counters",
+          "line": 10
+        },
+        {
+          "file": "src/scripts/seedFinanceWalkthrough.ts",
+          "name": "counters",
+          "line": 145
+        }
+      ]
+    ],
+    [
+      "Booking",
+      [
+        {
+          "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+          "name": "Booking",
+          "line": 77
+        },
+        {
+          "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+          "name": "Booking",
+          "line": 134
+        },
+        {
+          "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+          "name": "Booking",
+          "line": 192
+        },
+        {
+          "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+          "name": "Booking",
+          "line": 225
+        },
+        {
+          "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+          "name": "Booking",
+          "line": 267
+        },
+        {
+          "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+          "name": "Booking",
+          "line": 296
+        },
+        {
+          "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+          "name": "Booking",
+          "line": 336
+        },
+        {
+          "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+          "name": "Booking",
+          "line": 367
+        },
+        {
+          "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+          "name": "Booking",
+          "line": 406
+        },
+        {
+          "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+          "name": "Booking",
+          "line": 455
+        },
+        {
+          "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+          "name": "Booking",
+          "line": 462
+        },
+        {
+          "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+          "name": "Booking",
+          "line": 520
+        }
+      ]
+    ]
+  ],
+  "all": [
+    {
+      "file": "src/models/agent.ts",
+      "name": "Agents",
+      "line": 75
+    },
+    {
+      "file": "src/models/alias.ts",
+      "name": "Aliases",
+      "line": 39
+    },
+    {
+      "file": "src/models/area.ts",
+      "name": "Area",
+      "line": 59
+    },
+    {
+      "file": "src/models/blog.ts",
+      "name": "Blog",
+      "line": 36
+    },
+    {
+      "file": "src/models/booking.ts",
+      "name": "counters",
+      "line": 10
+    },
+    {
+      "file": "src/models/booking.ts",
+      "name": "bookings",
+      "line": 277
+    },
+    {
+      "file": "src/models/catalogue.ts",
+      "name": "catalogues",
+      "line": 30
+    },
+    {
+      "file": "src/models/conversationArchiveState.ts",
+      "name": "ConversationArchiveState",
+      "line": 68
+    },
+    {
+      "file": "src/models/conversationReadState.ts",
+      "name": "ConversationReadState",
+      "line": 53
+    },
+    {
+      "file": "src/models/coupon.ts",
+      "name": "Coupon",
+      "line": 170
+    },
+    {
+      "file": "src/models/crmAgentAudit.ts",
+      "name": "CrmAgentAudit",
+      "line": 98
+    },
+    {
+      "file": "src/models/crmAgentConversation.ts",
+      "name": "CrmAgentConversation",
+      "line": 60
+    },
+    {
+      "file": "src/models/crmAgentKnowledge.ts",
+      "name": "CrmAgentKnowledge",
+      "line": 33
+    },
+    {
+      "file": "src/models/emailTemplate.ts",
+      "name": "EmailTemplates",
+      "line": 84
+    },
+    {
+      "file": "src/models/employee.ts",
+      "name": "Employees",
+      "line": 583
+    },
+    {
+      "file": "src/models/employeeActivityLog.ts",
+      "name": "EmployeeActivityLog",
+      "line": 95
+    },
+    {
+      "file": "src/models/employeeMonthlyTarget.ts",
+      "name": "EmployeeMonthlyTarget",
+      "line": 36
+    },
+    {
+      "file": "src/models/employeeUiRule.ts",
+      "name": "EmployeeUiRule",
+      "line": 46
+    },
+    {
+      "file": "src/models/expoPushToken.ts",
+      "name": "ExpoPushTokens",
+      "line": 36
+    },
+    {
+      "file": "src/models/holidaySubscription.ts",
+      "name": "Subscription",
+      "line": 100
+    },
+    {
+      "file": "src/models/holidayUsers.ts",
+      "name": "holidayUsers",
+      "line": 135
+    },
+    {
+      "file": "src/models/housingCollaborator.ts",
+      "name": "HousingCollaborator",
+      "line": 144
+    },
+    {
+      "file": "src/models/housingPayment.ts",
+      "name": "Payment",
+      "line": 34
+    },
+    {
+      "file": "src/models/housingSagaQuery.ts",
+      "name": "HousingSagaQuery",
+      "line": 88
+    },
+    {
+      "file": "src/models/housingUser.ts",
+      "name": "HousingUsers",
+      "line": 39
+    },
+    {
+      "file": "src/models/invoice.ts",
+      "name": "Invoice",
+      "line": 59
+    },
+    {
+      "file": "src/models/listing.ts",
+      "name": "listings",
+      "line": 231
+    },
+    {
+      "file": "src/models/monthlyPerformanceTarget.ts",
+      "name": "MonthlyPerformanceTarget",
+      "line": 42
+    },
+    {
+      "file": "src/models/monthlytarget.ts",
+      "name": "MonthlyTarget",
+      "line": 30
+    },
+    {
+      "file": "src/models/offer.ts",
+      "name": "offer",
+      "line": 357
+    },
+    {
+      "file": "src/models/officeAddress.ts",
+      "name": "OfficeAddress",
+      "line": 103
+    },
+    {
+      "file": "src/models/owner.ts",
+      "name": "Owners",
+      "line": 60
+    },
+    {
+      "file": "src/models/personalReminder.ts",
+      "name": "PersonalReminder",
+      "line": 79
+    },
+    {
+      "file": "src/models/property.ts",
+      "name": "Property",
+      "line": 225
+    },
+    {
+      "file": "src/models/question.ts",
+      "name": "Question",
+      "line": 15
+    },
+    {
+      "file": "src/models/quicklisting.ts",
+      "name": "quicklisting",
+      "line": 31
+    },
+    {
+      "file": "src/models/role.ts",
+      "name": "Role",
+      "line": 50
+    },
+    {
+      "file": "src/models/room.ts",
+      "name": "Room",
+      "line": 38
+    },
+    {
+      "file": "src/models/systemNotification.ts",
+      "name": "SystemNotification",
+      "line": 91
+    },
+    {
+      "file": "src/models/travellerBooking.ts",
+      "name": "travellerBookings",
+      "line": 89
+    },
+    {
+      "file": "src/models/unregisteredOwner.ts",
+      "name": "unregisteredOwner",
+      "line": 151
+    },
+    {
+      "file": "src/models/unregisteredOwnerShortTerm.ts",
+      "name": "unregisteredOwnerShortTerm",
+      "line": 169
+    },
+    {
+      "file": "src/models/user.ts",
+      "name": "Users",
+      "line": 100
+    },
+    {
+      "file": "src/models/visit.ts",
+      "name": "visits",
+      "line": 90
+    },
+    {
+      "file": "src/models/webhookInspectorEvent.ts",
+      "name": "WebhookInspectorEvent",
+      "line": 65
+    },
+    {
+      "file": "src/models/websiteLeads.ts",
+      "name": "WebsiteLeads",
+      "line": 34
+    },
+    {
+      "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+      "name": "Booking",
+      "line": 77
+    },
+    {
+      "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+      "name": "Booking",
+      "line": 134
+    },
+    {
+      "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+      "name": "Booking",
+      "line": 192
+    },
+    {
+      "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+      "name": "Booking",
+      "line": 225
+    },
+    {
+      "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+      "name": "Booking",
+      "line": 267
+    },
+    {
+      "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+      "name": "Booking",
+      "line": 296
+    },
+    {
+      "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+      "name": "Booking",
+      "line": 336
+    },
+    {
+      "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+      "name": "Booking",
+      "line": 367
+    },
+    {
+      "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+      "name": "Booking",
+      "line": 406
+    },
+    {
+      "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+      "name": "Booking",
+      "line": 455
+    },
+    {
+      "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+      "name": "Booking",
+      "line": 462
+    },
+    {
+      "file": "src/modules/finance/__tests__/invoice-workflow.integration.test.ts",
+      "name": "Booking",
+      "line": 520
+    },
+    {
+      "file": "src/modules/finance/invoice-counter.ts",
+      "name": "FinanceCounter",
+      "line": 15
+    },
+    {
+      "file": "src/modules/finance/models/invoice.model.ts",
+      "name": "FinanceInvoice",
+      "line": 102
+    },
+    {
+      "file": "src/modules/finance/models/payment.model.ts",
+      "name": "FinancePayment",
+      "line": 186
+    },
+    {
+      "file": "src/modules/finance/models/razorpay-webhook-log.model.ts",
+      "name": "RazorpayWebhookLog",
+      "line": 57
+    },
+    {
+      "file": "src/modules/whatsapp/models/call-log.model.ts",
+      "name": "WhatsAppCallLog",
+      "line": 82
+    },
+    {
+      "file": "src/modules/whatsapp/models/channel-assignment.model.ts",
+      "name": "WhatsappChannelAssignment",
+      "line": 83
+    },
+    {
+      "file": "src/modules/whatsapp/models/channel.model.ts",
+      "name": "WhatsappChannel",
+      "line": 160
+    },
+    {
+      "file": "src/modules/whatsapp/models/conversation.model.ts",
+      "name": "WhatsAppConversation",
+      "line": 618
+    },
+    {
+      "file": "src/modules/whatsapp/models/message.model.ts",
+      "name": "WhatsAppMessage",
+      "line": 349
+    },
+    {
+      "file": "src/modules/whatsapp/models/retarget-contact.model.ts",
+      "name": "RetargetContact",
+      "line": 100
+    },
+    {
+      "file": "src/modules/whatsapp/models/webhook-log.model.ts",
+      "name": "WhatsAppWebhookLog",
+      "line": 52
+    },
+    {
+      "file": "src/scripts/seedFinanceWalkthrough.ts",
+      "name": "counters",
+      "line": 145
+    }
+  ]
+}

@@ -1,0 +1,379 @@
+[
+  {
+    "key": "GET|employee|findById",
+    "files": [
+      "src/app/api/candidates/[id]/interview-remarks/route.ts GET",
+      "src/app/api/candidates/[id]/request-reupload/route.ts GET",
+      "src/app/api/employee/appreciations/route.ts GET",
+      "src/app/api/employee/office-details/route.ts GET",
+      "src/app/api/employee/pip/me/route.ts GET",
+      "src/app/api/employee/pip/route.ts GET",
+      "src/app/api/employee/separation/route.ts GET",
+      "src/app/api/employee/warnings/route.ts GET",
+      "src/app/api/employee/whatsapp-phone-mask/route.ts GET",
+      "src/app/api/people/[candidateId]/route.ts GET",
+      "src/app/api/public/[model]/[id]/route.ts GET"
+    ]
+  },
+  {
+    "key": "GET|candidate|findById",
+    "files": [
+      "src/app/api/candidates/[id]/interview-remarks/route.ts GET",
+      "src/app/api/candidates/[id]/notes/route.ts GET",
+      "src/app/api/candidates/[id]/request-reschedule/route.ts GET",
+      "src/app/api/candidates/[id]/request-reupload/route.ts GET",
+      "src/app/api/candidates/[id]/route.ts GET",
+      "src/app/api/candidates/[id]/validate-resignature/route.ts GET",
+      "src/app/api/candidates/[id]/validate-reupload/route.ts GET",
+      "src/app/api/people/[candidateId]/route.ts GET",
+      "src/app/api/public/[model]/[id]/route.ts GET"
+    ]
+  },
+  {
+    "key": "PUT|employee|findByIdAndUpdate",
+    "files": [
+      "src/app/api/employee/guest-lead-location-block/route.ts PUT",
+      "src/app/api/employee/owner-location-block/route.ts PUT",
+      "src/app/api/employee/owner-pricing-rule/route.ts PUT",
+      "src/app/api/employee/owner-property-type-visibility-rule/route.ts PUT",
+      "src/app/api/employee/owner-visibility-rule/route.ts PUT",
+      "src/app/api/employee/pricing-rule/route.ts PUT",
+      "src/app/api/employee/property-visibility-rule/route.ts PUT",
+      "src/app/api/employee/whatsapp-phone-mask/route.ts PUT",
+      "src/app/api/employee-ui-rules/assign/route.ts PUT"
+    ]
+  },
+  {
+    "key": "POST|property|findById",
+    "files": [
+      "src/app/api/editPrices/route.ts POST",
+      "src/app/api/editproperty/deleteImages/route.ts POST",
+      "src/app/api/property/blockDatesInProperty/route.ts POST",
+      "src/app/api/property/editPrices/route.ts POST",
+      "src/app/api/property/editProperty/deleteImages/route.ts POST",
+      "src/app/api/property/getPropertyById/route.ts POST",
+      "src/app/api/room/addSeenToProperty/route.ts POST",
+      "src/app/api/singleproperty/getproperty/route.ts POST"
+    ]
+  },
+  {
+    "key": "PATCH|candidate|findById,findByIdAndUpdate",
+    "files": [
+      "src/app/api/candidates/[id]/approve-reschedule/route.ts PATCH",
+      "src/app/api/candidates/[id]/hr-verification/route.ts PATCH",
+      "src/app/api/candidates/[id]/interview-remarks/route.ts PATCH",
+      "src/app/api/candidates/[id]/route.ts PATCH",
+      "src/app/api/candidates/[id]/schedule-interview/route.ts PATCH",
+      "src/app/api/candidates/[id]/schedule-second-round/route.ts PATCH",
+      "src/app/api/candidates/[id]/verification/route.ts PATCH"
+    ]
+  },
+  {
+    "key": "POST|candidate|findById,findByIdAndUpdate",
+    "files": [
+      "src/app/api/candidates/[id]/exit/route.ts POST",
+      "src/app/api/candidates/[id]/notes/route.ts POST",
+      "src/app/api/candidates/[id]/onboarding/resignature/route.ts POST",
+      "src/app/api/candidates/[id]/request-reschedule/route.ts POST",
+      "src/app/api/candidates/[id]/request-resignature/route.ts POST",
+      "src/app/api/candidates/[id]/request-reupload/route.ts POST",
+      "src/app/api/candidates/[id]/send-offer-letter/route.ts POST"
+    ]
+  },
+  {
+    "key": "POST|employee|findById,findOneAndUpdate",
+    "files": [
+      "src/app/api/leads/claim/route.ts POST",
+      "src/app/api/offers/[id]/blacklist/route.ts POST",
+      "src/app/api/offers/[id]/payment-complete/route.ts POST",
+      "src/app/api/offers/[id]/reject/route.ts POST",
+      "src/app/api/offers/[id]/revert/route.ts POST",
+      "src/app/api/offers/[id]/unblacklist/route.ts POST",
+      "src/app/api/singleproperty/updatedescription/route.ts POST"
+    ]
+  },
+  {
+    "key": "PATCH|employee|findById,findByIdAndUpdate",
+    "files": [
+      "src/app/api/candidates/[id]/approve-reschedule/route.ts PATCH",
+      "src/app/api/candidates/[id]/hr-verification/route.ts PATCH",
+      "src/app/api/candidates/[id]/interview-remarks/route.ts PATCH",
+      "src/app/api/candidates/[id]/schedule-interview/route.ts PATCH",
+      "src/app/api/candidates/[id]/schedule-second-round/route.ts PATCH",
+      "src/app/api/candidates/[id]/verification/route.ts PATCH"
+    ]
+  },
+  {
+    "key": "POST|employee|findById,findByIdAndUpdate",
+    "files": [
+      "src/app/api/candidates/[id]/exit/route.ts POST",
+      "src/app/api/candidates/[id]/request-resignature/route.ts POST",
+      "src/app/api/candidates/[id]/request-reupload/route.ts POST",
+      "src/app/api/employee/appreciations/route.ts POST",
+      "src/app/api/employee/separation/route.ts POST",
+      "src/app/api/employee/warnings/route.ts POST"
+    ]
+  },
+  {
+    "key": "GET|employee|find",
+    "files": [
+      "src/app/api/celebrations/today/route.ts GET",
+      "src/app/api/employee/getLoggedInEmployees/route.ts GET",
+      "src/app/api/employee/getSalesEmployee/route.ts GET",
+      "src/app/api/monthly-target/employees/route.ts GET",
+      "src/app/api/public/[model]/route.ts GET",
+      "src/app/api/resetAllPasswords/route.ts GET"
+    ]
+  },
+  {
+    "key": "POST|offer|findById,findOneAndUpdate",
+    "files": [
+      "src/app/api/leads/claim/route.ts POST",
+      "src/app/api/offers/[id]/blacklist/route.ts POST",
+      "src/app/api/offers/[id]/payment-complete/route.ts POST",
+      "src/app/api/offers/[id]/reject/route.ts POST",
+      "src/app/api/offers/[id]/revert/route.ts POST",
+      "src/app/api/offers/[id]/unblacklist/route.ts POST"
+    ]
+  },
+  {
+    "key": "DELETE|employee|findByIdAndUpdate",
+    "files": [
+      "src/app/api/candidates/[id]/request-resignature/route.ts DELETE",
+      "src/app/api/candidates/[id]/request-reupload/route.ts DELETE",
+      "src/app/api/employee/appreciations/route.ts DELETE",
+      "src/app/api/employee/pip/route.ts DELETE",
+      "src/app/api/employee/warnings/route.ts DELETE"
+    ]
+  },
+  {
+    "key": "POST|room|findById",
+    "files": [
+      "src/app/api/room/addSeenToProperty/route.ts POST",
+      "src/app/api/room/getPropertiesFromRoom/route.ts POST",
+      "src/app/api/room/joinRoom/route.ts POST",
+      "src/app/api/room/scheduleVisit/route.ts POST",
+      "src/app/api/room/updateVisit/route.ts POST"
+    ]
+  },
+  {
+    "key": "GET|conversation.model|findById",
+    "files": [
+      "src/app/api/whatsapp/conversations/[conversationId]/labels/route.ts GET",
+      "src/app/api/whatsapp/conversations/[conversationId]/preferences/route.ts GET",
+      "src/app/api/whatsapp/conversations/[conversationId]/readers/route.ts GET",
+      "src/app/api/whatsapp/conversations/route.ts GET",
+      "src/app/api/whatsapp/templates/route.ts GET"
+    ]
+  },
+  {
+    "key": "GET|monthlytarget|find",
+    "files": [
+      "src/app/api/addons/target/getAlLocations/route.ts GET",
+      "src/app/api/addons/target/getAllTargets/route.ts GET",
+      "src/app/api/addons/target/getAreaFilterTarget/route.ts GET",
+      "src/app/api/monthly-target/current/route.ts GET"
+    ]
+  },
+  {
+    "key": "POST|candidate|findByIdAndUpdate",
+    "files": [
+      "src/app/api/candidates/[id]/action/route.ts POST",
+      "src/app/api/candidates/[id]/offer-letter/route.ts POST",
+      "src/app/api/candidates/[id]/onboarding/route.ts POST",
+      "src/app/api/candidates/[id]/training-agreement/route.ts POST"
+    ]
+  },
+  {
+    "key": "GET|candidate|countDocuments,find",
+    "files": [
+      "src/app/api/candidates/reschedule-requests/route.ts GET",
+      "src/app/api/candidates/route.ts GET",
+      "src/app/api/hrportal/finalCandidate/route.ts GET",
+      "src/app/api/hrportal/getCandidate/route.ts GET"
+    ]
+  },
+  {
+    "key": "POST|query|findById",
+    "files": [
+      "src/app/api/leads/disposition/route.ts POST",
+      "src/app/api/sales/createNote/route.ts POST",
+      "src/app/api/sales/getNote/route.ts POST",
+      "src/app/api/sales/getQuerybyId/route.ts POST"
+    ]
+  },
+  {
+    "key": "POST|query|",
+    "files": [
+      "src/app/api/leads/getDeclinedLeads/route.ts POST",
+      "src/app/api/leads/getGoodToGoLeads/route.ts POST",
+      "src/app/api/leads/getLeads/route.ts POST",
+      "src/app/api/leads/getRejectedLeads/route.ts POST"
+    ]
+  },
+  {
+    "key": "POST|query|findByIdAndUpdate",
+    "files": [
+      "src/app/api/sales/editquery/route.ts POST",
+      "src/app/api/sales/queryStatusUpdate/route.ts POST",
+      "src/app/api/sales/reviewByTeamLead/route.tsx POST",
+      "src/app/api/sales/reviewLeadQuality/route.ts POST"
+    ]
+  },
+  {
+    "key": "POST|query|findOneAndUpdate",
+    "files": [
+      "src/app/api/sales/reminders/addBackToLeads/route.ts POST",
+      "src/app/api/sales/reminders/addReminder/route.ts POST",
+      "src/app/api/sales/updateMessageStatus/route.ts POST",
+      "src/app/api/sales/updateSalesPriority/route.ts POST"
+    ]
+  },
+  {
+    "key": "POST|area|aggregate,countDocuments,find,findById",
+    "files": [
+      "src/app/api/unregisteredOwners/getAvailableList/route.ts POST",
+      "src/app/api/unregisteredOwners/getNotAvailableList/route.ts POST",
+      "src/app/api/unregisteredOwnersShortTerm/getAvailableList/route.ts POST",
+      "src/app/api/unregisteredOwnersShortTerm/getNotAvailableList/route.ts POST"
+    ]
+  },
+  {
+    "key": "POST|employee|aggregate,countDocuments,find,findById",
+    "files": [
+      "src/app/api/unregisteredOwners/getAvailableList/route.ts POST",
+      "src/app/api/unregisteredOwners/getNotAvailableList/route.ts POST",
+      "src/app/api/unregisteredOwnersShortTerm/getAvailableList/route.ts POST",
+      "src/app/api/unregisteredOwnersShortTerm/getNotAvailableList/route.ts POST"
+    ]
+  },
+  {
+    "key": "DELETE|property|",
+    "files": [
+      "src/app/api/unregisteredOwners/updateData/[_id]/route.ts DELETE",
+      "src/app/api/unregisteredOwnersShortTerm/updateData/[_id]/route.ts DELETE",
+      "src/app/api/user/listings/[id]/route.ts DELETE",
+      "src/app/api/user/properties/[id]/route.ts DELETE"
+    ]
+  },
+  {
+    "key": "GET|employee|find,findById",
+    "files": [
+      "src/app/api/alias/getAllAliases/route.ts GET",
+      "src/app/api/sales-offer/templates/route.ts GET",
+      "src/app/api/templates/route.ts GET"
+    ]
+  },
+  {
+    "key": "GET|employee|findById,findOne",
+    "files": [
+      "src/app/api/aliases/route.ts GET",
+      "src/app/api/employee/my-documents/route.ts GET",
+      "src/app/api/offers/[id]/route.ts GET"
+    ]
+  },
+  {
+    "key": "POST|candidate|create,findById,findOne",
+    "files": [
+      "src/app/api/candidates/letterOfIntent/route.ts POST",
+      "src/app/api/candidates/offerLetter/route.ts POST",
+      "src/app/api/candidates/onboardingDocument/route.ts POST"
+    ]
+  },
+  {
+    "key": "POST|role|create,findById,findOne",
+    "files": [
+      "src/app/api/candidates/letterOfIntent/route.ts POST",
+      "src/app/api/candidates/offerLetter/route.ts POST",
+      "src/app/api/candidates/onboardingDocument/route.ts POST"
+    ]
+  },
+  {
+    "key": "GET|employee|countDocuments,find",
+    "files": [
+      "src/app/api/candidates/route.ts GET",
+      "src/app/api/employee/getAllEmployee/route.ts GET",
+      "src/app/api/housingsaga/collaborators/route.ts GET"
+    ]
+  },
+  {
+    "key": "POST|query|findOne",
+    "files": [
+      "src/app/api/checkNumberInOffers/route.ts POST",
+      "src/app/api/leads/globalLeadSearch/route.ts POST",
+      "src/app/api/sales/checkNumber/route.ts POST"
+    ]
+  },
+  {
+    "key": "POST|coupon|findOne",
+    "files": [
+      "src/app/api/coupon/route.ts POST",
+      "src/app/api/coupon/use/route.ts POST",
+      "src/app/api/coupon/validate/route.ts POST"
+    ]
+  },
+  {
+    "key": "GET|employee|",
+    "files": [
+      "src/app/api/debug-db/route.ts GET",
+      "src/app/api/employeelogout/route.ts GET",
+      "src/app/api/whatsapp/webhook/route.ts GET"
+    ]
+  },
+  {
+    "key": "POST|employee|findOne",
+    "files": [
+      "src/app/api/employee/getEmployeeByEmail/route.ts POST",
+      "src/app/api/employee/getEmployeeDetails/route.ts POST",
+      "src/app/api/resend-otp/route.ts POST"
+    ]
+  },
+  {
+    "key": "POST|employee|",
+    "files": [
+      "src/app/api/employee-activity/log-activity/route.ts POST",
+      "src/app/api/employee-ui-rules/route.ts POST",
+      "src/app/api/whatsapp/webhook/route.ts POST"
+    ]
+  },
+  {
+    "key": "GET|property|countDocuments,find",
+    "files": [
+      "src/app/api/getallproperty/route.ts GET",
+      "src/app/api/property/getAllProperty/route.ts GET",
+      "src/app/api/remainingproperty/route.ts GET"
+    ]
+  },
+  {
+    "key": "POST|property|find",
+    "files": [
+      "src/app/api/getpropertybyid/route.ts POST",
+      "src/app/api/property/gerPropertyByCommonId/route.ts POST",
+      "src/app/api/room/getPropertiesOfUser/route.ts POST"
+    ]
+  },
+  {
+    "key": "GET|personalReminder|find",
+    "files": [
+      "src/app/api/personal-reminders/dates/route.ts GET",
+      "src/app/api/personal-reminders/due/route.ts GET",
+      "src/app/api/personal-reminders/route.ts GET"
+    ]
+  },
+  {
+    "key": "POST|query|find",
+    "files": [
+      "src/app/api/sales/checkName/route.ts POST",
+      "src/app/api/sales/getQueryByPhoneNumber/route.ts POST",
+      "src/app/api/visits/getVisits/route.ts POST"
+    ]
+  },
+  {
+    "key": "GET|conversation.model|",
+    "files": [
+      "src/app/api/whatsapp/call/route.ts GET",
+      "src/app/api/whatsapp/phone-health/route.ts GET",
+      "src/app/api/whatsapp/webhook/route.ts GET"
+    ]
+  }
+]

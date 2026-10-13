@@ -1,0 +1,2166 @@
+{
+  "total": 522,
+  "byUrl": [
+    {
+      "url": "/api/employee/pip",
+      "callers": 11,
+      "files": [
+        "src/app/dashboard/employeedetails/[...id]/page.tsx",
+        "src/app/dashboard/people/[candidateId]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/getAllEmployee",
+      "callers": 9,
+      "files": [
+        "src/app/dashboard/addRule/page.tsx",
+        "src/app/dashboard/compareLeads/compareTable.tsx",
+        "src/app/dashboard/employee/employeeList/page.tsx",
+        "src/app/dashboard/sales-offer/leads/page.tsx",
+        "src/app/employeeTable/page.tsx",
+        "src/features/admin/AdminDashboard.tsx",
+        "src/hooks/employee/useEmployees.ts",
+        "src/modules/whatsapp/ui/components/whatsapp-phone-mask-form.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/conversations/:param/meta",
+      "callers": 9,
+      "files": [
+        "src/modules/whatsapp/ui/components/chat-header.tsx",
+        "src/modules/whatsapp/ui/components/conversation-sidebar.tsx",
+        "src/modules/whatsapp/ui/components/crm-panel.tsx",
+        "src/modules/whatsapp/ui/components/set-participant-location-dialog.tsx",
+        "src/modules/whatsapp/ui/containers/conversation-sidebar-container.tsx",
+        "src/modules/whatsapp/ui/containers/message-thread-container.tsx",
+        "src/modules/whatsapp/ui/whatsapp-chat.tsx"
+      ]
+    },
+    {
+      "url": "/api/candidates/:param",
+      "callers": 8,
+      "files": [
+        "src/app/dashboard/candidatePortal/[id]/offer-letter/page.tsx",
+        "src/app/dashboard/candidatePortal/[id]/page.tsx",
+        "src/app/dashboard/candidatePortal/[id]/training-agreement/page.tsx",
+        "src/app/dashboard/candidatePortal/components/new-user.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/editEmployee",
+      "callers": 8,
+      "files": [
+        "src/app/dashboard/editemployeedetails/[...id]/page.tsx",
+        "src/app/dashboard/employeedetails/[...id]/page.tsx",
+        "src/app/dashboard/people/[candidateId]/page.tsx",
+        "src/features/people/components/EmployeeTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/email/generateTemplate",
+      "callers": 8,
+      "files": [
+        "src/app/dashboard/employeedetails/[...id]/page.tsx",
+        "src/app/dashboard/people/[candidateId]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/target/getAreaFilterTarget",
+      "callers": 7,
+      "files": [
+        "src/app/dashboard/add-listing/[[...stepIndex]]/PageAddListing2.tsx",
+        "src/app/dashboard/createquery/page.tsx",
+        "src/app/dashboard/property/edit/[...id]/page.tsx",
+        "src/app/dashboard/reviewLeads/reviewTable.tsx",
+        "src/app/spreadsheet/FilterBar.tsx",
+        "src/app/spreadsheet/spreadsheetTable.tsx",
+        "src/components/leadTable/LeadTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/updateSalesPriority",
+      "callers": 6,
+      "files": [
+        "src/app/dashboard/declinedleads/declined-lead-table.tsx",
+        "src/app/dashboard/goodtogoleads/good-table.tsx",
+        "src/app/dashboard/reviewLeads/reviewTable.tsx",
+        "src/components/leadTable/LeadTable.tsx",
+        "src/components/reminderTable/ReminderTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/getEmployeeDetails",
+      "callers": 6,
+      "files": [
+        "src/app/dashboard/editemployeedetails/[...id]/page.tsx",
+        "src/app/dashboard/employeedetails/[...id]/page.tsx",
+        "src/app/dashboard/people/[candidateId]/page.tsx",
+        "src/app/dashboard/sales-offer/layout.tsx",
+        "src/app/spreadsheet/OwnerSheetPage.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/warnings",
+      "callers": 6,
+      "files": [
+        "src/app/dashboard/employeedetails/[...id]/page.tsx",
+        "src/app/dashboard/people/[candidateId]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/appreciations",
+      "callers": 6,
+      "files": [
+        "src/app/dashboard/employeedetails/[...id]/page.tsx",
+        "src/app/dashboard/people/[candidateId]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/conversations",
+      "callers": 6,
+      "files": [
+        "src/modules/whatsapp/ui/components/add-guest-modal.tsx",
+        "src/modules/whatsapp/ui/hooks/use-conversations-list.ts",
+        "src/modules/whatsapp/ui/whatsapp-chat.tsx"
+      ]
+    },
+    {
+      "url": "/api/office-addresses",
+      "callers": 5,
+      "files": [
+        "src/app/application-form/page.tsx",
+        "src/app/dashboard/candidatePortal/[id]/page.tsx",
+        "src/app/dashboard/office-addresses/page.tsx",
+        "src/features/people/components/OfficeDetailsDialog.tsx"
+      ]
+    },
+    {
+      "url": "/api/candidates/:param/action",
+      "callers": 5,
+      "files": [
+        "src/app/dashboard/candidatePortal/[id]/hooks/useCandidateActions.ts"
+      ]
+    },
+    {
+      "url": "/api/candidates/onboardingDocument",
+      "callers": 5,
+      "files": [
+        "src/app/dashboard/candidatePortal/[id]/onboarding/page.tsx",
+        "src/app/dashboard/candidatePortal/[id]/page.tsx",
+        "src/app/dashboard/candidatePortal/[id]/utils/pdf-generators.ts"
+      ]
+    },
+    {
+      "url": "/api/sales/queryStatusUpdate",
+      "callers": 5,
+      "files": [
+        "src/app/dashboard/declinedleads/declined-lead-table.tsx",
+        "src/app/dashboard/goodtogoleads/good-table.tsx",
+        "src/app/dashboard/reviewLeads/reviewTable.tsx",
+        "src/components/leadTable/LeadTable.tsx",
+        "src/components/reminderTable/ReminderTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/createNote",
+      "callers": 5,
+      "files": [
+        "src/app/dashboard/declinedleads/declined-lead-table.tsx",
+        "src/app/dashboard/goodtogoleads/good-table.tsx",
+        "src/app/dashboard/reviewLeads/reviewTable.tsx",
+        "src/components/leadTable/LeadTable.tsx",
+        "src/modules/whatsapp/ui/components/crm-panel.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/separation",
+      "callers": 5,
+      "files": [
+        "src/app/dashboard/employeedetails/[...id]/page.tsx",
+        "src/app/dashboard/people/[candidateId]/page.tsx",
+        "src/features/people/components/SeparatePersonDialog.tsx"
+      ]
+    },
+    {
+      "url": "/api/employeelogout",
+      "callers": 5,
+      "files": [
+        "src/app/dashboard/layout.tsx",
+        "src/app/norole/page.tsx",
+        "src/components/logoutAlertBox.tsx",
+        "src/components/visits/OverdueVisitInbox.tsx",
+        "src/util/axios.ts"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/upload-to-bunny",
+      "callers": 5,
+      "files": [
+        "src/modules/whatsapp/ui/components/conversation-sidebar.tsx",
+        "src/modules/whatsapp/ui/components/message-composer.tsx",
+        "src/modules/whatsapp/ui/whatsapp-chat.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/send-media",
+      "callers": 5,
+      "files": [
+        "src/modules/whatsapp/ui/containers/message-thread-container.tsx",
+        "src/modules/whatsapp/ui/whatsapp-chat.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/call",
+      "callers": 5,
+      "files": [
+        "src/modules/whatsapp/ui/whatsapp-chat.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/whatsapp-phone-mask",
+      "callers": 4,
+      "files": [
+        "src/app/dashboard/addRule/page.tsx",
+        "src/modules/whatsapp/ui/components/whatsapp-phone-mask-form.tsx"
+      ]
+    },
+    {
+      "url": "/api/candidates/trainingAgreement",
+      "callers": 4,
+      "files": [
+        "src/app/dashboard/candidatePortal/[id]/page.tsx",
+        "src/app/dashboard/candidatePortal/[id]/training-agreement/page.tsx",
+        "src/app/dashboard/candidatePortal/[id]/utils/pdf-generators.ts"
+      ]
+    },
+    {
+      "url": "/api/candidates/hrPolicies",
+      "callers": 4,
+      "files": [
+        "src/app/dashboard/candidatePortal/[id]/page.tsx",
+        "src/app/dashboard/candidatePortal/[id]/training-agreement/page.tsx",
+        "src/app/dashboard/candidatePortal/[id]/utils/pdf-generators.ts"
+      ]
+    },
+    {
+      "url": "/api/candidates/letterOfIntent",
+      "callers": 4,
+      "files": [
+        "src/app/dashboard/candidatePortal/[id]/page.tsx",
+        "src/app/dashboard/candidatePortal/[id]/training-agreement/page.tsx",
+        "src/app/dashboard/candidatePortal/[id]/utils/pdf-generators.ts"
+      ]
+    },
+    {
+      "url": "/api/addons/target/getAlLocations",
+      "callers": 4,
+      "files": [
+        "src/app/dashboard/createquery/page.tsx",
+        "src/app/dashboard/website-leads/TakeLeadDialog.tsx",
+        "src/app/spreadsheet/FilterBar.tsx",
+        "src/app/spreadsheet/spreadsheetTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/leads/disposition",
+      "callers": 4,
+      "files": [
+        "src/app/dashboard/declinedleads/declined-lead-table.tsx",
+        "src/app/dashboard/goodtogoleads/good-table.tsx",
+        "src/app/dashboard/reviewLeads/reviewTable.tsx",
+        "src/components/leadTable/LeadTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/createRoom",
+      "callers": 4,
+      "files": [
+        "src/app/dashboard/declinedleads/declined-lead-table.tsx",
+        "src/app/dashboard/goodtogoleads/good-table.tsx",
+        "src/app/dashboard/reviewLeads/reviewTable.tsx",
+        "src/components/leadTable/LeadTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/reminders/addReminder",
+      "callers": 4,
+      "files": [
+        "src/app/dashboard/declinedleads/declined-lead-table.tsx",
+        "src/app/dashboard/goodtogoleads/good-table.tsx",
+        "src/app/dashboard/reviewLeads/reviewTable.tsx",
+        "src/components/leadTable/LeadTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales-offer/templates",
+      "callers": 4,
+      "files": [
+        "src/app/dashboard/sales-offer/components/action-dialogs.tsx",
+        "src/app/dashboard/sales-offer/templates/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/notifications/read",
+      "callers": 4,
+      "files": [
+        "src/components/Notifications/SystemNotificationCenter.tsx",
+        "src/components/Notifications/SystemNotificationToast.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/conversations/archive",
+      "callers": 4,
+      "files": [
+        "src/hooks/shared/useArchivedConversationIds.ts",
+        "src/modules/whatsapp/ui/context/conversation-list-context.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/roles/getAllRoles",
+      "callers": 3,
+      "files": [
+        "src/app/application-form/page.tsx",
+        "src/app/dashboard/(dashboard)/addons/page.tsx",
+        "src/app/dashboard/candidatePortal/[id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/pricing-rule",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/addRule/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/property-visibility-rule",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/addRule/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/candidates/offerLetter",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/candidatePortal/[id]/offer-letter/page.tsx",
+        "src/app/dashboard/candidatePortal/[id]/utils/pdf-generators.ts"
+      ]
+    },
+    {
+      "url": "/api/addons/target/getLocations",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/candidatePortal/components/new-user.tsx",
+        "src/app/dashboard/editemployeedetails/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/reviewLeadQuality",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/createquery/[...id]/page.tsx",
+        "src/app/dashboard/declinedleads/declined-lead-table.tsx",
+        "src/components/leadTable/LeadTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/checkNumber",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/createquery/page.tsx",
+        "src/app/dashboard/goodtogoleads/createLead.tsx",
+        "src/app/dashboard/guest-window/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/rejectionReason",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/goodtogoleads/good-table.tsx",
+        "src/app/dashboard/reviewLeads/reviewTable.tsx",
+        "src/components/leadTable/LeadTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/updateMessageStatus",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/goodtogoleads/good-table.tsx",
+        "src/app/dashboard/reviewLeads/reviewTable.tsx",
+        "src/components/leadTable/LeadTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/leads/updateData/:param",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/goodtogoleads/good-table.tsx",
+        "src/app/dashboard/reviewLeads/reviewTable.tsx",
+        "src/components/leadTable/LeadTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/invoice",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/invoice/components/invoice-builder.tsx",
+        "src/app/dashboard/invoice/components/invoice-pdf-button.tsx"
+      ]
+    },
+    {
+      "url": "/api/personal-reminders",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/my-reminders/page.tsx",
+        "src/components/reminders/PersonalReminderCalendar.tsx"
+      ]
+    },
+    {
+      "url": "/api/singleproperty/getproperty",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/property/edit/[...id]/page.tsx",
+        "src/app/dashboard/property/edit/availability/[...id]/page.tsx",
+        "src/app/dashboard/remainingproperties/description/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/visibiltychange",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/property/page.tsx",
+        "src/components/short-term-owner/MakeLiveButton.tsx"
+      ]
+    },
+    {
+      "url": "/api/alias/getAllAliases",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/sales-offer/components/action-dialogs.tsx",
+        "src/hooks/alias/useFetchAliases.ts"
+      ]
+    },
+    {
+      "url": "/api/addons/target/updateTarget/:param",
+      "callers": 3,
+      "files": [
+        "src/app/dashboard/target/area-model.tsx",
+        "src/app/dashboard/target/components/BulkFullAreasUploadDialog.tsx",
+        "src/app/dashboard/target/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/monthlyTargets/getLocations",
+      "callers": 3,
+      "files": [
+        "src/app/whatsapp/retarget/page.tsx",
+        "src/components/leadTable/LeadTable.tsx",
+        "src/modules/whatsapp/ui/hooks/use-monthly-target-locations.ts"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/conversations/read",
+      "callers": 3,
+      "files": [
+        "src/components/Notifications/SystemNotificationToast.tsx",
+        "src/modules/whatsapp/ui/context/active-thread-context.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/conversations/:param/labels",
+      "callers": 3,
+      "files": [
+        "src/modules/whatsapp/ui/components/crm-panel.tsx",
+        "src/modules/whatsapp/ui/components/set-visit-dialog.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/agents/getAllAgents",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/(dashboard)/addons/page.tsx",
+        "src/app/dashboard/goodtogoleads/visit-modal.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/brokers/getAllBrokers",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/(dashboard)/addons/page.tsx",
+        "src/app/dashboard/goodtogoleads/lead-page.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/target/getAllTargets",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/(dashboard)/addons/page.tsx",
+        "src/app/dashboard/target/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/target/getTargetById/:param",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/(dashboard)/addons/page.tsx",
+        "src/app/dashboard/target/area-model.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/guest-lead-location-block",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/addRule/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/owner-pricing-rule",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/addRule/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/owner-visibility-rule",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/addRule/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/owner-location-block",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/addRule/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/blog/readblog",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/allblogs/[...id]/page.tsx",
+        "src/app/dashboard/allblogs/editblog/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/user/getloggedinuser",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/candidatePortal/[id]/page.tsx",
+        "src/app/dashboard/layout.tsx"
+      ]
+    },
+    {
+      "url": "/api/catalogue/getAllCatalogues",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/catalogue/page.tsx",
+        "src/app/dashboard/room/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/createquery",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/createquery/page.tsx",
+        "src/app/dashboard/goodtogoleads/createLead.tsx"
+      ]
+    },
+    {
+      "url": "/api/getAreaFromToken",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/createquery/page.tsx",
+        "src/app/dashboard/reminders/lead-page.tsx"
+      ]
+    },
+    {
+      "url": "/api/user/getuserDetails",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/edituserdetails/[...id]/page.tsx",
+        "src/app/dashboard/userdetails/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/generateNewpassword",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/employeedetails/[...id]/page.tsx",
+        "src/features/people/components/EmployeeTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/visits/addVisit",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/goodtogoleads/visit-modal.tsx",
+        "src/modules/whatsapp/ui/components/set-visit-dialog.tsx"
+      ]
+    },
+    {
+      "url": "/api/visits/getPropertiesForVisit",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/goodtogoleads/visit-modal.tsx",
+        "src/app/dashboard/propertyBoost/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/invoice/:param",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/invoice/list/invoiceTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/personal-reminders/:param",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/my-reminders/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/ical",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/newproperty/editPortionAvailability/[id]/page.tsx",
+        "src/app/dashboard/property/edit/availability/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/holidaysera/properties/approve",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/newproperty/page.tsx",
+        "src/app/holidaysera/properties/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/holidaysera/properties/approve-all",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/newproperty/page.tsx",
+        "src/app/holidaysera/properties/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/notifications/:param",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/notifications/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/office-addresses/:param",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/office-addresses/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/propertyBoost",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/propertyBoost/list/page.tsx",
+        "src/app/dashboard/propertyBoost/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/getSalesEmployee",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/propertyBoost/list/page.tsx",
+        "src/app/dashboard/visits/booking-modal.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/joinRoom",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/room/[...id]/page.tsx",
+        "src/app/dashboard/room/joinroom/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/offers/:param/revert",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/sales-offer/blacklisted-leads/page.tsx",
+        "src/app/dashboard/sales-offer/rejected-leads/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/offers/send",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/sales-offer/components/action-dialogs.tsx",
+        "src/app/dashboard/sales-offer/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/alias/getAllAliases:param",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/sales-offer/email-preview.tsx",
+        "src/app/dashboard/sales-offer/send-offer.tsx"
+      ]
+    },
+    {
+      "url": "/api/visits/:param/reschedule",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/visits/reschedule-visit-modal.tsx",
+        "src/components/visits/OverdueVisitInbox.tsx"
+      ]
+    },
+    {
+      "url": "/api/website-leads/take",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/website-leads/TakeLeadDialog.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/channels",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/whatsapp/channels/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/channels/:param",
+      "callers": 2,
+      "files": [
+        "src/app/dashboard/whatsapp/channels/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/housingsaga/collaborators",
+      "callers": 2,
+      "files": [
+        "src/app/housingsaga/collaborators/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/templates",
+      "callers": 2,
+      "files": [
+        "src/app/whatsapp/retarget/page.tsx",
+        "src/modules/whatsapp/ui/context/active-thread-context.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/send-template",
+      "callers": 2,
+      "files": [
+        "src/app/whatsapp/retarget/page.tsx",
+        "src/modules/whatsapp/ui/whatsapp-chat.tsx"
+      ]
+    },
+    {
+      "url": "/api/notifications",
+      "callers": 2,
+      "files": [
+        "src/components/Notifications/SystemNotificationCenter.tsx",
+        "src/lib/notifications/replay.ts"
+      ]
+    },
+    {
+      "url": "/api/employee/forceLogout",
+      "callers": 2,
+      "files": [
+        "src/components/VS/dashboard/logged-in-employees.tsx",
+        "src/features/people/components/EmployeeTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/office-details",
+      "callers": 2,
+      "files": [
+        "src/features/people/components/OfficeDetailsDialog.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/resolve-phone-for-location",
+      "callers": 2,
+      "files": [
+        "src/modules/whatsapp/ui/components/add-guest-modal.tsx",
+        "src/modules/whatsapp/ui/whatsapp-chat.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/send-reaction",
+      "callers": 2,
+      "files": [
+        "src/modules/whatsapp/ui/containers/message-thread-container.tsx",
+        "src/modules/whatsapp/ui/whatsapp-chat.tsx"
+      ]
+    },
+    {
+      "url": "/api/job-application/setInterview",
+      "callers": 1,
+      "files": [
+        "src/app/application-form/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/agents/deleteAgentById",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/(dashboard)/addons/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/brokers/deleteBrokerById",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/(dashboard)/addons/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/roles/deleteRoleById",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/(dashboard)/addons/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/target/deleteTargetById",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/(dashboard)/addons/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/unregisteredOwnersShortTerm/:param/listing-prefill",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/add-listing/[[...stepIndex]]/PageAddListing1.tsx"
+      ]
+    },
+    {
+      "url": "/api/user/getuserbyid",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/add-listing/[[...stepIndex]]/PageAddListing10.tsx"
+      ]
+    },
+    {
+      "url": "/api/createnewproperty/newProperties",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/add-listing/[[...stepIndex]]/PageAddListing10.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee-ui-rules",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/addRule/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee-ui-rules/assign",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/addRule/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/agents/getAgentById",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/agents/[agentId]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/agents/addAgent",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/agents/agent-modal.tsx"
+      ]
+    },
+    {
+      "url": "/api/blog/deleteblog",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/allblogs/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/blog/updateblog",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/allblogs/editblog/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/blog/getblog",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/allblogs/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/areaStats",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/areadetails/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/areaPriceInfo",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/areapriceinfo/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/hrportal/finalCandidate",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/attendedCandidate/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/bookings/getBookingById",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/bookings/[id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/bookings/getBookings",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/bookings/booking-page.tsx"
+      ]
+    },
+    {
+      "url": "/api/bookings/manual-payment",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/bookings/manual-payment-component.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/brokers/addBroker",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/brokers/broker-modal.tsx"
+      ]
+    },
+    {
+      "url": "/api/candidates/:param/offer-letter",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/candidatePortal/[id]/offer-letter/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/candidates/:param/onboarding/resignature",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/candidatePortal/[id]/onboarding/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/candidates/:param/onboarding",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/candidatePortal/[id]/onboarding/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/candidates/:param/send-offer-letter",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/candidatePortal/[id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/candidates/:param/training-agreement",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/candidatePortal/[id]/training-agreement/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/user/createnewEmployee",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/candidatePortal/components/new-user.tsx"
+      ]
+    },
+    {
+      "url": "/api/candidates",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/candidatePortal/components/new-user.tsx"
+      ]
+    },
+    {
+      "url": "/api/catalogue/addCatalogue",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/catalogue/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/catalogue/updateBookedMonths",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/catalogue/property-badge.tsx"
+      ]
+    },
+    {
+      "url": "/api/leads/getClosedLeads",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/closedleads/lead-page.tsx"
+      ]
+    },
+    {
+      "url": "/api/travellerquestions/createQuestions",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/createQuestion/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/blog/createnewblog",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/createblog/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/user/createnewuser",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/createnewuser/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/getQuerybyId",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/createquery/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/getQueryByPhoneNumber",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/createquery/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/retrieveLead",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/createquery/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/editquery",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/createquery/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/getEmployeeByEmail",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/createquery/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/user/editUserDetails",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/edituserdetails/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/finance/booking-guests",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/finance/_components/generate-invoice-modal.tsx"
+      ]
+    },
+    {
+      "url": "/api/finance/generate-invoice",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/finance/_components/generate-invoice-modal.tsx"
+      ]
+    },
+    {
+      "url": "/api/finance/map-suggestions",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/finance/_components/map-payment-modal.tsx"
+      ]
+    },
+    {
+      "url": "/api/finance/map-payment",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/finance/_components/map-payment-modal.tsx"
+      ]
+    },
+    {
+      "url": "/api/finance/overview",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/finance/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/finance/send-invoice",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/finance/transactions/[id]/transaction-details-client.tsx"
+      ]
+    },
+    {
+      "url": "/api/finance/transaction/:param",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/finance/transactions/[id]/transaction-details-client.tsx"
+      ]
+    },
+    {
+      "url": "/api/finance/transactions",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/finance/transactions/transactions-client.tsx"
+      ]
+    },
+    {
+      "url": "/api/finance/webhook-logs",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/finance/webhook-logs/webhook-logs-client.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/updatePropertyShown",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/goodtogoleads/good-table.tsx"
+      ]
+    },
+    {
+      "url": "/api/property/getPropertyByVSID",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/goodtogoleads/visit-modal.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/checkName",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/guest-window/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/invoice/getInvoices",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/invoice/list/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/hrportal/changeState",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/leftoverCandidate/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/hrportal/getCandidate",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/leftoverCandidate/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/leads/getRejectedLeads",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/lowBudget/LeadPage.tsx"
+      ]
+    },
+    {
+      "url": "/api/travellerquestions/getSingleQuestion",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/manageQuestion/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/travellerquestions/updateQuestion",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/manageQuestion/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/travellerquestions/getQuestion",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/manageQuestion/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/travellerquestions/deleteQuestion",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/manageQuestion/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/property/gerPropertyByCommonId",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/newproperty/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/property/editProperty",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/newproperty/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/property/editProperty/deleteImages",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/newproperty/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/property/getPropertyById",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/newproperty/editPortionAvailability/[id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/property/editPrices",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/newproperty/editPortionAvailability/[id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/property/blockDatesInProperty",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/newproperty/editPortionAvailability/[id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/property/filteredProperties",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/newproperty/filteredProperties/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/property/ownerFromProperty",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/newproperty/filteredProperties/property-list.tsx"
+      ]
+    },
+    {
+      "url": "/api/notifications/all",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/notifications/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/owner/checkNumberInOwners",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/owners/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/owner/addOwner",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/owners/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/editproperty/deleteImages",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/property/edit/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/editproperty/editpropertydata",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/property/edit/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/editPrices",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/property/edit/availability/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/saveboosterUrl",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/propertyBoost/list/[id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/propertyBoost/:param",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/propertyBoost/list/[id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/propertyBoost/:param/reboost",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/propertyBoost/list/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/unregisteredOwners/updateData/:param",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/recommendations/[id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/singleproperty/updatedescription",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/remainingproperties/description/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/leads/getReminderLeads",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/reminders/lead-page.tsx"
+      ]
+    },
+    {
+      "url": "/api/leads/getLeads",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/reviewLeads/lead-page.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/reviewByTeamLead",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/reviewLeads/reviewTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/roles/addRole",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/roles/role-modal.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/roles/updateRole/:param",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/roles/role-modal.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/addPropertyInRoom",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/room/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/removePropertyFromRoom",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/room/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/retractPropertyFromRejected",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/room/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/addPropertyToFavourite",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/room/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/scheduleVisit",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/room/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/updateVisit",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/room/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/addSeenToProperty",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/room/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/getPropertiesFromRoom",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/room/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/getAllRooms",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/room/roomlist/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/deleteRoom/",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/room/roomlist/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/offers/:param/callback",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/components/action-dialogs.tsx"
+      ]
+    },
+    {
+      "url": "/api/offers/:param/reject",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/components/action-dialogs.tsx"
+      ]
+    },
+    {
+      "url": "/api/offers/:param/blacklist",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/components/action-dialogs.tsx"
+      ]
+    },
+    {
+      "url": "/api/offers/:param/reminder",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/components/action-dialogs.tsx"
+      ]
+    },
+    {
+      "url": "/api/offers/:param/rebuttal",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/components/action-dialogs.tsx"
+      ]
+    },
+    {
+      "url": "/api/aliases",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/email-preview.tsx"
+      ]
+    },
+    {
+      "url": "/api/templates",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/email-preview.tsx"
+      ]
+    },
+    {
+      "url": "/api/leads/import",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/leads/import/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/leads/claim",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/leads/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/leads/assign",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/leads/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/leads/list",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/leads/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales-offer/checkNumberInOffers",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales-offer/addSalesOffer",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/offers/:param",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/offers/:param/payment-complete",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/pending-leads/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/companies/offer-plans",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/sales-offer/plan-details.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/target/updateArea/:param",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/target/components/editArea.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/target/deleteArea",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/target/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/target/deleteCity/:param",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/target/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/target/toggle-city-status/:param",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/target/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/target/toggle-area-status/:param",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/target/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/target/updateTarget/${targetData",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/target/target-edit-model.tsx"
+      ]
+    },
+    {
+      "url": "/api/addons/target/addTarget",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/target/target_model.tsx"
+      ]
+    },
+    {
+      "url": "/api/getpropertybyid",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/userdetails/[...id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/visits/getVisitById",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/visits/[id]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/bookings/addBooking",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/visits/booking-modal.tsx"
+      ]
+    },
+    {
+      "url": "/api/visits/getVisits",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/visits/visit-page.tsx"
+      ]
+    },
+    {
+      "url": "/api/website-leads",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/website-leads/website-leads-page.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/channels/:param/migrate",
+      "callers": 1,
+      "files": [
+        "src/app/dashboard/whatsapp/channels/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/holidaysera/guests-list",
+      "callers": 1,
+      "files": [
+        "src/app/holidaysera/guests/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/holidaysera/properties/make-live-all",
+      "callers": 1,
+      "files": [
+        "src/app/holidaysera/properties/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/housingsaga/collaborators/:param/reset-password",
+      "callers": 1,
+      "files": [
+        "src/app/housingsaga/collaborators/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/check-session",
+      "callers": 1,
+      "files": [
+        "src/app/login/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/employeelogin",
+      "callers": 1,
+      "files": [
+        "src/app/login/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/verify-otp",
+      "callers": 1,
+      "files": [
+        "src/app/login/verify-otp/[...email]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/resend-otp",
+      "callers": 1,
+      "files": [
+        "src/app/login/verify-otp/[...email]/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/user/getallusers",
+      "callers": 1,
+      "files": [
+        "src/app/userTable/ManageUserContent.tsx"
+      ]
+    },
+    {
+      "url": "/api/user/resetPassword",
+      "callers": 1,
+      "files": [
+        "src/app/userTable/columns.tsx"
+      ]
+    },
+    {
+      "url": "/api/user/deleteUser/:param",
+      "callers": 1,
+      "files": [
+        "src/app/userTable/columns.tsx"
+      ]
+    },
+    {
+      "url": "/api/user/properties/:param",
+      "callers": 1,
+      "files": [
+        "src/app/userTable/columns.tsx"
+      ]
+    },
+    {
+      "url": "/api/user/listings/:param",
+      "callers": 1,
+      "files": [
+        "src/app/userTable/columns.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/calls/history",
+      "callers": 1,
+      "files": [
+        "src/app/whatsapp/calls/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/retarget/upload",
+      "callers": 1,
+      "files": [
+        "src/app/whatsapp/retarget/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/retarget",
+      "callers": 1,
+      "files": [
+        "src/app/whatsapp/retarget/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/retarget/uploaded-contacts",
+      "callers": 1,
+      "files": [
+        "src/app/whatsapp/retarget/page.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/getPropertiesOfUser",
+      "callers": 1,
+      "files": [
+        "src/components/CustomDialog.tsx"
+      ]
+    },
+    {
+      "url": "/api/room/createQuickListing",
+      "callers": 1,
+      "files": [
+        "src/components/CustomDialog.tsx"
+      ]
+    },
+    {
+      "url": "/api/notifications/broadcast",
+      "callers": 1,
+      "files": [
+        "src/components/Notifications/BroadcastNotificationForm.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/reminders/getThreeDaysReminders",
+      "callers": 1,
+      "files": [
+        "src/components/Notifications/Notifications.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/notifications/clear",
+      "callers": 1,
+      "files": [
+        "src/components/Notifications/SystemNotificationToast.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/session/heartbeat",
+      "callers": 1,
+      "files": [
+        "src/components/SessionHeartbeat.tsx"
+      ]
+    },
+    {
+      "url": "/api/leads/globalLeadSearch",
+      "callers": 1,
+      "files": [
+        "src/components/UniversalLeadSearch/LeadSearch.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/getActiveSessionsCounts",
+      "callers": 1,
+      "files": [
+        "src/components/VS/dashboard/logged-in-employees.tsx"
+      ]
+    },
+    {
+      "url": "/api/holidaysera/guests-stats",
+      "callers": 1,
+      "files": [
+        "src/components/charts/HolidayGuestsChart.tsx"
+      ]
+    },
+    {
+      "url": "/api/holidaysera/properties-stats",
+      "callers": 1,
+      "files": [
+        "src/components/charts/HolidayPropertiesChart.tsx"
+      ]
+    },
+    {
+      "url": "/api/crm-agent/status",
+      "callers": 1,
+      "files": [
+        "src/components/crm-agent/CrmAgentChatDrawer.tsx"
+      ]
+    },
+    {
+      "url": "/api/crm-agent/chat",
+      "callers": 1,
+      "files": [
+        "src/components/crm-agent/CrmAgentChatDrawer.tsx"
+      ]
+    },
+    {
+      "url": "/api/crm-agent/confirm-write",
+      "callers": 1,
+      "files": [
+        "src/components/crm-agent/CrmAgentChatDrawer.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/admin/migrate-conversation-types",
+      "callers": 1,
+      "files": [
+        "src/components/dashboard/WhatsAppConversationTypeMigrationButton.tsx"
+      ]
+    },
+    {
+      "url": "/api/housingsaga/queries",
+      "callers": 1,
+      "files": [
+        "src/components/housingsaga/CreateHousingSagaLeadForm.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee-activity/get-logs",
+      "callers": 1,
+      "files": [
+        "src/components/mini/RecentEmployeeSessions.tsx"
+      ]
+    },
+    {
+      "url": "/api/monthly-target/employee",
+      "callers": 1,
+      "files": [
+        "src/components/monthly-target/EmployeeTargetSection.tsx"
+      ]
+    },
+    {
+      "url": "/api/monthly-target",
+      "callers": 1,
+      "files": [
+        "src/components/monthly-target/MonthlyTargetSetupPanel.tsx"
+      ]
+    },
+    {
+      "url": "/api/advert/pending-owners",
+      "callers": 1,
+      "files": [
+        "src/components/owner-management/ListingQueuePanel.tsx"
+      ]
+    },
+    {
+      "url": "/api/short-term-owner/:param/journey",
+      "callers": 1,
+      "files": [
+        "src/components/owner-management/ListingQueuePanel.tsx"
+      ]
+    },
+    {
+      "url": "/api/employee/pip/acknowledge",
+      "callers": 1,
+      "files": [
+        "src/components/pip/PipAcknowledgmentGate.tsx"
+      ]
+    },
+    {
+      "url": "/api/payment-link",
+      "callers": 1,
+      "files": [
+        "src/components/razorpayButton.tsx"
+      ]
+    },
+    {
+      "url": "/api/sales/reminders/addBackToLeads",
+      "callers": 1,
+      "files": [
+        "src/components/reminderTable/ReminderTable.tsx"
+      ]
+    },
+    {
+      "url": "/api/personal-reminders/:param/dismiss",
+      "callers": 1,
+      "files": [
+        "src/components/reminders/PersonalReminderBanner.tsx"
+      ]
+    },
+    {
+      "url": "/api/resetAllPasswords",
+      "callers": 1,
+      "files": [
+        "src/features/admin/AdminDashboard.tsx"
+      ]
+    },
+    {
+      "url": "/api/candidates/positions",
+      "callers": 1,
+      "files": [
+        "src/features/people/components/PeopleListShell.tsx"
+      ]
+    },
+    {
+      "url": "/api/candidates/reschedule-requests",
+      "callers": 1,
+      "files": [
+        "src/features/people/components/PeopleListShell.tsx"
+      ]
+    },
+    {
+      "url": "/api/candidates/:param/exit",
+      "callers": 1,
+      "files": [
+        "src/features/people/components/SeparatePersonDialog.tsx"
+      ]
+    },
+    {
+      "url": "/api/alias/createAlias",
+      "callers": 1,
+      "files": [
+        "src/hooks/alias/useAddAliases.ts"
+      ]
+    },
+    {
+      "url": "/api/alias/deleteAlias",
+      "callers": 1,
+      "files": [
+        "src/hooks/alias/useDeleteAliases.ts"
+      ]
+    },
+    {
+      "url": "/api/alias/editAlias",
+      "callers": 1,
+      "files": [
+        "src/hooks/alias/useEditAliases.ts"
+      ]
+    },
+    {
+      "url": "/api/employee/getActiveEmployees",
+      "callers": 1,
+      "files": [
+        "src/hooks/employee/useActiveEmployee.ts"
+      ]
+    },
+    {
+      "url": "/api/offers",
+      "callers": 1,
+      "files": [
+        "src/hooks/offers/useFetchOffers.ts"
+      ]
+    },
+    {
+      "url": "/api/celebrations/today",
+      "callers": 1,
+      "files": [
+        "src/hooks/shared/useCelebrations.ts"
+      ]
+    },
+    {
+      "url": "/api/visits/stats/created-by",
+      "callers": 1,
+      "files": [
+        "src/hooks/shared/useVisitsCreatedByStats.ts"
+      ]
+    },
+    {
+      "url": "/api/visits/:param/complete",
+      "callers": 1,
+      "files": [
+        "src/hooks/useVisitCloseActions.ts"
+      ]
+    },
+    {
+      "url": "/api/visits/:param/cancel",
+      "callers": 1,
+      "files": [
+        "src/hooks/useVisitCloseActions.ts"
+      ]
+    },
+    {
+      "url": "/api/visits/:param/no-show",
+      "callers": 1,
+      "files": [
+        "src/hooks/useVisitCloseActions.ts"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/configured-locations",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/components/add-guest-modal.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/conversations/forward-to-sales",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/components/chat-header.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/leads/lookup",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/components/crm-panel.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/disposition",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/components/disposition-dialog.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/conversations/media",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/components/media-popup.tsx"
+      ]
+    },
+    {
+      "url": "/api/translate",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/components/message-composer.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/conversations/:param/preferences",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/components/message-composer.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/reminders",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/components/reminder-dialog.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/properties/search",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/components/set-visit-dialog.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/phone-configs",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/context/active-thread-context.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/initiation-limit",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/hooks/use-initiation-limit.ts"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/conversations/:param/messages",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/hooks/use-messages.ts"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/send-message",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/whatsapp-chat.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/forward-message",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/whatsapp-chat.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/conversations/transfer",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/whatsapp-chat.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/ice-servers",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/whatsapp-chat.tsx"
+      ]
+    },
+    {
+      "url": "/api/whatsapp/notifications/summary",
+      "callers": 1,
+      "files": [
+        "src/modules/whatsapp/ui/whatsapp-notifications.tsx"
+      ]
+    }
+  ]
+}

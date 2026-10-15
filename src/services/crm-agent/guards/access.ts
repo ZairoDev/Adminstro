@@ -75,10 +75,12 @@ const WHATSAPP_LOOKUP_ROLES = new Set([
   "Developer",
 ]);
 
-const FINANCE_LOOKUP_ROLES = new Set([
-  "SuperAdmin",
-  "Admin",
-  "Developer",
+const FINANCE_LOOKUP_ROLES = new Set(["SuperAdmin"]);
+
+const FINANCE_TOOLS = new Set<ToolName>([
+  "getFinanceTransaction",
+  "getFinanceOverview",
+  "getWebhookLogHint",
 ]);
 
 const WRITE_PROPOSE_ROLES = new Set([
@@ -176,6 +178,7 @@ export function canUseTool(tool: ToolName, role: string): boolean {
   const allowed = TOOL_ROLE_MAP[tool];
   if (!allowed) return false;
   if (allowed.has("*")) return true;
+  if (FINANCE_TOOLS.has(tool)) return allowed.has(role);
   if (role === "SuperAdmin" || role === "Developer") return true;
   return allowed.has(role);
 }

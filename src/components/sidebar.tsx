@@ -212,21 +212,6 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <MessageSquare size={18} />,
       openInNewTab: true,
     },
-    {
-      path: "/dashboard/finance",
-      label: "Finance Overview",
-      Icon: <Wallet size={18} />,
-    },
-    {
-      path: "/dashboard/finance/transactions",
-      label: "Transactions",
-      Icon: <Receipt size={18} />,
-    },
-    {
-      path: "/dashboard/finance/webhook-logs",
-      label: "Webhook Logs",
-      Icon: <ScrollText size={18} />,
-    },
   ],
   "LeadGen-TeamLead": [
     {
@@ -827,21 +812,6 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/bookings",
       label: "Bookings",
       Icon: <Hotel size={18} />,
-    },
-    {
-      path: "/dashboard/finance",
-      label: "Finance Overview",
-      Icon: <Wallet size={18} />,
-    },
-    {
-      path: "/dashboard/finance/transactions",
-      label: "Transactions",
-      Icon: <Receipt size={18} />,
-    },
-    {
-      path: "/dashboard/finance/webhook-logs",
-      label: "Webhook Logs",
-      Icon: <ScrollText size={18} />,
     },
     {
       path: "/whatsapp",

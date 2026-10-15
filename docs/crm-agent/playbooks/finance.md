@@ -25,7 +25,7 @@
 
 - Live aggregates: today / week / month collection, pending mapping, mapped, failed, refunded, revenue, total payments.
 - Never invent amounts — only tool results.
-- SuperAdmin, Admin, Developer only in Copilot.
+- SuperAdmin only in Copilot.
 
 **Live Ask tools**
 

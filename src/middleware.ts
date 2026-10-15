@@ -97,8 +97,6 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/propertyBoost/list",
     /^\/dashboard\/propertyBoost\/list\/.*$/,
     "/whatsapp",
-    "/dashboard/finance",
-    /^\/dashboard\/finance(\/.*)?$/,
   ],
   "LeadGen-TeamLead": [
     "/",
@@ -175,8 +173,6 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     /^\/dashboard\/sales-offer\/.*$/,
     "/dashboard/geo-search",
     /^\/dashboard\/geo-search\/.*$/,
-    "/dashboard/finance",
-    /^\/dashboard\/finance(\/.*)?$/,
   ],
   "Sales-TeamLead": [
     "/",
@@ -487,6 +483,14 @@ export async function middleware(request: NextRequest) {
           return NextResponse.redirect(new URL("/norole", request.url));
         }
         return NextResponse.next();
+      }
+
+      const isFinancePath =
+        path === "/dashboard/finance" || path.startsWith("/dashboard/finance/");
+      if (isFinancePath && role !== "SuperAdmin") {
+        return NextResponse.redirect(
+          new URL(defaultRoutes[role] || "/dashboard", request.url),
+        );
       }
 
       const email = String(

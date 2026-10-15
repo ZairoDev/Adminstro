@@ -1,11 +1,7 @@
 import { NextRequest } from "next/server";
 import { getDataFromToken } from "@/util/getDataFromToken";
 
-export const FINANCE_WRITE_ROLES = [
-  "SuperAdmin",
-  "Sales",
-  "LeadGen",
-] as const;
+export const FINANCE_WRITE_ROLES = ["SuperAdmin"] as const;
 
 export type FinanceAuthPayload = {
   id?: string;

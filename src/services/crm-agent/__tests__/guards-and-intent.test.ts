@@ -48,9 +48,13 @@ describe("crm-agent guards", () => {
     expect(canUseTool("findCandidate", "SuperAdmin")).toBe(true);
   });
 
-  it("denies Sales from finance tools", () => {
+  it("limits finance tools to SuperAdmin", () => {
     expect(canUseTool("getFinanceTransaction", "Sales")).toBe(false);
-    expect(canUseTool("getFinanceTransaction", "Admin")).toBe(true);
+    expect(canUseTool("getFinanceTransaction", "LeadGen")).toBe(false);
+    expect(canUseTool("getFinanceTransaction", "Admin")).toBe(false);
+    expect(canUseTool("getFinanceTransaction", "Developer")).toBe(false);
+    expect(canUseTool("getFinanceOverview", "SuperAdmin")).toBe(true);
+    expect(canUseTool("getWebhookLogHint", "SuperAdmin")).toBe(true);
   });
 
   it("allows report tools for Sales-TeamLead", () => {

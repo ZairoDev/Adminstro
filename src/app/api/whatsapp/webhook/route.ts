@@ -7,6 +7,7 @@ import { sendExpoPushToEmployee } from "@/services/push/expoPush.service";
 import { getWhatsAppToken, WHATSAPP_API_BASE_URL, WHATSAPP_ACCESS_ROLES } from "@/lib/whatsapp/config";
 import {
   getActiveChannelByPhoneNumberId,
+  getChannelByPhoneNumberId,
   getOutboundTokenForPhoneId,
 } from "@/lib/whatsapp/channelService";
 import ConversationReadState from "@/models/conversationReadState";
@@ -809,14 +810,27 @@ async function processIncomingMessage(
       return;
     }
 
-    const channel = await getActiveChannelByPhoneNumberId(String(phoneNumberId));
+    // CRITICAL: inbound must NOT require active:true. Outbound sends fall back to
+    // an inactive channel row (getOutboundTokenForPhoneId), so an admin toggling a
+    // line inactive would let us keep sending while silently DROPPING every reply
+    // from that line → clients "ghost after read". Resolve inactive rows too; only
+    // drop when the phoneNumberId maps to no channel row at all (truly unknown line).
+    const channel =
+      (await getActiveChannelByPhoneNumberId(String(phoneNumberId))) ??
+      (await getChannelByPhoneNumberId(String(phoneNumberId)));
     if (!channel) {
       console.error(
         "[webhook] unresolved phoneNumberId — no channel found:",
         phoneNumberId,
       );
-      traceDropped(trace, `no_active_channel_for_phone_number_id:${phoneNumberId}`);
+      traceDropped(trace, `no_channel_row_for_phone_number_id:${phoneNumberId}`);
       return;
+    }
+    if (!channel.active) {
+      console.warn(
+        "[webhook] inbound on INACTIVE channel — processing anyway:",
+        phoneNumberId,
+      );
     }
 
     // Inbound webhooks never filter on legacy WHATSAPP_PHONE_CONFIGS — any Meta line is accepted.
@@ -2056,7 +2070,9 @@ async function processCallEvent(value: any) {
             continue;
           }
 
-          const callChannel = await getActiveChannelByPhoneNumberId(String(phoneNumberId));
+          const callChannel =
+            (await getActiveChannelByPhoneNumberId(String(phoneNumberId))) ??
+            (await getChannelByPhoneNumberId(String(phoneNumberId)));
           if (!callChannel) {
             console.error(
               "[webhook] unresolved phoneNumberId — no channel found:",
@@ -2312,7 +2328,9 @@ async function processMessageEchoEvent(value: any) {
       }
       const timestamp = message.timestamp ? new Date(parseInt(message.timestamp) * 1000) : new Date();
 
-      const echoChannel = await getActiveChannelByPhoneNumberId(String(phoneNumberId));
+      const echoChannel =
+        (await getActiveChannelByPhoneNumberId(String(phoneNumberId))) ??
+        (await getChannelByPhoneNumberId(String(phoneNumberId)));
       if (!echoChannel) {
         console.error(
           "[webhook] unresolved phoneNumberId — no channel found:",

@@ -14,6 +14,8 @@ export interface IFinancePayment extends Document {
   customerPhoneNormalized?: string;
   amount: number;
   currency: string;
+  /** Rupees per 1 unit of `currency`. INR defaults to 1 when unset. */
+  exchangeRate?: number;
   status: FinancePaymentStatus;
   method?: string;
   bank?: string;
@@ -91,6 +93,7 @@ const financePaymentSchema = new Schema<IFinancePayment>(
     customerPhoneNormalized: { type: String },
     amount: { type: Number, required: true, default: 0 },
     currency: { type: String, default: "INR" },
+    exchangeRate: { type: Number },
     status: {
       type: String,
       enum: [

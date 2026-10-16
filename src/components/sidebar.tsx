@@ -467,6 +467,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <Receipt size={18} />,
     },
     {
+      path: "/dashboard/finance/sales-sheet",
+      label: "Sales Sheet",
+      Icon: <FileSpreadsheet size={18} />,
+    },
+    {
       path: "/dashboard/finance/webhook-logs",
       label: "Webhook Logs",
       Icon: <ScrollText size={18} />,
@@ -1286,6 +1291,11 @@ const financeManagementRoutes = [
     path: "/dashboard/finance/transactions",
     label: "Transactions",
     Icon: <Receipt size={18} />,
+  },
+  {
+    path: "/dashboard/finance/sales-sheet",
+    label: "Sales Sheet",
+    Icon: <FileSpreadsheet size={18} />,
   },
   {
     path: "/dashboard/finance/webhook-logs",

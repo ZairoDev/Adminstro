@@ -63,6 +63,9 @@ export default function FinanceOverviewPage() {
           <Button asChild variant="secondary">
             <Link href="/dashboard/finance/transactions">Transactions</Link>
           </Button>
+          <Button asChild variant="secondary">
+            <Link href="/dashboard/finance/sales-sheet">Sales Sheet</Link>
+          </Button>
           <Button asChild variant="outline">
             <Link href="/dashboard/finance/webhook-logs">Webhook Logs</Link>
           </Button>

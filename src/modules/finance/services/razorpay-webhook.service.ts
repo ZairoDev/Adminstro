@@ -103,6 +103,7 @@ export async function upsertFinancePayment(
   delete setFields.guestEmail;
   delete setFields.invoiceId;
   delete setFields.invoiceNumber;
+  delete setFields.exchangeRate;
   delete setFields.propertyId;
   delete setFields.ownerId;
   delete setFields.mappingHistory;

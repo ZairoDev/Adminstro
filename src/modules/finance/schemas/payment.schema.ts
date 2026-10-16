@@ -169,3 +169,36 @@ export const sendInvoiceBodySchema = z.object({
 });
 
 export type SendInvoiceBody = z.infer<typeof sendInvoiceBodySchema>;
+
+const emptyToUndefined = (value: unknown) =>
+  typeof value === "string" && value.trim() === "" ? undefined : value;
+
+export const salesSheetQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  search: z.preprocess(emptyToUndefined, z.string().optional()),
+  dateFrom: z.preprocess(
+    emptyToUndefined,
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  ),
+  dateTo: z.preprocess(
+    emptyToUndefined,
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  ),
+  format: z.enum(["json", "csv"]).optional().default("json"),
+});
+
+export const updateSalesSheetRateSchema = z
+  .object({
+    paymentId: z.string().min(1).optional(),
+    paymentLinkId: z.string().min(1).optional(),
+    paymentObjectId: z.string().min(1).optional(),
+    exchangeRate: z.number().positive().max(1_000_000),
+  })
+  .refine(
+    (data) => Boolean(data.paymentId || data.paymentLinkId || data.paymentObjectId),
+    { message: "A payment id is required" },
+  );
+
+export type SalesSheetQuery = z.infer<typeof salesSheetQuerySchema>;
+export type UpdateSalesSheetRateBody = z.infer<typeof updateSalesSheetRateSchema>;

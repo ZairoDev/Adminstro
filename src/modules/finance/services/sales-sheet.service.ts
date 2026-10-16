@@ -72,6 +72,29 @@ type PropertyLean = {
   VSID?: string;
 };
 
+type PaymentLean = {
+  _id: unknown;
+  paymentId?: string;
+  paymentLinkId?: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  guestId?: string;
+  guestName?: string;
+  guestEmail?: string;
+  bookingObjectId?: string;
+  propertyId?: string;
+  amount?: number;
+  currency?: string;
+  method?: string;
+  exchangeRate?: number;
+  invoiceNumber?: string;
+  invoiceNumbers?: string[];
+  paidAt?: Date;
+  capturedAt?: Date;
+  createdAt?: Date;
+};
+
 function idToString(value: unknown): string | null {
   if (value == null) return null;
   if (typeof value === "string") {
@@ -124,7 +147,7 @@ function buildPaymentFilter(params: SalesSheetQuery): FilterQuery<IFinancePaymen
   return filter;
 }
 
-function toSourcePayment(doc: IFinancePayment & { _id: unknown }): SalesSheetSourcePayment {
+function toSourcePayment(doc: PaymentLean): SalesSheetSourcePayment {
   return {
     id: idToString(doc._id) ?? "",
     paymentId: doc.paymentId ?? null,
@@ -312,7 +335,7 @@ async function collectRows(params: SalesSheetQuery): Promise<{
     query.sort({ paidAt: -1, createdAt: -1 }).limit(MAX_SALES_SHEET_PAYMENTS);
   }
 
-  const docs = (await query.lean()) as Array<IFinancePayment & { _id: unknown }>;
+  const docs = (await query.lean()) as PaymentLean[];
   const payments = docs
     .map(toSourcePayment)
     .sort((left, right) => {

@@ -1,9 +1,17 @@
 import { isAdminRole, isLocationExempt } from "@/util/apiSecurity";
 import { normalizeAllotedArea } from "@/util/location";
 
+/** HR may open the owner sheet, but only Thessaloniki rows that are not available. */
+export const HR_OWNER_SHEET_LOCATION = "Thessaloniki";
+
+export function isHrOwnerSheetViewer(role: unknown): boolean {
+  return String(role ?? "").trim() === "HR";
+}
+
 /** SuperAdmin, Admin, Developer, Advert, LeadGen*, etc. — all cities in filter + data */
 export function hasFullOwnerSheetLocationAccess(role: string): boolean {
   const normalized = (role || "").trim();
+  if (isHrOwnerSheetViewer(normalized)) return false;
   return isLocationExempt(normalized) || isAdminRole(normalized);
 }
 
@@ -75,6 +83,9 @@ export function resolveOwnerSheetLocations(params: {
   ownerBlocked: Set<string>;
 }): { locations: string[]; denyAll: boolean } {
   const { role, tokenAllotedArea, requestedPlace, ownerBlocked } = params;
+  if (isHrOwnerSheetViewer(role)) {
+    return { locations: [HR_OWNER_SHEET_LOCATION], denyAll: false };
+  }
   const userAreas = parseAllotedAreaFromToken(tokenAllotedArea);
   const requested = extractPlaceLocations(requestedPlace);
 
@@ -113,6 +124,17 @@ export function applyOwnerSheetLocationQuery(
   query.$or = locations.map((loc) => ({
     location: { $regex: locationRegexForCity(loc) },
   }));
+}
+
+/** Force an owner-list query to Thessaloniki + Not Available for HR. */
+export function applyHrOwnerSheetListScope(
+  query: Record<string, unknown>,
+  role: unknown,
+): void {
+  if (!isHrOwnerSheetViewer(role)) return;
+  delete query.location;
+  query.availability = "Not Available";
+  applyOwnerSheetLocationQuery(query, [HR_OWNER_SHEET_LOCATION]);
 }
 
 /** First letter uppercase, rest lowercase (e.g. athens → Athens). */
@@ -227,7 +249,12 @@ export function filterOwnerSheetTargetCities<T extends { _id?: string; city: str
   role: string,
 ): T[] {
   let filtered: T[];
-  if (hasFullOwnerSheetLocationAccess(role)) {
+  if (isHrOwnerSheetViewer(role)) {
+    filtered = targets.filter(
+      (t) =>
+        t.city.trim().toLowerCase() === HR_OWNER_SHEET_LOCATION.toLowerCase(),
+    );
+  } else if (hasFullOwnerSheetLocationAccess(role)) {
     filtered = targets;
   } else {
     const allocations = parseAllotedAreaForClient(tokenAllotedArea);

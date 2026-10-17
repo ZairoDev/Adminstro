@@ -14,6 +14,7 @@ import {
   hasFullOwnerSheetLocationAccess,
   parseAllotedAreaFromToken,
   resolveOwnerSheetLocations,
+  isHrOwnerSheetViewer,
 } from "@/util/ownerSheetLocationFilter";
 import { applyOwnerSheetPropertyTypeFilter } from "@/util/propertyTypeAllowList";
 import { redactOwnerListForRole } from "@/util/collaboratorOwnerAccess";
@@ -31,6 +32,9 @@ export async function POST(req: NextRequest) {
     if (denied) return denied;
 
     const role: string = (token.role || "") as string;
+    if (isHrOwnerSheetViewer(role)) {
+      return NextResponse.json({ data: [], total: 0 }, { status: 200 });
+    }
 
     const { filters , page=1 , limit=50}  : { filters: FiltersInterfaces; page: number ; limit: number} =
         await req.json();

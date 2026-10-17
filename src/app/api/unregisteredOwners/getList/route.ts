@@ -9,6 +9,7 @@ import {
   applyCollaboratorOwnerLocation,
   redactOwnerListForRole,
 } from "@/util/collaboratorOwnerAccess";
+import { applyHrOwnerSheetListScope } from "@/util/ownerSheetLocationFilter";
 
 connectDb();
 export async function POST(req: NextRequest) {
@@ -42,6 +43,8 @@ export async function POST(req: NextRequest) {
     if (collaboratorScope.denyAll) {
       return NextResponse.json({ data: [] }, { status: 200 });
     }
+
+    applyHrOwnerSheetListScope(query, token.role);
 
     const data = await unregisteredOwner.find(query);
 

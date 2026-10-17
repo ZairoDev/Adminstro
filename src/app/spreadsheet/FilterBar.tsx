@@ -27,9 +27,11 @@ import {
 
 import { useAuthStore } from "@/AuthStore";
 import {
+  HR_OWNER_SHEET_LOCATION,
   OWNER_SHEET_FILTER_STORAGE_KEY,
   filterOwnerSheetTargetCities,
   hasFullOwnerSheetLocationAccess,
+  isHrOwnerSheetViewer,
   parseAllotedAreaForClient,
 } from "@/util/ownerSheetLocationFilter";
 import { OWNER_SHEET_LONG_TERM_CONFIG } from "./ownerSheetConfig";
@@ -311,6 +313,7 @@ const FilterBar = ({
   const role = token?.role ?? "";
   const parsedAllocations = parseAllotedAreaForClient(token?.allotedArea);
   const hasFullLocationAccess = hasFullOwnerSheetLocationAccess(role);
+  const hrLocationLocked = isHrOwnerSheetViewer(role);
 
   // Handle search with Enter key or button click
   const handleSearch = useCallback(async () => {
@@ -592,6 +595,7 @@ const FilterBar = ({
   const activeFilters = getActiveFilters();
 
   const removeFilter = (key: string) => {
+    if (hrLocationLocked && key === "place") return;
     if (key.startsWith("area-")) {
       const areaToRemove = key.replace("area-", "");
       setFilters((prev) => ({
@@ -656,7 +660,7 @@ const FilterBar = ({
       searchType: "",
       searchValue: "",
       propertyType: "",
-      place: [],
+      place: hrLocationLocked ? [HR_OWNER_SHEET_LOCATION] : [],
       area: [],
       zone: "",
       metroZone: "",
@@ -788,13 +792,21 @@ const FilterBar = ({
           </Select>
 
           <Select
+            disabled={hrLocationLocked}
             onValueChange={(value) => {
+              if (hrLocationLocked) return;
               setFilters((prev) => ({
                 ...prev,
                 place: value === "all" ? [] : [value],
               }));
             }}
-            value={filters.place.length > 0 ? filters.place[0] : "all"}
+            value={
+              hrLocationLocked
+                ? HR_OWNER_SHEET_LOCATION
+                : filters.place.length > 0
+                  ? filters.place[0]
+                  : "all"
+            }
           >
             <SelectTrigger className="w-40 h-9">
               <SelectValue placeholder="All" />
@@ -803,19 +815,31 @@ const FilterBar = ({
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>
-                  {hasFullLocationAccess ? "Locations" : "Allotted Locations"}
+                  {hrLocationLocked
+                    ? "Location"
+                    : hasFullLocationAccess
+                      ? "Locations"
+                      : "Allotted Locations"}
                 </SelectLabel>
 
-                <SelectItem value="all">All</SelectItem>
-
-                {filteredTargets.map((loc) => (
-                  <SelectItem
-                    key={loc._id ?? loc.city}
-                    value={loc.city}
-                  >
-                    {loc.city}
+                {hrLocationLocked ? (
+                  <SelectItem value={HR_OWNER_SHEET_LOCATION}>
+                    {HR_OWNER_SHEET_LOCATION}
                   </SelectItem>
-                ))}
+                ) : (
+                  <>
+                    <SelectItem value="all">All</SelectItem>
+
+                    {filteredTargets.map((loc) => (
+                      <SelectItem
+                        key={loc._id ?? loc.city}
+                        value={loc.city}
+                      >
+                        {loc.city}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
               </SelectGroup>
             </SelectContent>
           </Select>
@@ -1074,12 +1098,14 @@ const FilterBar = ({
               className="inline-flex items-center gap-1 px-2 py-1 bg-background border border-border rounded-md text-xs"
             >
               <span>{filter.label}</span>
-              <button
-                onClick={() => removeFilter(filter.key)}
-                className="hover:bg-accent rounded-sm p-0.5"
-              >
-                <X className="h-3 w-3" />
-              </button>
+              {hrLocationLocked && filter.key === "place" ? null : (
+                <button
+                  onClick={() => removeFilter(filter.key)}
+                  className="hover:bg-accent rounded-sm p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
             </div>
           ))}
         </div>

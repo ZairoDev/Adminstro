@@ -15,6 +15,12 @@ export function isHousingCollaboratorRole(role: unknown): boolean {
 export function collaboratorOwnerWriteForbidden(
   role: unknown,
 ): NextResponse | null {
+  if (String(role ?? "").trim() === "HR") {
+    return NextResponse.json(
+      { success: false, error: "HR can only view the owner list" },
+      { status: 403 },
+    );
+  }
   if (!isHousingCollaboratorRole(role)) return null;
   return NextResponse.json(
     { success: false, error: "Collaborators cannot edit the owner sheet" },

@@ -3,6 +3,7 @@ import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { unregisteredOwnerShortTerm } from "@/models/unregisteredOwnerShortTerm";
 import Users from "@/models/user";
+import { isHrOwnerSheetViewer } from "@/util/ownerSheetLocationFilter";
 
 connectDb();
 
@@ -28,7 +29,10 @@ export async function GET(
   { params }: { params: { id: string } },
 ) {
   try {
-    await getDataFromToken(req);
+    const token = await getDataFromToken(req);
+    if (isHrOwnerSheetViewer((token as { role?: string }).role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     const owner = (await unregisteredOwnerShortTerm
       .findById(params.id)
       .lean()) as OwnerSheetRow | null;

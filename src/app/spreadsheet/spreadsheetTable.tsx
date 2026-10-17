@@ -250,13 +250,15 @@ useEffect(() => {
 }, [focusRowId, tableData]);
 
 
+  const sheetRole = useAuthStore((state) => state.token?.role);
   const ownerSheetReadOnly =
-    useAuthStore((state) => state.token?.role) === "HCollaborator";
-  const effectiveHiddenColumns = ownerSheetReadOnly
-    ? Array.from(
-        new Set([...hiddenColumns, "phoneNumber", "refLink", "address"]),
-      )
-    : hiddenColumns;
+    sheetRole === "HCollaborator" || sheetRole === "HR";
+  const effectiveHiddenColumns =
+    sheetRole === "HCollaborator"
+      ? Array.from(
+          new Set([...hiddenColumns, "phoneNumber", "refLink", "address"]),
+        )
+      : hiddenColumns;
 
   const columns = [
     {

@@ -5,7 +5,11 @@ import { SpreadsheetTable } from "./spreadsheetTable";
 import { useEffect, useState, useRef, type ReactNode } from "react";
 import type { unregisteredOwners } from "@/util/type";
 import FilterBar, { type FiltersInterfaces } from "./FilterBar";
-import { parseAllotedAreaForClient } from "@/util/ownerSheetLocationFilter";
+import {
+  HR_OWNER_SHEET_LOCATION,
+  isHrOwnerSheetViewer,
+  parseAllotedAreaForClient,
+} from "@/util/ownerSheetLocationFilter";
 import PaginationControls from "@/components/pagination-controls";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/AuthStore";
@@ -35,6 +39,18 @@ const DEFAULT_FILTERS: FiltersInterfaces = {
   beds: 0,
   dateRange: undefined,
 };
+
+function readStoredRole(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    const raw = localStorage.getItem("token");
+    if (!raw) return "";
+    const parsed = JSON.parse(raw) as { role?: string };
+    return String(parsed.role ?? "");
+  } catch {
+    return "";
+  }
+}
 
 function loadPersistedFilters(storageKey: string): FiltersInterfaces {
   if (typeof window === "undefined") {
@@ -102,6 +118,7 @@ export function OwnerSheetPage({ config }: { config: OwnerSheetConfig }) {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [selectedTab, setSelectedTab] = useState("available");
+  const [hrOwnerListOnly, setHrOwnerListOnly] = useState(false);
   const getDataAbortRef = useRef<AbortController | null>(null);
   const token = useAuthStore((state) => state.token);
   const setToken = useAuthStore((state) => state.setToken);
@@ -135,9 +152,37 @@ export function OwnerSheetPage({ config }: { config: OwnerSheetConfig }) {
       role === "HCollaborator");
 
   useEffect(() => {
-    setFilters(loadPersistedFilters(config.filterStorageKey));
+    const locked = isHrOwnerSheetViewer(token?.role) || isHrOwnerSheetViewer(readStoredRole());
+    const loaded = loadPersistedFilters(config.filterStorageKey);
+    const placeIsThessaloniki =
+      loaded.place.length === 1 &&
+      loaded.place[0].toLowerCase() === HR_OWNER_SHEET_LOCATION.toLowerCase();
+    setHrOwnerListOnly(locked);
+    setFilters(
+      locked
+        ? {
+            ...loaded,
+            place: [HR_OWNER_SHEET_LOCATION],
+            area: placeIsThessaloniki ? loaded.area : [],
+          }
+        : loaded,
+    );
+    if (locked) setSelectedTab("notAvailable");
     setHasMounted(true);
-  }, [config.filterStorageKey]);
+  }, [config.filterStorageKey, token?.role]);
+
+  useEffect(() => {
+    if (!isHrOwnerSheetViewer(role)) return;
+    setHrOwnerListOnly(true);
+    setSelectedTab("notAvailable");
+    setFilters((prev) => {
+      const locked =
+        prev.place.length === 1 &&
+        prev.place[0].toLowerCase() === HR_OWNER_SHEET_LOCATION.toLowerCase();
+      if (locked) return prev;
+      return { ...prev, place: [HR_OWNER_SHEET_LOCATION], area: [] };
+    });
+  }, [role]);
 
   const getData = async (
     tab: string,
@@ -332,6 +377,7 @@ export function OwnerSheetPage({ config }: { config: OwnerSheetConfig }) {
         <Tabs
           value={selectedTab}
           onValueChange={(val) => {
+            if (hrOwnerListOnly && val !== "notAvailable") return;
             setSelectedTab(val);
             setPage(1);
           }}
@@ -425,15 +471,17 @@ export function OwnerSheetPage({ config }: { config: OwnerSheetConfig }) {
 
           <div className="absolute bottom-0 left-0 right-0 border-t bg-muted/40 px-4 py-2 flex items-center justify-between">
             <TabsList className="flex gap-2 bg-transparent">
-              <TabsTrigger
-                value="available"
-                className="rounded-t-md px-4 py-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary hover:bg-background/70"
-              >
-                Available{" "}
-                <span className="ml-1 text-muted-foreground">
-                  ({availableCount})
-                </span>
-              </TabsTrigger>
+              {!hrOwnerListOnly ? (
+                <TabsTrigger
+                  value="available"
+                  className="rounded-t-md px-4 py-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary hover:bg-background/70"
+                >
+                  Available{" "}
+                  <span className="ml-1 text-muted-foreground">
+                    ({availableCount})
+                  </span>
+                </TabsTrigger>
+              ) : null}
               <TabsTrigger
                 value="notAvailable"
                 className="rounded-t-md px-4 py-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary hover:bg-background/70"
@@ -443,15 +491,17 @@ export function OwnerSheetPage({ config }: { config: OwnerSheetConfig }) {
                   ({notAvailableCount})
                 </span>
               </TabsTrigger>
-              <TabsTrigger
-                value="upcoming"
-                className="rounded-t-md px-4 py-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary hover:bg-background/70"
-              >
-                Upcoming{" "}
-                <span className="ml-1 text-muted-foreground">
-                  ({upcomingCount})
-                </span>
-              </TabsTrigger>
+              {!hrOwnerListOnly ? (
+                <TabsTrigger
+                  value="upcoming"
+                  className="rounded-t-md px-4 py-2 text-sm font-medium transition-all duration-200 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary hover:bg-background/70"
+                >
+                  Upcoming{" "}
+                  <span className="ml-1 text-muted-foreground">
+                    ({upcomingCount})
+                  </span>
+                </TabsTrigger>
+              ) : null}
             </TabsList>
 
             <div className="flex items-center gap-4">

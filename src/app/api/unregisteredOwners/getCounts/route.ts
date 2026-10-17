@@ -10,6 +10,7 @@ import {
   hasFullOwnerSheetLocationAccess,
   parseAllotedAreaFromToken,
   resolveOwnerSheetLocations,
+  isHrOwnerSheetViewer,
 } from "@/util/ownerSheetLocationFilter";
 import { applyOwnerSheetPropertyTypeFilter } from "@/util/propertyTypeAllowList";
 
@@ -122,6 +123,14 @@ export async function POST(req: NextRequest) {
         unavailableUntil: { $gte: now, $lte: oneMonthFromNow },
       }),
     ]);
+
+    if (isHrOwnerSheetViewer(role)) {
+      return NextResponse.json({
+        availableCount: 0,
+        notAvailableCount,
+        upcomingCount: 0,
+      });
+    }
 
     return NextResponse.json({ availableCount, notAvailableCount, upcomingCount });
   } catch (error) {

@@ -953,6 +953,18 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <LayoutDashboard size={18} />,
     },
     {
+      path: "/spreadsheet",
+      label: "Owner Sheet Long Term",
+      Icon: <PencilLine size={18} />,
+      openInNewTab: true,
+    },
+    {
+      path: "/spreadsheet-short-term",
+      label: "Owner Sheet Short Term",
+      Icon: <PencilLine size={18} />,
+      openInNewTab: true,
+    },
+    {
       path: "/dashboard/employee",
       label: "Employees",
       Icon: <IdCardIcon size={18} />,

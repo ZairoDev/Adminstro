@@ -14,6 +14,7 @@ import {
   hasFullOwnerSheetLocationAccess,
   parseAllotedAreaFromToken,
   resolveOwnerSheetLocations,
+  isHrOwnerSheetViewer,
 } from "@/util/ownerSheetLocationFilter";
 import { applyOwnerSheetPropertyTypeFilter } from "@/util/propertyTypeAllowList";
 import { redactOwnerListForRole } from "@/util/collaboratorOwnerAccess";
@@ -59,6 +60,9 @@ export async function POST(req: NextRequest) {
     const query: Record<string, any> = {};
 
     query["availability"]= "Not Available";
+    if (isHrOwnerSheetViewer(role) && upcomingOnly) {
+      return NextResponse.json({ data: [], total: 0 }, { status: 200 });
+    }
     if (upcomingOnly) {
       const now = new Date();
       const oneMonthFromNow = new Date();

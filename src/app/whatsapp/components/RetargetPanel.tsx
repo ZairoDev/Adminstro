@@ -902,6 +902,11 @@ export function RetargetPanel({
                     </div>
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Matched on the lead&apos;s max budget only. A value at the
+                  Min amount belongs to the lower band (e.g. 580 is in
+                  0–580, not 580–2500).
+                </p>
               </div>
 
               {/* Guest Count Filter */}

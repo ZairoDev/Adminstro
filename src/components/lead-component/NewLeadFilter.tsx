@@ -275,6 +275,11 @@ export default function LeadsFilter({ filters, setFilters }: FilterProps) {
             className=" border-input text-foreground placeholder:text-muted-foreground"
           />
         </div>
+        <p className="text-xs text-muted-foreground">
+          Matched on the lead&apos;s max budget only. A value at the
+          &quot;From&quot; amount belongs to the lower band (e.g. €580 is in
+          0–580, not 580–2500).
+        </p>
       </div>
 
       {/* Lead Quality */}

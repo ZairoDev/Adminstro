@@ -1456,6 +1456,13 @@ export default function AddRulePage() {
                     disabled={!pricingEmployeeId}
                   />
                 </div>
+                <p className="md:col-span-4 text-xs text-muted-foreground">
+                  Leads are assigned by their max budget only, so every lead
+                  belongs to exactly one employee. A lead at the Min amount
+                  belongs to the lower band — e.g. with bands 0–580 and
+                  580–2500, a €580 lead goes to the 0–580 employee and the
+                  second employee sees leads above €580.
+                </p>
                 <div className="md:col-span-2 flex items-end gap-2">
                   <Button
                     type="button"

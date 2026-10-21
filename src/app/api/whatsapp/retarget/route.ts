@@ -3,6 +3,7 @@ import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import Query from "@/models/query";
 import { unregisteredOwner } from "@/models/unregisteredOwner";
+import { buildMaxBudgetCondition } from "@/util/pricingRule";
 
 connectDb();
 
@@ -264,12 +265,23 @@ export async function POST(req: NextRequest) {
     // =========================================================
     const leadQuery: any = {};
 
-    // User-provided filters
-    if (priceFrom) {
-      leadQuery.minBudget = { $gte: Number(priceFrom) };
-    }
-    if (priceTo) {
-      leadQuery.maxBudget = { ...(leadQuery.maxBudget || {}), $lte: Number(priceTo) };
+    // User-provided filters — same canonical semantics as everywhere else:
+    // leads are classified by `maxBudget` only, band is (from, to]
+    // (see @/util/pricingRule). Never filter on `minBudget`.
+    const priceFromNum =
+      priceFrom !== undefined && priceFrom !== null && String(priceFrom).trim() !== ""
+        ? Number(priceFrom)
+        : null;
+    const priceToNum =
+      priceTo !== undefined && priceTo !== null && String(priceTo).trim() !== ""
+        ? Number(priceTo)
+        : null;
+    const maxBudgetCondition = buildMaxBudgetCondition(
+      priceFromNum !== null && Number.isFinite(priceFromNum) ? priceFromNum : null,
+      priceToNum !== null && Number.isFinite(priceToNum) ? priceToNum : null,
+    );
+    if (maxBudgetCondition) {
+      leadQuery.maxBudget = maxBudgetCondition;
     }
     if (Object.keys(dateFilter).length) {
       leadQuery.createdAt = dateFilter;

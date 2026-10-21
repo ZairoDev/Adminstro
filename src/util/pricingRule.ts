@@ -11,6 +11,78 @@ export type PricingRules = {
   byLocation?: Record<string, PricingRule>;
 };
 
+/**
+ * Canonical lead-budget semantics — EVERY lead budget filter in the app
+ * (employee pricing rules, the UI "Budget From/To" filters on all lead
+ * lists, and the WhatsApp retarget price filter) must go through this
+ * module so a lead is classified identically everywhere.
+ *
+ * Rules:
+ * 1. A lead is classified by its `maxBudget` ONLY (the customer's ceiling).
+ *    `minBudget` is descriptive / property-matching data and must NEVER be
+ *    used as a lead-filter condition. Filtering on both fields required a
+ *    lead's whole range to fit inside a band, so any lead straddling a
+ *    band boundary (e.g. 400–800 across 0–580 / 580–2500) was visible to
+ *    nobody — leads were silently lost.
+ * 2. A band is `(min, max]`: lower-exclusive, upper-inclusive. A boundary
+ *    value belongs to the LOWER band — e.g. `maxBudget = 580` is owned by
+ *    the 0–580 employee, and the 580–2500 band starts above 580. Adjacent
+ *    bands therefore never overlap and never leave a gap.
+ * 3. Exception: `min <= 0` means "from zero", so the lower bound is
+ *    inclusive there (`maxBudget >= 0`); a 0-budget lead belongs to the
+ *    0-band instead of to nobody.
+ */
+export type MaxBudgetCondition = {
+  $gte?: number;
+  $gt?: number;
+  $lte?: number;
+};
+
+/** Build the Mongo condition on `maxBudget` for an effective range. */
+export function buildMaxBudgetCondition(
+  effectiveMin: number | null,
+  effectiveMax: number | null,
+): MaxBudgetCondition | null {
+  const condition: MaxBudgetCondition = {};
+
+  if (typeof effectiveMin === "number" && Number.isFinite(effectiveMin)) {
+    const min = Math.trunc(effectiveMin);
+    if (min <= 0) {
+      condition.$gte = min;
+    } else {
+      condition.$gt = min;
+    }
+  }
+  if (typeof effectiveMax === "number" && Number.isFinite(effectiveMax)) {
+    condition.$lte = Math.trunc(effectiveMax);
+  }
+
+  return Object.keys(condition).length > 0 ? condition : null;
+}
+
+/**
+ * Whether `(min, max]` can match no `maxBudget` at all. With the
+ * lower-exclusive convention a positive `min === max` is empty (the single
+ * boundary value belongs to the lower band); `0–0` still matches 0.
+ */
+export function isEmptyMaxBudgetRange(
+  effectiveMin: number | null,
+  effectiveMax: number | null,
+): boolean {
+  if (
+    typeof effectiveMin !== "number" ||
+    typeof effectiveMax !== "number" ||
+    !Number.isFinite(effectiveMin) ||
+    !Number.isFinite(effectiveMax)
+  ) {
+    return false;
+  }
+  if (effectiveMin <= 0) {
+    return effectiveMin > effectiveMax;
+  }
+  return effectiveMin >= effectiveMax;
+}
+
 export function computeEffectiveRange(params: {
   employeeRule?: PricingRule | null;
   uiBudgetFrom?: unknown;
@@ -66,21 +138,18 @@ export function applyEffectiveRangeToQuery(params: {
   effectiveMax: number | null;
 }): { impossible: boolean } {
   const { query, effectiveMin, effectiveMax } = params;
-  if (
-    typeof effectiveMin === "number" &&
-    typeof effectiveMax === "number" &&
-    Number.isFinite(effectiveMin) &&
-    Number.isFinite(effectiveMax) &&
-    effectiveMin > effectiveMax
-  ) {
+  if (isEmptyMaxBudgetRange(effectiveMin, effectiveMax)) {
     return { impossible: true };
   }
 
-  if (typeof effectiveMin === "number" && Number.isFinite(effectiveMin)) {
-    query.minBudget = { $gte: Math.trunc(effectiveMin) };
-  }
-  if (typeof effectiveMax === "number" && Number.isFinite(effectiveMax)) {
-    query.maxBudget = { $lte: Math.trunc(effectiveMax) };
+  // Exclusive ownership by `maxBudget` only — see module doc above.
+  // `minBudget` must never carry a filter condition, so clear any stale one.
+  delete query.minBudget;
+  const condition = buildMaxBudgetCondition(effectiveMin, effectiveMax);
+  if (condition) {
+    query.maxBudget = condition;
+  } else {
+    delete query.maxBudget;
   }
   return { impossible: false };
 }
@@ -135,18 +204,16 @@ export function applyPricingRulesByLocationToQuery(params: {
       uiBudgetFrom,
       uiBudgetTo,
     });
-    if (typeof min === "number" && typeof max === "number" && min > max) {
+    if (isEmptyMaxBudgetRange(min, max)) {
       // This location yields no results; skip it.
       continue;
     }
     const clause: Record<string, any> = {
       location: new RegExp(`^${String(loc).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
     };
-    if (typeof min === "number" && Number.isFinite(min)) {
-      clause.minBudget = { $gte: Math.trunc(min) };
-    }
-    if (typeof max === "number" && Number.isFinite(max)) {
-      clause.maxBudget = { $lte: Math.trunc(max) };
+    const condition = buildMaxBudgetCondition(min, max);
+    if (condition) {
+      clause.maxBudget = condition;
     }
     locationClauses.push(clause);
   }

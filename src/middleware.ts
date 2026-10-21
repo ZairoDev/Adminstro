@@ -379,6 +379,7 @@ const publicRoutes = [
   "/application-form",
   "/zipl.pdf",
   "/interview-reschedule",
+  "/privacy-policy",
   /^\/dashboard\/candidatePortal\/[^\/]+\/onboarding$/,
   /^\/dashboard\/candidatePortal\/[^\/]+\/training-agreement$/,
 ];

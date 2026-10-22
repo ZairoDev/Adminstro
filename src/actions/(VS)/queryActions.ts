@@ -22,6 +22,7 @@ import WebsiteLeads from "@/models/websiteLeads";
 import Users from "@/models/user";
 import HolidayUsers from "@/models/holidayUsers";
 import { getDayBounds } from "@/lib/date/dayKey";
+import { buildMaxBudgetCondition } from "@/util/pricingRule";
 
 connectDb();
 
@@ -197,9 +198,13 @@ export const getLeadsByLocation = async ({
 
 type LeadsCandleFilters = {
   days?: string;
-  createdBy?: string;
-  typeOfProperty?: string;
-  location?: string;
+  /** Multi-select filters; empty/undefined = All. */
+  createdBy?: string[];
+  typeOfProperty?: string[];
+  locations?: string[];
+  /** Price range on the lead's maxBudget, canonical semantics (@/util/pricingRule). */
+  priceFrom?: number | null;
+  priceTo?: number | null;
   dateFrom?: string;
   dateTo?: string;
 };
@@ -283,9 +288,7 @@ function enumerateChartDays(from: Date, to: Date): string[] {
 
 function shouldFillZeroLeadDays(filters: LeadsCandleFilters): boolean {
   const hasCustomRange = Boolean(filters.dateFrom && filters.dateTo);
-  const hasPropertyType = Boolean(
-    filters.typeOfProperty && filters.typeOfProperty !== "All",
-  );
+  const hasPropertyType = Boolean(filters.typeOfProperty?.length);
   return hasCustomRange || hasPropertyType;
 }
 
@@ -351,15 +354,40 @@ export const getLeadsCandleAnalytics = async (filters: LeadsCandleFilters) => {
     match.createdAt = { $gte: startUTC, $lte: endUTC };
   }
 
-  if (filters.createdBy && filters.createdBy !== "All") {
-    match.createdBy = filters.createdBy;
+  if (filters.createdBy?.length) {
+    match.createdBy = { $in: filters.createdBy };
   }
-  if (filters.location && filters.location !== "All") {
-    match.location = filters.location;
+  if (filters.locations?.length) {
+    match.location = { $in: filters.locations };
   }
-  if (filters.typeOfProperty && filters.typeOfProperty !== "All") {
-    match.typeOfProperty = filters.typeOfProperty;
+  if (filters.typeOfProperty?.length) {
+    match.typeOfProperty = { $in: filters.typeOfProperty };
   }
+
+  // Price range: classify by maxBudget only, same canonical condition as
+  // the lead-list pricing rules / budget filters (@/util/pricingRule), so
+  // this chart always agrees with the lead lists for the same range.
+  const maxBudgetCondition = buildMaxBudgetCondition(
+    typeof filters.priceFrom === "number" && Number.isFinite(filters.priceFrom)
+      ? filters.priceFrom
+      : null,
+    typeof filters.priceTo === "number" && Number.isFinite(filters.priceTo)
+      ? filters.priceTo
+      : null,
+  );
+  if (maxBudgetCondition) {
+    match.maxBudget = maxBudgetCondition;
+  }
+
+  // Location options for the filter must not shrink when locations are
+  // selected, so derive them from the same match minus the location filter.
+  const locationOptionMatch = { ...match };
+  delete locationOptionMatch.location;
+  const locationOptions = (
+    await Query.distinct("location", locationOptionMatch)
+  )
+    .filter((loc): loc is string => typeof loc === "string" && loc.length > 0)
+    .sort((a, b) => a.localeCompare(b));
 
   // Aggregate day+location+propertyType counts (NO cumulative)
   const rows: Array<{
@@ -418,12 +446,17 @@ export const getLeadsCandleAnalytics = async (filters: LeadsCandleFilters) => {
     ),
   ).sort((a, b) => a.localeCompare(b));
 
-  if (
-    filters.location &&
-    filters.location !== "All" &&
-    !locations.includes(filters.location)
-  ) {
-    locations = [filters.location, ...locations];
+  // Keep selected locations in the legend even when they have no leads
+  // in the period (their bars are simply zero/absent).
+  if (filters.locations?.length) {
+    const missing = filters.locations.filter(
+      (loc) => !locations.includes(loc),
+    );
+    if (missing.length) {
+      locations = [...missing, ...locations].sort((a, b) =>
+        a.localeCompare(b),
+      );
+    }
   }
 
   const dateRange = resolveLeadsCandleDateRange(filters);
@@ -438,7 +471,7 @@ export const getLeadsCandleAnalytics = async (filters: LeadsCandleFilters) => {
     })
     .sort((a, b) => a.day.localeCompare(b.day));
 
-  return { days, locations };
+  return { days, locations, locationOptions };
 };
 
 export const getAllAgent = async () => {

@@ -8,18 +8,22 @@ import {
 
 export type LeadsCandleFilters = {
   days?: string;
-  createdBy?: string;
-  typeOfProperty?: string;
-  location?: string;
+  /** Multi-select filters; empty/undefined = All. */
+  createdBy?: string[];
+  typeOfProperty?: string[];
+  locations?: string[];
+  /** Price range on the lead's maxBudget (@/util/pricingRule semantics). */
+  priceFrom?: number | null;
+  priceTo?: number | null;
   dateFrom?: string;
   dateTo?: string;
 };
 
 const defaultFilters: LeadsCandleFilters = {
   days: "this month",
-  createdBy: "All",
-  location: "All",
-  typeOfProperty: "All",
+  createdBy: [],
+  locations: [],
+  typeOfProperty: [],
 };
 
 export function useLeadsCandleAnalytics(initialFilters?: LeadsCandleFilters) {
@@ -30,10 +34,12 @@ export function useLeadsCandleAnalytics(initialFilters?: LeadsCandleFilters) {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: [
       "leadsCandleAnalytics",
-      filters.location ?? "All",
+      filters.locations?.join("|") ?? "",
       filters.days ?? null,
-      filters.createdBy ?? "All",
-      filters.typeOfProperty ?? "All",
+      filters.createdBy?.join("|") ?? "",
+      filters.typeOfProperty?.join("|") ?? "",
+      filters.priceFrom ?? null,
+      filters.priceTo ?? null,
       filters.dateFrom ?? null,
       filters.dateTo ?? null,
     ],
@@ -42,12 +48,16 @@ export function useLeadsCandleAnalytics(initialFilters?: LeadsCandleFilters) {
       return {
         days: (Array.isArray(res.days) ? res.days : []) as LeadsCandleDay[],
         locations: (Array.isArray(res.locations) ? res.locations : []) as string[],
+        locationOptions: (Array.isArray(res.locationOptions)
+          ? res.locationOptions
+          : []) as string[],
       };
     },
   });
 
   const days = data?.days ?? [];
   const locations = data?.locations ?? [];
+  const locationOptions = data?.locationOptions ?? [];
 
   const refetch = async (next?: LeadsCandleFilters) => {
     if (next) {
@@ -65,6 +75,7 @@ export function useLeadsCandleAnalytics(initialFilters?: LeadsCandleFilters) {
     setFilters,
     days,
     locations,
+    locationOptions,
     total,
     loading: isLoading,
     isError,

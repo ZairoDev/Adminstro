@@ -40,7 +40,8 @@ type Props = {
   title?: string;
   days: LeadsCandleDay[];
   locations: string[];
-  selectedLocation?: string;
+  /** Multi-selected locations; empty/undefined = all locations. */
+  selectedLocations?: string[];
   height?: number;
   filterBar?: React.ReactNode;
 };
@@ -132,11 +133,11 @@ function buildChartConfig(locations: string[]): ChartConfig {
 function buildData(
   days: LeadsCandleDay[],
   locations: string[],
-  selectedLocation?: string,
+  selectedLocations?: string[],
 ): CandleDatum[] {
   const allowed =
-    selectedLocation && selectedLocation !== "All"
-      ? [selectedLocation]
+    selectedLocations && selectedLocations.length > 0
+      ? selectedLocations
       : locations;
   return days.map((d) => {
     const row: CandleDatum = { day: d.day, total: d.total, __meta: d };
@@ -229,13 +230,31 @@ export function LeadsCandleChart({
   title = "Daily leads by location",
   days,
   locations,
-  selectedLocation = "All",
+  selectedLocations,
   height = 300,
   filterBar,
 }: Props) {
   const allowedLocations = useMemo(
-    () => (selectedLocation !== "All" ? [selectedLocation] : locations),
-    [selectedLocation, locations],
+    () =>
+      selectedLocations && selectedLocations.length > 0
+        ? selectedLocations
+        : locations,
+    [selectedLocations, locations],
+  );
+
+  /** Total of exactly what is plotted (selected locations only). */
+  const selectedTotal = useMemo(
+    () =>
+      days.reduce(
+        (sum, day) =>
+          sum +
+          allowedLocations.reduce(
+            (locSum, loc) => locSum + (day.locations[loc]?.total ?? 0),
+            0,
+          ),
+        0,
+      ),
+    [days, allowedLocations],
   );
 
   const config = useMemo(
@@ -252,8 +271,8 @@ export function LeadsCandleChart({
   }, [allowedLocations]);
 
   const data = useMemo(
-    () => buildData(days, locations, selectedLocation),
-    [days, locations, selectedLocation],
+    () => buildData(days, locations, selectedLocations),
+    [days, locations, selectedLocations],
   );
 
   const legendVisible = allowedLocations.slice(0, MAX_LEGEND_LOCATIONS);
@@ -262,7 +281,17 @@ export function LeadsCandleChart({
   return (
     <Card className="w-full shadow-sm">
       <CardHeader className="p-3 pb-2 space-y-2">
-        <CardTitle className="text-md font-semibold">{title}</CardTitle>
+        <div className="flex items-start justify-between gap-4">
+          <CardTitle className="text-md font-semibold pt-1">{title}</CardTitle>
+          <div className="shrink-0 text-right">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Total leads
+            </p>
+            <p className="text-2xl font-bold leading-none tabular-nums">
+              {selectedTotal.toLocaleString()}
+            </p>
+          </div>
+        </div>
         {filterBar ? <div className="flex flex-wrap items-center gap-2">{filterBar}</div> : null}
         {legendVisible.length > 0 ? (
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-[18x] ">

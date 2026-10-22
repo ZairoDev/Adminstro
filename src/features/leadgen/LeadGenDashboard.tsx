@@ -36,7 +36,33 @@ import useReview from "@/features/leadgen/hooks/useReview";
 import useLeadStats from "@/features/leadgen/hooks/useLeadStats";
 import useWebsiteLeadsCounts from "@/features/leadgen/hooks/useWebsiteLeadsCounts";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
-import { useLeadsCandleAnalytics } from "@/features/leadgen/hooks/useLeadsCandleAnalytics";
+import {
+  useLeadsCandleAnalytics,
+  type LeadsCandleFilters,
+} from "@/features/leadgen/hooks/useLeadsCandleAnalytics";
+import { MultiSelectFilter } from "@/components/reusable-components/MultiSelectFilter";
+import { PriceRangeFilter } from "@/components/reusable-components/PriceRangeFilter";
+
+/** UI state for the "Leads by location" chart. Empty arrays = All. */
+interface CandleFilterState {
+  days?: string;
+  createdBy: string[];
+  typeOfProperty: string[];
+  locations: string[];
+  priceFrom: string;
+  priceTo: string;
+}
+
+function toCandleFilters(state: CandleFilterState): LeadsCandleFilters {
+  return {
+    days: state.days,
+    createdBy: state.createdBy,
+    typeOfProperty: state.typeOfProperty,
+    locations: state.locations,
+    priceFrom: state.priceFrom === "" ? null : Number(state.priceFrom),
+    priceTo: state.priceTo === "" ? null : Number(state.priceTo),
+  };
+}
 
 interface LeadStats {
   location: string;
@@ -70,16 +96,13 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
     createdBy: "All",
   });
 
-  const [propertyFilters, setPropertyFilters] = useState<{
-    days?: string;
-    createdBy?: string;
-    typeOfProperty?: string;
-    location?: string;
-  }>({
+  const [propertyFilters, setPropertyFilters] = useState<CandleFilterState>({
     days: "this month",
-    createdBy: "All",
-    typeOfProperty: "All",
-    location: "All",
+    createdBy: [],
+    typeOfProperty: [],
+    locations: [],
+    priceFrom: "",
+    priceTo: "",
   });
 
   const [leadByLocationRange, setLeadByLocationRange] = useState<
@@ -152,22 +175,24 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
   const {
     days: candleDays,
     locations: candleLocations,
+    locationOptions: candleLocationOptions,
     loading: candleLoading,
     refetch: refetchCandle,
-  } = useLeadsCandleAnalytics({
-    days: propertyFilters.days,
-    createdBy: propertyFilters.createdBy,
-    typeOfProperty: propertyFilters.typeOfProperty,
-    location: propertyFilters.location,
-  });
+  } = useLeadsCandleAnalytics(toCandleFilters(propertyFilters));
 
+  // Options come from the server (all locations matching the *other*
+  // filters), so the list never shrinks when locations are selected.
+  // Fall back to the chart's locations on first load.
   const locationOptions = useMemo(
-    () => ["All", ...candleLocations],
-    [candleLocations],
+    () =>
+      candleLocationOptions.length > 0
+        ? candleLocationOptions
+        : candleLocations,
+    [candleLocationOptions, candleLocations],
   );
 
   const applyCandleFilters = useCallback(
-    (next: typeof propertyFilters) => {
+    (next: CandleFilterState) => {
       const range =
         leadByLocationRange?.from
           ? {
@@ -177,7 +202,7 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
               ),
             }
           : {};
-      void refetchCandle({ ...next, ...range });
+      void refetchCandle({ ...toCandleFilters(next), ...range });
     },
     [leadByLocationRange, refetchCandle],
   );
@@ -296,7 +321,7 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
               title="Leads by location"
               days={candleDays}
               locations={candleLocations}
-              selectedLocation={propertyFilters.location}
+              selectedLocations={propertyFilters.locations}
               height={400}
               filterBar={
                   <>
@@ -347,7 +372,7 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
                           setPropertyFilters(next);
                           if (from) {
                             void refetchCandle({
-                              ...next,
+                              ...toCandleFilters(next),
                               dateFrom: toIsoStart(from),
                               dateTo: to ? toIsoEnd(to) : undefined,
                             });
@@ -357,38 +382,60 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
                       />
                       </div>
                     ) : null}
-                    <CustomSelect
-                      itemList={locationOptions}
-                      triggerText="Location"
-                      value={propertyFilters.location}
-                      onValueChange={(value) => {
-                        const next = { ...propertyFilters, location: value };
+                    <MultiSelectFilter
+                      label="Location"
+                      options={locationOptions}
+                      value={propertyFilters.locations}
+                      onChange={(locations) => {
+                        const next = { ...propertyFilters, locations };
                         setPropertyFilters(next);
                         applyCandleFilters(next);
                       }}
-                      triggerClassName="w-[110px] h-8 text-xs"
+                      formatOption={(option) =>
+                        option.charAt(0).toUpperCase() +
+                        option.slice(1).toLowerCase()
+                      }
+                      triggerClassName="w-[130px]"
                     />
-                    <CustomSelect
-                      itemList={propertyTypeOptions}
-                      triggerText="Property"
+                    <MultiSelectFilter
+                      label="Property"
+                      options={propertyTypeOptions.filter(
+                        (option) => option !== "All",
+                      )}
                       value={propertyFilters.typeOfProperty}
-                      onValueChange={(value) => {
-                        const next = { ...propertyFilters, typeOfProperty: value };
+                      onChange={(typeOfProperty) => {
+                        const next = { ...propertyFilters, typeOfProperty };
                         setPropertyFilters(next);
                         applyCandleFilters(next);
                       }}
-                      triggerClassName="w-[110px] h-8 text-xs"
+                      triggerClassName="w-[130px]"
                     />
-                    <CustomSelect
-                      itemList={["All", ...allEmployees]}
-                      triggerText="Agent"
+                    <MultiSelectFilter
+                      label="Agent"
+                      options={allEmployees}
                       value={propertyFilters.createdBy}
-                      onValueChange={(value) => {
-                        const next = { ...propertyFilters, createdBy: value };
+                      onChange={(createdBy) => {
+                        const next = { ...propertyFilters, createdBy };
                         setPropertyFilters(next);
                         applyCandleFilters(next);
                       }}
-                      triggerClassName="w-[120px] h-8 text-xs"
+                      triggerClassName="w-[130px]"
+                    />
+                    <PriceRangeFilter
+                      value={{
+                        from: propertyFilters.priceFrom,
+                        to: propertyFilters.priceTo,
+                      }}
+                      onChange={({ from, to }) => {
+                        const next = {
+                          ...propertyFilters,
+                          priceFrom: from,
+                          priceTo: to,
+                        };
+                        setPropertyFilters(next);
+                        applyCandleFilters(next);
+                      }}
+                      triggerClassName="w-[150px]"
                     />
                   </>
                 }

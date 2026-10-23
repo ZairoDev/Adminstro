@@ -124,6 +124,48 @@ export function useCandidateActions(
     }
   };
 
+  const handleRejectFromOnboarding = async (data: RejectionData) => {
+    setActionLoading(true);
+    setError(null);
+    try {
+      const response = await axios.post(
+        `/api/candidates/${candidateId}/action`,
+        {
+          status: "rejected",
+          rejectionDetails: {
+            reason: data.reason,
+          },
+          isOnboardingRejection: true,
+        }
+      );
+
+      const result = response.data;
+      if (result.success) {
+        onSuccess?.(result.data);
+        return { success: true, data: result.data };
+      } else {
+        const errorMsg = result.error || "Failed to reject from onboarding";
+        setError(errorMsg);
+        toast.error(errorMsg);
+        return { success: false, error: errorMsg };
+      }
+    } catch (err: unknown) {
+      const errorMsg =
+        axios.isAxiosError(err) &&
+        typeof err.response?.data === "object" &&
+        err.response?.data &&
+        "error" in err.response.data &&
+        typeof err.response.data.error === "string"
+          ? err.response.data.error
+          : "An error occurred while rejecting from onboarding";
+      setError(errorMsg);
+      toast.error(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleDiscontinueTraining = async (data: RejectionData) => {
     setActionLoading(true);
     setError(null);
@@ -195,6 +237,7 @@ export function useCandidateActions(
     handleSelectCandidate,
     handleShortlistCandidate,
     handleRejectCandidate,
+    handleRejectFromOnboarding,
     handleDiscontinueTraining,
     handleOnboarding,
   };

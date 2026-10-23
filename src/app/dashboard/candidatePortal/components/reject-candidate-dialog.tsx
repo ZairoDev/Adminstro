@@ -7,13 +7,24 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { X } from "lucide-react";
 
+export const ONBOARDING_REJECTION_REASONS = [
+  "Did not complete onboarding",
+  "Documents not submitted",
+  "Failed document verification",
+  "Candidate withdrew",
+  "Offer declined",
+  "No show after onboarding",
+];
+
 interface RejectCandidateDialogProps {
   open: boolean;
   onClose: () => void;
   onSubmit: (data: RejectionData) => Promise<void>;
   loading: boolean;
   title?: string;
+  description?: string;
   submitButtonText?: string;
+  reasons?: string[];
 }
 
 export interface RejectionData {
@@ -26,11 +37,13 @@ export function RejectCandidateDialog({
   onSubmit,
   loading,
   title = "Reject Candidate",
+  description,
   submitButtonText = "Reject",
+  reasons,
 }: RejectCandidateDialogProps) {
   const [reason, setReason] = useState("");
 
-  const rejectionReasons = [
+  const rejectionReasons = reasons ?? [
     "Experience mismatch",
     "Skills not aligned",
     "Failed interview",
@@ -58,9 +71,14 @@ export function RejectCandidateDialog({
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-md p-6 max-h-96 overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-foreground">
-            {title}
-          </h2>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">
+              {title}
+            </h2>
+            {description ? (
+              <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+            ) : null}
+          </div>
           <button
             onClick={onClose}
             className="text-muted-foreground hover:text-foreground"

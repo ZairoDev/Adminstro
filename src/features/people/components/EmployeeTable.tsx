@@ -37,6 +37,7 @@ import { ToggleButton } from "@/components/toggle_button";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { formatEmployeeRentalTypeLabel } from "@/util/employeeRentalTypeAccess";
+import { RevealablePhone } from "@/features/people/components/RevealablePhone";
 
 type EmployeeRow = UserInterface & {
   organization?: string;
@@ -145,15 +146,6 @@ export default function EmployeeTable({
     setEmployeeList(visible);
     setFilteredEmployee(visible);
   }, [employees, role, showInactive]);
-
-  const maskPhone = (phone?: string | number) => {
-    if (phone === undefined || phone === null) return "";
-    const phoneStr = String(phone);
-    const cleaned = phoneStr.replace(/\s+/g, "");
-    if (cleaned.length <= 4) return "****";
-    const last = cleaned.slice(-4);
-    return `****${last}`;
-  };
 
   const maskEmail = (email?: string) => {
     if (!email) return "";
@@ -301,19 +293,16 @@ export default function EmployeeTable({
                       <span>Restricted</span>
                     </div>
                   ) : showPasswordRegen ? (
-                    <span
-                      className="cursor-pointer text-sm text-gray-700 dark:text-gray-200"
-                      onClick={(e) => {
-                        e.stopPropagation();
+                    <RevealablePhone
+                      phone={employee.phone}
+                      revealed={revealedContactId === employee._id}
+                      onToggle={() =>
                         setRevealedContactId((prev) =>
                           prev === employee._id ? null : employee._id
-                        );
-                      }}
-                    >
-                      {revealedContactId === employee._id
-                        ? employee.phone
-                        : maskPhone(employee.phone)}
-                    </span>
+                        )
+                      }
+                      className="text-sm text-gray-700 dark:text-gray-200"
+                    />
                   ) : (
                     employee.phone
                   )}

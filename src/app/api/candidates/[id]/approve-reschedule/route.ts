@@ -3,6 +3,7 @@ import Employee from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { sendEmail } from "@/components/candidateEmail";
+import { finalizeRescheduledInterview } from "@/lib/interviews/publishInterview";
 import { type NextRequest, NextResponse } from "next/server";
 import { parseLocalDateString, normalizeToLocalMidnight, getTodayLocalMidnight } from "@/lib/utils";
 import { resolveOfficeAddressForEmail } from "@/lib/officeAddress/resolveOfficeAddressForEmail";
@@ -118,28 +119,35 @@ export async function PATCH(
           id,
           storedOfficeId ? String(storedOfficeId) : null
         );
-        const mode =
+        const details =
           interviewType === "first"
-            ? updatedCandidate.interviewDetails?.interviewMode
-            : updatedCandidate.secondRoundInterviewDetails?.interviewMode;
-        await sendEmail({
-          to: updatedCandidate.email,
+            ? updatedCandidate.interviewDetails
+            : updatedCandidate.secondRoundInterviewDetails;
+        const mode = details?.interviewMode;
+        const interviewMode = mode === "virtual" ? "virtual" : "physical";
+        await finalizeRescheduledInterview({
+          candidateId: id,
+          round: interviewType,
           candidateName: updatedCandidate.name,
-          status: interviewType === "first" ? "interviewRescheduled" : "secondRoundInterviewRescheduled",
+          candidateEmail: updatedCandidate.email,
           position: updatedCandidate.position,
-          companyName: process.env.COMPANY_NAME || "Zairo International",
-          interviewDetails: {
-            scheduledDate: rescheduleRequest.requestedDate as string,
-            scheduledTime: requestedTime || "",
-            interviewMode:
-              mode === "physical" || mode === "virtual" ? mode : undefined,
-            officeName: officeResolution.officeName || undefined,
-            officeAddress: officeResolution.address,
-            googleMapsLink:
-              mode === "virtual"
-                ? undefined
-                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(officeResolution.address)}`,
-          },
+          interviewerName: details?.interviewerName || "",
+          interviewerEmail: details?.interviewerEmail || "",
+          scheduledDate: rescheduleRequest.requestedDate as string,
+          scheduledTime: requestedTime || "",
+          interviewMode,
+          officeName:
+            interviewMode === "physical" ? officeResolution.officeName || null : null,
+          officeAddress:
+            interviewMode === "physical" ? officeResolution.address : null,
+          googleMapsLink:
+            interviewMode === "physical"
+              ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(officeResolution.address)}`
+              : null,
+          existingEventId:
+            typeof details?.googleEventId === "string" ? details.googleEventId : null,
+          existingMeetLink:
+            typeof details?.googleMeetLink === "string" ? details.googleMeetLink : null,
         });
         // console.log(`✅ Reschedule confirmation email sent successfully to ${updatedCandidate.email}`);
       } catch (emailError: any) {

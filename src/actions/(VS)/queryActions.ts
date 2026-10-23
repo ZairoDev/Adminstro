@@ -4290,6 +4290,7 @@ export const getCandidateCounts = async ({
   const rejectedAfterTrainingMatchQuery: any = { 
     status: "rejected",
     "selectionDetails.role": { $exists: true, $ne: null },
+    "rejectionDetails.category": { $ne: "onboarding" },
     updatedAt: { $gte: start, $lte: end }
   };
   if (position && position !== "All") {
@@ -4318,6 +4319,39 @@ export const getCandidateCounts = async ({
     rejectedAfterTrainingMap.set(item._id, item.count);
   }
 
+  const rejectedFromOnboardingMatchQuery: any = {
+    status: "rejected",
+    "rejectionDetails.category": "onboarding",
+    updatedAt: { $gte: start, $lte: end },
+  };
+  if (position && position !== "All") {
+    rejectedFromOnboardingMatchQuery.position = { $regex: position, $options: "i" };
+  }
+
+  const rejectedFromOnboardingPipeline: any[] = [
+    { $match: rejectedFromOnboardingMatchQuery },
+    {
+      $group: {
+        _id: {
+          $dateToString: {
+            format: groupFormat.$dateToString.format,
+            date: "$updatedAt",
+            timezone: "Asia/Kolkata",
+          },
+        },
+        count: { $sum: 1 },
+      },
+    },
+  ];
+
+  const rejectedFromOnboardingResult = await Candidate.aggregate(
+    rejectedFromOnboardingPipeline
+  );
+  const rejectedFromOnboardingMap = new Map<string, number>();
+  for (const item of rejectedFromOnboardingResult) {
+    rejectedFromOnboardingMap.set(item._id, item.count);
+  }
+
   const months = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -4325,7 +4359,7 @@ export const getCandidateCounts = async ({
 
   const resultMap = new Map<
     string,
-    { pending: number; shortlisted: number; selected: number; rejected: number; onboarding: number; interviews: number; rejectedAfterTraining: number; total: number }
+    { pending: number; shortlisted: number; selected: number; rejected: number; onboarding: number; interviews: number; rejectedAfterTraining: number; rejectedFromOnboarding: number; total: number }
   >();
 
   for (const item of result) {
@@ -4342,6 +4376,7 @@ export const getCandidateCounts = async ({
       onboarding,
       interviews: interviewMap.get(item._id) || 0,
       rejectedAfterTraining: rejectedAfterTrainingMap.get(item._id) || 0,
+      rejectedFromOnboarding: rejectedFromOnboardingMap.get(item._id) || 0,
       total: item.total,
     });
   }
@@ -4365,6 +4400,7 @@ export const getCandidateCounts = async ({
         onboarding: item?.onboarding ?? 0,
         interviews: item?.interviews ?? 0,
         rejectedAfterTraining: item?.rejectedAfterTraining ?? 0,
+        rejectedFromOnboarding: item?.rejectedFromOnboarding ?? 0,
         total: item?.total ?? 0,
       });
       temp.setDate(temp.getDate() + 1);
@@ -4383,6 +4419,7 @@ export const getCandidateCounts = async ({
         onboarding: item?.onboarding ?? 0,
         interviews: item?.interviews ?? 0,
         rejectedAfterTraining: item?.rejectedAfterTraining ?? 0,
+        rejectedFromOnboarding: item?.rejectedFromOnboarding ?? 0,
         total: item?.total ?? 0,
       });
     }
@@ -4400,6 +4437,7 @@ export const getCandidateCounts = async ({
         onboarding: item?.onboarding ?? 0,
         interviews: item?.interviews ?? 0,
         rejectedAfterTraining: item?.rejectedAfterTraining ?? 0,
+        rejectedFromOnboarding: item?.rejectedFromOnboarding ?? 0,
         total: item?.total ?? 0,
       });
     }
@@ -4489,6 +4527,7 @@ export const getCandidateSummary = async ({
     const rejectedMatchQuery: any = {
       status: "rejected",
       "selectionDetails.role": { $exists: true, $ne: null },
+      "rejectionDetails.category": { $ne: "onboarding" },
       updatedAt: { $gte: startOfMonth, $lte: endOfMonth }
     };
     if (position && position !== "All") {
@@ -4499,6 +4538,28 @@ export const getCandidateSummary = async ({
     rejectedAfterTrainingCount = rejectedResult;
   }
 
+  let rejectedFromOnboardingCount = 0;
+  if (selectedMonth) {
+    const reference = new Date(selectedMonth);
+    const year = reference.getUTCFullYear();
+    const month = reference.getUTCMonth();
+    const startOfMonth = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+    const endOfMonth = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+
+    const onboardingRejectedMatchQuery: any = {
+      status: "rejected",
+      "rejectionDetails.category": "onboarding",
+      updatedAt: { $gte: startOfMonth, $lte: endOfMonth },
+    };
+    if (position && position !== "All") {
+      onboardingRejectedMatchQuery.position = { $regex: position, $options: "i" };
+    }
+
+    rejectedFromOnboardingCount = await Candidate.countDocuments(
+      onboardingRejectedMatchQuery
+    );
+  }
+
   const result = {
     pending: 0,
     shortlisted: 0,
@@ -4507,6 +4568,7 @@ export const getCandidateSummary = async ({
     onboarding: 0,
     interviews: interviewsCount,
     rejectedAfterTraining: rejectedAfterTrainingCount,
+    rejectedFromOnboarding: rejectedFromOnboardingCount,
     total: 0,
   };
 

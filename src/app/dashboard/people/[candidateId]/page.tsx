@@ -80,12 +80,18 @@ import { useCandidate } from "@/app/dashboard/candidatePortal/[id]/hooks/useCand
 import { OnboardingDetailsView } from "@/app/dashboard/candidatePortal/components/onboarding-details-view";
 import { NotesModal } from "@/app/dashboard/candidatePortal/components/notes-modal";
 import { CreateEmployeeDialog } from "@/app/dashboard/candidatePortal/components/createEmployee";
+import {
+  ONBOARDING_REJECTION_REASONS,
+  RejectCandidateDialog,
+} from "@/app/dashboard/candidatePortal/components/reject-candidate-dialog";
+import { useCandidateActions } from "@/app/dashboard/candidatePortal/[id]/hooks/useCandidateActions";
 import type { CandidateLite } from "@/app/dashboard/candidatePortal/components/new-user";
 import { SeparatePersonDialog } from "@/features/people/components/SeparatePersonDialog";
 import { LifecycleBadge } from "@/features/people/components/LifecycleBadge";
 import { usePersonPermissions } from "@/features/people/hooks/usePersonPermissions";
 
 import { OfficeDetailsDialog } from "@/features/people/components/OfficeDetailsDialog";
+import { RevealablePhone } from "@/features/people/components/RevealablePhone";
 import {
   hiringWorkspacePath,
   parsePersonTab,
@@ -250,6 +256,7 @@ export default function PersonDetailPage() {
     canShortlist,
     canSelect,
     canReject,
+    canRejectFromOnboarding,
     canCreateEmployee,
     canStartOnboarding,
     canSeparate,
@@ -265,7 +272,17 @@ export default function PersonDetailPage() {
   const [employeeLoading, setEmployeeLoading] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [createEmployeeOpen, setCreateEmployeeOpen] = useState(false);
+  const [rejectOnboardingOpen, setRejectOnboardingOpen] = useState(false);
+  const { actionLoading: rejectingOnboarding, handleRejectFromOnboarding } =
+    useCandidateActions(candidateId, () => {
+      void refreshCandidate();
+    });
   const [exitOpen, setExitOpen] = useState(false);
+  const [phoneRevealed, setPhoneRevealed] = useState(false);
+
+  useEffect(() => {
+    setPhoneRevealed(false);
+  }, [candidateId]);
 
   useEffect(() => {
     setBackHref(
@@ -1324,6 +1341,17 @@ export default function PersonDetailPage() {
                   <UserPlus className="h-4 w-4 mr-2" />
                   Create Employee
                 </Button>
+                {canRejectFromOnboarding() && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={rejectingOnboarding}
+                    onClick={() => setRejectOnboardingOpen(true)}
+                  >
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Reject from onboarding
+                  </Button>
+                )}
               </>
             )}
             {phase === "active" && linkedEmployeeId && (
@@ -1391,7 +1419,12 @@ export default function PersonDetailPage() {
               </Card>
               <Card className="p-4 space-y-1">
                 <p className="text-xs text-muted-foreground">Phone</p>
-                <p className="text-sm font-medium">****{person.phone?.slice(-4)}</p>
+                <RevealablePhone
+                  phone={person.phone}
+                  revealed={phoneRevealed}
+                  onToggle={() => setPhoneRevealed((current) => !current)}
+                  className="text-sm font-medium"
+                />
               </Card>
               <Card className="p-4 space-y-1">
                 <p className="text-xs text-muted-foreground">Role</p>
@@ -1448,6 +1481,7 @@ export default function PersonDetailPage() {
                     canShortlist() ? "Shortlist" : null,
                     canSelect() ? "Select" : null,
                     canReject() ? "Reject" : null,
+                    canRejectFromOnboarding() ? "Reject from onboarding" : null,
                   ]
                     .filter(Boolean)
                     .join(", ") || "View hiring record for current status"}
@@ -2272,6 +2306,22 @@ export default function PersonDetailPage() {
         onOpenChange={setNotesOpen}
         candidateId={person._id}
         candidateName={person.name}
+      />
+
+      <RejectCandidateDialog
+        open={rejectOnboardingOpen}
+        onClose={() => setRejectOnboardingOpen(false)}
+        onSubmit={async (data) => {
+          const result = await handleRejectFromOnboarding(data);
+          if (result.success) {
+            setRejectOnboardingOpen(false);
+            toast.success("Rejected from onboarding");
+          }
+        }}
+        loading={rejectingOnboarding}
+        title="Reject from onboarding"
+        description="This person is in onboarding and is not employed. The rejection is categorised as rejected from onboarding."
+        reasons={ONBOARDING_REJECTION_REASONS}
       />
 
       <CreateEmployeeDialog

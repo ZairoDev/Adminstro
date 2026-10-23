@@ -7,7 +7,6 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  Eye,
   Mail,
   MoreVertical,
   Briefcase,
@@ -18,8 +17,11 @@ import {
   StickyNote,
   AlertCircle,
   Calendar as CalendarIcon,
+  Building2,
+  Video,
 } from "lucide-react";
 import { toast } from "sonner";
+import axios from "@/util/axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -59,12 +61,18 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import {
   canCreateEmployee,
+  canRejectFromOnboarding,
   getLifecyclePhase,
   type LifecyclePhase,
 } from "@/lib/people/lifecycle";
 import {
+  ONBOARDING_REJECTION_REASONS,
+  RejectCandidateDialog,
+  type RejectionData,
+} from "@/app/dashboard/candidatePortal/components/reject-candidate-dialog";
+import {
+  getCandidateStatusLabel,
   getStatusColor,
-  getStatusLabel,
   ROLE_OPTIONS,
 } from "@/app/dashboard/candidatePortal/[id]/constants";
 import {
@@ -78,15 +86,16 @@ import { NotesModal } from "@/app/dashboard/candidatePortal/components/notes-mod
 import { CreateEmployeeDialog } from "@/app/dashboard/candidatePortal/components/createEmployee";
 import type { CandidateLite } from "@/app/dashboard/candidatePortal/components/new-user";
 import {
+  employeePath,
   hiringWorkspacePath,
   peopleListPath,
-  personPath,
-  employeePath,
+  peopleRecordPath,
   rememberPeopleListUrl,
   parsePeopleListQuery,
   type PeopleListQuery,
   type PeopleListTab,
 } from "@/features/people/navigation";
+import { RevealablePhone } from "@/features/people/components/RevealablePhone";
 
 export type { PeopleListTab };
 
@@ -98,6 +107,7 @@ interface InterviewRoundDetails {
   scheduledDate?: string | Date | null;
   scheduledTime?: string | null;
   scheduledBy?: string | null;
+  interviewMode?: "physical" | "virtual" | null;
   rescheduleRequest?: {
     requestedDate?: string;
     requestedTime?: string;
@@ -149,6 +159,10 @@ interface PeopleListRow {
     completedAt?: string;
     verifiedByHR?: { verified?: boolean };
   };
+  rejectionDetails?: {
+    reason?: string;
+    category?: "pipeline" | "training" | "onboarding" | null;
+  };
 }
 
 interface PaginationData {
@@ -195,16 +209,6 @@ const EMPTY_LABEL: Record<PeopleListTab, string> = {
   active: "No employed people found",
   exited: "No exited people found",
 };
-
-const HIRING_RECORD_LINK_TABS: PeopleListTab[] = [
-  "pipeline",
-  "interview",
-  "shortlisted",
-  "selected",
-  "rejected",
-  "onboarding",
-  "exited",
-];
 
 const EXIT_REASON_LABELS: Record<string, string> = {
   resigned: "Resigned",
@@ -407,6 +411,103 @@ function InterviewScheduleCell({ person }: { person: PeopleListRow }) {
   );
 }
 
+function InterviewModeBadge({
+  mode,
+  roundLabel,
+}: {
+  mode: "physical" | "virtual";
+  roundLabel?: string;
+}) {
+  const isPhysical = mode === "physical";
+  return (
+    <Badge
+      variant="outline"
+      className={
+        isPhysical
+          ? "text-xs font-normal bg-emerald-50 text-emerald-700 border-emerald-200"
+          : "text-xs font-normal bg-sky-50 text-sky-700 border-sky-200"
+      }
+    >
+      {isPhysical ? (
+        <Building2 className="mr-1 h-3 w-3" />
+      ) : (
+        <Video className="mr-1 h-3 w-3" />
+      )}
+      {roundLabel ? `${roundLabel} ` : ""}
+      {isPhysical ? "Physical" : "Virtual"}
+    </Badge>
+  );
+}
+
+function InterviewTypeCell({ person }: { person: PeopleListRow }) {
+  const firstMode = person.interviewDetails?.interviewMode ?? null;
+  const secondMode = person.secondRoundInterviewDetails?.interviewMode ?? null;
+
+  if (!firstMode && !secondMode) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+
+  if (firstMode && secondMode && firstMode !== secondMode) {
+    return (
+      <div className="flex flex-col items-start gap-1.5">
+        <InterviewModeBadge mode={firstMode} roundLabel="1st" />
+        <InterviewModeBadge mode={secondMode} roundLabel="2nd" />
+      </div>
+    );
+  }
+
+  const mode = secondMode ?? firstMode;
+  if (!mode) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+
+  return <InterviewModeBadge mode={mode} />;
+}
+
+function AttendanceMark({
+  active,
+  tone,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  tone: "present" | "absent";
+  label: string;
+  onClick: () => void;
+}) {
+  const isPresent = tone === "present";
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          aria-pressed={active}
+          onClick={onClick}
+          className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+            isPresent
+              ? active
+                ? "border-green-600 bg-green-600 text-white shadow-sm focus-visible:ring-green-500"
+                : "border-green-300 bg-background text-green-600 hover:bg-green-50 focus-visible:ring-green-500"
+              : active
+                ? "border-red-600 bg-red-600 text-white shadow-sm focus-visible:ring-red-500"
+                : "border-red-300 bg-background text-red-600 hover:bg-red-50 focus-visible:ring-red-500"
+          }`}
+        >
+          {isPresent ? (
+            <Check className="h-4 w-4" strokeWidth={2.5} />
+          ) : (
+            <X className="h-4 w-4" strokeWidth={2.5} />
+          )}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{label}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function buildListParams(
   tab: PeopleListTab,
   searchTerm: string,
@@ -489,6 +590,9 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
   const [notesDialogOpen, setNotesDialogOpen] = useState(false);
   const [notesPerson, setNotesPerson] = useState<PeopleListRow | null>(null);
   const [createEmployeeOpen, setCreateEmployeeOpen] = useState(false);
+  const [rejectOnboardingPerson, setRejectOnboardingPerson] =
+    useState<PeopleListRow | null>(null);
+  const [rejectingOnboarding, setRejectingOnboarding] = useState(false);
   const [createEmployeeCandidate, setCreateEmployeeCandidate] =
     useState<CandidateLite | null>(null);
   const [pendingRescheduleRequests, setPendingRescheduleRequests] = useState<
@@ -505,9 +609,16 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
     undefined
   );
   const [draftCustomTo, setDraftCustomTo] = useState<Date | undefined>(undefined);
+  const [revealedPhoneId, setRevealedPhoneId] = useState<string | null>(null);
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
 
   const search = listQuery.search;
   const page = listQuery.page;
+
+  useEffect(() => {
+    setRevealedPhoneId(null);
+  }, [tab, page]);
+
   const selectedRole = listQuery.role;
   const experienceFilter = listQuery.experience;
   const dateFilter = listQuery.date;
@@ -539,7 +650,11 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
   );
 
   const dateColumnLabel = DATE_COLUMN_LABEL[tab];
-  const columnCount = 10;
+  // Codes exist only after someone becomes an employee. Hiring tabs would
+  // otherwise show a blank column for every row.
+  const showEmployeeCode = tab === "active" || tab === "exited";
+  const columnCount =
+    9 + (tab === "interview" ? 1 : 0) + (showEmployeeCode ? 1 : 0);
 
   // Get user role for reschedule permissions
   useEffect(() => {
@@ -798,6 +913,7 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
             <Input
+              aria-label="Search people"
               placeholder="Search by name, email, or role..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -965,17 +1081,27 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
         </div>
       </Card>
 
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
+      <Card
+        className={
+          actionsMenuOpen ? "overflow-visible" : "overflow-hidden"
+        }
+      >
+        <div
+          className={
+            actionsMenuOpen ? "overflow-visible" : "overflow-x-auto"
+          }
+        >
           <table className="w-full">
             <thead className="bg-muted border-b border-border">
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                   Name
                 </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                  Employee Code
-                </th>
+                {showEmployeeCode ? (
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    Employee Code
+                  </th>
+                ) : null}
                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                   Email
                 </th>
@@ -995,6 +1121,11 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                       ? "Document Status"
                       : "Status"}
                 </th>
+                {tab === "interview" ? (
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                    Interview Type
+                  </th>
+                ) : null}
                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                   {tab === "interview" ? "Interview Date & Time" : dateColumnLabel}
                 </th>
@@ -1002,7 +1133,7 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                   Notes
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                  Actions
+                  More
                 </th>
               </tr>
             </thead>
@@ -1050,19 +1181,28 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
               ) : (
                 candidates.map((person) => {
                   const phase = getLifecyclePhase(person);
+                  const recordHref = peopleRecordPath(person._id, {
+                    returnTo: listUrl,
+                  });
                   return (
                     <tr
                       key={person._id}
                       className="hover:bg-muted/50 transition-colors"
                     >
                       <td className="px-6 py-4">
-                        <div className="font-medium text-foreground">
+                        <Link
+                          href={recordHref}
+                          aria-label={`${person.name}, open hiring record`}
+                          className="font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
+                        >
                           {person.name}
-                        </div>
+                        </Link>
                       </td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">
-                        {person.employeeCode || "—"}
-                      </td>
+                      {showEmployeeCode ? (
+                        <td className="px-6 py-4 text-sm text-muted-foreground">
+                          {person.employeeCode || "—"}
+                        </td>
+                      ) : null}
                       <td className="px-6 py-4 text-sm text-muted-foreground">
                         <TooltipProvider>
                           <Tooltip>
@@ -1086,7 +1226,15 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                         </TooltipProvider>
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
-                        ****{person.phone?.slice(-4)}
+                        <RevealablePhone
+                          phone={person.phone}
+                          revealed={revealedPhoneId === person._id}
+                          onToggle={() =>
+                            setRevealedPhoneId((current) =>
+                              current === person._id ? null : person._id
+                            )
+                          }
+                        />
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
                         {person.position}
@@ -1100,51 +1248,44 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                       </td>
                       <td className="px-6 py-4">
                         {tab === "interview" ? (
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant={
-                                person.interviewAttendance === "appeared"
-                                  ? "default"
-                                  : "outline"
-                              }
-                              onClick={() =>
-                                void handleUpdateAttendance(
-                                  person,
+                          <TooltipProvider>
+                            <div className="flex items-center gap-2">
+                              <AttendanceMark
+                                tone="present"
+                                active={person.interviewAttendance === "appeared"}
+                                label={
                                   person.interviewAttendance === "appeared"
-                                    ? null
-                                    : "appeared"
-                                )
-                              }
-                              className={
-                                person.interviewAttendance === "appeared"
-                                  ? "bg-green-600 hover:bg-green-700 text-white"
-                                  : ""
-                              }
-                            >
-                              <Check className="h-4 w-4 mr-1" />
-                              Appeared
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant={
-                                person.interviewAttendance === "not_appeared"
-                                  ? "destructive"
-                                  : "outline"
-                              }
-                              onClick={() =>
-                                void handleUpdateAttendance(
-                                  person,
+                                    ? "Appeared — click to clear"
+                                    : "Mark as appeared"
+                                }
+                                onClick={() =>
+                                  void handleUpdateAttendance(
+                                    person,
+                                    person.interviewAttendance === "appeared"
+                                      ? null
+                                      : "appeared"
+                                  )
+                                }
+                              />
+                              <AttendanceMark
+                                tone="absent"
+                                active={person.interviewAttendance === "not_appeared"}
+                                label={
                                   person.interviewAttendance === "not_appeared"
-                                    ? null
-                                    : "not_appeared"
-                                )
-                              }
-                            >
-                              <X className="h-4 w-4 mr-1" />
-                              Not Appeared
-                            </Button>
-                          </div>
+                                    ? "Not appeared — click to clear"
+                                    : "Mark as not appeared"
+                                }
+                                onClick={() =>
+                                  void handleUpdateAttendance(
+                                    person,
+                                    person.interviewAttendance === "not_appeared"
+                                      ? null
+                                      : "not_appeared"
+                                  )
+                                }
+                              />
+                            </div>
+                          </TooltipProvider>
                         ) : tab === "onboarding" ? (
                           <DocumentStatusBadge
                             status={getDocumentStatus(person.onboardingDetails)}
@@ -1152,7 +1293,10 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                         ) : (
                           <div className="flex flex-wrap items-center gap-1.5">
                             <Badge className={getStatusColor(person.status)}>
-                              {getStatusLabel(person.status)}
+                              {getCandidateStatusLabel(
+                                person.status,
+                                person.rejectionDetails?.category
+                              )}
                             </Badge>
                             {phase === "exited" ? (
                               <Badge
@@ -1173,6 +1317,11 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                           </div>
                         )}
                       </td>
+                      {tab === "interview" ? (
+                        <td className="px-6 py-4">
+                          <InterviewTypeCell person={person} />
+                        </td>
+                      ) : null}
                       <td
                         className={
                           tab === "interview"
@@ -1220,7 +1369,7 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                         </TooltipProvider>
                       </td>
                       <td className="px-6 py-4">
-                        <DropdownMenu>
+                        <DropdownMenu onOpenChange={setActionsMenuOpen}>
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
@@ -1231,50 +1380,52 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
+                          <DropdownMenuContent
+                            align="end"
+                            side="bottom"
+                            sideOffset={4}
+                            collisionPadding={8}
+                            portalled={false}
+                            className="z-[60]"
+                          >
                             <DropdownMenuItem asChild>
                               <Link
-                                href={personPath(person._id, { returnTo: listUrl })}
+                                href={recordHref}
                                 className="flex items-center cursor-pointer"
                               >
-                                <Eye className="mr-2 h-4 w-4" />
-                                View details
+                                <FileText className="mr-2 h-4 w-4" />
+                                Hiring record
                               </Link>
                             </DropdownMenuItem>
-                            {HIRING_RECORD_LINK_TABS.includes(tab) && (
-                              <DropdownMenuItem asChild>
-                                <Link
-                                  href={hiringWorkspacePath(person._id, {
-                                    returnTo: listUrl,
-                                  })}
-                                  className="flex items-center cursor-pointer"
-                                >
-                                  <FileText className="mr-2 h-4 w-4" />
-                                  Hiring record
-                                </Link>
+                            {canRejectFromOnboarding(person) ? (
+                              <DropdownMenuItem
+                                className="cursor-pointer text-destructive focus:text-destructive"
+                                onSelect={() => setRejectOnboardingPerson(person)}
+                              >
+                                <X className="mr-2 h-4 w-4" />
+                                Reject from onboarding
                               </DropdownMenuItem>
-                            )}
-                            {tab === "onboarding" &&
-                              canCreateEmployee(person) && (
-                                <DropdownMenuItem
-                                  className="cursor-pointer"
-                                  onSelect={() => {
-                                    setCreateEmployeeCandidate({
-                                      _id: person._id,
-                                      name: person.name,
-                                      email: person.email,
-                                      phone: person.phone,
-                                      experience: person.experience,
-                                      position: person.position,
-                                    });
-                                    setCreateEmployeeOpen(true);
-                                  }}
-                                >
-                                  <UserPlus className="mr-2 h-4 w-4" />
-                                  Create employee
-                                </DropdownMenuItem>
-                              )}
-                            {tab === "active" && person.employeeId && (
+                            ) : null}
+                            {tab === "onboarding" && canCreateEmployee(person) ? (
+                              <DropdownMenuItem
+                                className="cursor-pointer"
+                                onSelect={() => {
+                                  setCreateEmployeeCandidate({
+                                    _id: person._id,
+                                    name: person.name,
+                                    email: person.email,
+                                    phone: person.phone,
+                                    experience: person.experience,
+                                    position: person.position,
+                                  });
+                                  setCreateEmployeeOpen(true);
+                                }}
+                              >
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                Create employee
+                              </DropdownMenuItem>
+                            ) : null}
+                            {tab === "active" && person.employeeId ? (
                               <DropdownMenuItem asChild>
                                 <Link
                                   href={employeePath(person.employeeId, listUrl)}
@@ -1284,9 +1435,9 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                                   Employee profile
                                 </Link>
                               </DropdownMenuItem>
-                            )}
+                            ) : null}
                           </DropdownMenuContent>
-                        </DropdownMenu>
+                          </DropdownMenu>
                       </td>
                     </tr>
                   );
@@ -1341,6 +1492,58 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
           onUpdate={handleNotesUpdated}
         />
       )}
+
+      <RejectCandidateDialog
+        open={Boolean(rejectOnboardingPerson)}
+        onClose={() => {
+          if (!rejectingOnboarding) setRejectOnboardingPerson(null);
+        }}
+        loading={rejectingOnboarding}
+        title="Reject from onboarding"
+        description="This person is in onboarding and is not employed. The rejection is categorised as rejected from onboarding."
+        reasons={ONBOARDING_REJECTION_REASONS}
+        onSubmit={async (data: RejectionData) => {
+          if (!rejectOnboardingPerson) return;
+          setRejectingOnboarding(true);
+          try {
+            const response = await axios.post(
+              `/api/candidates/${rejectOnboardingPerson._id}/action`,
+              {
+                status: "rejected",
+                rejectionDetails: { reason: data.reason },
+                isOnboardingRejection: true,
+              }
+            );
+            if (response.data?.success) {
+              toast.success("Rejected from onboarding");
+              setRejectOnboardingPerson(null);
+              await fetchPeople(
+                search,
+                page,
+                selectedRole,
+                experienceFilter,
+                dateFilter,
+                customDateFrom,
+                customDateTo
+              );
+            } else {
+              toast.error(response.data?.error || "Failed to reject from onboarding");
+            }
+          } catch (error: unknown) {
+            const message =
+              axios.isAxiosError(error) &&
+              typeof error.response?.data === "object" &&
+              error.response.data &&
+              "error" in error.response.data &&
+              typeof error.response.data.error === "string"
+                ? error.response.data.error
+                : "Failed to reject from onboarding";
+            toast.error(message);
+          } finally {
+            setRejectingOnboarding(false);
+          }
+        }}
+      />
 
       <CreateEmployeeDialog
         open={createEmployeeOpen}
@@ -1402,7 +1605,7 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-3">
                           <Link
-                            href={personPath(request.candidateId, {
+                            href={hiringWorkspacePath(request.candidateId, {
                               returnTo: listUrl,
                             })}
                             className="font-semibold text-foreground hover:text-primary hover:underline"

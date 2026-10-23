@@ -3,15 +3,16 @@ import Employee from "@/models/employee";
 import OfficeAddress from "@/models/officeAddress";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { sendEmail } from "@/components/candidateEmail";
 import { type NextRequest, NextResponse } from "next/server";
+import { scheduleInterviewBodySchema } from "@/lib/interviews/scheduleInterviewSchema";
+import { loadActiveInterviewer } from "@/lib/interviews/loadInterviewer";
+import { finalizeScheduledInterview } from "@/lib/interviews/publishInterview";
 import {
   parseLocalDateString,
   normalizeToLocalMidnight,
   getTodayLocalMidnight,
 } from "@/lib/utils";
 import crypto from "crypto";
-import { resolveOfficeAddressForEmail } from "@/lib/officeAddress/resolveOfficeAddressForEmail";
 import mongoose from "mongoose";
 
 function mapsSearchLink(address: string): string {
@@ -36,26 +37,29 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const body = await request.json();
-    const { scheduledDate, scheduledTime, notes, interviewMode, officeAddressId } =
-      body;
-
-    if (!scheduledDate || !scheduledTime) {
-      return NextResponse.json(
-        { success: false, error: "Scheduled date and time are required" },
-        { status: 400 }
-      );
-    }
-
-    if (interviewMode !== "physical" && interviewMode !== "virtual") {
+    const parsedBody = scheduleInterviewBodySchema.safeParse(await request.json());
+    if (!parsedBody.success) {
       return NextResponse.json(
         {
           success: false,
-          error: "Interview mode is required (physical or virtual)",
+          error: parsedBody.error.issues[0]?.message || "Invalid request",
         },
         { status: 400 }
       );
     }
+    const { scheduledDate, scheduledTime, notes, interviewMode, officeAddressId } =
+      parsedBody.data;
+
+    const interviewerResult = await loadActiveInterviewer(
+      parsedBody.data.interviewerEmployeeId
+    );
+    if (!interviewerResult.ok) {
+      return NextResponse.json(
+        { success: false, error: interviewerResult.error },
+        { status: 400 }
+      );
+    }
+    const interviewer = interviewerResult.interviewer;
 
     let resolvedOffice: {
       id: string;
@@ -102,14 +106,6 @@ export async function PATCH(
       );
     }
 
-    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(scheduledTime)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid time format. Use HH:MM format" },
-        { status: 400 }
-      );
-    }
-
     const candidate = await Candidate.findById(id);
     if (!candidate) {
       return NextResponse.json(
@@ -125,6 +121,10 @@ export async function PATCH(
       "interviewDetails.interviewMode": interviewMode,
       "interviewDetails.scheduledBy": userName || "Admin",
       "interviewDetails.scheduledAt": new Date(),
+      "interviewDetails.interviewerEmployeeId": interviewer.id,
+      "interviewDetails.interviewerName": interviewer.name,
+      "interviewDetails.interviewerEmail": interviewer.email,
+      "interviewDetails.calendarSyncError": null,
       "interviewDetails.officeAddressId":
         interviewMode === "physical" && resolvedOffice
           ? resolvedOffice.id
@@ -170,35 +170,39 @@ export async function PATCH(
       },
     });
 
-    try {
-      const officeResolution =
-        interviewMode === "physical" && resolvedOffice
-          ? {
-              address: resolvedOffice.address,
-              officeName: resolvedOffice.name,
-            }
-          : await resolveOfficeAddressForEmail(id);
+    const existingEventId =
+      typeof candidate.interviewDetails?.googleEventId === "string"
+        ? candidate.interviewDetails.googleEventId
+        : null;
+    const existingMeetLink =
+      typeof candidate.interviewDetails?.googleMeetLink === "string"
+        ? candidate.interviewDetails.googleMeetLink
+        : null;
 
-      await sendEmail({
-        to: updatedCandidate.email,
+    try {
+      await finalizeScheduledInterview({
+        candidateId: id,
+        round: "first",
         candidateName: updatedCandidate.name,
-        status: "interview",
+        candidateEmail: updatedCandidate.email,
         position: updatedCandidate.position,
-        companyName: process.env.COMPANY_NAME || "Zairo International",
-        interviewDetails: {
-          scheduledDate,
-          scheduledTime,
-          interviewMode,
-          officeName: officeResolution.officeName || undefined,
-          officeAddress: officeResolution.address,
-          googleMapsLink:
-            interviewMode === "physical"
-              ? mapsSearchLink(officeResolution.address)
-              : undefined,
-          candidateId: id,
-          interviewType: "first",
-          rescheduleLink,
-        },
+        interviewerName: interviewer.name,
+        interviewerEmail: interviewer.email,
+        scheduledDate,
+        scheduledTime,
+        interviewMode,
+        officeName:
+          interviewMode === "physical" && resolvedOffice ? resolvedOffice.name : null,
+        officeAddress:
+          interviewMode === "physical" && resolvedOffice ? resolvedOffice.address : null,
+        googleMapsLink:
+          interviewMode === "physical" && resolvedOffice
+            ? mapsSearchLink(resolvedOffice.address)
+            : null,
+        notes: notes ?? null,
+        rescheduleLink,
+        existingEventId,
+        existingMeetLink,
       });
     } catch (emailError: unknown) {
       console.error(
@@ -207,9 +211,11 @@ export async function PATCH(
       );
     }
 
+    const latest = await Candidate.findById(id);
+
     return NextResponse.json({
       success: true,
-      data: updatedCandidate,
+      data: latest ?? updatedCandidate,
       message: "Interview scheduled successfully",
     });
   } catch (error: unknown) {

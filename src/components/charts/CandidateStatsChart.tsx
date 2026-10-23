@@ -56,6 +56,7 @@ const statusColors = {
   rejected: "#ef4444",
   interviews: "#a855f7",
   rejectedAfterTraining: "#dc2626",
+  rejectedFromOnboarding: "#9f1239",
 };
 
 const SummaryCard = ({
@@ -172,7 +173,7 @@ export const CandidateStatsChart = ({
 
       <CardContent>
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-6">
           <SummaryCard
             title="Total"
             value={summary.total}
@@ -228,6 +229,13 @@ export const CandidateStatsChart = ({
             color="bg-red-600"
             percentage={summary.total > 0 ? (summary.rejectedAfterTraining / summary.total) * 100 : 0}
           />
+          <SummaryCard
+            title="Rejected from Onboarding"
+            value={summary.rejectedFromOnboarding}
+            icon={UserMinus}
+            color="bg-rose-800"
+            percentage={summary.total > 0 ? (summary.rejectedFromOnboarding / summary.total) * 100 : 0}
+          />
         </div>
 
         {/* Chart */}
@@ -278,6 +286,10 @@ export const CandidateStatsChart = ({
                   <linearGradient id="colorRejectedAfterTraining" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={statusColors.rejectedAfterTraining} stopOpacity={0.8} />
                     <stop offset="95%" stopColor={statusColors.rejectedAfterTraining} stopOpacity={0.1} />
+                  </linearGradient>
+                  <linearGradient id="colorRejectedFromOnboarding" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={statusColors.rejectedFromOnboarding} stopOpacity={0.8} />
+                    <stop offset="95%" stopColor={statusColors.rejectedFromOnboarding} stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -352,6 +364,13 @@ export const CandidateStatsChart = ({
                               </span>
                               <span className="font-medium">{data.rejectedAfterTraining || 0}</span>
                             </div>
+                            <div className="flex justify-between">
+                              <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-rose-800" />
+                                Rejected from Onboarding
+                              </span>
+                              <span className="font-medium">{data.rejectedFromOnboarding || 0}</span>
+                            </div>
                             <div className="flex justify-between border-t pt-1 mt-1">
                               <span className="font-semibold">Total</span>
                               <span className="font-bold">{data.total}</span>
@@ -425,6 +444,14 @@ export const CandidateStatsChart = ({
                   stroke={statusColors.rejectedAfterTraining}
                   fill="url(#colorRejectedAfterTraining)"
                   name="Rejected After Training"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="rejectedFromOnboarding"
+                  stackId="1"
+                  stroke={statusColors.rejectedFromOnboarding}
+                  fill="url(#colorRejectedFromOnboarding)"
+                  name="Rejected from Onboarding"
                 />
               </AreaChart>
             </ResponsiveContainer>

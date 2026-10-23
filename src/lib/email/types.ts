@@ -7,6 +7,7 @@ export type CandidateEmailStatus =
   | "shortlisted"
   | "onboarding"
   | "trainingDiscontinued"
+  | "onboardingRejected"
   | "interview"
   | "secondRoundInterview"
   | "interviewRescheduled"
@@ -46,6 +47,9 @@ export interface CandidateEmailPayload {
     candidateId?: string;
     interviewType?: "first" | "second";
     rescheduleLink?: string;
+    interviewerName?: string;
+    googleMeetLink?: string;
+    addToCalendarLink?: string;
   };
   id?: string;
 }

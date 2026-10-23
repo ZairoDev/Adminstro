@@ -22,18 +22,18 @@ export const ROLE_OPTIONS = [
 export const getStatusColor = (status: string) => {
   switch (status) {
     case "selected":
-      return "bg-green-100 text-green-800";
+      return "border-transparent bg-[#e5f6eb] text-[#0d5c2e] hover:bg-[#e5f6eb] dark:bg-[#062816] dark:text-[#7ddea0] dark:hover:bg-[#062816]";
     case "shortlisted":
-      return "bg-blue-100 text-blue-800";
+      return "border-transparent bg-[#e5f6fb] text-[#0b4f6c] hover:bg-[#e5f6fb] dark:bg-[#062833] dark:text-[#7ee0f2] dark:hover:bg-[#062833]";
     case "interview":
-      return "bg-purple-100 text-purple-800";
+      return "border-transparent bg-[#e7f1ff] text-[#0a3d7a] hover:bg-[#e7f1ff] dark:bg-[#0a2540] dark:text-[#8ecaff] dark:hover:bg-[#0a2540]";
     case "rejected":
-      return "bg-red-100 text-red-800";
+      return "border-transparent bg-[#fdecec] text-[#8b1e1e] hover:bg-[#fdecec] dark:bg-[#3a1010] dark:text-[#ffb4b4] dark:hover:bg-[#3a1010]";
     case "onboarding":
-      return "bg-purple-100 text-purple-800";
+      return "border-transparent bg-[#f0ebff] text-[#3b2a7a] hover:bg-[#f0ebff] dark:bg-[#1c1433] dark:text-[#c9b8ff] dark:hover:bg-[#1c1433]";
     case "pending":
     default:
-      return "bg-yellow-100 text-yellow-800";
+      return "border-transparent bg-[#fff4d4] text-[#7a4e00] hover:bg-[#fff4d4] dark:bg-[#3a2a08] dark:text-[#ffd60a] dark:hover:bg-[#3a2a08]";
   }
 };
 
@@ -47,4 +47,17 @@ export const getStatusLabel = (status: string) => {
       return status.charAt(0).toUpperCase() + status.slice(1);
   }
 };
+
+export function getCandidateStatusLabel(
+  status: string,
+  rejectionCategory?: string | null
+): string {
+  if (status === "rejected" && rejectionCategory === "onboarding") {
+    return "Rejected from onboarding";
+  }
+  if (status === "rejected" && rejectionCategory === "training") {
+    return "Rejected after training";
+  }
+  return getStatusLabel(status);
+}
 

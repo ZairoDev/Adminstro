@@ -15,6 +15,7 @@ export interface CandidateCountData {
   onboarding: number;
   interviews: number;
   rejectedAfterTraining: number;
+  rejectedFromOnboarding: number;
   total: number;
 }
 
@@ -26,6 +27,7 @@ export interface CandidateSummary {
   onboarding: number;
   interviews: number;
   rejectedAfterTraining: number;
+  rejectedFromOnboarding: number;
   total: number;
 }
 
@@ -43,6 +45,7 @@ const defaultSummary: CandidateSummary = {
   onboarding: 0,
   interviews: 0,
   rejectedAfterTraining: 0,
+  rejectedFromOnboarding: 0,
   total: 0,
 };
 

@@ -60,6 +60,11 @@ export function canReject(c: MinimalCandidate & {
   return c.status !== "rejected" && c.status !== "onboarding";
 }
 
+/** Onboarding, not yet an employee. Employed people use exit, not rejection. */
+export function canRejectFromOnboarding(c: MinimalCandidate): boolean {
+  return c.status === "onboarding" && !c.employeeId && !c.exitedAt;
+}
+
 export function canStartOnboarding(c: MinimalCandidate): boolean {
   return c.status === "selected";
 }

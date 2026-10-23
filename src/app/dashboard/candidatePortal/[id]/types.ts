@@ -48,6 +48,12 @@ export interface Candidate {
     officeName?: string | null;
     scheduledBy?: string;
     scheduledAt?: string;
+    interviewerEmployeeId?: string | null;
+    interviewerName?: string | null;
+    interviewerEmail?: string | null;
+    googleEventId?: string | null;
+    googleMeetLink?: string | null;
+    calendarSyncError?: string | null;
     notes?: string;
     remarks?: {
       experienceValidation?: string;
@@ -83,6 +89,12 @@ export interface Candidate {
     officeName?: string | null;
     scheduledBy?: string;
     scheduledAt?: string;
+    interviewerEmployeeId?: string | null;
+    interviewerName?: string | null;
+    interviewerEmail?: string | null;
+    googleEventId?: string | null;
+    googleMeetLink?: string | null;
+    calendarSyncError?: string | null;
     notes?: string;
     rescheduleRequest?: {
       requestedDate?: string;
@@ -114,6 +126,7 @@ export interface Candidate {
   };
   rejectionDetails?: {
     reason: string;
+    category?: "pipeline" | "training" | "onboarding" | null;
   };
   onboardingDetails?: {
     onboardingLink?: string;

@@ -3,10 +3,34 @@ import { CandidateEmailPayload, EmailTemplate } from "../types";
 import { getEmailSignature, EmailSignatureConfig } from "../signature";
 import { parseLocalDateString } from "@/lib/utils";
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function interviewModeLabel(mode?: "physical" | "virtual") {
   if (mode === "virtual") return "Virtual";
   if (mode === "physical") return "Physical (In-office)";
   return null;
+}
+
+function renderAddToCalendarHtml(
+  interviewDetails: CandidateEmailPayload["interviewDetails"]
+): string {
+  const link = interviewDetails?.addToCalendarLink?.trim();
+  if (!link) return "";
+  const safe = escapeHtml(link);
+  return `
+          <div style="margin: 24px 0;">
+            <a href="${safe}"
+               style="display: inline-block; background: #111827; color: #ffffff; padding: 12px 24px;
+                      border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">
+              Add to Google Calendar
+            </a>
+          </div>`;
 }
 
 /** Mode line + location / join section for interview emails */
@@ -16,26 +40,45 @@ function renderInterviewVenueHtml(
 ) {
   const mode = interviewDetails?.interviewMode;
   const modeText = interviewModeLabel(mode);
+  const interviewerName = interviewDetails?.interviewerName?.trim();
+  const interviewerLine = interviewerName
+    ? style === "card"
+      ? `<p style="font-size: 16px; margin-bottom: 8px;"><strong>Interviewer:</strong> ${escapeHtml(interviewerName)}</p>`
+      : `<br/><strong>Interviewer:</strong> ${escapeHtml(interviewerName)}`
+    : "";
   const modeLine = modeText
     ? style === "card"
       ? `<p style="font-size: 16px; margin-bottom: 20px;"><strong>Mode:</strong> ${modeText}</p>`
       : `<br/><strong>Mode:</strong> ${modeText}`
     : "";
+  const meetLink = interviewDetails?.googleMeetLink?.trim();
+  const safeMeet = meetLink ? escapeHtml(meetLink) : "";
+  const meetBlock = meetLink
+    ? style === "plain"
+      ? `<p><a href="${safeMeet}">Join Google Meet</a></p>`
+      : `<div style="margin: 20px 0;"><a href="${safeMeet}" style="display: inline-block; background: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">Join Google Meet</a></div>`
+    : "";
+  const virtualCopy = meetLink
+    ? "This is a <strong>virtual</strong> interview. You have to give this interview on Google Meet."
+    : "This is a <strong>virtual</strong> interview. Meeting link or dial-in details will be shared by HR before your scheduled time.";
 
   if (mode === "virtual") {
     if (style === "plain") {
-      return `${modeLine}
+      return `${interviewerLine}${modeLine}
           <p><strong>How to Join:</strong><br/>
-            This is a <strong>virtual</strong> interview. Meeting link or dial-in details will be shared by HR before your scheduled time.
-          </p>`;
+            ${virtualCopy}
+          </p>
+          ${meetBlock}`;
     }
     return `
+          ${interviewerLine}
           ${modeLine}
           <div style="margin: 30px 0;">
             <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">How to Join</h3>
             <p style="font-size: 16px; margin-bottom: 15px; line-height: 1.6;">
-              This is a <strong>virtual</strong> interview. Meeting link or dial-in details will be shared by HR before your scheduled time.
+              ${virtualCopy}
             </p>
+            ${meetBlock}
           </div>`;
   }
 
@@ -46,7 +89,7 @@ function renderInterviewVenueHtml(
   const maps = interviewDetails?.googleMapsLink;
 
   if (style === "plain") {
-    return `${modeLine}
+    return `${interviewerLine}${modeLine}
           <p><strong>Office${officeName ? ` (${officeName})` : ""}:</strong><br/>
             ${address}
           </p>
@@ -58,6 +101,7 @@ function renderInterviewVenueHtml(
   }
 
   return `
+          ${interviewerLine}
           ${modeLine}
           <div style="margin: 30px 0;">
             <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Office Location${
@@ -455,6 +499,52 @@ export const getCandidateEmailTemplate = (
         </div>
       `,
     },
+    onboardingRejected: {
+      subject: `Onboarding Update - ${position} at ${companyName}`,
+      html: `
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+          <div style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); padding: 40px 30px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">Onboarding Update</h1>
+          </div>
+          
+          <div style="padding: 40px 30px; color: #333; line-height: 1.8;">
+            <p style="font-size: 18px; color: #1f2937; margin-bottom: 20px;">Dear ${candidateName},</p>
+            
+            <p style="font-size: 16px; margin-bottom: 20px;">
+              Thank you for your interest in the <strong>${position}</strong> position at <strong>${companyName}</strong> and for the time you spent in onboarding.
+            </p>
+            
+            <p style="font-size: 16px; margin-bottom: 25px;">
+              After review, we are unable to continue your onboarding. You have not been employed, and this decision is recorded as a rejection from onboarding.
+            </p>
+            
+            ${
+              rejectionReason
+                ? `
+                <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 20px; margin: 25px 0; border-radius: 4px;">
+                  <p style="margin: 0; font-size: 15px; color: #7f1d1d;">
+                    <strong>Additional Information:</strong><br/>
+                    ${rejectionReason}
+                  </p>
+                </div>`
+                : ""
+            }
+            
+            <p style="font-size: 15px; margin-top: 25px;">
+              We wish you the very best and thank you again for your interest in ${companyName}.
+            </p>
+            
+            ${getEmailSignature(hrEmployee)}
+          </div>
+          
+          <div style="background: #f9fafb; padding: 20px 30px; text-align: center; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
+            <p style="font-size: 12px; color: #6b7280; margin: 0;">
+              © ${new Date().getFullYear()} ${companyName}. All rights reserved.
+            </p>
+          </div>
+        </div>
+      `,
+    },
     interview: {
       subject: `Interview Scheduled - ${position} at ${companyName}`,
       html: `
@@ -462,7 +552,10 @@ export const getCandidateEmailTemplate = (
           <p style="font-size: 16px; margin-bottom: 20px;">Dear ${candidateName},</p>
           
           <p style="font-size: 16px; margin-bottom: 20px; line-height: 1.6;">
-            Thank you for your interest in the <strong>${position}</strong> position at <strong>${companyName}</strong>. We are pleased to inform you that your interview has been scheduled.
+            You have to give this interview for the <strong>${position}</strong> position at <strong>${companyName}</strong>.
+          </p>
+          <p style="font-size: 16px; margin-bottom: 20px; line-height: 1.6;">
+            Thank you for your interest. Your interview has been scheduled, and the details are below.
           </p>
           
           <div style="margin: 30px 0;">
@@ -489,6 +582,7 @@ export const getCandidateEmailTemplate = (
           </div>
           
           ${renderInterviewVenueHtml(interviewDetails, "card")}
+          ${renderAddToCalendarHtml(interviewDetails)}
           
           <div style="margin: 30px 0;">
             <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Important Reminders</h3>
@@ -547,7 +641,7 @@ export const getCandidateEmailTemplate = (
     
           <p>
             Based on your performance, we would like to invite you to attend the second round of the interview process.
-            This round will help us further assess your skills, experience, and suitability for the role.
+            You have to give this interview.
           </p>
     
           <p><strong>Second Round Interview Details:</strong></p>
@@ -573,6 +667,7 @@ export const getCandidateEmailTemplate = (
           </p>
     
           ${renderInterviewVenueHtml(interviewDetails, "plain")}
+          ${renderAddToCalendarHtml(interviewDetails)}
     
           <p><strong>Please note:</strong></p>
           <ul>
@@ -638,7 +733,7 @@ export const getCandidateEmailTemplate = (
           <p style="font-size: 16px; margin-bottom: 20px;">Dear ${candidateName},</p>
           
           <p style="font-size: 16px; margin-bottom: 20px; line-height: 1.6;">
-            Your request to reschedule your interview for the <strong>${position}</strong> position at <strong>${companyName}</strong> has been <strong style="color: #10b981;">approved</strong>.
+            Your request to reschedule your interview for the <strong>${position}</strong> position at <strong>${companyName}</strong> has been <strong style="color: #10b981;">approved</strong>. You have to give this interview at the new time.
           </p>
           
           <div style="margin: 30px 0; padding: 20px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 6px;">
@@ -663,25 +758,8 @@ export const getCandidateEmailTemplate = (
             </p>
           </div>
           
-          <div style="margin: 30px 0;">
-            <h3 style="font-size: 18px; margin-bottom: 15px; font-weight: 600;">Office Location</h3>
-            <p style="font-size: 16px; margin-bottom: 15px; line-height: 1.6;">
-              ${interviewDetails?.officeAddress || "Office address will be shared by HR before your visit."}
-            </p>
-            ${
-              interviewDetails?.googleMapsLink
-                ? `
-                <div style="margin: 20px 0;">
-                  <a href="${interviewDetails.googleMapsLink}" 
-                     style="display: inline-block; background: #3b82f6; color: #ffffff; padding: 12px 24px; 
-                            border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;
-                            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);">
-                    📍 View on Google Maps
-                  </a>
-                </div>`
-                : ""
-            }
-          </div>
+          ${renderInterviewVenueHtml(interviewDetails, "card")}
+          ${renderAddToCalendarHtml(interviewDetails)}
           
           <div style="margin: 30px 0; padding: 15px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 6px;">
             <p style="font-size: 15px; margin: 0; line-height: 1.6; color: #92400e;">
@@ -708,7 +786,7 @@ export const getCandidateEmailTemplate = (
           <p>Dear ${candidateName},</p>
     
           <p>
-            Your request to reschedule your second round interview for the <strong>${position}</strong> position at <strong>${companyName}</strong> has been <strong style="color: #10b981;">approved</strong>.
+            Your request to reschedule your second round interview for the <strong>${position}</strong> position at <strong>${companyName}</strong> has been <strong style="color: #10b981;">approved</strong>. You have to give this interview at the new time.
           </p>
     
           <div style="margin: 30px 0; padding: 20px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 6px;">
@@ -735,21 +813,8 @@ export const getCandidateEmailTemplate = (
             </p>
           </div>
     
-          <p><strong>Office Address:</strong><br/>
-            ${interviewDetails?.officeAddress || "Office address will be shared by HR before your visit."}
-          </p>
-    
-          ${
-            interviewDetails?.googleMapsLink
-              ? `
-                <p>
-                  <a href="${interviewDetails.googleMapsLink}">
-                    View location on Google Maps
-                  </a>
-                </p>
-              `
-              : ""
-          }
+          ${renderInterviewVenueHtml(interviewDetails, "plain")}
+          ${renderAddToCalendarHtml(interviewDetails)}
     
           <div style="margin: 30px 0; padding: 15px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 6px;">
             <p style="margin: 0; line-height: 1.6; color: #92400e;">

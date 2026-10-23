@@ -11,9 +11,6 @@ import {
   Globe,
   AlertCircle,
   Calendar,
-  Mail,
-  Phone,
-  MapPin,
   Briefcase,
   Clock,
   ChevronDown,
@@ -73,12 +70,16 @@ import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import axios from "@/util/axios";
 import { SelectCandidateDialog, SelectionData } from "../components/select-candidate-dialog";
 import { EmploymentTypeRequiredDialog } from "../components/employment-type-required-dialog";
-import { RejectCandidateDialog, RejectionData } from "../components/reject-candidate-dialog";
+import { ONBOARDING_REJECTION_REASONS, RejectCandidateDialog, RejectionData } from "../components/reject-candidate-dialog";
 import { CreateEmployeeDialog } from "../components/createEmployee";
 import { ShortlistCandidateDialog, ShortlistData } from "../components/shortlist-candidate-dialog";
 import { OnboardingDetailsView } from "../components/onboarding-details-view";
 import { InterviewRemarksDialog } from "../components/interview-remarks-dialog";
 import { formatDateToLocalString, isDateBeforeToday } from "@/lib/utils";
+import {
+  InterviewerSelect,
+  type InterviewerOption,
+} from "../components/interviewer-select";
 
 // Import refactored modules
 import { Candidate } from "./types";
@@ -86,8 +87,6 @@ import {
   ROLE_OPTIONS,
   EMPLOYMENT_TYPE_OPTIONS,
   formatEmploymentType,
-  getStatusColor,
-  getStatusLabel,
   type EmploymentType,
 } from "./constants";
 import { useCandidate } from "./hooks/useCandidate";
@@ -100,6 +99,11 @@ import {
 } from "./utils/officeAddressFromCandidate";
 import { generateUnsignedOfferLetter as requestUnsignedOfferLetter } from "./utils/pdf-generators";
 import { CandidateHeader } from "./components/CandidateHeader";
+import {
+  hiringBackLabel,
+  peopleListPath,
+  safeDashboardPath,
+} from "@/features/people/navigation";
 
 // During transition, optionally redirect to unified page:
 // redirect(`/dashboard/people/${candidateId}`);
@@ -139,13 +143,17 @@ export default function CandidateDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const candidateId = params?.id as string;
+  const hiringReturnTo = safeDashboardPath(
+    searchParams.get("returnTo"),
+    peopleListPath()
+  );
 
   // Use refactored hooks
   const { candidate, loading, error: candidateError, refreshCandidate, setCandidate } = useCandidate(candidateId);
-  const { actionLoading, error: actionError, handleSelectCandidate, handleShortlistCandidate, handleRejectCandidate, handleDiscontinueTraining, handleOnboarding } = useCandidateActions(candidateId, (updatedCandidate) => {
+  const { actionLoading, error: actionError, handleSelectCandidate, handleShortlistCandidate, handleRejectCandidate, handleRejectFromOnboarding, handleDiscontinueTraining, handleOnboarding } = useCandidateActions(candidateId, (updatedCandidate) => {
     setCandidate(updatedCandidate);
   });
-  const { canShortlist, canSelect, canReject, canDiscontinueTraining, canStartOnboarding, canCreateEmployee, canScheduleInterview, canScheduleSecondRound, hasInterviewRemarks, hasAnyInterviewScheduled, hasEmploymentType } = useCandidatePermissions(candidate);
+  const { canShortlist, canSelect, canReject, canRejectFromOnboarding, canDiscontinueTraining, canStartOnboarding, canCreateEmployee, canScheduleInterview, canScheduleSecondRound, hasInterviewRemarks, hasAnyInterviewScheduled, hasEmploymentType } = useCandidatePermissions(candidate);
   
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -162,6 +170,7 @@ export default function CandidateDetailPage() {
   const [shortlistDialogOpen, setShortlistDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectAfterTrainingDialogOpen, setRejectAfterTrainingDialogOpen] = useState(false);
+  const [rejectFromOnboardingDialogOpen, setRejectFromOnboardingDialogOpen] = useState(false);
   const [createEmployeeDialogOpen, setCreateEmployeeDialogOpen] =
     useState(false);
   const [scheduleInterviewDialogOpen, setScheduleInterviewDialogOpen] = useState(false);
@@ -174,6 +183,7 @@ export default function CandidateDetailPage() {
     ""
   );
   const [interviewOfficeId, setInterviewOfficeId] = useState<string>("");
+  const [interviewerEmployeeId, setInterviewerEmployeeId] = useState("");
   const [schedulingInterview, setSchedulingInterview] = useState(false);
 
   // Second Round Interview states
@@ -188,7 +198,37 @@ export default function CandidateDetailPage() {
     "physical" | "virtual" | ""
   >("");
   const [secondRoundOfficeId, setSecondRoundOfficeId] = useState<string>("");
+  const [secondRoundInterviewerEmployeeId, setSecondRoundInterviewerEmployeeId] =
+    useState("");
   const [schedulingSecondRound, setSchedulingSecondRound] = useState(false);
+  const [interviewers, setInterviewers] = useState<InterviewerOption[]>([]);
+  const [interviewersLoading, setInterviewersLoading] = useState(false);
+
+  useEffect(() => {
+    if (!scheduleInterviewDialogOpen && !scheduleSecondRoundDialogOpen) return;
+    let cancelled = false;
+    const loadInterviewers = async () => {
+      setInterviewersLoading(true);
+      try {
+        const response = await fetch("/api/employee/interviewers");
+        const result = (await response.json()) as {
+          success?: boolean;
+          data?: InterviewerOption[];
+        };
+        if (!cancelled && result.success && Array.isArray(result.data)) {
+          setInterviewers(result.data);
+        }
+      } catch (loadError) {
+        console.error("Failed to load interviewers", loadError);
+      } finally {
+        if (!cancelled) setInterviewersLoading(false);
+      }
+    };
+    void loadInterviewers();
+    return () => {
+      cancelled = true;
+    };
+  }, [scheduleInterviewDialogOpen, scheduleSecondRoundDialogOpen]);
 
   // convertTo24Hour is now imported from utils/time-utils
   const [interviewRemarksDialogOpen, setInterviewRemarksDialogOpen] = useState(false);
@@ -551,6 +591,13 @@ export default function CandidateDetailPage() {
     }
   };
 
+  const handleRejectFromOnboardingWrapper = async (data: RejectionData) => {
+    const result = await handleRejectFromOnboarding(data);
+    if (result.success) {
+      setRejectFromOnboardingDialogOpen(false);
+    }
+  };
+
   const handleOnboardingWrapper = async () => {
     await handleOnboarding();
   };
@@ -756,23 +803,42 @@ export default function CandidateDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="-m-2 flex min-h-[50vh] flex-col items-center justify-center gap-3 bg-white dark:bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-[#636366] dark:text-[#aeaeb2]" aria-hidden />
+        <p className="text-sm text-[#636366] dark:text-[#aeaeb2]">Loading candidate</p>
       </div>
     );
   }
 
   if (!candidate) {
     return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-muted-foreground">Candidate not found</p>
+      <div className="-m-2 min-h-[50vh] bg-white p-8 dark:bg-background">
+        <div className="space-y-3">
+          <p className="text-base text-[#1d1d1f] dark:text-[#f5f5f7]">
+            This candidate record is not available.
+          </p>
+          <Link
+            href={hiringReturnTo}
+            className="inline-flex min-h-9 items-center text-sm text-[#0040dd] underline decoration-[#0040dd]/40 underline-offset-2 dark:text-[#64b5ff]"
+          >
+            {hiringBackLabel(hiringReturnTo)}
+          </Link>
         </div>
       </div>
     );
   }
 
-  // getStatusColor and permission checks are now from hooks/constants
+  const nextAction = canCreateEmployee()
+    ? "employee"
+    : canStartOnboarding()
+      ? "onboarding"
+      : canSelect() && candidate.status !== "pending"
+        ? "select"
+        : hasAnyInterviewScheduled() && canVerify && !hasInterviewRemarks()
+          ? "remarks"
+          : canScheduleInterview()
+            ? "interview"
+            : null;
 
   const handleScheduleInterview = async () => {
     if (!candidate || !interviewDate) {
@@ -785,6 +851,10 @@ export default function CandidateDetailPage() {
     }
     if (interviewMode === "physical" && !interviewOfficeId) {
       toast.error("Please select an office for the physical interview");
+      return;
+    }
+    if (!interviewerEmployeeId) {
+      toast.error("Please select an interviewer");
       return;
     }
 
@@ -808,6 +878,7 @@ export default function CandidateDetailPage() {
             officeAddressId:
               interviewMode === "physical" ? interviewOfficeId : undefined,
             notes: interviewNotes || undefined,
+            interviewerEmployeeId,
           }),
         }
       );
@@ -823,6 +894,7 @@ export default function CandidateDetailPage() {
         setInterviewNotes("");
         setInterviewMode("");
         setInterviewOfficeId("");
+        setInterviewerEmployeeId("");
         // Refresh candidate data
         await refreshCandidate();
       } else {
@@ -849,6 +921,10 @@ export default function CandidateDetailPage() {
     }
     if (secondRoundInterviewMode === "physical" && !secondRoundOfficeId) {
       toast.error("Please select an office for the physical interview");
+      return;
+    }
+    if (!secondRoundInterviewerEmployeeId) {
+      toast.error("Please select an interviewer");
       return;
     }
 
@@ -879,6 +955,7 @@ export default function CandidateDetailPage() {
                 ? secondRoundOfficeId
                 : undefined,
             notes: secondRoundNotes || undefined,
+            interviewerEmployeeId: secondRoundInterviewerEmployeeId,
           }),
         }
       );
@@ -894,6 +971,7 @@ export default function CandidateDetailPage() {
         setSecondRoundNotes("");
         setSecondRoundInterviewMode("");
         setSecondRoundOfficeId("");
+        setSecondRoundInterviewerEmployeeId("");
         setShowSecondRoundConfirmation(false);
         await refreshCandidate();
       } else {
@@ -996,9 +1074,17 @@ export default function CandidateDetailPage() {
       
       case "reject":
         if (candidate.status === "rejected") return "Candidate is already rejected";
-        if (candidate.status === "onboarding") return "Cannot reject during onboarding";
+        if (candidate.status === "onboarding") {
+          return candidate.employeeId
+            ? "Employed people cannot be rejected. Mark them as exited instead."
+            : "Use Reject from onboarding";
+        }
         if (candidate.status === "interview" && !hasInterviewRemarks()) return "Interview remarks must be completed before rejecting";
         return "Reject this candidate";
+
+      case "rejectFromOnboarding":
+        if (!canRejectFromOnboarding()) return "Only available for onboarding candidates who are not employed";
+        return "Reject from onboarding. This is recorded separately from a hiring rejection.";
       
       case "onboarding":
         if (candidate.status === "onboarding") return candidate.onboardingDetails?.onboardingComplete ? "Onboarding completed" : "Onboarding in progress";
@@ -1016,53 +1102,49 @@ export default function CandidateDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Compact Header - Now using CandidateHeader component */}
-      <CandidateHeader candidate={candidate} />
+    <div className="-m-2 min-h-screen bg-white text-[#1d1d1f] dark:bg-background dark:text-foreground">
+      <CandidateHeader
+        candidate={candidate}
+        backHref={hiringReturnTo}
+        backLabel={hiringBackLabel(hiringReturnTo)}
+      />
 
-      {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-6 py-4">
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
         {error && (
-          <div className="mb-3 px-4 py-2.5 bg-red-50 border border-red-200 rounded-md flex items-center gap-2 text-red-700 text-sm">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <div className="mb-3 flex items-start gap-2 rounded-xl bg-[#fdecec] px-4 py-3 text-sm text-[#8b1e1e] sm:mb-4 dark:bg-[#3a1010] dark:text-[#ffb4b4]">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
             <span>{error}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-12 gap-4">
-          {/* Left Sidebar - Contact & Actions */}
-          <div className="col-span-12 lg:col-span-3 space-y-3">
+        <div className="grid items-start gap-3 sm:gap-4 xl:grid-cols-[minmax(0,3.5fr)_minmax(0,8.5fr)] xl:gap-5">
+          <div className="order-2 min-w-0 space-y-3 sm:space-y-4 xl:order-1">
             {/* Contact Information */}
-            <Card className="p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
-                Contact
+            <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
+              <h3 className="text-sm font-medium text-[#636366] dark:text-[#aeaeb2]">
+                Reach {candidate.name.split(" ")[0]}
               </h3>
-              <div className="space-y-2.5">
-                <a
-                  href={`mailto:${candidate?.email}`}
-                  className="flex items-start gap-2 text-sm group"
-                >
-                  <Mail className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <span className="text-primary group-hover:underline break-all">
-                    {candidate.email}
-                  </span>
-                </a>
-                <a
-                  href={`tel:${candidate?.phone}`}
-                  className="flex items-center gap-2 text-sm group"
-                >
-                  <Phone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span className="text-primary group-hover:underline">
-                    {candidate.phone}
-                  </span>
-                </a>
-                <div className="flex items-start gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <span className="text-foreground">{candidate?.address}</span>
-                </div>
-                <div className="space-y-2 pt-2 border-t">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-                    Office Address
+              <a
+                href={`tel:${candidate?.phone}`}
+                className="mt-2 block text-lg font-semibold tracking-tight text-[#1d1d1f] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] dark:text-[#f5f5f7]"
+              >
+                {candidate.phone}
+              </a>
+              <a
+                href={`mailto:${candidate?.email}`}
+                className="mt-1 block break-all text-base text-[#0040dd] underline decoration-[#0040dd]/30 underline-offset-4 hover:decoration-[#0040dd] dark:text-[#64b5ff]"
+              >
+                {candidate.email}
+              </a>
+              {candidate.address ? (
+                <p className="mt-2 max-w-sm text-sm leading-6 text-[#3a3a3c] dark:text-[#d1d1d6]">
+                  {candidate.address}
+                </p>
+              ) : null}
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-[#636366] dark:text-[#aeaeb2]">
+                    Office
                   </Label>
                   <Select
                     value={
@@ -1076,7 +1158,7 @@ export default function CandidateDetailPage() {
                     onValueChange={handleOfficeAddressChange}
                     disabled={updatingOfficeAddress}
                   >
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-9 text-sm">
                       <SelectValue placeholder="Select office address" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1091,21 +1173,21 @@ export default function CandidateDetailPage() {
                     </SelectContent>
                   </Select>
                   {!candidate.officeAddressId && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
-                      Required before generating Training / Onboarding / Offer Letter PDFs
+                    <p className="rounded-lg bg-[#fff4d4] px-3 py-2 text-sm text-[#7a4e00] dark:bg-[#3a2a08] dark:text-[#ffd60a]">
+                      Set an office before generating training, onboarding, or offer letter PDFs.
                     </p>
                   )}
                 </div>
-                <div className="space-y-2 pt-2 border-t">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-                    Employment Type
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-[#636366] dark:text-[#aeaeb2]">
+                    Employment
                   </Label>
                   <Select
                     value={candidate.employmentType ?? "unset"}
                     onValueChange={handleEmploymentTypeChange}
                     disabled={updatingEmploymentType}
                   >
-                    <SelectTrigger className="h-9">
+                    <SelectTrigger className="h-9 text-sm">
                       <SelectValue placeholder="Select employment type" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1119,7 +1201,7 @@ export default function CandidateDetailPage() {
                   </Select>
                   {candidate.selectionDetails?.positionType &&
                     candidate.selectionDetails.positionType !== candidate.employmentType && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-sm text-[#636366] dark:text-[#aeaeb2]">
                         Selected for training as{" "}
                         {formatEmploymentType(candidate.selectionDetails.positionType)}
                       </p>
@@ -1130,8 +1212,8 @@ export default function CandidateDetailPage() {
 
             {/* Interview Schedule */}
             {candidate.status === "interview" && candidate.interviewDetails && (
-              <Card className="p-4">
-                <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
+              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
+                <h3 className="mb-3 text-sm font-semibold text-[#636366] dark:text-[#aeaeb2]">
                   Interview
                 </h3>
                 <div className="space-y-2 text-sm">
@@ -1172,8 +1254,34 @@ export default function CandidateDetailPage() {
                       </span>
                     </div>
                   )}
+                  {candidate.interviewDetails.interviewerName && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Interviewer</span>
+                      <span className="text-foreground font-medium text-right">
+                        {candidate.interviewDetails.interviewerName}
+                      </span>
+                    </div>
+                  )}
+                  {candidate.interviewDetails.googleMeetLink && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Meet</span>
+                      <a
+                        href={candidate.interviewDetails.googleMeetLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary font-medium underline-offset-4 hover:underline"
+                      >
+                        Join
+                      </a>
+                    </div>
+                  )}
+                  {candidate.interviewDetails.calendarSyncError && (
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Calendar was not updated: {candidate.interviewDetails.calendarSyncError}
+                    </p>
+                  )}
                   {candidate.interviewDetails.scheduledBy && (
-                    <div className="pt-2 mt-2 border-t text-xs text-muted-foreground">
+                    <div className="pt-2 mt-2 border-t text-sm text-[#636366] dark:text-[#aeaeb2]">
                       Scheduled by {candidate.interviewDetails.scheduledBy}
                     </div>
                   )}
@@ -1184,8 +1292,8 @@ export default function CandidateDetailPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
-                            Reschedule Request Pending
+                          <Badge variant="outline" className="border-transparent bg-[#fff4d4] text-sm font-medium text-[#7a4e00] dark:bg-[#3a2a08] dark:text-[#ffd60a]">
+                            Reschedule requested
                           </Badge>
                         </div>
                         <div className="space-y-1 text-sm">
@@ -1214,7 +1322,7 @@ export default function CandidateDetailPage() {
                             </div>
                           )}
                           {candidate.interviewDetails.rescheduleRequest.requestedAt && (
-                            <div className="text-xs text-muted-foreground mt-2">
+                            <div className="text-sm text-[#636366] dark:text-[#aeaeb2] mt-2">
                               Requested on {new Date(candidate.interviewDetails.rescheduleRequest.requestedAt).toLocaleString()}
                             </div>
                           )}
@@ -1226,7 +1334,7 @@ export default function CandidateDetailPage() {
                             size="sm"
                             onClick={() => handleRescheduleRequest("approve", "first")}
                             disabled={rescheduleLoading}
-                            className="bg-green-600 hover:bg-green-700 text-white"
+                            className="h-9"
                           >
                             <Check className="w-4 h-4 mr-1" />
                             Approve
@@ -1236,9 +1344,10 @@ export default function CandidateDetailPage() {
                             variant="destructive"
                             onClick={() => handleRescheduleRequest("reject", "first")}
                             disabled={rescheduleLoading}
+                            className="h-9 bg-[#8b1e1e] text-white hover:bg-[#6f1818]"
                           >
-                            <X className="w-4 h-4 mr-1" />
-                            Reject
+                            <X className="w-4 h-4 mr-1" aria-hidden />
+                            Decline
                           </Button>
                         </div>
                       )}
@@ -1250,8 +1359,8 @@ export default function CandidateDetailPage() {
 
             {/* Second Round Interview Schedule */}
             {candidate.secondRoundInterviewDetails?.scheduledDate && (
-              <Card className="p-4">
-                <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
+              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
+                <h3 className="mb-3 text-sm font-semibold text-[#636366] dark:text-[#aeaeb2]">
                   Second Round Interview
                 </h3>
                 <div className="space-y-2 text-sm">
@@ -1293,8 +1402,34 @@ export default function CandidateDetailPage() {
                       </span>
                     </div>
                   )}
+                  {candidate.secondRoundInterviewDetails.interviewerName && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Interviewer</span>
+                      <span className="text-foreground font-medium text-right">
+                        {candidate.secondRoundInterviewDetails.interviewerName}
+                      </span>
+                    </div>
+                  )}
+                  {candidate.secondRoundInterviewDetails.googleMeetLink && (
+                    <div className="flex justify-between gap-3">
+                      <span className="text-muted-foreground">Meet</span>
+                      <a
+                        href={candidate.secondRoundInterviewDetails.googleMeetLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary font-medium underline-offset-4 hover:underline"
+                      >
+                        Join
+                      </a>
+                    </div>
+                  )}
+                  {candidate.secondRoundInterviewDetails.calendarSyncError && (
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Calendar was not updated: {candidate.secondRoundInterviewDetails.calendarSyncError}
+                    </p>
+                  )}
                   {candidate.secondRoundInterviewDetails.scheduledBy && (
-                    <div className="pt-2 mt-2 border-t text-xs text-muted-foreground">
+                    <div className="pt-2 mt-2 border-t text-sm text-[#636366] dark:text-[#aeaeb2]">
                       Scheduled by {candidate.secondRoundInterviewDetails.scheduledBy}
                     </div>
                   )}
@@ -1305,8 +1440,8 @@ export default function CandidateDetailPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
-                            Reschedule Request Pending
+                          <Badge variant="outline" className="border-transparent bg-[#fff4d4] text-sm font-medium text-[#7a4e00] dark:bg-[#3a2a08] dark:text-[#ffd60a]">
+                            Reschedule requested
                           </Badge>
                         </div>
                         <div className="space-y-1 text-sm">
@@ -1335,7 +1470,7 @@ export default function CandidateDetailPage() {
                             </div>
                           )}
                           {candidate.secondRoundInterviewDetails.rescheduleRequest.requestedAt && (
-                            <div className="text-xs text-muted-foreground mt-2">
+                            <div className="text-sm text-[#636366] dark:text-[#aeaeb2] mt-2">
                               Requested on {new Date(candidate.secondRoundInterviewDetails.rescheduleRequest.requestedAt).toLocaleString()}
                             </div>
                           )}
@@ -1347,7 +1482,7 @@ export default function CandidateDetailPage() {
                             size="sm"
                             onClick={() => handleRescheduleRequest("approve", "second")}
                             disabled={rescheduleLoading}
-                            className="bg-green-600 hover:bg-green-700 text-white"
+                            className="h-9"
                           >
                             <Check className="w-4 h-4 mr-1" />
                             Approve
@@ -1357,9 +1492,10 @@ export default function CandidateDetailPage() {
                             variant="destructive"
                             onClick={() => handleRescheduleRequest("reject", "second")}
                             disabled={rescheduleLoading}
+                            className="h-9 bg-[#8b1e1e] text-white hover:bg-[#6f1818]"
                           >
-                            <X className="w-4 h-4 mr-1" />
-                            Reject
+                            <X className="w-4 h-4 mr-1" aria-hidden />
+                            Decline
                           </Button>
                         </div>
                       )}
@@ -1370,12 +1506,12 @@ export default function CandidateDetailPage() {
             )}
 
             {/* Actions */}
-            <Card className="p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
-                Actions
+            <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
+              <h3 className="mb-3 text-sm font-medium text-[#636366] dark:text-[#aeaeb2]">
+                What you can do
               </h3>
               <TooltipProvider>
-                <div className="space-y-1.5">
+                <div className="flex flex-wrap gap-2 [&>div]:w-fit">
                   {/* Schedule Interview Button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1398,12 +1534,12 @@ export default function CandidateDetailPage() {
                             setInterviewOfficeId("");
                           }}
                           disabled={actionLoading || !canScheduleInterview()}
-                          variant={candidate.status === "interview" ? "default" : "outline"}
+                          variant={nextAction === "interview" ? "default" : "outline"}
                           size="sm"
-                          className="w-full justify-start h-8 text-xs"
+                          className="h-9 justify-start px-3 text-sm font-medium"
                         >
-                          <Calendar className="mr-1.5 h-3.5 w-3.5" />
-                          {candidate.status === "interview" ? "✓ Interview" : "Schedule Interview"}
+                          <Calendar className="mr-1.5 h-4 w-4" aria-hidden />
+                          {canScheduleInterview() ? "Schedule Interview" : "Interview Scheduled"}
                         </Button>
                       </div>
                     </TooltipTrigger>
@@ -1418,12 +1554,12 @@ export default function CandidateDetailPage() {
                         <div>
                           <Button
                             onClick={() => setInterviewRemarksDialogOpen(true)}
-                            variant={candidate.interviewDetails?.remarks?.evaluatedBy ? "default" : "outline"}
+                            variant={nextAction === "remarks" ? "default" : "outline"}
                             size="sm"
-                            className="w-full justify-start h-8 text-xs"
+                            className="h-9 justify-start px-3 text-sm font-medium"
                           >
-                            <FileText className="mr-1.5 h-3.5 w-3.5" />
-                            {candidate.interviewDetails?.remarks?.evaluatedBy ? "✓ Remarks" : "Add Remarks"}
+                            <FileText className="mr-1.5 h-4 w-4" aria-hidden />
+                            {candidate.interviewDetails?.remarks?.evaluatedBy ? "Remarks Added" : "Add Remarks"}
                           </Button>
                         </div>
                       </TooltipTrigger>
@@ -1439,7 +1575,7 @@ export default function CandidateDetailPage() {
                           onClick={handleEditRole}
                           variant="outline"
                           size="sm"
-                          className="w-full justify-start h-8 text-xs"
+                          className="h-9 justify-start px-3 text-sm font-medium"
                         >
                           <Pencil className="mr-1.5 h-3.5 w-3.5" />
                           Edit Role
@@ -1463,12 +1599,12 @@ export default function CandidateDetailPage() {
                             openSecondRoundDialog();
                           }}
                           disabled={actionLoading || !canScheduleSecondRound()}
-                          variant={candidate.secondRoundInterviewDetails?.scheduledDate ? "default" : "outline"}
+                          variant="outline"
                           size="sm"
-                          className="w-full justify-start h-8 text-xs"
+                          className="h-9 justify-start px-3 text-sm font-medium"
                         >
-                          <Calendar className="mr-1.5 h-3.5 w-3.5" />
-                          {candidate.secondRoundInterviewDetails?.scheduledDate ? "✓ Second Round" : "Schedule Second Round"}
+                          <Calendar className="mr-1.5 h-4 w-4" aria-hidden />
+                          {candidate.secondRoundInterviewDetails?.scheduledDate ? "Second Round Scheduled" : "Schedule Second Round"}
                         </Button>
                       </div>
                     </TooltipTrigger>
@@ -1482,11 +1618,11 @@ export default function CandidateDetailPage() {
                         <Button
                           onClick={() => setShortlistDialogOpen(true)}
                           disabled={actionLoading || !canShortlist()}
-                          variant={candidate.status === "shortlisted" ? "default" : "outline"}
+                          variant="outline"
                           size="sm"
-                          className="w-full justify-start h-8 text-xs"
+                          className="h-9 justify-start px-3 text-sm font-medium"
                         >
-                          {candidate.status === "shortlisted" ? "✓ Shortlisted" : "Shortlist"}
+                          {candidate.status === "shortlisted" ? "Shortlisted" : "Shortlist"}
                         </Button>
                       </div>
                     </TooltipTrigger>
@@ -1500,11 +1636,11 @@ export default function CandidateDetailPage() {
                         <Button
                           onClick={handleSelectForTrainingClick}
                           disabled={actionLoading || !canSelect()}
-                          variant={candidate.status === "selected" ? "default" : "outline"}
+                          variant={nextAction === "select" ? "default" : "outline"}
                           size="sm"
-                          className="w-full justify-start h-8 text-xs"
+                          className="h-9 justify-start px-3 text-sm font-medium"
                         >
-                          {candidate.status === "selected" ? "✓ Selected" : "Select for Training"}
+                          {candidate.status === "selected" ? "Selected for Training" : "Select for Training"}
                         </Button>
                       </div>
                     </TooltipTrigger>
@@ -1518,11 +1654,15 @@ export default function CandidateDetailPage() {
                         <Button
                           onClick={() => setRejectDialogOpen(true)}
                           disabled={actionLoading || !canReject()}
-                          variant={candidate.status === "rejected" ? "destructive" : "outline"}
+                          variant={canReject() ? "destructive" : "outline"}
                           size="sm"
-                          className="w-full justify-start h-8 text-xs"
+                          className={
+                            canReject()
+                              ? "h-9 w-full justify-start bg-[#8b1e1e] px-3 text-sm font-medium text-white hover:bg-[#6f1818]"
+                              : "h-9 w-full justify-start px-3 text-sm font-medium"
+                          }
                         >
-                          {candidate.status === "rejected" ? "✗ Rejected" : "Reject"}
+                          {candidate.status === "rejected" ? "Rejected" : "Reject"}
                         </Button>
                       </div>
                     </TooltipTrigger>
@@ -1540,20 +1680,14 @@ export default function CandidateDetailPage() {
                         <Button
                           onClick={handleOnboardingWrapper}
                           disabled={actionLoading || !canStartOnboarding()}
-                          variant={
-                            candidate.status === "onboarding"
-                              ? candidate.onboardingDetails?.onboardingComplete
-                                ? "secondary"
-                                : "default"
-                              : "outline"
-                          }
+                          variant={nextAction === "onboarding" ? "default" : "outline"}
                           size="sm"
-                          className="w-full justify-start h-8 text-xs"
+                          className="h-9 justify-start px-3 text-sm font-medium"
                         >
                           {candidate.status === "onboarding"
                             ? candidate.onboardingDetails?.onboardingComplete
-                              ? "✓ Onboarding"
-                              : "⏳ Onboarding"
+                              ? "Onboarding Complete"
+                              : "Onboarding in Progress"
                             : "Start Onboarding"}
                         </Button>
                       </div>
@@ -1597,7 +1731,7 @@ export default function CandidateDetailPage() {
                             }
                             variant="outline"
                             size="sm"
-                            className="w-full justify-start h-8 text-xs"
+                            className="h-9 justify-start px-3 text-sm font-medium"
                           >
                             {sendingOfferLetter ? (
                               <>
@@ -1632,6 +1766,27 @@ export default function CandidateDetailPage() {
                     </Tooltip>
                   )}
 
+                  {canRejectFromOnboarding() && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <Button
+                            onClick={() => setRejectFromOnboardingDialogOpen(true)}
+                            disabled={actionLoading}
+                            variant="destructive"
+                            size="sm"
+                            className="h-9 w-full justify-start bg-[#8b1e1e] px-3 text-sm font-medium text-white hover:bg-[#6f1818]"
+                          >
+                            Reject from Onboarding
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{getButtonTooltip("rejectFromOnboarding")}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
                   {/* Discontinue Training Button */}
                   {candidate.status === "selected" && (
                     <Tooltip>
@@ -1642,7 +1797,7 @@ export default function CandidateDetailPage() {
                             disabled={actionLoading || !canDiscontinueTraining()}
                             variant="destructive"
                             size="sm"
-                            className="w-full justify-start h-8 text-xs"
+                            className="h-9 w-full justify-start bg-[#8b1e1e] px-3 text-sm font-medium text-white hover:bg-[#6f1818]"
                           >
                             Discontinue Training
                           </Button>
@@ -1659,9 +1814,9 @@ export default function CandidateDetailPage() {
                         <Button
                           onClick={() => setCreateEmployeeDialogOpen(true)}
                           disabled={actionLoading || !canCreateEmployee()}
-                          variant={canCreateEmployee() ? "default" : "outline"}
+                          variant={nextAction === "employee" ? "default" : "outline"}
                           size="sm"
-                          className="w-full justify-start h-8 text-xs"
+                          className="h-9 justify-start px-3 text-sm font-medium"
                         >
                           Create Employee
                         </Button>
@@ -1672,7 +1827,7 @@ export default function CandidateDetailPage() {
 
                   {candidate.employeeId && (
                     <Link href={`/dashboard/employeedetails/${candidate.employeeId}`}>
-                      <Button variant="outline" size="sm" className="w-full justify-start h-8 text-xs">
+                      <Button variant="outline" size="sm" className="h-9 justify-start px-3 text-sm font-medium">
                         <Briefcase className="h-4 w-4 mr-2" />
                         View Employee Profile
                       </Button>
@@ -1685,12 +1840,14 @@ export default function CandidateDetailPage() {
 
             {/* Training Agreement */}
             {(candidate.status === "selected" || candidate.status === "onboarding") && (
-              <Card className="p-4">
+              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
                 <button
+                  aria-expanded={trainingAgreementExpanded}
                   onClick={() => setTrainingAgreementExpanded(!trainingAgreementExpanded)}
-                  className="w-full flex items-center justify-between mb-2"
+                  type="button"
+                  className="flex min-h-9 w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]"
                 >
-                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+                  <h3 className="text-sm font-semibold text-[#636366] dark:text-[#aeaeb2]">
                     Training Agreement
                   </h3>
                   {trainingAgreementExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -1700,19 +1857,16 @@ export default function CandidateDetailPage() {
                     {/* Signed PDF Preview */}
                     {candidate.trainingAgreementDetails?.signedPdfUrl && (
                       <div className="flex-1 space-y-2">
-                        <p className="text-xs font-medium text-foreground">Signed</p>
-                        <div 
-                          onClick={() => setShowSignedPdfDialog(true)}
-                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
-                        >
+                        <p className="text-sm font-medium text-foreground">Signed</p>
+                        <button type="button" onClick={() => setShowSignedPdfDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
                           <div className="absolute inset-0 flex items-center justify-center bg-green-50 dark:bg-green-950/20">
                             <div className="text-center p-2">
                               <FileText className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-1" />
-                              <p className="text-xs font-semibold text-green-700 dark:text-green-300">Signed</p>
+                              <p className="text-sm font-semibold text-green-700 dark:text-green-300">Signed</p>
                             </div>
                           </div>
                           
-                        </div>
+                        </button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -1724,7 +1878,7 @@ export default function CandidateDetailPage() {
                             a.click();
                             document.body.removeChild(a);
                           }}
-                          className="w-full gap-1.5 h-7 text-xs"
+                          className="w-full gap-1.5 h-9 text-sm"
                         >
                           <Download className="w-3 h-3" />
                           Download
@@ -1737,7 +1891,7 @@ export default function CandidateDetailPage() {
                               setResignatureAgreementType("training");
                               setResignatureDialogOpen(true);
                             }}
-                            className="w-full gap-1.5 h-7 text-xs border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-400 dark:hover:bg-amber-950/20"
+                            className="w-full gap-1.5 h-9 text-sm border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-400 dark:hover:bg-amber-950/20"
                           >
                             <Pencil className="w-3 h-3" />
                             Request Re-signature
@@ -1750,19 +1904,19 @@ export default function CandidateDetailPage() {
                       <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-1">
+                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">
                               Re-signature Request Active
                             </p>
-                            <p className="text-xs text-amber-700 dark:text-amber-300">
+                            <p className="text-sm text-amber-700 dark:text-amber-300">
                               Requested by {candidate.trainingAgreementDetails.resignatureRequest.requestedBy} on{" "}
                               {new Date(candidate.trainingAgreementDetails.resignatureRequest.requestedAt).toLocaleDateString()}
                             </p>
                             {candidate.trainingAgreementDetails.resignatureRequest.reason && (
-                              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
                                 Reason: {candidate.trainingAgreementDetails.resignatureRequest.reason}
                               </p>
                             )}
-                            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
                               ⏰ Expires: {new Date(candidate.trainingAgreementDetails.resignatureRequest.tokenExpiresAt).toLocaleDateString()}
                             </p>
                           </div>
@@ -1771,7 +1925,7 @@ export default function CandidateDetailPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleCancelResignature("training")}
-                              className="h-6 text-xs text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-200"
+                              className="h-9 text-sm text-[#7a4e00] hover:text-[#5c3b00] dark:text-[#ffd60a] dark:hover:text-[#ffe38a]"
                             >
                               Cancel
                             </Button>
@@ -1782,37 +1936,34 @@ export default function CandidateDetailPage() {
                     
                     {/* Unsigned PDF Preview */}
                     <div className="flex-1 space-y-2">
-                      <p className="text-xs font-medium text-foreground">Unsigned</p>
+                      <p className="text-sm font-medium text-foreground">Unsigned</p>
                       {generatingUnsignedPdf ? (
                         <div className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
                           <div className="text-center">
                             <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                            <p className="text-[10px] text-muted-foreground">Loading...</p>
+                            <p className="text-sm text-[#636366] dark:text-[#aeaeb2]">Loading</p>
                           </div>
                         </div>
                       ) : unsignedTrainingAgreementUrl ? (
-                        <div 
-                          onClick={() => setShowUnsignedPdfDialog(true)}
-                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
-                        >
+                        <button type="button" onClick={() => setShowUnsignedPdfDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
                           <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20">
                             <div className="text-center p-2">
                               <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                              <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">Preview</p>
+                              <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">Preview</p>
                             </div>
                           </div>
                         
-                        </div>
+                        </button>
                       ) : (
                         <div className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
-                          <p className="text-xs text-muted-foreground text-center px-2">PDF preview</p>
+                          <p className="text-sm text-[#636366] dark:text-[#aeaeb2] text-center px-2">PDF preview</p>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
                 {!trainingAgreementExpanded && (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="mt-2 flex items-center gap-2 text-sm text-[#636366] dark:text-[#aeaeb2]">
                     <FileText className="w-3.5 h-3.5" />
                     <span>
                       {candidate.trainingAgreementDetails?.signedPdfUrl 
@@ -1826,12 +1977,14 @@ export default function CandidateDetailPage() {
 
             {/* HR Policies */}
             {(candidate.status === "selected" || candidate.status === "onboarding") && (
-              <Card className="p-4">
+              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
                 <button
+                  aria-expanded={hrPoliciesExpanded}
                   onClick={() => setHrPoliciesExpanded(!hrPoliciesExpanded)}
-                  className="w-full flex items-center justify-between mb-2"
+                  type="button"
+                  className="flex min-h-9 w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]"
                 >
-                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+                  <h3 className="text-sm font-semibold text-[#636366] dark:text-[#aeaeb2]">
                     HR Policies
                   </h3>
                   {hrPoliciesExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -1841,18 +1994,15 @@ export default function CandidateDetailPage() {
                     {/* Signed PDF Preview */}
                     {candidate.trainingAgreementDetails?.signedHrPoliciesPdfUrl && (
                       <div className="flex-1 space-y-2">
-                        <p className="text-xs font-medium text-foreground">Signed</p>
-                        <div 
-                          onClick={() => setShowSignedHrPoliciesDialog(true)}
-                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
-                        >
+                        <p className="text-sm font-medium text-foreground">Signed</p>
+                        <button type="button" onClick={() => setShowSignedHrPoliciesDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
                           <div className="absolute inset-0 flex items-center justify-center bg-green-50 dark:bg-green-950/20">
                             <div className="text-center p-2">
                               <FileText className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-1" />
-                              <p className="text-xs font-semibold text-green-700 dark:text-green-300">Signed</p>
+                              <p className="text-sm font-semibold text-green-700 dark:text-green-300">Signed</p>
                             </div>
                           </div>
-                        </div>
+                        </button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -1864,7 +2014,7 @@ export default function CandidateDetailPage() {
                             a.click();
                             document.body.removeChild(a);
                           }}
-                          className="w-full gap-1.5 h-7 text-xs"
+                          className="w-full gap-1.5 h-9 text-sm"
                         >
                           <Download className="w-3 h-3" />
                           Download
@@ -1874,39 +2024,36 @@ export default function CandidateDetailPage() {
                     
                     {/* Unsigned PDF Preview */}
                     <div className="flex-1 space-y-2">
-                      <p className="text-xs font-medium text-foreground">Unsigned</p>
+                      <p className="text-sm font-medium text-foreground">Unsigned</p>
                       {generatingHrPoliciesPdf ? (
                         <div className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
                           <div className="text-center">
                             <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                            <p className="text-[10px] text-muted-foreground">Loading...</p>
+                            <p className="text-sm text-[#636366] dark:text-[#aeaeb2]">Loading</p>
                           </div>
                         </div>
                       ) : unsignedHrPoliciesUrl ? (
-                        <div 
-                          onClick={() => setShowUnsignedHrPoliciesDialog(true)}
-                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
-                        >
+                        <button type="button" onClick={() => setShowUnsignedHrPoliciesDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
                           <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20">
                             <div className="text-center p-2">
                               <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                              <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">Preview</p>
+                              <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">Preview</p>
                             </div>
                           </div>
-                        </div>
+                        </button>
                       ) : (
                         <div 
                           onClick={generateUnsignedHrPolicies}
                           className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
                         >
-                          <p className="text-xs text-muted-foreground text-center px-2">Click to generate</p>
+                          <p className="text-sm text-[#636366] dark:text-[#aeaeb2] text-center px-2">Click to generate</p>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
                 {!hrPoliciesExpanded && (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="mt-2 flex items-center gap-2 text-sm text-[#636366] dark:text-[#aeaeb2]">
                     <FileText className="w-3.5 h-3.5" />
                     <span>
                       {candidate.trainingAgreementDetails?.signedHrPoliciesPdfUrl 
@@ -1920,12 +2067,14 @@ export default function CandidateDetailPage() {
 
             {/* Letter of Intent */}
             {(candidate.status === "selected" || candidate.status === "onboarding") && (
-              <Card className="p-4">
+              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
                 <button
+                  aria-expanded={letterOfIntentExpanded}
                   onClick={() => setLetterOfIntentExpanded(!letterOfIntentExpanded)}
-                  className="w-full flex items-center justify-between mb-2"
+                  type="button"
+                  className="flex min-h-9 w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]"
                 >
-                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+                  <h3 className="text-sm font-semibold text-[#636366] dark:text-[#aeaeb2]">
                     Letter of Intent
                   </h3>
                   {letterOfIntentExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -1935,18 +2084,15 @@ export default function CandidateDetailPage() {
                     {/* Signed PDF Preview */}
                     {candidate.trainingAgreementDetails?.signedLetterOfIntentPdfUrl && (
                       <div className="flex-1 space-y-2">
-                        <p className="text-xs font-medium text-foreground">Signed</p>
-                        <div 
-                          onClick={() => setShowSignedLetterOfIntentDialog(true)}
-                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
-                        >
+                        <p className="text-sm font-medium text-foreground">Signed</p>
+                        <button type="button" onClick={() => setShowSignedLetterOfIntentDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
                           <div className="absolute inset-0 flex items-center justify-center bg-green-50 dark:bg-green-950/20">
                             <div className="text-center p-2">
                               <FileText className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-1" />
-                              <p className="text-xs font-semibold text-green-700 dark:text-green-300">Signed</p>
+                              <p className="text-sm font-semibold text-green-700 dark:text-green-300">Signed</p>
                             </div>
                           </div>
-                        </div>
+                        </button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -1958,7 +2104,7 @@ export default function CandidateDetailPage() {
                             a.click();
                             document.body.removeChild(a);
                           }}
-                          className="w-full gap-1.5 h-7 text-xs"
+                          className="w-full gap-1.5 h-9 text-sm"
                         >
                           <Download className="w-3 h-3" />
                           Download
@@ -1968,39 +2114,36 @@ export default function CandidateDetailPage() {
                     
                     {/* Unsigned PDF Preview */}
                     <div className="flex-1 space-y-2">
-                      <p className="text-xs font-medium text-foreground">Unsigned</p>
+                      <p className="text-sm font-medium text-foreground">Unsigned</p>
                       {generatingLetterOfIntentPdf ? (
                         <div className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
                           <div className="text-center">
                             <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                            <p className="text-[10px] text-muted-foreground">Loading...</p>
+                            <p className="text-sm text-[#636366] dark:text-[#aeaeb2]">Loading</p>
                           </div>
                         </div>
                       ) : unsignedLetterOfIntentUrl ? (
-                        <div 
-                          onClick={() => setShowUnsignedLetterOfIntentDialog(true)}
-                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
-                        >
+                        <button type="button" onClick={() => setShowUnsignedLetterOfIntentDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
                           <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20">
                             <div className="text-center p-2">
                               <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                              <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">Preview</p>
+                              <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">Preview</p>
                             </div>
                           </div>
-                        </div>
+                        </button>
                       ) : (
                         <div 
                           onClick={generateUnsignedLetterOfIntent}
                           className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-primary transition-colors"
                         >
-                          <p className="text-xs text-muted-foreground text-center px-2">Click to generate</p>
+                          <p className="text-sm text-[#636366] dark:text-[#aeaeb2] text-center px-2">Click to generate</p>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
                 {!letterOfIntentExpanded && (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="mt-2 flex items-center gap-2 text-sm text-[#636366] dark:text-[#aeaeb2]">
                     <FileText className="w-3.5 h-3.5" />
                     <span>
                       {candidate.trainingAgreementDetails?.signedLetterOfIntentPdfUrl 
@@ -2014,12 +2157,14 @@ export default function CandidateDetailPage() {
 
             {/* Onboarding Agreement */}
             {(candidate.status === "onboarding" || candidate.onboardingDetails?.onboardingComplete) && (
-              <Card className="p-4">
+              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
                 <button
+                  aria-expanded={onboardingAgreementExpanded}
                   onClick={() => setOnboardingAgreementExpanded(!onboardingAgreementExpanded)}
-                  className="w-full flex items-center justify-between mb-2"
+                  type="button"
+                  className="flex min-h-9 w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]"
                 >
-                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+                  <h3 className="text-sm font-semibold text-[#636366] dark:text-[#aeaeb2]">
                     Onboarding Agreement
                   </h3>
                   {onboardingAgreementExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -2029,19 +2174,16 @@ export default function CandidateDetailPage() {
                     {/* Signed PDF Preview */}
                     {candidate.onboardingDetails?.signedPdfUrl && (
                       <div className="flex-1 space-y-2">
-                        <p className="text-xs font-medium text-foreground">Signed</p>
-                        <div 
-                          onClick={() => setShowSignedOnboardingPdfDialog(true)}
-                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
-                        >
+                        <p className="text-sm font-medium text-foreground">Signed</p>
+                        <button type="button" onClick={() => setShowSignedOnboardingPdfDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
                           <div className="absolute inset-0 flex items-center justify-center bg-green-50 dark:bg-green-950/20">
                             <div className="text-center p-2">
                               <FileText className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-1" />
-                              <p className="text-xs font-semibold text-green-700 dark:text-green-300">Signed</p>
+                              <p className="text-sm font-semibold text-green-700 dark:text-green-300">Signed</p>
                             </div>
                           </div>
                           
-                        </div>
+                        </button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -2053,7 +2195,7 @@ export default function CandidateDetailPage() {
                             a.click();
                             document.body.removeChild(a);
                           }}
-                          className="w-full gap-1.5 h-7 text-xs"
+                          className="w-full gap-1.5 h-9 text-sm"
                         >
                           <Download className="w-3 h-3" />
                           Download
@@ -2067,7 +2209,7 @@ export default function CandidateDetailPage() {
                               setResignatureDialogOpen(true);
                             }}
                             disabled={actionLoading || candidate.onboardingDetails?.resignatureRequest?.isActive}
-                            className="w-full gap-1.5 h-7 text-xs border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-400 dark:hover:bg-amber-950/20"
+                            className="w-full gap-1.5 h-9 text-sm border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-400 dark:hover:bg-amber-950/20"
                           >
                             <Pencil className="w-3 h-3" />
                             Request Re-signature
@@ -2080,19 +2222,19 @@ export default function CandidateDetailPage() {
                       <div className="mt-2 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-1">
+                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-1">
                               Re-signature Request Active
                             </p>
-                            <p className="text-xs text-amber-700 dark:text-amber-300">
+                            <p className="text-sm text-amber-700 dark:text-amber-300">
                               Requested by {candidate.onboardingDetails.resignatureRequest.requestedBy} on{" "}
                               {new Date(candidate.onboardingDetails.resignatureRequest.requestedAt).toLocaleDateString()}
                             </p>
                             {candidate.onboardingDetails.resignatureRequest.reason && (
-                              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
                                 Reason: {candidate.onboardingDetails.resignatureRequest.reason}
                               </p>
                             )}
-                            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
                               ⏰ Expires: {new Date(candidate.onboardingDetails.resignatureRequest.tokenExpiresAt).toLocaleDateString()}
                             </p>
                           </div>
@@ -2101,7 +2243,7 @@ export default function CandidateDetailPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleCancelResignature("onboarding")}
-                              className="h-6 text-xs text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-200"
+                              className="h-9 text-sm text-[#7a4e00] hover:text-[#5c3b00] dark:text-[#ffd60a] dark:hover:text-[#ffe38a]"
                             >
                               Cancel
                             </Button>
@@ -2112,34 +2254,31 @@ export default function CandidateDetailPage() {
                     
                     {/* Unsigned PDF Preview */}
                     <div className="flex-1 space-y-2">
-                      <p className="text-xs font-medium text-foreground">Unsigned</p>
+                      <p className="text-sm font-medium text-foreground">Unsigned</p>
                       {generatingUnsignedOnboardingPdf ? (
                         <div className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
                           <div className="text-center">
                             <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                            <p className="text-[10px] text-muted-foreground">Loading...</p>
+                            <p className="text-sm text-[#636366] dark:text-[#aeaeb2]">Loading</p>
                           </div>
                         </div>
                       ) : unsignedOnboardingAgreementUrl ? (
-                        <div 
-                          onClick={() => setShowUnsignedOnboardingPdfDialog(true)}
-                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
-                        >
+                        <button type="button" onClick={() => setShowUnsignedOnboardingPdfDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
                           <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20">
                             <div className="text-center p-2">
                               <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                              <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">Preview</p>
+                              <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">Preview</p>
                             </div>
                           </div>
                         
-                        </div>
+                        </button>
                       ) : (
                         <div className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => generateUnsignedOnboardingAgreement()}
-                            className="text-[10px] h-6 px-2"
+                            className="h-9 px-3 text-sm"
                           >
                             Generate Preview
                           </Button>
@@ -2149,7 +2288,7 @@ export default function CandidateDetailPage() {
                   </div>
                 )}
                 {!onboardingAgreementExpanded && (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="mt-2 flex items-center gap-2 text-sm text-[#636366] dark:text-[#aeaeb2]">
                     <FileText className="w-3.5 h-3.5" />
                     <span>
                       {candidate.onboardingDetails?.signedPdfUrl 
@@ -2160,119 +2299,127 @@ export default function CandidateDetailPage() {
                 )}
               </Card>
             )}
+
+            {candidate.resumeUrl ? (
+              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none dark:border-white/10 dark:bg-[#1c1c1e] sm:p-5">
+                <button
+                  aria-expanded={resumeExpanded}
+                  onClick={() => setResumeExpanded(!resumeExpanded)}
+                  type="button"
+                  className="flex min-h-9 w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]"
+                >
+                  <h3 className="text-sm font-semibold text-[#636366] dark:text-[#aeaeb2]">Resume</h3>
+                  {resumeExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {resumeExpanded && (
+                  <>
+                    <div className="mt-3 overflow-hidden rounded-md border bg-muted">
+                      <iframe
+                        src={`${candidate.resumeUrl}#toolbar=0`}
+                        className="h-[420px] w-full border-0 sm:h-[560px] lg:h-[640px]"
+                        title="Resume Preview"
+                      />
+                    </div>
+                    <p className="mt-2 text-sm text-[#636366] dark:text-[#aeaeb2]">
+                      If preview doesn&apos;t load,{" "}
+                      <a href={candidate.resumeUrl} className="text-primary hover:underline">
+                        download resume
+                      </a>
+                    </p>
+                  </>
+                )}
+              </Card>
+            ) : null}
           </div>
 
           {/* Main Content Area */}
-          <div className="col-span-12 lg:col-span-9 space-y-3">
+          <div className="order-1 min-w-0 space-y-3 sm:space-y-4 xl:order-2">
+            <div className="space-y-3 sm:space-y-4">
             {/* Selection Details - Show when candidate is selected or in onboarding */}
             {(candidate.status === "selected" || candidate.status === "onboarding") && candidate.selectionDetails && (
-              <Card className="p-4">
-                <h3 className="text-sm font-semibold text-foreground mb-3 uppercase tracking-wide">
-                  Selection Details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-sm">
-                  {candidate.selectionDetails.role && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Role</p>
-                      <p className="text-foreground font-medium">{candidate.selectionDetails.role}</p>
-                    </div>
-                  )}
-                  {candidate.selectionDetails.positionType && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Position Type</p>
-                      <p className="text-foreground font-medium capitalize">{candidate.selectionDetails.positionType}</p>
-                    </div>
-                  )}
-                  {candidate.selectionDetails.salary && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Salary</p>
-                      <p className="text-foreground font-medium">
-                        {(() => {
-                          return formatSalary(candidate.selectionDetails.salary);
-                        })()}
-                      </p>
-                    </div>
-                  )}
-                  {candidate.selectionDetails.duration && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Training Time</p>
-                      <p className="text-foreground font-medium">{candidate.selectionDetails.duration}</p>
-                    </div>
-                  )}
-                  {candidate.selectionDetails.internDuration && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Intern Duration</p>
-                      <p className="text-foreground font-medium">
-                        {candidate.selectionDetails.internDuration}
-                      </p>
-                    </div>
-                  )}
-                  {candidate.selectionDetails.trainingPeriod && (
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Training Period</p>
-                      <p className="text-foreground font-medium">{candidate.selectionDetails.trainingPeriod}</p>
-                    </div>
-                  )}
-                </div>
+              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
+                <p className="text-sm font-medium text-[#636366] dark:text-[#aeaeb2]">The offer</p>
+                <h2 className="mt-1 text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+                  {[
+                    candidate.selectionDetails.role,
+                    candidate.selectionDetails.positionType
+                      ? formatEmploymentType(candidate.selectionDetails.positionType)
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                </h2>
+                {candidate.selectionDetails.salary ? (
+                  <p className="mt-2 text-lg font-semibold tabular-nums tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+                    {formatSalary(candidate.selectionDetails.salary)}
+                  </p>
+                ) : null}
+                <p className="mt-2 max-w-prose text-sm leading-6 text-[#3a3a3c] dark:text-[#d1d1d6]">
+                  {[
+                    candidate.selectionDetails.duration
+                      ? `Training runs ${candidate.selectionDetails.duration}.`
+                      : null,
+                    candidate.selectionDetails.trainingPeriod
+                      ? `The training period is ${candidate.selectionDetails.trainingPeriod}.`
+                      : null,
+                    candidate.selectionDetails.internDuration
+                      ? `The internship lasts ${candidate.selectionDetails.internDuration}.`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                </p>
               </Card>
             )}
 
             {/* Interview Remarks - Prominent Section */}
             {/* Show remarks if status is interview, selected, or onboarding and remarks exist */}
             {(candidate.status === "interview" || candidate.status === "selected" || candidate.status === "onboarding") && candidate.interviewDetails?.remarks && (
-              <Card className="p-4">
+              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
                 <button
+                  aria-expanded={remarksExpanded}
                   onClick={() => setRemarksExpanded(!remarksExpanded)}
-                  className="w-full flex items-center justify-between mb-3"
+                  type="button"
+                  className="flex min-h-9 w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]"
                 >
-                  <h3 className="text-base font-semibold text-foreground">HR Interview Remarks</h3>
+                  <h3 className="text-sm font-medium text-[#636366] dark:text-[#aeaeb2]">How the interview went</h3>
                   {remarksExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </button>
                 {remarksExpanded && (
                   <div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3 text-sm">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-0.5">Experience</p>
-                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.experienceValidation}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-0.5">MTI</p>
-                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.motherTongueInfluence}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-0.5">English</p>
-                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.englishSpeaking}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-0.5">Understanding</p>
-                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.understandingScale}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-0.5">Listening</p>
-                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.listeningSkills}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-0.5">Professionalism</p>
-                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.basicProfessionalism}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-0.5">Stability</p>
-                        <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.stabilitySignals}</p>
-                      </div>
-                      {candidate.interviewDetails.remarks.salaryExpectations && (
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-0.5">Salary Expectations</p>
-                          <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.salaryExpectations}</p>
-                        </div>
-                      )}
-                      {candidate.interviewDetails.remarks.hrNotes && (
-                        <div className="md:col-span-2">
-                          <p className="text-xs text-muted-foreground mb-0.5">HR Remarks</p>
-                          <p className="text-foreground leading-snug">{candidate.interviewDetails.remarks.hrNotes}</p>
-                        </div>
-                      )}
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {[
+                        ["Experience", candidate.interviewDetails.remarks.experienceValidation],
+                        ["Mother tongue", candidate.interviewDetails.remarks.motherTongueInfluence],
+                        ["English", candidate.interviewDetails.remarks.englishSpeaking],
+                        ["Understanding", candidate.interviewDetails.remarks.understandingScale],
+                        ["Listening", candidate.interviewDetails.remarks.listeningSkills],
+                        ["Professionalism", candidate.interviewDetails.remarks.basicProfessionalism],
+                        ["Stability", candidate.interviewDetails.remarks.stabilitySignals],
+                        ["Pay expectations", candidate.interviewDetails.remarks.salaryExpectations],
+                      ]
+                        .filter((entry): entry is [string, string] => Boolean(entry[1]))
+                        .map(([label, note]) => (
+                          <article
+                            key={label}
+                            className="rounded-xl bg-[#f5f5f5] p-3 dark:bg-white/5"
+                          >
+                            <p className="text-sm text-[#636366] dark:text-[#aeaeb2]">{label}</p>
+                            <p className="mt-1 text-sm leading-6 text-[#1d1d1f] dark:text-[#f5f5f7]">
+                              {note}
+                            </p>
+                          </article>
+                        ))}
+                      {candidate.interviewDetails.remarks.hrNotes ? (
+                        <article className="rounded-xl bg-[#f5f5f5] p-3 sm:col-span-2 dark:bg-white/5">
+                          <p className="text-sm text-[#636366] dark:text-[#aeaeb2]">From HR</p>
+                          <p className="mt-1 text-sm leading-6 text-[#1d1d1f] dark:text-[#f5f5f7]">
+                            {candidate.interviewDetails.remarks.hrNotes}
+                          </p>
+                        </article>
+                      ) : null}
                     </div>
-                    <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
+                    <div className="mt-3 pt-3 border-t text-sm text-[#636366] dark:text-[#aeaeb2]">
                       Evaluated by {candidate.interviewDetails.remarks.evaluatedBy}
                       {candidate.interviewDetails.remarks.evaluatedAt && (
                         <> • {new Date(candidate.interviewDetails.remarks.evaluatedAt).toLocaleDateString("en-US", {
@@ -2286,15 +2433,18 @@ export default function CandidateDetailPage() {
                 )}
               </Card>
             )}
+            </div>
 
             {/* Offer Letter */}
             {candidate.status === "onboarding" && (
-              <Card className="p-4">
+              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
                 <button
+                  aria-expanded={offerLetterExpanded}
                   onClick={() => setOfferLetterExpanded(!offerLetterExpanded)}
-                  className="w-full flex items-center justify-between mb-2"
+                  type="button"
+                  className="flex min-h-9 w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]"
                 >
-                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
+                  <h3 className="text-sm font-semibold text-[#636366] dark:text-[#aeaeb2]">
                     Offer Letter
                   </h3>
                   {offerLetterExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -2304,18 +2454,15 @@ export default function CandidateDetailPage() {
                     {/* Signed PDF Preview */}
                     {candidate.selectionDetails?.signedOfferLetterPdfUrl && (
                       <div className="flex-1 space-y-2">
-                        <p className="text-xs font-medium text-foreground">Signed</p>
-                        <div 
-                          onClick={() => setShowSignedOfferLetterPdfDialog(true)}
-                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
-                        >
+                        <p className="text-sm font-medium text-foreground">Signed</p>
+                        <button type="button" onClick={() => setShowSignedOfferLetterPdfDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
                           <div className="absolute inset-0 flex items-center justify-center bg-green-50 dark:bg-green-950/20">
                             <div className="text-center p-2">
                               <FileText className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-1" />
-                              <p className="text-xs font-semibold text-green-700 dark:text-green-300">Signed</p>
+                              <p className="text-sm font-semibold text-green-700 dark:text-green-300">Signed</p>
                             </div>
                           </div>
-                        </div>
+                        </button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -2327,7 +2474,7 @@ export default function CandidateDetailPage() {
                             a.click();
                             document.body.removeChild(a);
                           }}
-                          className="w-full gap-1.5 h-7 text-xs"
+                          className="w-full gap-1.5 h-9 text-sm"
                         >
                           <Download className="w-3 h-3" />
                           Download
@@ -2337,26 +2484,23 @@ export default function CandidateDetailPage() {
                     
                     {/* Unsigned PDF Preview */}
                     <div className="flex-1 space-y-2">
-                      <p className="text-xs font-medium text-foreground">Unsigned</p>
+                      <p className="text-sm font-medium text-foreground">Unsigned</p>
                       {generatingUnsignedOfferLetterPdf ? (
                         <div className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
                           <div className="text-center">
                             <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                            <p className="text-[10px] text-muted-foreground">Loading...</p>
+                            <p className="text-sm text-[#636366] dark:text-[#aeaeb2]">Loading</p>
                           </div>
                         </div>
                       ) : unsignedOfferLetterUrl ? (
-                        <div 
-                          onClick={() => setShowUnsignedOfferLetterPdfDialog(true)}
-                          className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group"
-                        >
+                        <button type="button" onClick={() => setShowUnsignedOfferLetterPdfDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
                           <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20">
                             <div className="text-center p-2">
                               <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                              <p className="text-xs font-semibold text-blue-700 dark:text-blue-300">Preview</p>
+                              <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">Preview</p>
                             </div>
                           </div>
-                        </div>
+                        </button>
                       ) : (
                         <button
                           type="button"
@@ -2364,14 +2508,14 @@ export default function CandidateDetailPage() {
                           disabled={generatingUnsignedOfferLetterPdf}
                           className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-primary transition-colors disabled:cursor-wait"
                         >
-                          <p className="text-xs text-muted-foreground text-center px-2">Click to generate</p>
+                          <p className="text-sm text-[#636366] dark:text-[#aeaeb2] text-center px-2">Click to generate</p>
                         </button>
                       )}
                     </div>
                   </div>
                 )}
                 {!offerLetterExpanded && (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="mt-2 flex items-center gap-2 text-sm text-[#636366] dark:text-[#aeaeb2]">
                     <FileText className="w-3.5 h-3.5" />
                     <span>
                       {candidate.selectionDetails?.signedOfferLetterPdfUrl 
@@ -2774,21 +2918,23 @@ export default function CandidateDetailPage() {
 
             {/* Cover Letter */}
             {candidate.coverLetter && (
-              <Card className="p-4">
-                <h3 className="text-sm font-semibold text-foreground mb-2 uppercase tracking-wide">Cover Letter</h3>
-                <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
+                <h3 className="mb-3 text-sm font-semibold text-[#636366] dark:text-[#aeaeb2]">Cover Letter</h3>
+                <div className="max-w-prose whitespace-pre-wrap text-base leading-7 text-[#1d1d1f] dark:text-[#f5f5f7]">
                   {candidate.coverLetter}
                 </div>
               </Card>
             )}
 
             {/* Additional Documents */}
-            <Card className="p-4">
+            <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
               <button
+                aria-expanded={additionalDocumentsExpanded}
                 onClick={() => setAdditionalDocumentsExpanded(!additionalDocumentsExpanded)}
-                className="w-full flex items-center justify-between mb-2"
+                type="button"
+                  className="flex min-h-9 w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]"
               >
-                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Additional Documents</h3>
+                <h3 className="text-sm font-semibold text-[#636366] dark:text-[#aeaeb2]">Additional Documents</h3>
                 {additionalDocumentsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>
               {additionalDocumentsExpanded && (
@@ -2880,7 +3026,7 @@ export default function CandidateDetailPage() {
                   {/* Display Uploaded Documents */}
                   {(candidate as any).additionalDocuments && (candidate as any).additionalDocuments.length > 0 ? (
                     <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">
+                      <p className="text-sm font-medium text-muted-foreground">
                         Uploaded Documents ({(candidate as any).additionalDocuments.length})
                       </p>
                       <div className="space-y-2">
@@ -2896,7 +3042,7 @@ export default function CandidateDetailPage() {
                                   {doc.name}
                                 </p>
                                 {doc.uploadedAt && (
-                                  <p className="text-xs text-muted-foreground">
+                                  <p className="text-sm text-[#636366] dark:text-[#aeaeb2]">
                                     Uploaded {new Date(doc.uploadedAt).toLocaleDateString()}
                                   </p>
                                 )}
@@ -2968,30 +3114,6 @@ export default function CandidateDetailPage() {
               )}
             </Card>
 
-            {/* Resume Preview */}
-            <Card className="p-4">
-              <button
-                onClick={() => setResumeExpanded(!resumeExpanded)}
-                className="w-full flex items-center justify-between mb-2"
-              >
-                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">Resume</h3>
-                {resumeExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-              </button>
-              {resumeExpanded && (
-                <>
-                  <div className="bg-muted rounded-md overflow-hidden border">
-                    <iframe
-                      src={`${candidate.resumeUrl}#toolbar=0`}
-                      className="w-full h-[700px] border-0"
-                      title="Resume Preview"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    If preview doesn&apos;t load, <a href={candidate.resumeUrl} className="text-primary hover:underline">download resume</a>
-                  </p>
-                </>
-              )}
-            </Card>
           </div>
         </div>
       </div>
@@ -3086,6 +3208,15 @@ export default function CandidateDetailPage() {
         title="Discontinue Training"
         submitButtonText="Discontinue"
       />
+      <RejectCandidateDialog
+        open={rejectFromOnboardingDialogOpen}
+        onClose={() => setRejectFromOnboardingDialogOpen(false)}
+        onSubmit={handleRejectFromOnboardingWrapper}
+        loading={actionLoading}
+        title="Reject from onboarding"
+        description="This person is in onboarding and is not employed. The rejection is categorised as rejected from onboarding."
+        reasons={ONBOARDING_REJECTION_REASONS}
+      />
 
       {/* Confirmation Dialog for Second Round */}
       <Dialog open={showSecondRoundConfirmation} onOpenChange={setShowSecondRoundConfirmation}>
@@ -3122,6 +3253,12 @@ export default function CandidateDetailPage() {
                 Candidate: {candidate?.name}
               </Label>
             </div>
+            <InterviewerSelect
+              value={interviewerEmployeeId}
+              onChange={setInterviewerEmployeeId}
+              options={interviewers}
+              loading={interviewersLoading}
+            />
             <div>
               <Label className="text-sm font-medium mb-2 block">
                 Interview Mode *
@@ -3264,6 +3401,7 @@ export default function CandidateDetailPage() {
                 schedulingInterview ||
                 !interviewDate ||
                 !interviewMode ||
+                !interviewerEmployeeId ||
                 (interviewMode === "physical" && !interviewOfficeId)
               }
             >
@@ -3285,6 +3423,12 @@ export default function CandidateDetailPage() {
                 Candidate: {candidate?.name}
               </Label>
             </div>
+            <InterviewerSelect
+              value={secondRoundInterviewerEmployeeId}
+              onChange={setSecondRoundInterviewerEmployeeId}
+              options={interviewers}
+              loading={interviewersLoading}
+            />
             <div>
               <Label className="text-sm font-medium mb-2 block">
                 Interview Mode *
@@ -3425,6 +3569,7 @@ export default function CandidateDetailPage() {
                 schedulingSecondRound ||
                 !secondRoundDate ||
                 !secondRoundInterviewMode ||
+                !secondRoundInterviewerEmployeeId ||
                 (secondRoundInterviewMode === "physical" && !secondRoundOfficeId)
               }
             >
@@ -3545,7 +3690,7 @@ export default function CandidateDetailPage() {
                   <Input
                     value={resignatureLink}
                     readOnly
-                    className="flex-1 text-xs font-mono"
+                    className="flex-1 text-sm font-mono"
                   />
                   <Button
                     variant="outline"

@@ -574,69 +574,27 @@ export function OnboardingDetailsView({
   return (
     <div className="space-y-4">
       {/* Top Status Bar */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {/* Onboarding Status */}
-        <Card className="p-3">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${onboardingDetails.onboardingComplete ? "bg-green-100" : "bg-amber-100"}`}>
-              {onboardingDetails.onboardingComplete ? (
-                <CheckCircle2 className="h-4 w-4 text-green-700" />
-              ) : (
-                <Clock className="h-4 w-4 text-amber-700" />
-              )}
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Onboarding</p>
-              <p className="text-sm font-semibold">
-                {onboardingDetails.onboardingComplete ? "Completed" : "In Progress"}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Document Status */}
-        <Card className="p-3">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${verifiedCount === totalDocs ? "bg-green-100" : "bg-blue-100"}`}>
-              <FileText className={`h-4 w-4 ${verifiedCount === totalDocs ? "text-green-700" : "text-blue-700"}`} />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Documents</p>
-              <p className="text-sm font-semibold">{verifiedCount}/{totalDocs} Verified</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* HR Verification Status */}
-        <Card className="p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${onboardingDetails.verifiedByHR?.verified ? "bg-green-100" : "bg-amber-100"}`}>
-                {onboardingDetails.verifiedByHR?.verified ? (
-                  <CheckCircle2 className="h-4 w-4 text-green-700" />
-                ) : (
-                  <Clock className="h-4 w-4 text-amber-700" />
-                )}
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">HR Verification</p>
-                <p className="text-sm font-semibold">
-                  {onboardingDetails.verifiedByHR?.verified ? "Verified" : "Pending"}
-                </p>
-              </div>
-            </div>
-            {canVerify && !onboardingDetails.verifiedByHR?.verified && onboardingDetails.onboardingComplete && (
-              <Button
-                size="sm"
-                onClick={() => setHrVerificationDialogOpen(true)}
-                disabled={!allDocumentsVerified()}
-                className="h-7 text-xs"
-              >
-                Verify
-              </Button>
-            )}
-          </div>
-        </Card>
+      <div className="rounded-xl border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-[#1c1c1e]">
+        <p className="text-base font-semibold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+          {onboardingDetails.onboardingComplete
+            ? "Onboarding is complete."
+            : "Onboarding is still in progress."}
+        </p>
+        <p className="mt-1 max-w-prose text-sm leading-6 text-[#3a3a3c] dark:text-[#d1d1d6]">
+          {verifiedCount} of {totalDocs} documents are verified.
+          {onboardingDetails.verifiedByHR?.verified
+            ? " HR has verified this file."
+            : " HR has not verified this file yet."}
+        </p>
+        {canVerify && !onboardingDetails.verifiedByHR?.verified && onboardingDetails.onboardingComplete ? (
+          <Button
+            onClick={() => setHrVerificationDialogOpen(true)}
+            disabled={!allDocumentsVerified()}
+            className="mt-3 h-9 px-3 text-sm"
+          >
+            Verify
+          </Button>
+        ) : null}
       </div>
 
       {/* HR Verified Info */}
@@ -732,9 +690,9 @@ export function OnboardingDetailsView({
       )}
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 xl:grid-cols-[minmax(0,7fr)_minmax(0,13fr)]">
         {/* Left Column - Personal & Role Info */}
-        <div className="space-y-4">
+        <div className="min-w-0 space-y-3 sm:space-y-4">
           {/* Role & Selection Details */}
           {selectionDetails && (
             <Card className="p-4">
@@ -923,7 +881,7 @@ export function OnboardingDetailsView({
         </div>
 
         {/* Right Column - Documents */}
-        <Card className="p-4">
+        <Card className="min-w-0 p-3 sm:p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-primary" />
@@ -971,7 +929,7 @@ export function OnboardingDetailsView({
             });
 
             return (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 sm:grid-cols-3">
                 {filteredDocs.map(([key, value]) => {
                   return (
                     <DocumentVerification

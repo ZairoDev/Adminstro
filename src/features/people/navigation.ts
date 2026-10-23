@@ -182,6 +182,17 @@ export function hiringWorkspacePath(
   );
 }
 
+/**
+ * The one place a People row should open: the hiring record.
+ * Employed people use the same destination as every other stage.
+ */
+export function peopleRecordPath(
+  candidateId: string,
+  options?: { returnTo?: string | null }
+): string {
+  return hiringWorkspacePath(candidateId, { returnTo: options?.returnTo });
+}
+
 export function employeePath(
   employeeId: string,
   returnTo?: string | null

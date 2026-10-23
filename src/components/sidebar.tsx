@@ -80,10 +80,23 @@ import { canAccessOwnerSheetVariant } from "@/util/employeeRentalTypeAccess";
 import { isHousingSagaStaffEmail } from "@/util/housingSagaStaff";
 import { useVisitOverdue } from "@/components/visits/VisitOverdueContext";
 
+const isWhatsAppNavPath = (path: string): boolean => {
+  const base = path.split("?")[0];
+  return (
+    base === "/whatsapp" ||
+    base.startsWith("/whatsapp/") ||
+    base.startsWith("/dashboard/whatsapp")
+  );
+};
+
 const isActive = (currentPath: string, path: string): boolean => {
   const routeBase = path.split("?")[0];
   const currentBase = currentPath.split("?")[0];
-  if (routeBase === "/whatsapp" || routeBase === "/whatsapp/retarget" || routeBase === "/dashboard/whatsapp/channels") {
+  if (
+    routeBase === "/whatsapp" ||
+    // routeBase === "/whatsapp/retarget" ||
+    routeBase === "/dashboard/whatsapp/channels"
+  ) {
     return currentBase === routeBase;
   }
   return currentPath === path;
@@ -1211,11 +1224,6 @@ const dashboardManagementRoutes = [
     label: "Dashboard",
     Icon: <LayoutDashboard size={18} />,
   },
-  {
-    path: "/dashboard/whatsapp-analytics",
-    label: "WhatsApp Analytics",
-    Icon: <FaWhatsapp size={18} />,
-  },
 ];
 const leadManagementRoutes = [
   {
@@ -1575,11 +1583,6 @@ const otherSettingsRoutes = [
     label: "Area Price Info",
     Icon: <BadgeEuro size={18} />,
   },
-  {
-    path: "/dashboard/whatsapp/channels",
-    label: "WhatsApp Channels",
-    Icon: <FaWhatsapp size={18} />,
-  },
 ];
 
 export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setCollapsed:Function}) {
@@ -1649,7 +1652,10 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const routesForRole = filterOwnerSheetRoutes(rawRoutes, role, rentalType);
 
     const inGroup = (group: Route[]) =>
-      routesForRole.filter((r) => group.some((g) => g.path === r.path));
+      routesForRole.filter(
+        (r) =>
+          !isWhatsAppNavPath(r.path) && group.some((g) => g.path === r.path),
+      );
 
     const dashboardRoutes =
       role === "HCollaborator"
@@ -1696,41 +1702,38 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const housingSagaRoute = isHousingSagaStaffEmail(email)
       ? housingSagaRoutes
       : inGroup(housingSagaRoutes);
-    const retargetAllowedRoles = ["SuperAdmin", "Sales", "Advert"];
-    const hasChatAccess = routesForRole.some((r) => r.path === "/whatsapp");
-    const hasRetargetAccess = role ? retargetAllowedRoles.includes(role) : false;
-    const hasWhatsAppPermission = hasChatAccess || hasRetargetAccess;
+    const whatsappRoutes: Route[] = routesForRole
+      .filter((route) => isWhatsAppNavPath(route.path))
+      .filter((route) => !route.path.includes("retarget"))
+      .map((route) =>
+        route.path.split("?")[0] === "/whatsapp"
+          ? {
+              ...route,
+              Icon: <FaWhatsapp size={18} />,
+              openInNewTab: true,
+            }
+          : route,
+      );
 
-    const whatsappRoutes: Route[] = hasChatAccess
-      ? [
-          {
-            path: "/whatsapp",
-            label: "WhatsApp",
-            Icon: <FaWhatsapp size={18} />,
-            openInNewTab: true,
-          },
-        ]
-      : [];
-
-    // Add a separate Retarget page entry for roles that are allowed to run retargeting
-    if (hasRetargetAccess) {
-      whatsappRoutes.unshift({
-        path: "/whatsapp/retarget",
-        label: "Retarget",
-        Icon: <Target size={18} />,
-        openInNewTab: false,
-      });
-    }
-    
-    // Add a quick link for Advert (and SuperAdmin) role to open WhatsApp inbox showing only retargeted chats
-    if (role === "Advert" || role === "SuperAdmin") {
-      whatsappRoutes.push({
-        path: "/whatsapp?retargetOnly=1",
-        label: "Retarget WhatsApp",
-        Icon: <FaWhatsapp size={18} />,
-        openInNewTab: true,
-      });
-    }
+    // Retarget and WhatsApp retarget inbox are disabled.
+    // const retargetAllowedRoles = ["SuperAdmin", "Sales", "Advert"];
+    // const hasRetargetAccess = role ? retargetAllowedRoles.includes(role) : false;
+    // if (hasRetargetAccess) {
+    //   whatsappRoutes.unshift({
+    //     path: "/whatsapp/retarget",
+    //     label: "Retarget",
+    //     Icon: <Target size={18} />,
+    //     openInNewTab: false,
+    //   });
+    // }
+    // if (role === "Advert" || role === "SuperAdmin") {
+    //   whatsappRoutes.push({
+    //     path: "/whatsapp?retargetOnly=1",
+    //     label: "Retarget WhatsApp",
+    //     Icon: <FaWhatsapp size={18} />,
+    //     openInNewTab: true,
+    //   });
+    // }
 
     return (
       <>
@@ -1742,7 +1745,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
           defaultOpen={defaultOpen}
           onNavigate={onNavigate}
         />
-        {hasWhatsAppPermission && whatsappRoutes.length > 0 && (
+        {whatsappRoutes.length > 0 && (
           <SidebarSection
             title="WhatsApp"
             routes={whatsappRoutes}

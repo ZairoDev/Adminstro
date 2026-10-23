@@ -1282,7 +1282,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                 })}>
                   <Button variant="outline" size="sm">
                     <FileText className="h-4 w-4 mr-2" />
-                    View Hiring Record
+                    Open hiring record
                   </Button>
                 </Link>
               )}

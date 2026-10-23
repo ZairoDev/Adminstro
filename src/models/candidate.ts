@@ -58,6 +58,16 @@ const CandidateSchema = new Schema(
       officeName: { type: String, default: null },
       scheduledBy: { type: String, default: null },
       scheduledAt: { type: Date, default: null },
+      interviewerEmployeeId: {
+        type: Schema.Types.ObjectId,
+        ref: "Employees",
+        default: null,
+      },
+      interviewerName: { type: String, default: null },
+      interviewerEmail: { type: String, default: null },
+      googleEventId: { type: String, default: null },
+      googleMeetLink: { type: String, default: null },
+      calendarSyncError: { type: String, default: null },
       notes: { type: String, default: null },
       remarks: {
         experienceValidation: { type: String, default: null },
@@ -104,6 +114,16 @@ const CandidateSchema = new Schema(
       officeName: { type: String, default: null },
       scheduledBy: { type: String, default: null },
       scheduledAt: { type: Date, default: null },
+      interviewerEmployeeId: {
+        type: Schema.Types.ObjectId,
+        ref: "Employees",
+        default: null,
+      },
+      interviewerName: { type: String, default: null },
+      interviewerEmail: { type: String, default: null },
+      googleEventId: { type: String, default: null },
+      googleMeetLink: { type: String, default: null },
+      calendarSyncError: { type: String, default: null },
       notes: { type: String, default: null },
       rescheduleRequest: {
         requestedDate: { type: String, default: null },
@@ -139,6 +159,12 @@ const CandidateSchema = new Schema(
     },
     rejectionDetails: {
       reason: { type: String, default: null },
+      /** pipeline = hiring reject, training = discontinued training, onboarding = rejected before employment */
+      category: {
+        type: String,
+        enum: ["pipeline", "training", "onboarding", null],
+        default: null,
+      },
     },
     notes: [
       {

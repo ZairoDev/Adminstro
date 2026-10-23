@@ -21,6 +21,8 @@ export function useCandidatePermissions(candidate: Candidate | null) {
     canShortlist: () => (candidate ? LC.canShortlist(c) : false),
     canSelect: () => (candidate ? LC.canSelect(c) : false),
     canReject: () => (candidate ? LC.canReject(c) : false),
+    canRejectFromOnboarding: () =>
+      candidate ? LC.canRejectFromOnboarding(c) : false,
     canDiscontinueTraining: () => (candidate ? LC.canDiscontinueTraining(c) : false),
     canStartOnboarding: () => (candidate ? LC.canStartOnboarding(c) : false),
     canCreateEmployee: () => (candidate ? LC.canCreateEmployee(c) : false),

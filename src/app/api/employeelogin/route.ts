@@ -312,6 +312,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       temp.role !== ("SuperAdmin" as Employee["role"]) &&
       temp.role !== ("HR" as Employee["role"]) &&
       temp.role !== ("HAdmin" as Employee["role"]) &&
+      temp.role !== ("LeadGen-TeamLead" as Employee["role"]) &&
       temp.email !== "aishakhatoon03@gmail.com"
     ) {
       const currentDate = new Date();
@@ -331,9 +332,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    if (temp.role === "SuperAdmin") {
+    if (temp.role === "SuperAdmin" || temp.role === "LeadGen-TeamLead") {
       // SuperAdmin OTP bypass for specific accounts
-      if ( temp.email === TEST_SUPERADMIN_EMAIL) {
+      if (temp.role === "SuperAdmin" && temp.email === TEST_SUPERADMIN_EMAIL) {
         const now = Date.now();
         const webSessionUpdate = {
           "webSession.isLoggedIn": true,

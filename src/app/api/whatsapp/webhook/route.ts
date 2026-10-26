@@ -968,8 +968,7 @@ async function processIncomingMessage(
       case "location":
         contentObj.location = {
           latitude: message.location?.latitude,
-          longitude: message.location?.longitude,
-          name: message.location?.name,
+          longitude: message.location?.longitude,          name: message.location?.name,
           address: message.location?.address,
         };
         break;

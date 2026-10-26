@@ -14,7 +14,7 @@ export const GET = async (req: NextRequest) => {
     if (authUser.role !== "SuperAdmin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    const excludedRoles = ["SuperAdmin", "Developer", "HR", "Content", "HAdmin"];
+    const excludedRoles = ["SuperAdmin", "Developer", "HR", "Content", "HAdmin", "LeadGen-TeamLead"];
     const excludedEmails = ["khanshahid5880@gmail.com"];
 
     const employees = await Employees.find({

@@ -64,7 +64,7 @@ export const rotatePasswordsNow = async () => {
     isActive: true,
     isLocked: false,
     inactiveReason: null,
-    role: { $nin: ["SuperAdmin", "Developer", "HR", "Content", "HAdmin"] },
+    role: { $nin: ["SuperAdmin", "Developer", "HR", "Content", "HAdmin", "LeadGen-TeamLead"] },
   });
 
   const now = Date.now();

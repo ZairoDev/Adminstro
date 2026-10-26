@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
-import nodemailer from "nodemailer";
 import {
   PDFArray,
   PDFDocument,
@@ -13,6 +12,7 @@ import fs from "fs";
 import path from "path";
 import Bookings from "@/models/booking";
 import { connectDb } from "@/util/db";
+import { openMailbox } from "@/lib/email/transporter";
 
 // ✅ Updated Owner type with idNumber
 export type Owner = {
@@ -268,18 +268,6 @@ async function generatePdfBuffer(data: {
   return Buffer.from(pdfBytes);
 }
 
-// --- NODEMAILER TRANSPORTER ---
-function createTransporter() {
-  if (!process.env.GMAIL_APP_PASSWORD) return null;
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: "admistro.in@gmail.com",
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
-}
-
 // --- MAIN API HANDLER ---
 export async function POST(req: Request) {
   try {
@@ -316,7 +304,8 @@ export async function POST(req: Request) {
     }
 
     const razorpay = getRazorpay();
-    const transporter = createTransporter();
+    const transporter = await openMailbox("general");
+    const canEmail = transporter.hasPassword;
 
     const bookingDoc = await Bookings.findById(bookingId)
       .select("bookingId")
@@ -375,7 +364,7 @@ export async function POST(req: Request) {
         if (!shortUrl) continue;
 
         // Email PDF per guest
-        if (transporter) {
+        if (canEmail) {
           const pdfBuffer = await generatePdfBuffer({
             amount: perGuest,
             link: shortUrl,
@@ -389,7 +378,7 @@ export async function POST(req: Request) {
             guests: [guest],
           });
           await transporter.sendMail({
-            from: '"Vacation Saga" <admistro.in@gmail.com>',
+            from: `"Vacation Saga" <${transporter.fromEmail}>`,
             to: guest.email,
             subject: `Payment Request - ${bookingId}`.trim(),
             html: `
@@ -548,7 +537,7 @@ export async function POST(req: Request) {
     const link = resp.short_url ?? resp.url ?? "";
     if (!link) throw new Error("Failed to generate payment link");
 
-    if (transporter) {
+    if (canEmail) {
       const pdfBuffer = await generatePdfBuffer({
         amount: finalAmount,
         link,
@@ -562,7 +551,7 @@ export async function POST(req: Request) {
         guests,
       });
       await transporter.sendMail({
-        from: '"Vacation Saga" <admistro.in@gmail.com>',
+        from: `"Vacation Saga" <${transporter.fromEmail}>`,
         to: mainGuest.email,
         subject: `Payment Request - ${bookingId}`.trim(),
         html: `

@@ -14,7 +14,49 @@ import { Loader2, ScrollText, RefreshCcw } from "lucide-react";
 import type { EmployeeInterface } from "@/util/type";
 import { apartmentTypes } from "@/app/spreadsheet/spreadsheetTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { interiorStatus as ownerInteriorStatuses } from "@/app/spreadsheet/constants/apartmentTypes";
+
+function propertyTypeLabels(values: string[] | undefined): string[] {
+  const list = Array.isArray(values) ? values : [];
+  return list.map(
+    (value) => apartmentTypes.find((type) => type.value === value)?.label ?? value,
+  );
+}
+
+function SelectedCountBadge({ items }: { items: string[] }) {
+  if (items.length === 0) {
+    return (
+      <Badge variant="secondary" className="font-normal">
+        All
+      </Badge>
+    );
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={`${items.length} selected. Show selected types`}
+        >
+          <Badge variant="secondary" className="cursor-pointer font-normal hover:bg-secondary/80">
+            {items.length} selected
+          </Badge>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-56 p-3">
+        <p className="mb-2 text-xs font-medium text-muted-foreground">Selected types</p>
+        <ul className="max-h-48 space-y-1 overflow-y-auto text-sm">
+          {items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 type EmployeeRow = Pick<EmployeeInterface, "_id" | "name" | "email" | "role"> & {
   uiRuleIds?: string[];
@@ -375,7 +417,7 @@ export default function AddRulePage() {
       email: string;
       location: string;
       furnishing: string[];
-      typeCount: number;
+      types: string[];
     }[] = [];
 
     for (const e of activeEmployees) {
@@ -387,7 +429,7 @@ export default function AddRulePage() {
           email: e.email || "",
           location: "All",
           furnishing: all.allowedFurnishing || [],
-          typeCount: (all.allowedTypeOfProperty || []).length,
+          types: propertyTypeLabels(all.allowedTypeOfProperty),
         });
       }
       const byLoc = e.propertyVisibilityRules?.byLocation || {};
@@ -399,7 +441,7 @@ export default function AddRulePage() {
             email: e.email || "",
             location: locKey,
             furnishing: rule.allowedFurnishing || [],
-            typeCount: (rule.allowedTypeOfProperty || []).length,
+            types: propertyTypeLabels(rule.allowedTypeOfProperty),
           });
         }
       }
@@ -475,7 +517,7 @@ export default function AddRulePage() {
       email: string;
       location: string;
       interiorCount: number;
-      propertyTypeCount: number;
+      propertyTypes: string[];
       petCount: number;
     }[] = [];
 
@@ -488,7 +530,7 @@ export default function AddRulePage() {
           email: e.email || "",
           location: "All",
           interiorCount: (all.allowedInteriorStatus || []).length,
-          propertyTypeCount: (all.allowedPropertyType || []).length,
+          propertyTypes: propertyTypeLabels(all.allowedPropertyType),
           petCount: (all.allowedPetStatus || []).length,
         });
       }
@@ -501,7 +543,7 @@ export default function AddRulePage() {
             email: e.email || "",
             location: locKey,
             interiorCount: (rule.allowedInteriorStatus || []).length,
-            propertyTypeCount: (rule.allowedPropertyType || []).length,
+            propertyTypes: propertyTypeLabels(rule.allowedPropertyType),
             petCount: (rule.allowedPetStatus || []).length,
           });
         }
@@ -1727,11 +1769,7 @@ export default function AddRulePage() {
                               </Badge>
                             </td>
                             <td className="px-4 py-3">
-                              <Badge variant="secondary" className="font-normal">
-                                {e.typeCount
-                                  ? `${e.typeCount} selected`
-                                  : "All"}
-                              </Badge>
+                              <SelectedCountBadge items={e.types} />
                             </td>
                             <td className="px-4 py-3 text-right">
                               <Button
@@ -2241,9 +2279,7 @@ export default function AddRulePage() {
                               </Badge>
                             </td>
                             <td className="px-4 py-3">
-                              <Badge variant="secondary" className="font-normal">
-                                {e.propertyTypeCount ? `${e.propertyTypeCount} selected` : "All"}
-                              </Badge>
+                              <SelectedCountBadge items={e.propertyTypes} />
                             </td>
                             <td className="px-4 py-3">
                               <Badge variant="secondary" className="font-normal">

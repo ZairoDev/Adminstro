@@ -1,7 +1,7 @@
 import Candidate from "@/models/candidate";
 import { connectDb } from "@/util/db";
 import { type NextRequest, NextResponse } from "next/server";
-import { createTransporterHR, DEFAULT_FROM_EMAIL } from "@/lib/email/transporter";
+import { createTransporterHR } from "@/lib/email/transporter";
 import { getActiveHREmployee } from "@/lib/email/getHREmployee";
 import { getEmailSignature } from "@/lib/email/signature";
 import {
@@ -195,7 +195,7 @@ export async function PATCH(
     // Send notification email to HR
     try {
       const hrEmployee = await getActiveHREmployee();
-      const transporter = createTransporterHR();
+      const transporter = await createTransporterHR();
       const baseUrl = process.env.APP_URL || "http://localhost:3000";
       const candidateUrl = `${baseUrl}/dashboard/candidatePortal/${id}`;
 
@@ -254,7 +254,7 @@ export async function PATCH(
       // Send to HR email
       if (hrEmployee?.email) {
         const mailResponse = await transporter.sendMail({
-          from: `"Zairo International System" <${DEFAULT_FROM_EMAIL}>`,
+          from: `"Zairo International System" <${transporter.fromEmail}>`,
           to: hrEmployee.email,
           subject: `Documents Re-uploaded - ${candidate.name}`,
           html: emailHtml,

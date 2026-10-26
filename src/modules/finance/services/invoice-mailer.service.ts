@@ -5,27 +5,8 @@
  * Honors FINANCE_INVOICE_EMAIL_DRY_RUN=true for safe development/testing.
  */
 
-import nodemailer from "nodemailer";
 import type { FinanceInvoiceClassification } from "@/modules/finance/models/invoice.model";
-
-/* ------------------------------------------------------------------ */
-/*  Transporter (lazy singleton)                                        */
-/* ------------------------------------------------------------------ */
-
-let _transporter: nodemailer.Transporter | null = null;
-
-function getTransporter(): nodemailer.Transporter {
-  if (!_transporter) {
-    _transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.GMAIL_USER ?? process.env.EMAIL_USER ?? "",
-        pass: process.env.GMAIL_APP_PASSWORD ?? process.env.EMAIL_PASSWORD ?? "",
-      },
-    });
-  }
-  return _transporter;
-}
+import { openMailbox } from "@/lib/email/transporter";
 
 /* ------------------------------------------------------------------ */
 /*  Email body builder                                                  */
@@ -131,9 +112,9 @@ export async function sendInvoiceEmail(
   }
 
   try {
-    const transporter = getTransporter();
+    const transporter = await openMailbox("general");
     const info = await transporter.sendMail({
-      from: `"Vacation Saga" <${process.env.GMAIL_USER ?? process.env.EMAIL_USER ?? ""}>`,
+      from: `"Vacation Saga" <${transporter.fromEmail}>`,
       to: params.to,
       subject: `Your Invoice ${params.invoiceNumber} from Vacation Saga`,
       html: buildEmailHtml({

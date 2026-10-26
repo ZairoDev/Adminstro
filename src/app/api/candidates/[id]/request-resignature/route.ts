@@ -4,7 +4,7 @@ import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { type NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { createTransporterHR, DEFAULT_FROM_EMAIL } from "@/lib/email/transporter";
+import { createTransporterHR } from "@/lib/email/transporter";
 import { getActiveHREmployee } from "@/lib/email/getHREmployee";
 import { getEmailSignature } from "@/lib/email/signature";
 
@@ -154,10 +154,9 @@ export async function POST(
     // Send email to candidate
     try {
       const hrEmployee = await getActiveHREmployee();
-      const hrEmail = hrEmployee?.email || DEFAULT_FROM_EMAIL;
-      const hrName = hrEmployee?.name || "HR Team";
-
       const transporter = await createTransporterHR();
+      const hrEmail = hrEmployee?.email || transporter.fromEmail;
+      const hrName = hrEmployee?.name || "HR Team";
       const emailSignature = await getEmailSignature(hrEmployee);
 
       const agreementName = agreementType === "training" 

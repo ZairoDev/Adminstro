@@ -2,7 +2,6 @@
 import {
   createTransporter,
   createTransporterHR,
-  DEFAULT_FROM_EMAIL,
   DEFAULT_COMPANY_NAME,
 } from "./transporter";
 import { getCandidateEmailTemplate } from "./templates/candidate";
@@ -64,10 +63,10 @@ export async function sendCandidateEmail(
     // Fetch active HR employee for signature
     const hrEmployee = await getActiveHREmployee();
     const { subject, html } = getCandidateEmailTemplate(payload, hrEmployee);
-    const transporter = createTransporterHR();
+    const transporter = await createTransporterHR();
 
     const mailOptions = {
-      from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,
+      from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${transporter.fromEmail}>`,
       to: payload.to,
       subject,
       html,
@@ -95,10 +94,10 @@ export async function sendWarningEmail(
     // Fetch active HR employee for signature
     const hrEmployee = await getActiveHREmployee();
     const { subject, html } = getWarningEmailTemplate(payload, hrEmployee);
-    const transporter = createTransporterHR();
+    const transporter = await createTransporterHR();
 
     const mailOptions = {
-      from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,
+      from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${transporter.fromEmail}>`,
       to: payload.to,
       subject,
       html,
@@ -126,10 +125,10 @@ export async function sendPIPEmail(
     // Fetch active HR employee for signature
     const hrEmployee = await getActiveHREmployee();
     const { subject, html } = getPIPEmailTemplate(payload, hrEmployee);
-    const transporter = createTransporterHR();
+    const transporter = await createTransporterHR();
 
     const mailOptions = {
-      from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,
+      from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${transporter.fromEmail}>`,
       to: payload.to,
       subject,
       html,
@@ -169,10 +168,10 @@ export async function sendPIPCompletionEmail(
       companyName || DEFAULT_COMPANY_NAME,
       hrEmployee
     );
-    const transporter = createTransporterHR();
+    const transporter = await createTransporterHR();
 
     const mailOptions = {
-      from: `${companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,
+      from: `${companyName || DEFAULT_COMPANY_NAME} <${transporter.fromEmail}>`,
       to,
       subject,
       html,
@@ -200,10 +199,10 @@ export async function sendAppreciationEmail(
     // Fetch active HR employee for signature
     const hrEmployee = await getActiveHREmployee();
     const { subject, html } = getAppreciationEmailTemplate(payload, hrEmployee);
-    const transporter = createTransporterHR();
+    const transporter = await createTransporterHR();
 
     const mailOptions = {
-      from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,
+      from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${transporter.fromEmail}>`,
       to: payload.to,
       subject,
       html,
@@ -231,10 +230,10 @@ export async function sendSeparationEmail(
     // Fetch active HR employee for signature
     const hrEmployee = await getActiveHREmployee();
     const { subject, html } = getSeparationEmailTemplate(payload, hrEmployee);
-    const transporter = createTransporterHR();
+    const transporter = await createTransporterHR();
 
     const mailOptions = {
-      from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,
+      from: `${payload.companyName || DEFAULT_COMPANY_NAME} <${transporter.fromEmail}>`,
       to: payload.to,
       subject,
       html,
@@ -274,10 +273,10 @@ export async function sendCustomEmail(
   cc?: string[],
 ): Promise<EmailResponse> {
   try {
-    const transporter = createTransporterHR();
+    const transporter = await createTransporterHR();
 
     const mailOptions = {
-      from: `${companyName || DEFAULT_COMPANY_NAME} <${DEFAULT_FROM_EMAIL}>`,
+      from: `${companyName || DEFAULT_COMPANY_NAME} <${transporter.fromEmail}>`,
       to,
       subject: template.subject,
       html: template.html,
@@ -460,7 +459,7 @@ export async function sendJobApplicationReceivedEmails(
 ): Promise<{ applicant: EmailResponse; hr: EmailResponse }> {
   const hrEmployee = await getActiveHREmployee();
   const companyName = details.companyName || DEFAULT_COMPANY_NAME;
-  const transporter = createTransporterHR();
+  const transporter = await createTransporterHR();
   const applicantTemplate = getApplicantApplicationReceivedTemplate(
     details,
     hrEmployee,
@@ -473,7 +472,7 @@ export async function sendJobApplicationReceivedEmails(
   ): Promise<EmailResponse> => {
     try {
       const mailResponse = await transporter.sendMail({
-        from: `${companyName} <${DEFAULT_FROM_EMAIL}>`,
+        from: `${companyName} <${transporter.fromEmail}>`,
         to,
         replyTo: JOB_APPLICATION_HR_INBOX,
         subject: template.subject,
@@ -800,10 +799,10 @@ export async function sendPersonalReminderEmail(
       appUrl: payload.appUrl,
     });
 
-    const transporter = createTransporter();
+    const transporter = await createTransporter();
 
     const mailResponse = await transporter.sendMail({
-      from: `Adminstro <${DEFAULT_FROM_EMAIL}>`,
+      from: `Adminstro <${transporter.fromEmail}>`,
       to: payload.to,
       subject,
       html,

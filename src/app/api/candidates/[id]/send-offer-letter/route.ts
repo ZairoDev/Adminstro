@@ -36,20 +36,9 @@ export async function POST(
     const offerLetterSigningLink = `${process.env.APP_URL || "http://localhost:3000"}/dashboard/candidatePortal/${id}/offer-letter`;
 
     // Validate email configuration
-    if (!process.env.HR_APP_PASSWORD) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Email configuration error: HR_APP_PASSWORD environment variable is not set",
-        },
-        { status: 500 }
-      );
-    }
-
-    // Get HR employee details for email
+    const transporter = await createTransporterHR();
     const hrEmployee = await getActiveHREmployee();
     const emailSignature = await getEmailSignature(hrEmployee);
-    const transporter = createTransporterHR();
 
     // Prepare email HTML with signing link
     const emailHtml = `
@@ -103,7 +92,7 @@ export async function POST(
 
     // Send email with signing link
     await transporter.sendMail({
-      from: `"Zairo International HR" <hr.zairointernational@gmail.com>`,
+      from: `"Zairo International HR" <${transporter.fromEmail}>`,
       to: candidate.email,
       subject: `Appointment Letter - ${candidate.name}`,
       html: emailHtml,

@@ -1,6 +1,6 @@
-import nodemailer from "nodemailer";
 import Employees from "@/models/employee";
 import bcryptjs from "bcryptjs";
+import { createTransporter } from "@/lib/email/transporter";
 import {
   NewPasswordTemplate,
   OtpTemplate,
@@ -61,14 +61,7 @@ export const sendEmail = async ({
         break;
     }
 
-    // Configure nodemailer transporter
-    let transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: "admistro.in@gmail.com",
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
+    const transporter = await createTransporter();
 
     // Prepare email template and subject based on the type of email
     let templateContent: string;
@@ -104,7 +97,7 @@ export const sendEmail = async ({
         throw new Error("Invalid email type");
     }
     const mailOptions = {
-      from: "No Reply <admistro.in@gmail.com>",
+      from: `No Reply <${transporter.fromEmail}>`,
       to: email,
       subject,
       html: templateContent,

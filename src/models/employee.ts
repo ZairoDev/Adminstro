@@ -17,6 +17,30 @@ interface IEmployee extends Document, EmployeeSchema {
     assignedNumber?: string | null;
   };
   candidateId?: Types.ObjectId | null;
+  salaryStructure?: {
+    gross: number;
+    basic: number;
+    hra: number;
+    conveyance: number;
+    medical: number;
+    specialAllowance: number;
+    effectiveFrom?: Date | null;
+    effectiveTo?: Date | null;
+    updatedBy?: string | null;
+    updatedByName?: string | null;
+  } | null;
+  salaryHistory?: Array<{
+    gross: number;
+    basic: number;
+    hra: number;
+    conveyance: number;
+    medical: number;
+    specialAllowance: number;
+    effectiveFrom?: Date | null;
+    effectiveTo?: Date | null;
+    updatedBy?: string | null;
+    updatedByName?: string | null;
+  }>;
   pricingRule: {
     enabled: boolean;
     min: number | null;
@@ -101,6 +125,22 @@ const mobileSessionSchema = new Schema(
     sessionStartedAt: { type: Number, default: null },
     lastActiveAt: { type: Number, default: null },
     isLoggedIn: { type: Boolean, default: false },
+  },
+  { _id: false },
+);
+
+const salaryRevisionSchema = new Schema(
+  {
+    gross: { type: Number, required: true, min: 0 },
+    basic: { type: Number, required: true, min: 0 },
+    hra: { type: Number, required: true, min: 0 },
+    conveyance: { type: Number, required: true, min: 0 },
+    medical: { type: Number, required: true, min: 0 },
+    specialAllowance: { type: Number, required: true, min: 0 },
+    effectiveFrom: { type: Date, default: null },
+    effectiveTo: { type: Date, default: null },
+    updatedBy: { type: String, default: null },
+    updatedByName: { type: String, default: null },
   },
   { _id: false },
 );
@@ -202,6 +242,14 @@ const employeeSchema = new Schema<IEmployee>(
     salary: {
       type: Number,
       default: 0,
+    },
+    salaryStructure: {
+      type: salaryRevisionSchema,
+      required: false,
+    },
+    salaryHistory: {
+      type: [salaryRevisionSchema],
+      default: [],
     },
     isVerified: {
       type: Boolean,

@@ -11,6 +11,11 @@ import {
   clearCandidateExit,
   markCandidateExitedByEmployeeId,
 } from "@/lib/candidate/markCandidateExited";
+import {
+  EmployeeSalaryError,
+  parseGrossSalary,
+  updateEmployeeGrossSalary,
+} from "@/modules/finance/services/salary.service";
 
 connectDb();
 
@@ -109,7 +114,6 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     if (updateFields.allotedArea) {
       updateData.allotedArea = normalizeAllotedArea(updateFields.allotedArea);
     }
-    if (updateFields.salary) updateData.salary = updateFields.salary;
     if (updateFields.empType) updateData.empType = updateFields.empType;
     if (updateFields.duration) updateData.duration = updateFields.duration;
     if (Object.keys(updateFields).includes("isLocked")) {
@@ -134,6 +138,26 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     if (updateFields.password) {
       updateData.password = updateFields.password;
       updateData.passwordExpiresAt = computePasswordExpiryDate();
+    }
+
+    const nextGross = parseGrossSalary(updateFields.salary);
+    if (nextGross !== null) {
+      try {
+        await updateEmployeeGrossSalary({
+          employeeId: _id,
+          gross: nextGross,
+          updatedById: typeof data.id === "string" ? data.id : undefined,
+          updatedByName: typeof data.name === "string" ? data.name : undefined,
+        });
+      } catch (salaryError) {
+        if (salaryError instanceof EmployeeSalaryError) {
+          return NextResponse.json(
+            { error: salaryError.message },
+            { status: salaryError.status },
+          );
+        }
+        throw salaryError;
+      }
     }
 
     const employeeUpdateFilter: Record<string, unknown> = { _id };

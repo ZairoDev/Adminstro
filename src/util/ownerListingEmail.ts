@@ -1,5 +1,5 @@
-import nodemailer from "nodemailer";
 import { OwnerPropertyRegisteredTemplate } from "@/helper/EmailTemplate/ownerPropertyRegistered";
+import { createTransporter } from "@/lib/email/transporter";
 
 export async function sendOwnerPropertyRegisteredEmail({
   to,
@@ -23,13 +23,7 @@ export async function sendOwnerPropertyRegisteredEmail({
     return { success: false, message: "Owner email is required." };
   }
 
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: "admistro.in@gmail.com",
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
+  const transporter = await createTransporter();
 
   const html = OwnerPropertyRegisteredTemplate({
     ownerName,
@@ -41,7 +35,7 @@ export async function sendOwnerPropertyRegisteredEmail({
   });
 
   const mailResponse = await transporter.sendMail({
-    from: "Vacation Saga <admistro.in@gmail.com>",
+    from: `Vacation Saga <${transporter.fromEmail}>`,
     to: email,
     subject: "Your property is registered — complete onboarding to go live",
     html,

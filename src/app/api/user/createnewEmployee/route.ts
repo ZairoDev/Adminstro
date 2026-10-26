@@ -9,6 +9,7 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { computePasswordExpiryDate } from "@/util/passwordExpiry";
 import { normalizeAllotedArea } from "@/util/location";
 import { normalizeEmployeeRentalType } from "@/util/employeeRentalTypeAccess";
+import { splitGrossSalary } from "@/modules/finance/salary-structure";
 import { withUniqueEmployeeCode } from "@/lib/people/employeeCode";
 import {
   sendEmployeeSignedDocumentsEmail,
@@ -116,6 +117,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           : requestedOrganization || "VacationSaga";
 
     const normalizedAllotedArea = normalizeAllotedArea(allotedArea);
+    const grossSalary = splitGrossSalary(
+      typeof salary === "number" && Number.isFinite(salary) ? salary : 0,
+    );
     const newUser = new Employees({
       name,
       email,
@@ -134,7 +138,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       empType,
       assignedCountry,
       rentalType: normalizeEmployeeRentalType(rentalType),
-      salary,
+      salary: grossSalary.gross,
+      salaryStructure: {
+        ...grossSalary,
+        effectiveFrom: dateOfJoining ? new Date(dateOfJoining) : new Date(),
+        effectiveTo: null,
+        updatedBy: null,
+        updatedByName: null,
+      },
+      salaryHistory: [],
       dateOfJoining,
       dateOfBirth,
       experience,

@@ -58,6 +58,7 @@ import {
   Wallet,
   Receipt,
   ScrollText,
+  IndianRupee,
   MapPin,
 } from "lucide-react";
 
@@ -490,9 +491,19 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <ScrollText size={18} />,
     },
     {
+      path: "/dashboard/finance/salaries",
+      label: "Salaries",
+      Icon: <IndianRupee size={18} />,
+    },
+    {
       path: "/dashboard/aliases",
       label: "Aliases",
       Icon: <UserRoundCog size={18} />,
+    },
+    {
+      path: "/dashboard/email-accounts",
+      label: "Email accounts",
+      Icon: <Mail size={18} />,
     },
     {
       path: "/dashboard/sales-offer",
@@ -1321,6 +1332,11 @@ const financeManagementRoutes = [
     path: "/dashboard/finance/webhook-logs",
     label: "Webhook Logs",
     Icon: <ScrollText size={18} />,
+  },
+  {
+    path: "/dashboard/finance/salaries",
+    label: "Salaries",
+    Icon: <IndianRupee size={18} />,
   },
 ];
 const ownerManagementRoutes = [

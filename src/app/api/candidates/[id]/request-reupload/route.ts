@@ -4,7 +4,7 @@ import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { type NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { createTransporterHR, DEFAULT_FROM_EMAIL } from "@/lib/email/transporter";
+import { createTransporterHR } from "@/lib/email/transporter";
 import { getActiveHREmployee } from "@/lib/email/getHREmployee";
 import { getEmailSignature } from "@/lib/email/signature";
 import {
@@ -190,7 +190,7 @@ export async function POST(
     // Send email to candidate
     try {
       const hrEmployee = await getActiveHREmployee();
-      const transporter = createTransporterHR();
+      const transporter = await createTransporterHR();
       
       const documentListHtml = documentTypes
         .map((docType: string) => `<li style="margin: 8px 0;">${getOnboardingDocumentLabel(docType)}</li>`)
@@ -270,7 +270,7 @@ export async function POST(
       `;
 
       const mailResponse = await transporter.sendMail({
-        from: `"Zairo International HR" <${DEFAULT_FROM_EMAIL}>`,
+        from: `"Zairo International HR" <${transporter.fromEmail}>`,
         to: candidate.email,
         subject: "Document Re-upload Required - Zairo International",
         html: emailHtml,

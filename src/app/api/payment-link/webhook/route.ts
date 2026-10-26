@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import nodemailer from "nodemailer";
 import Bookings from "@/models/booking";
 import { connectDb } from "@/util/db";
 import Invoice from "@/models/invoice";
 import { generateInvoicePdfBuffer } from "@/components/generatePdfBuffer";
 import { processRazorpayWebhook } from "@/modules/finance/services/razorpay-webhook.service";
+import { openMailbox } from "@/lib/email/transporter";
 
 export async function POST(req: Request) {
   try {
@@ -290,13 +290,11 @@ export async function POST(req: Request) {
 
       const customerName = guestWhoPaid?.name || fresh.lead?.name || "Guest";
 
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: "admistro.in@gmail.com",
-          pass: process.env.GMAIL_APP_PASSWORD,
-        },
-      });
+      const transporter = await openMailbox("general");
+      if (!transporter.hasPassword) {
+        console.error("Payment email skipped: general mailbox has no app password");
+        return NextResponse.json({ success: true });
+      }
 
       // 🧾 Check if this guest has fully paid their due
       const guestAmountPaid = Number(guestWhoPaid?.amountPaid || 0);
@@ -367,7 +365,7 @@ export async function POST(req: Request) {
         await Invoice.create(invoiceData);
 
         await transporter.sendMail({
-          from: `"Vacation Saga" <admistro.in@gmail.com>`,
+          from: `"Vacation Saga" <${transporter.fromEmail}>`,
           to: customerEmail,
           subject: "Your Vacation Saga Invoice",
           html: `
@@ -419,7 +417,7 @@ export async function POST(req: Request) {
         const remaining = guestAmountDue - guestAmountPaid;
 
         await transporter.sendMail({
-          from: `"Vacation Saga" <admistro.in@gmail.com>`,
+          from: `"Vacation Saga" <${transporter.fromEmail}>`,
           to: customerEmail,
           subject: "Partial Payment Received - Vacation Saga",
           html: `

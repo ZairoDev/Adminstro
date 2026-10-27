@@ -6,6 +6,7 @@ import { scheduleShortTermLocationGeoSync } from "@/services/unregistered-owner-
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
 import { normalizeOwnerSheetCityName } from "@/util/ownerSheetLocationFilter";
+import { isProtectedOwnerSheetField } from "@/lib/owner-sheet/added-by";
 import { collaboratorOwnerWriteForbidden } from "@/util/collaboratorOwnerAccess";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -44,6 +45,13 @@ export async function PUT(
     const data = await unregisteredOwnerShortTerm.findById(params._id);
     if (!data) {
       return NextResponse.json({ message: "Data not found" }, { status: 404 });
+    }
+
+    if (isProtectedOwnerSheetField(field)) {
+      return NextResponse.json(
+        { message: "This field cannot be updated" },
+        { status: 400 },
+      );
     }
 
     if (field === "phoneNumber") {

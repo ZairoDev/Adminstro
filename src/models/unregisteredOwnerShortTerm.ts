@@ -155,6 +155,18 @@ const unregisteredOwnerShortTermSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    addedByEmployeeId: {
+      type: String,
+      default: "",
+    },
+    addedByName: {
+      type: String,
+      default: "",
+    },
+    addedByEmail: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,
@@ -162,6 +174,8 @@ const unregisteredOwnerShortTermSchema = new mongoose.Schema(
 );
 
 unregisteredOwnerShortTermSchema.index({ locationGeo: "2dsphere" }, { sparse: true });
+unregisteredOwnerShortTermSchema.index({ createdAt: -1, addedByEmployeeId: 1 });
+unregisteredOwnerShortTermSchema.index({ location: 1, createdAt: -1 });
 unregisteredOwnerShortTermSchema.index({ advertListingStatus: 1, createdAt: -1 });
 
 export const unregisteredOwnerShortTerm =

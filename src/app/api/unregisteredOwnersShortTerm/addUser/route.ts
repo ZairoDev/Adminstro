@@ -10,6 +10,7 @@ import { isLocationExempt } from "@/util/apiSecurity";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { enforceOwnerSheetRentalTypeAccess } from "@/lib/enforceEmployeeRentalType";
 import { collaboratorOwnerWriteForbidden } from "@/util/collaboratorOwnerAccess";
+import { ownerAddedByFromToken } from "@/lib/owner-sheet/added-by";
 import {
   normalizeOwnerSheetCityName,
   resolveDefaultOwnerRowLocation,
@@ -24,9 +25,18 @@ function normalizePropertyFloorInput(raw: unknown): string {
 
 export async function POST(req: NextRequest) {
   try {
-    let token: { role?: string; allotedArea?: unknown };
+    let token: {
+      id?: unknown;
+      name?: unknown;
+      email?: unknown;
+      role?: string;
+      allotedArea?: unknown;
+    };
     try {
       token = (await getDataFromToken(req)) as {
+        id?: unknown;
+        name?: unknown;
+        email?: unknown;
         role?: string;
         allotedArea?: unknown;
       };
@@ -102,6 +112,7 @@ export async function POST(req: NextRequest) {
       geoAddressVerified:
         body.geoAddressVerified === "Verified" ? "Verified" : "None",
       propertyFloor: normalizePropertyFloorInput(body.propertyFloor),
+      ...ownerAddedByFromToken(token),
     });
 
     if (hasGeocodableFields(ownerFields)) {

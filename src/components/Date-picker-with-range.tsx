@@ -18,9 +18,15 @@ interface DatePickerWithRangeProps {
   date: DateRange | undefined;
   setDate: (date: DateRange | undefined) => void;
   className?: string;
+  buttonClassName?: string;
 }
 
-export function DatePickerWithRange({ date, setDate, className }: DatePickerWithRangeProps) {
+export function DatePickerWithRange({
+  date,
+  setDate,
+  className,
+  buttonClassName,
+}: DatePickerWithRangeProps) {
   // const [date, setDate] = React.useState<DateRange | undefined>({
   //   from: new Date(2022, 0, 20),
   //   to: addDays(new Date(2022, 0, 20), 20),
@@ -34,8 +40,9 @@ export function DatePickerWithRange({ date, setDate, className }: DatePickerWith
             id="date"
             variant={"outline"}
             className={cn(
-              "w-[300px] justify-start text-left font-normal",
-              !date && "text-muted-foreground"
+              "h-11 w-[300px] justify-start text-left font-normal",
+              buttonClassName,
+              !date && "text-muted-foreground",
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />

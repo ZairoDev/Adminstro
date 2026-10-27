@@ -918,6 +918,9 @@ export interface  unregisteredOwners {
     type: "Point";
     coordinates: [number, number];
   };
+  addedByEmployeeId?: string;
+  addedByName?: string;
+  addedByEmail?: string;
  }
 
 export const rentalTypes: string[] = ["Short Term", "Long Term"];

@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
-import { Loader2, RefreshCcw, GitMerge } from "lucide-react";
+// import Link from "next/link";
+import { Loader2, RefreshCcw } from "lucide-react";
 import axios from "@/util/axios";
 import {
   Card,
@@ -28,7 +28,7 @@ import { PropertyCountHistogram } from "@/components/charts/PropertyCountHistogr
 import { DashboardSectionSkeleton } from "@/components/ui/DashboardSectionSkeleton";
 import WeeklyTargetDashboard from "@/components/BookingTable";
 import LoggedInEmployeesList from "@/components/VS/dashboard/logged-in-employees";
-import RecentEmployeeSessions from "@/components/mini/RecentEmployeeSessions";
+// import RecentEmployeeSessions from "@/components/mini/RecentEmployeeSessions";
 import { CandidateStatsChart } from "@/components/charts/CandidateStatsChart";
 import {
   Line,
@@ -55,6 +55,7 @@ import { UserInterface } from "@/util/type";
 import { employeeRoles } from "@/constants/employeeRoles";
 import { OwnerStageChart } from "@/components/charts/OwnerStageChart";
 import { DailyLeadsActiveEmployeesSection } from "@/components/dashboard/DailyLeadsActiveEmployeesSection";
+import { OwnerSheetEmployeeSection } from "@/components/dashboard/OwnerSheetEmployeeSection";
 import { VisitsCreatedBySection } from "@/components/dashboard/VisitsCreatedBySection";
 
 const BookingChartImproved = dynamic(
@@ -405,20 +406,23 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
                 </Card>
               </div>
             </div>
+            {/* Recent Sessions — temporarily hidden
             <div className="col-span-4">
-              {/* Dynamic import not necessary here — small client fetch is fine */}
-              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <RecentEmployeeSessions />
             </div>
+            */}
           </div>
         </div>
       )}
 
       <VisitsCreatedBySection />
 
+      <OwnerSheetEmployeeSection />
+
       {/* SuperAdmin Only Sections */}
       {isSuperAdmin && (
         <>
+          {/* WhatsApp conversation merge — temporarily hidden
           <Card className="my-4 overflow-hidden border-amber-200 dark:border-amber-900/50">
             <CardHeader className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20">
               <CardTitle className="flex items-center gap-2 text-xl">
@@ -438,6 +442,7 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
               </Button>
             </CardContent>
           </Card>
+          */}
 
           {/* Booking Statistics */}
           {canAccess("bookingChart") && (

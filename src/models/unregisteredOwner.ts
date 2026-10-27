@@ -138,6 +138,18 @@ petStatus: {
     type: Date,
     default: null,
   },
+  addedByEmployeeId: {
+    type: String,
+    default: "",
+  },
+  addedByName: {
+    type: String,
+    default: "",
+  },
+  addedByEmail: {
+    type: String,
+    default: "",
+  },
 
 },
 {
@@ -145,6 +157,8 @@ petStatus: {
 });
 
 unregisteredOwnerSchema.index({ locationGeo: "2dsphere" }, { sparse: true });
+unregisteredOwnerSchema.index({ createdAt: -1, addedByEmployeeId: 1 });
+unregisteredOwnerSchema.index({ location: 1, createdAt: -1 });
 
 export const unregisteredOwner =
   mongoose.models?.unregisteredOwner ||

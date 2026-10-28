@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { Check } from "lucide-react";
 import axios from "@/util/axios";
 import type {
   DryRunResult,
@@ -521,7 +522,11 @@ export default function ConversationMergePanel() {
         <>
           {mergeResult.merged > 0 && (
             <div style={s.success}>
-              <strong>✓ Merge complete.</strong> {mergeResult.merged} groups merged
+              <strong className="inline-flex items-center gap-1">
+                <Check className="h-4 w-4" aria-hidden />
+                Merge complete.
+              </strong>{" "}
+              {mergeResult.merged} groups merged
               successfully. Total messages reassigned:{" "}
               {mergeResult.results.reduce((sum, r) => sum + r.messagesMoved, 0)}
             </div>

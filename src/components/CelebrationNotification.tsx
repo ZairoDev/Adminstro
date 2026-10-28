@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Cake, Calendar, ChevronDown, ChevronUp } from "lucide-react";
+import { Cake, Calendar, ChevronDown, ChevronUp, PartyPopper, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CelebrationEvent {
@@ -37,20 +37,20 @@ export const CelebrationNotification: React.FC<CelebrationNotificationProps> = (
   // Show summary for collapsed view
   const getSummary = () => {
     if (birthdays.length > 0 && anniversaries.length > 0) {
-      return `🎉 ${birthdays.length} Birthday${birthdays.length !== 1 ? "s" : ""} & ${anniversaries.length} Anniversary${anniversaries.length !== 1 ? "ies" : ""} today`;
+      return `${birthdays.length} Birthday${birthdays.length !== 1 ? "s" : ""} & ${anniversaries.length} Anniversary${anniversaries.length !== 1 ? "ies" : ""} today`;
     } else if (birthdays.length > 0) {
-      return `🎉 ${birthdays.length} Birthday${birthdays.length !== 1 ? "s" : ""} today`;
+      return `${birthdays.length} Birthday${birthdays.length !== 1 ? "s" : ""} today`;
     } else {
-      return `👏 ${anniversaries.length} Work Anniversary${anniversaries.length !== 1 ? "ies" : ""} today`;
+      return `${anniversaries.length} Work Anniversary${anniversaries.length !== 1 ? "ies" : ""} today`;
     }
   };
 
   // Show first event for single event view
   const getSingleEventMessage = () => {
     if (birthdays.length === 1 && anniversaries.length === 0) {
-      return `🎉 Today is ${birthdays[0].firstName}'s birthday`;
+      return `Today is ${birthdays[0].firstName}'s birthday`;
     } else if (anniversaries.length === 1 && birthdays.length === 0) {
-      return `👏 Today is ${anniversaries[0].firstName}'s ${anniversaries[0].years}-year work anniversary`;
+      return `Today is ${anniversaries[0].firstName}'s ${anniversaries[0].years}-year work anniversary`;
     }
     return null;
   };
@@ -63,14 +63,20 @@ export const CelebrationNotification: React.FC<CelebrationNotificationProps> = (
         <div className="flex-1">
           {singleEventMessage && !hasMultiple ? (
             // Single event - simple message
-            <p className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+            <p className="flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-gray-100">
+              {birthdays.length > 0 ? (
+                <Cake className="h-5 w-5 shrink-0 text-pink-600" aria-hidden />
+              ) : (
+                <Calendar className="h-5 w-5 shrink-0 text-purple-600" aria-hidden />
+              )}
               {singleEventMessage}
             </p>
           ) : (
             // Multiple events - summary with expand option
             <>
               <div className="flex items-center gap-2">
-                <p className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                <p className="flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-gray-100">
+                  <PartyPopper className="h-5 w-5 shrink-0 text-pink-600" aria-hidden />
                   {getSummary()}
                 </p>
                 {hasMultiple && (
@@ -104,7 +110,8 @@ export const CelebrationNotification: React.FC<CelebrationNotificationProps> = (
                             key={bday.employeeId}
                             className="text-sm text-gray-700 dark:text-gray-300"
                           >
-                            🎂 {bday.firstName}
+                            <Cake className="mr-1 inline h-3.5 w-3.5" aria-hidden />
+                            {bday.firstName}
                           </p>
                         ))}
                       </div>
@@ -124,7 +131,8 @@ export const CelebrationNotification: React.FC<CelebrationNotificationProps> = (
                             key={anniv.employeeId}
                             className="text-sm text-gray-700 dark:text-gray-300"
                           >
-                            🎊 {anniv.firstName} - {anniv.years} year{anniv.years !== 1 ? "s" : ""}
+                            <PartyPopper className="mr-1 inline h-3.5 w-3.5" aria-hidden />
+                            {anniv.firstName} - {anniv.years} year{anniv.years !== 1 ? "s" : ""}
                           </p>
                         ))}
                       </div>

@@ -17,7 +17,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Film,
+  MapPin,
   Music,
+  StickyNote,
   ChevronDown,
   Play,
   ArrowDown,
@@ -746,7 +748,8 @@ const MessageBubble = memo(function MessageBubble({
         {/* Internal message indicator */}
         {isInternal && (
           <div className="flex items-center gap-1 text-[11px] text-[#856404] dark:text-[#ffc107] mb-1 font-medium">
-            <span>📝 Internal Note</span>
+            <StickyNote className="h-3 w-3" aria-hidden />
+            <span>Internal Note</span>
           </div>
         )}
 
@@ -768,11 +771,11 @@ const MessageBubble = memo(function MessageBubble({
           // Determine if original message was from same person
           const isOwnMessage = replyData.from === message.from;
           const quotedText = replyData.content?.text || replyData.content?.caption || 
-            (replyData.type === "image" ? "📷 Photo" :
-             replyData.type === "video" ? "🎬 Video" :
-             replyData.type === "audio" ? "🎵 Audio" :
-             replyData.type === "document" ? "📄 Document" :
-             replyData.type === "sticker" ? "🎭 Sticker" :
+            (replyData.type === "image" ? "Photo" :
+             replyData.type === "video" ? "Video" :
+             replyData.type === "audio" ? "Audio" :
+             replyData.type === "document" ? "Document" :
+             replyData.type === "sticker" ? "Sticker" :
              replyData.type === "unknown" ? "Message unavailable" : "Message");
 
           return (
@@ -959,7 +962,7 @@ const MessageBubble = memo(function MessageBubble({
             className="block p-2 rounded-lg bg-[#f5f6f6] dark:bg-[#1d282f] hover:bg-[#ebedef] dark:hover:bg-[#182229]"
           >
             <div className="flex items-center gap-2">
-              <span>📍</span>
+              <MapPin className="h-4 w-4 shrink-0" aria-hidden />
               <span className="text-[14px] text-[#111b21] dark:text-[#e9edef]">
                 {message.content.location.name || message.content.location.address || "View location"}
               </span>

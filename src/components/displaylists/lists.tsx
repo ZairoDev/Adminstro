@@ -1,3 +1,5 @@
+import { X } from "lucide-react";
+
 type Area = {
   name: string;
   metrolane?: string;
@@ -21,7 +23,7 @@ export const DisplayLists = ({
           onClick={() => setOnClose(false)}
           className="absolute top-2 right-2 text-gray-600 hover:text-white"
         >
-          ✕
+          <X className="h-4 w-4" aria-hidden />
         </button>
 
         {/* Heading */}

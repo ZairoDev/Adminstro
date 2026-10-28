@@ -718,13 +718,43 @@ export const MessageComposer = memo(function MessageComposer({
                     )}
                   </div>
                 )}
-                <p className="text-[13px] text-[#667781] dark:text-[#8696a0] truncate">
+                <p className="flex items-center gap-1 truncate text-[13px] text-[#667781] dark:text-[#8696a0]">
                   {(() => {
-                    if (replyToMessage.type === "image") return "📷 Photo";
-                    if (replyToMessage.type === "video") return "🎬 Video";
-                    if (replyToMessage.type === "audio") return "🎵 Audio";
-                    if (replyToMessage.type === "document") return "📄 Document";
-                    if (replyToMessage.type === "sticker") return "🎭 Sticker";
+                    if (replyToMessage.type === "image") {
+                      return (
+                        <>
+                          <ImageIcon className="h-3 w-3 shrink-0" aria-hidden /> Photo
+                        </>
+                      );
+                    }
+                    if (replyToMessage.type === "video") {
+                      return (
+                        <>
+                          <Film className="h-3 w-3 shrink-0" aria-hidden /> Video
+                        </>
+                      );
+                    }
+                    if (replyToMessage.type === "audio") {
+                      return (
+                        <>
+                          <Music className="h-3 w-3 shrink-0" aria-hidden /> Audio
+                        </>
+                      );
+                    }
+                    if (replyToMessage.type === "document") {
+                      return (
+                        <>
+                          <FileText className="h-3 w-3 shrink-0" aria-hidden /> Document
+                        </>
+                      );
+                    }
+                    if (replyToMessage.type === "sticker") {
+                      return (
+                        <>
+                          <Smile className="h-3 w-3 shrink-0" aria-hidden /> Sticker
+                        </>
+                      );
+                    }
                     return getMessageDisplayText(replyToMessage);
                   })()}
                 </p>

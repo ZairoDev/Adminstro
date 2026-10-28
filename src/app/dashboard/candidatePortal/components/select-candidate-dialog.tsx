@@ -164,8 +164,11 @@ export function SelectCandidateDialog({
                       <span className="font-semibold">{role}</span>
                     </p>
                     {candidatePosition.toLowerCase() !== role.toLowerCase() && (
-                      <p className="mt-2 font-medium">
-                        ⚠️ The candidate's current role ({candidatePosition}) does not match the selected role for training ({role}). Please verify this is intentional.
+                      <p className="mt-2 flex items-start gap-1.5 font-medium">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                        <span>
+                          The candidate&apos;s current role ({candidatePosition}) does not match the selected role for training ({role}). Please verify this is intentional.
+                        </span>
                       </p>
                     )}
                   </div>

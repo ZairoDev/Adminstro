@@ -8,6 +8,13 @@ import {
   LucideIcon,
   ShieldPlus,
   AlertTriangle,
+  Ban,
+  Book,
+  BookMarked,
+  BookOpen,
+  Circle,
+  ClipboardList,
+  Sparkles,
   Plus,
   Trash2,
   Mail,
@@ -108,66 +115,70 @@ const statusVariants = {
   active: { x: 48 },
 };
 
+function ConfigIcon({ icon: Icon }: { icon: LucideIcon }) {
+  return <Icon className="mr-1 inline h-3 w-3" aria-hidden />;
+}
+
 // Warning type labels and colors
 const WARNING_TYPE_CONFIG: Record<
   WarningType,
-  { label: string; color: string; icon: string }
+  { label: string; color: string; icon: LucideIcon }
 > = {
   disciplineIssue: {
     label: "Discipline Issue",
     color: "bg-red-500/10 text-red-600 border-red-500/30",
-    icon: "🚫",
+    icon: Ban,
   },
   lateAttendance: {
     label: "Late Attendance",
     color: "bg-amber-500/10 text-amber-600 border-amber-500/30",
-    icon: "⏰",
+    icon: Clock,
   },
   unplannedLeaves: {
     label: "Unplanned Leaves",
     color: "bg-blue-500/10 text-blue-600 border-blue-500/30",
-    icon: "📅",
+    icon: Calendar,
   },
   poshWarning: {
     label: "POSH Warning",
     color: "bg-purple-500/10 text-purple-600 border-purple-500/30",
-    icon: "⚠️",
+    icon: AlertTriangle,
   },
   combinedWarning: {
     label: "Combined Warning",
     color: "bg-red-700/10 text-red-700 border-red-700/30",
-    icon: "🔴",
+    icon: Circle,
   },
 };
 
 // PIP level labels and colors
 const PIP_LEVEL_CONFIG: Record<
   PIPLevel,
-  { label: string; shortLabel: string; color: string; icon: string }
+  { label: string; shortLabel: string; color: string; icon: LucideIcon }
 > = {
   forTrainees: {
     label: "For Trainees",
     shortLabel: "For Trainees",
     color: "bg-green-500/10 text-green-600 border-green-500/30",
-    icon: "📘",
+    icon: BookOpen,
   },
   level1: {
     label: "Level 1 - Supportive Guidance",
     shortLabel: "Level 1",
     color: "bg-blue-500/10 text-blue-600 border-blue-500/30",
-    icon: "📘",
+    icon: BookOpen,
   },
   level2: {
     label: "Level 2 - Strict Monitoring",
     shortLabel: "Level 2",
     color: "bg-amber-500/10 text-amber-600 border-amber-500/30",
-    icon: "📙",
+    icon: Book,
   },
   level3: {
     label: "Level 3 - Final Warning",
     shortLabel: "Level 3",
     color: "bg-red-500/10 text-red-600 border-red-500/30",
-    icon: "📕",
+    icon: BookMarked,
   },
 };
 
@@ -180,22 +191,22 @@ const PIP_STATUS_CONFIG = {
 // Appreciation type labels and colors
 const APPRECIATION_TYPE_CONFIG: Record<
   AppreciationType,
-  { label: string; color: string; icon: string }
+  { label: string; color: string; icon: LucideIcon }
 > = {
   outstandingContribution: {
     label: "Outstanding Contribution",
     color: "bg-green-500/10 text-green-600 border-green-500/30",
-    icon: "🌟",
+    icon: Sparkles,
   },
   outstandingAchievement: {
     label: "Outstanding Achievement",
     color: "bg-purple-500/10 text-purple-600 border-purple-500/30",
-    icon: "🏆",
+    icon: Trophy,
   },
   excellentAttendance: {
     label: "Excellent Attendance",
     color: "bg-blue-500/10 text-blue-600 border-blue-500/30",
-    icon: "⭐",
+    icon: Star,
   },
 };
 
@@ -1689,10 +1700,12 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                                     ?.color || ""
                                 }
                               >
-                                <span className="mr-1">
-                                  {WARNING_TYPE_CONFIG[warning.warningType]
-                                    ?.icon || "⚠️"}
-                                </span>
+                                <ConfigIcon
+                                  icon={
+                                    WARNING_TYPE_CONFIG[warning.warningType]
+                                      ?.icon ?? AlertTriangle
+                                  }
+                                />
                                 {WARNING_TYPE_CONFIG[warning.warningType]
                                   ?.label || warning.warningType}
                               </Badge>
@@ -2024,9 +2037,9 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                                 variant="outline"
                                 className={PIP_LEVEL_CONFIG[pip.pipLevel]?.color || ""}
                               >
-                                <span className="mr-1">
-                                  {PIP_LEVEL_CONFIG[pip.pipLevel]?.icon || "📋"}
-                                </span>
+                                <ConfigIcon
+                                  icon={PIP_LEVEL_CONFIG[pip.pipLevel]?.icon ?? ClipboardList}
+                                />
                                 {PIP_LEVEL_CONFIG[pip.pipLevel]?.shortLabel || pip.pipLevel}
                               </Badge>
                               <Badge
@@ -2381,13 +2394,13 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                                   ]?.color || ""
                                 }
                               >
-                                <span className="mr-1">
-                                  {
+                                <ConfigIcon
+                                  icon={
                                     APPRECIATION_TYPE_CONFIG[
                                       appreciation.appreciationType
-                                    ]?.icon || "⭐"
+                                    ]?.icon ?? Star
                                   }
-                                </span>
+                                />
                                 {
                                   APPRECIATION_TYPE_CONFIG[
                                     appreciation.appreciationType

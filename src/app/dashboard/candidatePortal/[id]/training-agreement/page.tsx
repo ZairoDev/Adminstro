@@ -870,7 +870,7 @@ export default function TrainingAgreementPage() {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-green-800 dark:text-green-300 mb-2">
-                  Training Agreement Signed Successfully! ✅
+                  Training Agreement Signed Successfully!
                 </h3>
                 <p className="text-base text-green-700 dark:text-green-400 mb-4">
                   Your signature has been applied to all documents (Training Agreement, HR Policies, and Letter of Intent).

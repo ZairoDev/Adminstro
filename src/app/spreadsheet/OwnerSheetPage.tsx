@@ -14,7 +14,7 @@ import PaginationControls from "@/components/pagination-controls";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/AuthStore";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, MapPin } from "lucide-react";
 import {
   OWNER_SHEET_LONG_TERM_CONFIG,
   OWNER_SHEET_SHORT_TERM_CONFIG,
@@ -359,7 +359,8 @@ export function OwnerSheetPage({ config }: { config: OwnerSheetConfig }) {
               href={config.geoSearchHref}
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border text-sm font-medium text-foreground hover:bg-muted transition-colors whitespace-nowrap"
             >
-              📍 Geo Search
+              <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+              Geo Search
             </Link>
           ) : null}
         </div>

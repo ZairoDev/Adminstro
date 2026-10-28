@@ -5,7 +5,7 @@ import axios from "@/util/axios";
 import { isAxiosError } from "axios";
 import parsePhoneNumberFromString from "libphonenumber-js";
 import PhoneInput from "react-phone-number-input";
-import { CheckCheckIcon } from "lucide-react";
+import { CheckCheckIcon, CircleCheck, CircleX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -146,7 +146,7 @@ export function CreateHousingSagaLeadForm({
     }
     const parsed = parsePhoneNumberFromString(phone);
     if (!parsed || !parsed.isValid()) {
-      setNumberStatus("❌ Invalid phone number.");
+      setNumberStatus("Invalid phone number.");
       return;
     }
     try {
@@ -158,8 +158,8 @@ export function CreateHousingSagaLeadForm({
       );
       setNumberStatus(
         response.data.exists
-          ? "❌ Phone number already exists."
-          : "✅ Phone number is available.",
+          ? "Phone number already exists."
+          : "Phone number is available.",
       );
     } catch {
       setNumberStatus("Error checking number");
@@ -175,8 +175,8 @@ export function CreateHousingSagaLeadForm({
     }
     if (
       numberStatus === "" ||
-      numberStatus === "❌ Invalid phone number." ||
-      numberStatus === "❌ Phone number already exists." ||
+      numberStatus === "Invalid phone number." ||
+      numberStatus === "Phone number already exists." ||
       numberStatus === "Please enter a phone number." ||
       numberStatus === "Error checking number"
     ) {
@@ -293,7 +293,14 @@ export function CreateHousingSagaLeadForm({
               </Button>
             </div>
             {numberStatus && (
-              <p className="text-xs text-muted-foreground">{numberStatus}</p>
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                {numberStatus === "Phone number is available." ? (
+                  <CircleCheck className="h-3.5 w-3.5 text-green-600" aria-hidden />
+                ) : (
+                  <CircleX className="h-3.5 w-3.5 text-destructive" aria-hidden />
+                )}
+                {numberStatus}
+              </p>
             )}
           </div>
 

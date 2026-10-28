@@ -1,6 +1,7 @@
 "use client";
 
 import { Pie, Label, PieChart } from "recharts";
+import { BarChart3 } from "lucide-react";
 
 import {
   Card,
@@ -74,7 +75,10 @@ export function LeadCountPieChart({
   return (
     <Card className="relative flex flex-col">
       <CardHeader className="items-center pb-0">
-        <CardTitle>{heading}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 shrink-0" aria-hidden />
+          {heading}
+        </CardTitle>
         <CardDescription>{subHeading}</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">

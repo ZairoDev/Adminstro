@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { PhoneInputLayout } from "@/components/PhoneInputLayout";
 
+import { CircleCheck, CircleX } from "lucide-react";
 import { LeadCard } from "./lead-card";
 
 const GuestWindow = () => {
@@ -34,9 +35,9 @@ const GuestWindow = () => {
         if (response.data.exists) {
 
           setAvailableLeads([response.data.data]);
-          setNumberStatus("❌ Phone number already exists.");
+          setNumberStatus("Phone number already exists.");
         } else {
-          setNumberStatus("✅ Phone number is available.");
+          setNumberStatus("Phone number is available.");
           setAvailableLeads([]);
         }
         setChecking(false);
@@ -113,7 +114,16 @@ const GuestWindow = () => {
                 Check
               </Button>
             </div>
-            {numberStatus && <div className="mt-2 text-sm">{numberStatus}</div>}
+            {numberStatus && (
+              <div className="mt-2 flex items-center gap-1.5 text-sm">
+                {numberStatus === "Phone number is available." ? (
+                  <CircleCheck className="h-4 w-4 text-green-600" aria-hidden />
+                ) : (
+                  <CircleX className="h-4 w-4 text-destructive" aria-hidden />
+                )}
+                {numberStatus}
+              </div>
+            )}
           </div>
         </div>
       </div>

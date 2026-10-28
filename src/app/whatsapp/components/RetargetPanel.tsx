@@ -638,8 +638,9 @@ export function RetargetPanel({
             <Label className="text-sm font-semibold text-foreground">
               Message Template
               {selectedTemplate && (
-                <span className="ml-2 text-xs font-normal text-green-600">
-                  ✓ Selected
+                <span className="ml-2 inline-flex items-center gap-1 text-xs font-normal text-green-600">
+                  <CheckCircle2 className="h-3 w-3" aria-hidden />
+                  Selected
                 </span>
               )}
             </Label>
@@ -2137,7 +2138,11 @@ export function RetargetPanel({
               messages from you.
               <br />
               <br />
-              <strong className="text-foreground">⚠️ Warning:</strong> Sending
+              <strong className="inline-flex items-center gap-1 text-foreground">
+                <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                Warning:
+              </strong>{" "}
+              Sending
               too many messages to the same contacts can result in your WhatsApp
               Business account being restricted or permanently banned.
               <br />

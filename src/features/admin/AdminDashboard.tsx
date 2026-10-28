@@ -3,7 +3,15 @@
 import React, { useState, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 // import Link from "next/link";
-import { Loader2, RefreshCcw } from "lucide-react";
+import {
+  FilePenLine,
+  IndianRupee,
+  KeyRound,
+  Loader2,
+  RefreshCcw,
+  Target,
+  Users,
+} from "lucide-react";
 import axios from "@/util/axios";
 import {
   Card,
@@ -24,7 +32,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
-import { PropertyCountHistogram } from "@/components/charts/PropertyCountHistogram";
+// import { PropertyCountHistogram } from "@/components/charts/PropertyCountHistogram";
 import { DashboardSectionSkeleton } from "@/components/ui/DashboardSectionSkeleton";
 import WeeklyTargetDashboard from "@/components/BookingTable";
 import LoggedInEmployeesList from "@/components/VS/dashboard/logged-in-employees";
@@ -42,7 +50,7 @@ import {
 import { ChartConfig } from "@/components/ui/chart";
 
 // Hooks
-import usePropertyCount from "@/features/admin/hooks/usePropertyCount";
+// import usePropertyCount from "@/features/admin/hooks/usePropertyCount";
 import useCandidateCounts from "@/features/admin/hooks/useCandidateCounts";
 import ListingCounts from "@/hooks/shared/useListingCounts";
 import { useDashboardAccess } from "@/hooks/useDashboardAccess";
@@ -88,7 +96,7 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
   const { token } = useAuthStore();
   const { toast } = useToast();
 
-  const [selectedCountry, setSelectedCountry] = useState("All");
+  // const [selectedCountry, setSelectedCountry] = useState("All");
   const [listingFilters, setListingFilter] = useState<{
     days?: string;
   }>({});
@@ -113,14 +121,14 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
     > | null>(null);
     const [ownerJourneyLoading, setOwnerJourneyLoading] = useState(false);
 
-  // Data hooks
-  const {
-    properties,
-    totalProperties,
-    fetchCountryWiseProperties,
-    countryWiseProperties,
-    countryWiseTotalProperties,
-  } = usePropertyCount();
+  // Property inventory by location — temporarily hidden
+  // const {
+  //   properties,
+  //   totalProperties,
+  //   fetchCountryWiseProperties,
+  //   countryWiseProperties,
+  //   countryWiseTotalProperties,
+  // } = usePropertyCount();
 
   const { totalListings, fetchListingCounts } = ListingCounts();
 
@@ -288,8 +296,9 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
       {/* Daily leads overview — shared with Lead Gen dashboard */}
       {(isSuperAdmin || isHR || canAccess("leadGenOverview")) && (
         <section className="my-8 space-y-6 rounded-xl border p-6 dark:bg-stone-950">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            👥 Daily Lead Generation Activity
+          <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <Users className="h-5 w-5 shrink-0" aria-hidden />
+            Daily Lead Generation Activity
           </h2>
           <DailyLeadsActiveEmployeesSection />
         </section>
@@ -298,8 +307,9 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
       {/* HR & Admin Section - Logged In Employees + Candidate Stats */}
       {(isSuperAdmin || isHR) && canAccess("loggedInEmployees") && (
         <div className="mb-8 w-full p-6 bg-gradient-to-br from-violet-50/50 to-purple-50/50 dark:from-violet-950/20 dark:to-purple-950/20 rounded-xl border">
-          <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-gray-100">
-            👥 HR & Team Overview
+          <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <Users className="h-5 w-5 shrink-0" aria-hidden />
+            HR & Team Overview
           </h2>
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* CandidateStatsChart - Takes 3/4 width on large screens */}
@@ -334,7 +344,8 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      🔐 Password Management
+                      <KeyRound className="h-4 w-4 shrink-0" aria-hidden />
+                      Password Management
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -447,8 +458,9 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
           {/* Booking Statistics */}
           {canAccess("bookingChart") && (
             <div className="my-2 bg-white dark:bg-stone-950 rounded-xl border">
-              <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                💰 Revenue Analytics
+              <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <IndianRupee className="h-5 w-5 shrink-0" aria-hidden />
+                Revenue Analytics
               </h2>
               <BookingChartImproved />
             </div>
@@ -457,18 +469,19 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
           {/* Weekly Target */}
           {canAccess("weeklyTarget") && (
             <div className="my-4">
-              <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                🎯 Weekly Target Performance
+              <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <Target className="h-5 w-5 shrink-0" aria-hidden />
+                Weekly Target Performance
               </h2>
               <WeeklyTargetDashboard />
             </div>
           )}
 
-          {/* Property Count by Country */}
+          {/* Property Count by Country — temporarily hidden
           {canAccess("propertyCount") && (
             <div className="my-6 p-6 bg-gradient-to-br from-cyan-50/50 to-sky-50/50 dark:from-cyan-950/20 dark:to-sky-950/20 rounded-xl border">
               <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                🏠 Property Inventory by Location
+                Property Inventory by Location
               </h2>
               <Select
                 onValueChange={(value) => {
@@ -516,6 +529,7 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
               </div>
             </div>
           )}
+          */}
 
           {canAccess("ownerOnboardingStage") && (
             <Card className="mt-6 overflow-hidden">
@@ -564,8 +578,9 @@ export default function AdminDashboard({ className }: AdminDashboardProps) {
           {/* Listings Created Chart */}
           {canAccess("listingsCreated") && (
             <div className="relative w-full mx-auto my-6 p-6  dark:bg-stone-950 rounded-xl border">
-              <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-                📝 New Listings Created
+              <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <FilePenLine className="h-5 w-5 shrink-0" aria-hidden />
+                New Listings Created
               </h2>
               <Card className="shadow-md rounded-2xl bg-white/80 dark:bg-stone-950">
                 <CardHeader>

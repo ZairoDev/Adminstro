@@ -2,7 +2,7 @@
 
 import axios from "@/util/axios";
 import Link from "next/link";
-import { Copy, Pencil } from "lucide-react";
+import { Copy, Pencil, Rocket } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FC, useEffect, useState } from "react";
 
@@ -494,7 +494,14 @@ const PageAddListing10: FC<PageAddListing10Props> = () => {
                         isLiveDisabled || !combinedData?.placeName || loading
                       }
                     >
-                      {shortTermDraft ? "Register property (not live)" : "Go live 🚀"}
+                      {shortTermDraft ? (
+                        "Register property (not live)"
+                      ) : (
+                        <span className="inline-flex items-center gap-2">
+                          <Rocket className="h-4 w-4" aria-hidden />
+                          Go live
+                        </span>
+                      )}
                     </Button>
                   )}
                 </>

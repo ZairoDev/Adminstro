@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, TrendingUp, TrendingDown } from "lucide-react";
+import { Circle, Sparkles, TrendingDown, TrendingUp, Users } from "lucide-react";
 import { CustomStackBarChart } from "@/components/charts/StackedBarChart";
 import ActiveEmployeeList from "@/components/VS/dashboard/active-employee-list";
 import LocationCard from "@/components/reusableCard";
@@ -22,14 +22,16 @@ export function DailyLeadsActiveEmployeesSection({
       </div>
 
       <div className="flex h-full flex-col gap-2 rounded-md border dark:bg-stone-950">
-        <h3 className="border-b p-3 text-xl font-semibold text-gray-800 dark:text-gray-200">
-          🟢 Active Employees
+        <h3 className="flex items-center gap-2 border-b p-3 text-xl font-semibold text-gray-800 dark:text-gray-200">
+          <Circle className="h-3 w-3 shrink-0 fill-green-500 text-green-500" aria-hidden />
+          Active Employees
         </h3>
         <ActiveEmployeeList />
         {showFreshLeadsSummary && (
           <div className="border p-4 shadow-md">
             <LocationCard
-              title="✨ Fresh Leads Summary"
+              title="Fresh Leads Summary"
+              titleIcon={Sparkles}
               stats={[
                 {
                   icon: Users,

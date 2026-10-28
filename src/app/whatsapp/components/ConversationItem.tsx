@@ -17,6 +17,7 @@ import {
   ListChecks,
   MapPin,
   MapPinOff,
+  Paperclip,
   Timer,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -517,13 +518,18 @@ export const ConversationItem = memo(function ConversationItem({
           )}
           <span
             className={cn(
-              "text-[14px] truncate min-w-0",
+              "inline-flex items-center gap-1 text-[14px] truncate min-w-0",
               hasUnread
                 ? "text-[#111b21] dark:text-[#d1d7db] font-medium"
                 : "text-[#667781] dark:text-[#8696a0]",
             )}
           >
-            {messagePreview || phone || " "}
+            {messagePreview.startsWith("📎 ") && (
+              <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            )}
+            {messagePreview.startsWith("📎 ")
+              ? messagePreview.slice(2)
+              : messagePreview || phone || " "}
           </span>
         </div>
         <ConversationLabelChips labels={conversation.labels} max={2} />

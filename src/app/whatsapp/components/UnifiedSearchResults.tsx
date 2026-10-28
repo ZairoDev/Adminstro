@@ -1,5 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { User, Loader2, Search, CheckCheck, MessageSquare, UserPlus, Archive } from "lucide-react";
+import { Archive, CheckCheck, Loader2, MessageSquare, Paperclip, Search, User, UserPlus } from "lucide-react";
 import type { StartNewChatInfo } from "@/lib/whatsapp/unifiedSearchUtils";
 import { formatTime } from "../utils";
 import {
@@ -317,8 +317,11 @@ function ContactResultItem({
           )}
         </div>
         {preview && (
-          <p className="text-[14px] text-[#667781] dark:text-[#8696a0] truncate">
-            {preview}
+          <p className="flex items-center gap-1 truncate text-[14px] text-[#667781] dark:text-[#8696a0]">
+            {preview.startsWith("📎 ") && (
+              <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            )}
+            {preview.startsWith("📎 ") ? preview.slice(2) : preview}
           </p>
         )}
         {conversation.isArchived && (

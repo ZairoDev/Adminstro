@@ -2,7 +2,17 @@
 
 import React, { useState, useMemo, ReactNode, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { BarChart3, Loader2 } from "lucide-react";
+import {
+  BarChart3,
+  FlaskConical,
+  IndianRupee,
+  Loader2,
+  MapPin,
+  Rocket,
+  Target,
+  TrendingUp,
+  User,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
 import { VisitStatsCard } from "@/components/visitCountCard/page";
@@ -205,8 +215,9 @@ export default function SalesDashboard({ className }: SalesDashboardProps) {
       {/* Revenue Analytics - Only for Sales Team and Sales-TeamLead (SuperAdmin/Admin sees it in AdminDashboard) */}
       {canAccess("revenueAnalytics") && showRevenueAndTargetHere && (
         <div className="my-6">
-          <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-            📊 Revenue Analytics
+          <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <IndianRupee className="h-5 w-5 shrink-0" aria-hidden />
+            Revenue Analytics
           </h2>
           <BookingChartImproved />
         </div>  
@@ -215,8 +226,9 @@ export default function SalesDashboard({ className }: SalesDashboardProps) {
       {/* Target Performance - Only for Sales Team and Sales-TeamLead (SuperAdmin/Admin sees it in AdminDashboard) */}
       {canAccess("targetPerformance") && showRevenueAndTargetHere && (
         <div className="my-6">
-          <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-            🎯 Weekly Target Performance
+          <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <Target className="h-5 w-5 shrink-0" aria-hidden />
+            Weekly Target Performance
           </h2>
           <WeeklyTargetDashboard />
         </div>
@@ -228,8 +240,9 @@ export default function SalesDashboard({ className }: SalesDashboardProps) {
           <div className="max-w-full mx-auto">
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-2">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  📍 Visits Dashboard
+                <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  <MapPin className="h-5 w-5 shrink-0" aria-hidden />
+                  Visits Dashboard
                 </h1>
                 {/* Show location badge only for restricted Sales users */}
                 {isSales && !hasFullAccess && accessibleLocations.length > 0 && (
@@ -339,8 +352,8 @@ export default function SalesDashboard({ className }: SalesDashboardProps) {
                 </div>
 
                 {/* <div className="border-2 rounded-lg w-full lg:w-1/2">
-                  <h3 className="text-lg font-semibold p-4 text-gray-800 dark:text-gray-200">
-                    💬 Message Status Overview
+                  <h3 className="flex items-center gap-2 p-4 text-lg font-semibold text-gray-800 dark:text-gray-200">
+                    Message Status Overview
                   </h3>
                   <CityStatsCharts data={messageStatus} />
                 </div> */}
@@ -353,7 +366,10 @@ export default function SalesDashboard({ className }: SalesDashboardProps) {
       {/* New Owners Section */}
       {canAccess("newOwners") && (
         <div className="my-8 p-6 bg-gradient-to-br from-teal-50/50 to-emerald-50/50 dark:from-teal-950/20 dark:to-emerald-950/20 rounded-xl border">
-          <h2 className="text-2xl font-bold mb-6">👤 New Owners & Properties</h2>
+          <h2 className="mb-6 flex items-center gap-2 text-2xl font-bold">
+            <User className="h-5 w-5 shrink-0" aria-hidden />
+            New Owners & Properties
+          </h2>
           <div className="flex flex-col md:flex-row gap-6">
             {/* Unregistered Owners */}
             <div className="relative w-full md:w-[250px] p-6 border rounded-xl shadow-md">
@@ -374,8 +390,9 @@ export default function SalesDashboard({ className }: SalesDashboardProps) {
             {/* Molecule visualization is optional */}
             {canAccess("moleculeVisualization") && (
               <div className="flex flex-col border rounded-xl shadow-md justify-center md:w-1/2 h-[600px]">
-                <h3 className="text-lg font-semibold p-4 text-gray-800 dark:text-gray-200 text-center">
-                  🔬 Owner Distribution Visualization
+                <h3 className="flex items-center justify-center gap-2 p-4 text-center text-lg font-semibold text-gray-800 dark:text-gray-200">
+                  <FlaskConical className="h-4 w-4 shrink-0" aria-hidden />
+                  Owner Distribution Visualization
                 </h3>
                 <MoleculeVisualization data={ownersCount} />
               </div>
@@ -430,8 +447,9 @@ export default function SalesDashboard({ className }: SalesDashboardProps) {
 
             {/* Trend chart */}
             <div className="flex relative flex-col items-center justify-center md:w-1/2">
-              <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">
-                📈 New Owners Trend
+              <h3 className="mb-2 flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-gray-200">
+                <TrendingUp className="h-4 w-4 shrink-0" aria-hidden />
+                New Owners Trend
               </h3>
               <div className="absolute right-20 top-20 text-2xl font-extrabold">
                 <div>
@@ -451,8 +469,9 @@ export default function SalesDashboard({ className }: SalesDashboardProps) {
       {/* Property Boost Performance */}
       {canAccess("propertyBoost") && (
         <div className="relative w-full mx-auto my-8 p-6 bg-gradient-to-br from-sky-50/50 to-blue-50/50 dark:from-sky-950/20 dark:to-blue-950/20 rounded-xl border">
-          <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-            🚀 Property Boost Performance
+          <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <Rocket className="h-5 w-5 shrink-0" aria-hidden />
+            Property Boost Performance
           </h2>
           <BoostMultiLineChart
             data={totalBoosts}

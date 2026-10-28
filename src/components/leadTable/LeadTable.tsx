@@ -4,6 +4,7 @@ import {
   BookX,
   Loader2,
   Ellipsis,
+  Check,
   ThumbsUp,
   CircleDot,
   Info,
@@ -897,7 +898,7 @@ const handleSave = async (
                       value={query.area ?? ""}
                       save={(val) => handleSave(query._id!, "area", val)}
                       tooltipText={`Location ->${query?.location} Area ->${query?.area}`}
-                      icon={<span className="text-green-500">✅</span>}
+                      icon={<Check className="h-4 w-4 text-green-500" aria-hidden />}
                       maxWidth="150px"
                     />
                   )}

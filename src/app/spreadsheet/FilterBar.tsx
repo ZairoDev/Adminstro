@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import type { LucideIcon } from "lucide-react";
 
 import {
   Select,
@@ -19,6 +20,9 @@ import { DateRange } from "react-day-picker";
 import {
   X,
   Search,
+  Hash,
+  Smartphone,
+  Type,
   Euro,
   ArrowUp,
   ArrowDown,
@@ -274,17 +278,17 @@ const getSearchTypeLabel = (
 };
 
 // Helper to get icon for search type
-const getSearchTypeIcon = (type: string): string => {
+const getSearchTypeIcon = (type: string): LucideIcon => {
   switch (type) {
     case "phoneNumber":
     case "partialPhone":
-      return "📱";
+      return Smartphone;
     case "VSID":
-      return "🆔";
+      return Hash;
     case "name":
-      return "Aa";
+      return Type;
     default:
-      return "🔍";
+      return Search;
   }
 };
 
@@ -708,9 +712,10 @@ const FilterBar = ({
               {/* Show detection result with confidence */}
               {detectionResult && localSearchValue && (
                 <div className="absolute right-12 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs bg-background px-1 rounded">
-                  <span className="text-base">
-                    {getSearchTypeIcon(detectionResult.type)}
-                  </span>
+                  {(() => {
+                    const SearchTypeIcon = getSearchTypeIcon(detectionResult.type);
+                    return <SearchTypeIcon className="h-3.5 w-3.5" aria-hidden />;
+                  })()}
                   <span
                     className={`
                     ${

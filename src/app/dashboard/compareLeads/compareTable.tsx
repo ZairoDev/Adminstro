@@ -6,6 +6,7 @@ import { IQuery } from "@/util/type";
 import { useAuthStore } from "@/AuthStore";
 import { EmployeeInterface } from "@/util/type";
 import debounce from "lodash.debounce";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -720,7 +721,7 @@ export default function CompareTable({
               <div className="flex items-center justify-between mb-1">
                 <h3 className="font-semibold text-lg">{creator}</h3>
                 {isSelected && (
-                  <span className="text-blue-600 dark:text-blue-400 text-xs font-bold">✓</span>
+                  <Check className="h-4 w-4 text-blue-600 dark:text-blue-400" aria-hidden />
                 )}
               </div>
 

@@ -10,8 +10,10 @@ import { FaRegStar, FaStar } from "react-icons/fa6";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  CircleAlert,
   Plus,
   House,
+  Star,
   Undo2,
   Trash2,
   Clock4,
@@ -123,7 +125,7 @@ const Page = ({ params }: pageProps) => {
     ) {
       setAlreadyAddedProperty(propertyId);
       toast("Property Already Added", {
-        icon: "❗",
+        icon: <CircleAlert className="h-4 w-4" aria-hidden />,
       });
       setTimeout(() => {
         setAlreadyAddedProperty("");
@@ -258,7 +260,7 @@ const Page = ({ params }: pageProps) => {
         return newProperties;
       });
       toast("New Property Added!", {
-        icon: "🏠",
+        icon: <House className="h-4 w-4" aria-hidden />,
       });
     });
 
@@ -306,7 +308,7 @@ const Page = ({ params }: pageProps) => {
       }
       setFavouriteUpdatedProperties(favPropertyIds);
       toast("Favourites Updated", {
-        icon: "🌟",
+        icon: <Star className="h-4 w-4" aria-hidden />,
       });
     });
 

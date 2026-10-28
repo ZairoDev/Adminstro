@@ -4,20 +4,20 @@ import styled from "styled-components";
 const HandLoader = () => {
   return (
     <StyledWrapper>
-      <div className="🤚">
-        <div className="👉" />
-        <div className="👉" />
-        <div className="👉" />
-        <div className="👉" />
-        <div className="🌴" />
-        <div className="👍" />
+      <div className="hand">
+        <div className="finger" />
+        <div className="finger" />
+        <div className="finger" />
+        <div className="finger" />
+        <div className="palm" />
+        <div className="thumb" />
       </div>
     </StyledWrapper>
   );
 };
 
 const StyledWrapper = styled.div`
-  .🤚 {
+  .hand {
     --skin-color: #e4c560;
     --tap-speed: 0.6s;
     --tap-stagger: 0.1s;
@@ -27,7 +27,7 @@ const StyledWrapper = styled.div`
     margin-left: 80px;
   }
 
-  .🤚:before {
+  .hand:before {
     content: "";
     display: block;
     width: 180%;
@@ -41,7 +41,7 @@ const StyledWrapper = styled.div`
     opacity: 0.3;
   }
 
-  .🌴 {
+  .palm {
     display: block;
     width: 100%;
     height: 100%;
@@ -52,7 +52,7 @@ const StyledWrapper = styled.div`
     border-radius: 10px 40px;
   }
 
-  .👍 {
+  .thumb {
     position: absolute;
     width: 120%;
     height: 38px;
@@ -66,7 +66,7 @@ const StyledWrapper = styled.div`
     border-left: 2px solid rgba(0, 0, 0, 0.1);
   }
 
-  .👍:after {
+  .thumb:after {
     width: 20%;
     height: 60%;
     content: "";
@@ -78,7 +78,7 @@ const StyledWrapper = styled.div`
     border-right: 2px solid rgba(0, 0, 0, 0.05);
   }
 
-  .👉 {
+  .finger {
     position: absolute;
     width: 80%;
     height: 35px;
@@ -92,7 +92,7 @@ const StyledWrapper = styled.div`
     transform: rotate(10deg);
   }
 
-  .👉:before {
+  .finger:before {
     content: "";
     position: absolute;
     width: 140%;
@@ -105,25 +105,25 @@ const StyledWrapper = styled.div`
     border-radius: 20px;
   }
 
-  .👉:nth-child(1) {
+  .finger:nth-child(1) {
     animation-delay: 0;
     filter: brightness(70%);
     animation-name: tap-upper-1;
   }
 
-  .👉:nth-child(2) {
+  .finger:nth-child(2) {
     animation-delay: var(--tap-stagger);
     filter: brightness(80%);
     animation-name: tap-upper-2;
   }
 
-  .👉:nth-child(3) {
+  .finger:nth-child(3) {
     animation-delay: calc(var(--tap-stagger) * 2);
     filter: brightness(90%);
     animation-name: tap-upper-3;
   }
 
-  .👉:nth-child(4) {
+  .finger:nth-child(4) {
     animation-delay: calc(var(--tap-stagger) * 3);
     filter: brightness(100%);
     animation-name: tap-upper-4;

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "./ui/textarea";
 import {
+  Check,
   Copy,
   Image,
   LucideLoader2,
@@ -153,7 +154,7 @@ export function CustomDialog({ roomId, setQuickListingProp }: DialogProps) {
                 {isLoading
                   ? "Verifying..."
                   : !isLoading && userProperties.length > 0
-                  ? "✔"
+                  ? <Check className="h-4 w-4" aria-hidden />
                   : "Verify"}
               </Button>
             </div>

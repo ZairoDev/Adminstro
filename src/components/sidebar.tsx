@@ -502,7 +502,7 @@ const roleRoutes: Record<string, Route[]> = {
     },
     {
       path: "/dashboard/email-accounts",
-      label: "Email accounts",
+      label: "Email configs",
       Icon: <Mail size={18} />,
     },
     {
@@ -1559,6 +1559,11 @@ const housingSagaRoutes = [
 ];
 
 const otherSettingsRoutes = [
+  {
+    path: "/dashboard/email-accounts",
+    label: "Email configs",
+    Icon: <Mail size={18} />,
+  },
   {
     path: "/dashboard/addons",
     label: "Add Ons",

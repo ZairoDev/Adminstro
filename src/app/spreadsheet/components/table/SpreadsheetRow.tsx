@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Ban, CheckCheck, CircleDot, Copy, PawPrint } from "lucide-react";
+import { Ban, CheckCheck, CircleDot, Copy, Link2, PawPrint } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa6";
 import { Button } from "@/components/ui/button";
 import CustomTooltip from "@/components/CustomToolTip";
@@ -494,7 +494,7 @@ export function SpreadsheetRow({
               title="Open reference link in new tab"
               onClick={(e) => e.stopPropagation()}
             >
-              🔗
+              <Link2 className="h-3.5 w-3.5" aria-hidden />
             </a>
           )}
         </div>
@@ -551,7 +551,7 @@ export function SpreadsheetRow({
               title="Open link in new tab"
               onClick={(e) => e.stopPropagation()}
             >
-              🔗
+              <Link2 className="h-3.5 w-3.5" aria-hidden />
             </a>
           )}
         </div>

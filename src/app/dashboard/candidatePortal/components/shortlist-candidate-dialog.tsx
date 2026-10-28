@@ -123,8 +123,11 @@ export function ShortlistCandidateDialog({
                       <span className="font-semibold">{selectedRoles.join(", ")}</span>
                     </p>
                     {!selectedRoles.includes(candidatePosition) && (
-                      <p className="mt-2 font-medium">
-                        ⚠️ The candidate&apos;s current role ({candidatePosition}) is not included in the selected roles. Please verify this is intentional.
+                      <p className="mt-2 flex items-start gap-1.5 font-medium">
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                        <span>
+                          The candidate&apos;s current role ({candidatePosition}) is not included in the selected roles. Please verify this is intentional.
+                        </span>
                       </p>
                     )}
                   </div>

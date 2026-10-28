@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, PlusCircle } from "lucide-react";
+import { Check, PlusCircle, Trash2 } from "lucide-react";
 import type { FinanceInvoiceRow } from "../_lib/types";
 
 type Classification = "complete" | "partial" | "split";
@@ -321,7 +321,11 @@ export default function GenerateInvoiceModal({
                 <Label>Split Allocations</Label>
                 <span className={`text-xs font-mono ${splitValid ? "text-green-600" : "text-destructive"}`}>
                   {currency} {splitTotal.toFixed(2)} / {paymentAmount}
-                  {splitValid ? " ✓" : ` (diff ${splitDiff.toFixed(2)})`}
+                  {splitValid ? (
+                    <Check className="ml-1 inline h-3 w-3" aria-hidden />
+                  ) : (
+                    ` (diff ${splitDiff.toFixed(2)})`
+                  )}
                 </span>
               </div>
 

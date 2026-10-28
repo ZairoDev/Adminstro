@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight } from "lucide-react";
 import { Label, PolarRadiusAxis, RadialBar, RadialBarChart } from "recharts";
 import {
   ChartConfig,
@@ -645,7 +645,7 @@ const WeeklyTargetTable = () => {
           ) : (
             <div className="flex flex-col items-center justify-center h-64 space-y-3">
               <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                <span className="text-2xl">📊</span>
+                <BarChart3 className="h-6 w-6 text-muted-foreground" aria-hidden />
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 No data available

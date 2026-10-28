@@ -11,6 +11,7 @@ import {
   CheckCheck,
   CircleDot,
   Copy,
+  Link2,
   MapPin,
   PawPrint,
   Phone,
@@ -1746,7 +1747,7 @@ useEffect(() => {
                           rel="noreferrer"
                           title="Open reference link in new tab"
                         >
-                          🔗
+                          <Link2 className="h-3.5 w-3.5" aria-hidden />
                         </a>
                       )}
                     </div>
@@ -1811,7 +1812,7 @@ useEffect(() => {
                           rel="noreferrer"
                           title="Open link in new tab"
                         >
-                          🔗
+                          <Link2 className="h-3.5 w-3.5" aria-hidden />
                         </a>
                       )}
                     </div>

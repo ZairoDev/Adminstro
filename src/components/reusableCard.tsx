@@ -13,6 +13,7 @@ interface StatItem {
 
 interface LocationCardProps {
   title: string;
+  titleIcon?: LucideIcon;
   address?: string;
   image?: string;
   imageAlt?: string;
@@ -23,6 +24,7 @@ interface LocationCardProps {
 
 const LocationCard: React.FC<LocationCardProps> = ({
   title,
+  titleIcon: TitleIcon,
   address,
   image,
   imageAlt = "Location",
@@ -50,7 +52,8 @@ const LocationCard: React.FC<LocationCardProps> = ({
 
       <div className="p-4 flex flex-col gap-3">
         <div>
-          <h3 className="text-gray-900 dark:text-gray-100 text-base font-semibold">
+          <h3 className="flex items-center gap-2 text-base font-semibold text-gray-900 dark:text-gray-100">
+            {TitleIcon ? <TitleIcon className="h-4 w-4 shrink-0" aria-hidden /> : null}
             {title}
           </h3>
           {address && (

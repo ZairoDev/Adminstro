@@ -7,6 +7,7 @@ import { CelebrationNotification } from "@/components/CelebrationNotification";
 import { PersonalReminderBanner } from "@/components/reminders/PersonalReminderBanner";
 import { TodaysEvents } from "@/util/getTodaysEvents";
 import { toast } from "sonner";
+import { Cake, PartyPopper } from "lucide-react";
 import { DashboardSectionSkeleton } from "@/components/ui/DashboardSectionSkeleton";
 import { TextFlippingBoard, normalizeFlapText } from "@/components/ui/text-flipping-board";
 import { PipStatusBadge } from "@/components/pip/PipStatusBadge";
@@ -79,14 +80,18 @@ const Dashboard = () => {
     celebrationToastShownRef.current = true;
     const data = centralizedCelebrations;
     if (data.birthdays.length === 1 && data.anniversaries.length === 0) {
-      toast.success(`🎉 Today is ${data.birthdays[0].firstName}'s birthday!`);
+      toast.success(`Today is ${data.birthdays[0].firstName}'s birthday!`, {
+        icon: <Cake className="h-4 w-4" aria-hidden />,
+      });
     } else if (data.anniversaries.length === 1 && data.birthdays.length === 0) {
       toast.success(
-        `👏 Today is ${data.anniversaries[0].firstName}'s ${data.anniversaries[0].years}-year work anniversary!`,
+        `Today is ${data.anniversaries[0].firstName}'s ${data.anniversaries[0].years}-year work anniversary!`,
+        { icon: <PartyPopper className="h-4 w-4" aria-hidden /> },
       );
     } else {
       toast.success(
-        `🎉 ${data.totalCount} celebration${data.totalCount !== 1 ? "s" : ""} today!`,
+        `${data.totalCount} celebration${data.totalCount !== 1 ? "s" : ""} today!`,
+        { icon: <PartyPopper className="h-4 w-4" aria-hidden /> },
       );
     }
   }, [isLoadingCelebrations, centralizedCelebrations]);

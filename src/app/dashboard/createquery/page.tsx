@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 import "react-phone-number-input/style.css";
 import { useToast } from "@/hooks/use-toast";
 import PhoneInput from "react-phone-number-input";
-import { CheckCheckIcon, SlidersHorizontal, Plus } from "lucide-react";
+import { CheckCheckIcon, CircleCheck, CircleX, Plus, SlidersHorizontal } from "lucide-react";
 import React, {
   Suspense,
   useCallback,
@@ -220,7 +220,7 @@ const SalesDashboard = () => {
 
       const parsed = parsePhoneNumberFromString(phone);
       if (!parsed || !parsed.isValid()) {
-        setNumberStatus("❌ Invalid phone number.");
+        setNumberStatus("Invalid phone number.");
         return;
       }
 
@@ -233,9 +233,9 @@ const SalesDashboard = () => {
 
       if (response.data.success) {
         if (response.data.exists) {
-          setNumberStatus("❌ Phone number already exists.");
+          setNumberStatus("Phone number already exists.");
         } else {
-          setNumberStatus("✅ Phone number is available.");
+          setNumberStatus("Phone number is available.");
         }
       } else {
         setNumberStatus("Error checking the phone number. Try again.");
@@ -339,8 +339,8 @@ const SalesDashboard = () => {
 
       if (
         numberStatus === "" ||
-        numberStatus === "❌ Invalid phone number." ||
-        numberStatus === "❌ Phone number already exists."
+        numberStatus === "Invalid phone number." ||
+        numberStatus === "Phone number already exists."
       ) {
         toast({
           description: "Please check the phone number validity",
@@ -844,7 +844,12 @@ const SalesDashboard = () => {
                           </Button>
                         </div>
                         {numberStatus && (
-                          <p className="text-xs text-muted-foreground mt-1">
+                          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                            {numberStatus === "Phone number is available." ? (
+                              <CircleCheck className="h-3.5 w-3.5 text-green-600" aria-hidden />
+                            ) : (
+                              <CircleX className="h-3.5 w-3.5 text-destructive" aria-hidden />
+                            )}
                             {numberStatus}
                           </p>
                         )}

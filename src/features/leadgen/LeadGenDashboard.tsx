@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import type { DateRange } from "react-day-picker";
-import { Loader2 } from "lucide-react";
+import { BarChart3, Globe, Loader2, TrendingUp, Users } from "lucide-react";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
 import { ReviewPieChart } from "@/components/charts/ReviewPieChart";
 import { ChartAreaMultiple } from "@/components/CustomMultilineChart";
@@ -267,7 +267,10 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
       {/* Lead Generation Overview */}
       {canAccess("leadGenOverview") && (
         <section className="relative my-8 p-6 bg-gradient-to-br from-blue-50/50 to-indigo-50/50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-xl border">
-          <h1 className="text-2xl font-bold mb-6">📊 Lead Generation Performance Overview</h1>
+          <h1 className="mb-6 flex items-center gap-2 text-2xl font-bold">
+            <BarChart3 className="h-5 w-5 shrink-0" aria-hidden />
+            Lead Generation Performance Overview
+          </h1>
 
           <CustomSelect
             itemList={["month", "year", "30days"]}
@@ -289,8 +292,9 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
       {/* Website Leads Chart */}
       {canAccess("websiteLeads") && (
         <section className="my-8 p-6 bg-gradient-to-br from-emerald-50/50 to-teal-50/50 dark:from-emerald-950/20 dark:to-teal-950/20 rounded-xl border">
-          <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-            🌐 Website Leads Trend
+          <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <Globe className="h-5 w-5 shrink-0" aria-hidden />
+            Website Leads Trend
           </h2>
           <WebsiteLeadsLineChart
             data={websiteLeads}
@@ -308,7 +312,10 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
       )}
 
       <section className="space-y-6 p-6 my-4 dark:bg-stone-950 rounded-xl border">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">👥 Daily Lead Generation Activity</h1>
+        <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <Users className="h-5 w-5 shrink-0" aria-hidden />
+          Daily Lead Generation Activity
+        </h1>
 
         <DailyLeadsActiveEmployeesSection showFreshLeadsSummary={canViewAllCharts} />
 
@@ -498,7 +505,10 @@ export default function LeadGenDashboard({ className }: LeadGenDashboardProps) {
         {canAccess("leadStatistics") && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">📈 Monthly Lead Statistics</h2>
+              <h2 className="flex items-center gap-2 text-2xl font-bold">
+                <TrendingUp className="h-5 w-5 shrink-0" aria-hidden />
+                Monthly Lead Statistics
+              </h2>
               <MonthSelector
                 selectedMonth={selectedMonth}
                 onMonthChange={setSelectedMonth}

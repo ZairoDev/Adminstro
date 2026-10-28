@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Briefcase, CircleX } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { LeadCountPieChart } from "@/components/charts/LeadsCountPieChart";
 import { CustomSelect } from "@/components/reusable-components/CustomSelect";
@@ -94,7 +95,8 @@ export function SalesByAgentSection() {
     <Card className="my-6 overflow-hidden">
       <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50">
         <CardTitle className="flex items-center gap-2 text-2xl">
-          💼 Sales Performance by Agent
+          <Briefcase className="h-5 w-5 shrink-0" aria-hidden />
+          Sales Performance by Agent
         </CardTitle>
       </CardHeader>
       <CardContent className="p-6">
@@ -193,7 +195,7 @@ export function SalesByAgentSection() {
 
             {leadsGroupCount.length > 0 ? (
               <LeadCountPieChart
-                heading="📊 Leads Status Distribution"
+                heading="Leads Status Distribution"
                 chartData={leadsGroupCount}
                 totalAverage={averagedata}
                 empAverage={averagedata1}
@@ -207,7 +209,8 @@ export function SalesByAgentSection() {
 
           <div className="space-y-4">
             <h3 className="flex items-center gap-2 text-lg font-semibold">
-              ❌ Rejection Reasons Analysis
+              <CircleX className="h-4 w-4 shrink-0" aria-hidden />
+              Rejection Reasons Analysis
               {totalRejectedLeads > 0 && (
                 <span className="text-sm font-normal text-muted-foreground">
                   ({totalRejectedLeads} total)

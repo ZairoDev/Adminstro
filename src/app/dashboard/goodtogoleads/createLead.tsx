@@ -29,7 +29,7 @@ import {
   SelectLabel,
 } from "@/components/ui/select";
 import PhoneInput from "react-phone-number-input";
-import { CheckCheckIcon } from "lucide-react";
+import { CheckCheckIcon, CircleCheck, CircleX } from "lucide-react";
 
 import DatePicker from "@/components/DatePicker";
 
@@ -145,8 +145,8 @@ export default function CreateLeadDialog({
       });
       setNumberStatus(
         response.data.exists
-          ? "❌ Phone number already exists."
-          : "✅ Phone number is available."
+          ? "Phone number already exists."
+          : "Phone number is available."
       );
     } catch {
       setNumberStatus("Error checking number");
@@ -267,7 +267,14 @@ export default function CreateLeadDialog({
                     onChange={(value) => setPhone(value || "")}
                   />
                   {numberStatus && (
-                    <div className="mt-2 text-sm">{numberStatus}</div>
+                    <div className="mt-2 flex items-center gap-1.5 text-sm">
+                      {numberStatus === "Phone number is available." ? (
+                        <CircleCheck className="h-4 w-4 text-green-600" aria-hidden />
+                      ) : (
+                        <CircleX className="h-4 w-4 text-destructive" aria-hidden />
+                      )}
+                      {numberStatus}
+                    </div>
                   )}
                 </div>
                 <div className="mt-6 ml-1">

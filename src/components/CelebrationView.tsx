@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, Cake, Calendar } from "lucide-react";
+import { Cake, Calendar, PartyPopper, X } from "lucide-react";
 import { BirthdayEvent, AnniversaryEvent } from "@/util/getTodaysEvents";
 
 interface CelebrationViewProps {
@@ -41,7 +41,7 @@ export const CelebrationView: React.FC<CelebrationViewProps> = ({
         <div className="flex items-center gap-4">
           <Cake className="w-12 h-12 text-pink-600 dark:text-pink-400 flex-shrink-0 animate-bounce" />
           <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-600 to-purple-600 dark:from-pink-400 dark:to-purple-400 animate-pulse">
-            🎉 Happy Birthday, {currentUserBirthday.firstName}! 🎉
+            Happy Birthday, {currentUserBirthday.firstName}!
           </p>
         </div>
       </div>
@@ -62,7 +62,7 @@ export const CelebrationView: React.FC<CelebrationViewProps> = ({
         <div className="flex items-center gap-4">
           <Calendar className="w-12 h-12 text-purple-600 dark:text-purple-400 flex-shrink-0 animate-pulse" />
           <p className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 dark:from-purple-400 dark:to-indigo-400 animate-pulse">
-            🎊 Happy Work Anniversary, {currentUserAnniversary.firstName}! {currentUserAnniversary.years} years with us 🎊
+            Happy Work Anniversary, {currentUserAnniversary.firstName}! {currentUserAnniversary.years} years with us
           </p>
         </div>
       </div>
@@ -83,7 +83,7 @@ export const CelebrationView: React.FC<CelebrationViewProps> = ({
         <div className="flex items-center gap-4">
           <Cake className="w-12 h-12 text-pink-600 dark:text-pink-400 flex-shrink-0 animate-bounce" />
           <p className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
-            🎂 It&apos;s {otherBirthdays[0].firstName}&apos;s birthday today — make them feel special! 🎂
+            It&apos;s {otherBirthdays[0].firstName}&apos;s birthday today — make them feel special!
           </p>
         </div>
       </div>
@@ -104,7 +104,7 @@ export const CelebrationView: React.FC<CelebrationViewProps> = ({
         <div className="flex items-center gap-4">
           <Calendar className="w-12 h-12 text-purple-600 dark:text-purple-400 flex-shrink-0 animate-pulse" />
           <p className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
-            🎊 Today is {otherAnniversaries[0].firstName}&apos;s work anniversary — {otherAnniversaries[0].years} years with us. Send your wishes! 👏
+            Today is {otherAnniversaries[0].firstName}&apos;s work anniversary — {otherAnniversaries[0].years} years with us. Send your wishes!
           </p>
         </div>
       </div>
@@ -126,7 +126,7 @@ export const CelebrationView: React.FC<CelebrationViewProps> = ({
         <div className="flex items-center gap-3">
           <Cake className="w-8 h-8 text-pink-600 dark:text-pink-400 flex-shrink-0" />
           <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
-            🎉 Celebrations Today
+            Celebrations Today
           </h3>
         </div>
 
@@ -147,7 +147,11 @@ export const CelebrationView: React.FC<CelebrationViewProps> = ({
                       : "text-gray-700 dark:text-gray-300"
                   }`}
                 >
-                  {bday.isCurrentUser ? "🎉 " : "🎂 "}
+                  {bday.isCurrentUser ? (
+                    <PartyPopper className="mr-1 inline h-4 w-4" aria-hidden />
+                  ) : (
+                    <Cake className="mr-1 inline h-4 w-4" aria-hidden />
+                  )}
                   {bday.isCurrentUser ? (
                     <span className="underline">Happy Birthday, {bday.firstName}!</span>
                   ) : (
@@ -181,7 +185,11 @@ export const CelebrationView: React.FC<CelebrationViewProps> = ({
                       : "text-gray-700 dark:text-gray-300"
                   }`}
                 >
-                  {anniv.isCurrentUser ? "🎊 " : "🎉 "}
+                  {anniv.isCurrentUser ? (
+                    <PartyPopper className="mr-1 inline h-4 w-4" aria-hidden />
+                  ) : (
+                    <Calendar className="mr-1 inline h-4 w-4" aria-hidden />
+                  )}
                   {anniv.isCurrentUser ? (
                     <span className="underline">
                       Happy Work Anniversary, {anniv.firstName}! {anniv.years} years

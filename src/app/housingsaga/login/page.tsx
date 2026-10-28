@@ -21,7 +21,7 @@ interface LoginResponse {
 }
 
 export default function HousingCollaboratorLoginPage() {
-  const { setToken, token } = useAuthStore();
+  const { setToken, clearToken, token } = useAuthStore();
   const { toast } = useToast();
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -30,10 +30,22 @@ export default function HousingCollaboratorLoginPage() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
-    if (token?.role === "HCollaborator") {
-      router.replace("/dashboard/createquery");
-    }
-  }, [token, router]);
+    if (token?.role !== "HCollaborator") return;
+
+    let cancelled = false;
+    const verifySession = async () => {
+      try {
+        await axios.get("/api/employee/check-session", { withCredentials: true });
+        if (!cancelled) router.replace("/dashboard/createquery");
+      } catch {
+        if (!cancelled) clearToken();
+      }
+    };
+    void verifySession();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, router, clearToken]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

@@ -1,6 +1,15 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, ReactNode } from "react";
+import {
+  ClipboardList,
+  FilePenLine,
+  FlaskConical,
+  Megaphone,
+  Rocket,
+  TrendingUp,
+  User,
+} from "lucide-react";
 import dynamic from "next/dynamic";
 import axios from "@/util/axios";
 import { Button } from "@/components/ui/button";
@@ -151,7 +160,10 @@ export default function AdvertDashboard({ className }: AdvertDashboardProps) {
     <div className={className}>
       <div className="space-y-8">
         <div className="p-6 bg-gradient-to-br from-orange-50/50 to-amber-50/50 dark:from-orange-950/20 dark:to-amber-950/20 rounded-xl border">
-          <h1 className="text-2xl font-bold mb-6">📢 Advert Dashboard</h1>
+          <h1 className="mb-6 flex items-center gap-2 text-2xl font-bold">
+            <Megaphone className="h-5 w-5 shrink-0" aria-hidden />
+            Advert Dashboard
+          </h1>
 
           <Card
             className="mb-6 cursor-pointer hover:border-primary/50 transition-colors"
@@ -176,8 +188,9 @@ export default function AdvertDashboard({ className }: AdvertDashboardProps) {
           {canAccess("moleculeVisualization") && (
             <div className="flex flex-col justify-evenly md:flex-row gap-6">
             <div className="flex flex-col border rounded-xl shadow-md justify-center md:w-1/2 h-[600px]">
-              <h3 className="text-lg font-semibold p-4 text-gray-800 dark:text-gray-200 text-center">
-                🔬 Owner Distribution Visualization
+              <h3 className="flex items-center justify-center gap-2 p-4 text-center text-lg font-semibold text-gray-800 dark:text-gray-200">
+                <FlaskConical className="h-4 w-4 shrink-0" aria-hidden />
+                Owner Distribution Visualization
               </h3>
               <MoleculeVisualization data={ownersCount} />
             </div>
@@ -198,8 +211,9 @@ export default function AdvertDashboard({ className }: AdvertDashboardProps) {
                 triggerClassName="w-36 mb-4"
               />
 
-              <h2 className="text-xl md:text-2xl font-bold text-foreground text-center mb-6">
-                👤 New Owners by Location
+              <h2 className="mb-6 flex items-center justify-center gap-2 text-center text-xl font-bold text-foreground md:text-2xl">
+                <User className="h-5 w-5 shrink-0" aria-hidden />
+                New Owners by Location
               </h2>
 
               <div className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground mb-6">
@@ -229,8 +243,9 @@ export default function AdvertDashboard({ className }: AdvertDashboardProps) {
             </div>
 
             <div className="flex relative flex-col items-center justify-center md:w-1/2">
-              <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">
-                📈 New Owners Trend
+              <h3 className="mb-2 flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-gray-200">
+                <TrendingUp className="h-4 w-4 shrink-0" aria-hidden />
+                New Owners Trend
               </h3>
               <div className="absolute right-20 top-24 text-2xl font-extrabold">
                 <div>
@@ -251,8 +266,9 @@ export default function AdvertDashboard({ className }: AdvertDashboardProps) {
         {canAccess("newOwners") && (
           <div className="flex flex-col md:flex-row gap-6 mt-8">
             <div className="relative w-full md:w-[250px] p-6 border rounded-xl shadow-md">
-              <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100">
-                📋 Unregistered Owners
+              <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-gray-800 dark:text-gray-100">
+                <ClipboardList className="h-4 w-4 shrink-0" aria-hidden />
+                Unregistered Owners
               </h2>
               <div
                 onClick={handleClick}
@@ -267,8 +283,9 @@ export default function AdvertDashboard({ className }: AdvertDashboardProps) {
         {/* Listings Created Chart */}
         {canAccess("listingsCreated") && (
           <div className="relative w-full mx-auto mt-6">
-            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-              📝 New Listings Created
+            <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <FilePenLine className="h-5 w-5 shrink-0" aria-hidden />
+              New Listings Created
             </h2>
             <Card className="shadow-md rounded-2xl">
               <CardHeader>
@@ -376,8 +393,9 @@ export default function AdvertDashboard({ className }: AdvertDashboardProps) {
         {/* Property Boost Performance */}
         {canAccess("propertyBoost") && (
           <div className="relative w-full mx-auto mt-10">
-            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">
-              🚀 Property Boost Performance
+            <h2 className="mb-4 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <Rocket className="h-5 w-5 shrink-0" aria-hidden />
+              Property Boost Performance
             </h2>
             <BoostMultiLineChart
               data={totalBoosts}

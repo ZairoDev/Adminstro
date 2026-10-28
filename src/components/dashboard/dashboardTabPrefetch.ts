@@ -6,7 +6,7 @@ import {
   getLocationLeadStats,
   getLocationVisitStats,
   getMonthlyVisitStats,
-  getPropertyCount,
+  // getPropertyCount,
   getTodayLeads,
   getWebsiteLeadsCounts,
 } from "@/actions/(VS)/queryActions";
@@ -43,13 +43,14 @@ export function prefetchDashboardTab(
 
   switch (tabKey) {
     case "admin":
-      prefetchIfMissing(["propertyCount", null, null], async () => {
-        const response = await getPropertyCount();
-        return {
-          properties: response.propertyCount,
-          totalProperties: response.totalPropertyCount,
-        };
-      });
+      // Property inventory by location — temporarily hidden
+      // prefetchIfMissing(["propertyCount", null, null], async () => {
+      //   const response = await getPropertyCount();
+      //   return {
+      //     properties: response.propertyCount,
+      //     totalProperties: response.totalPropertyCount,
+      //   };
+      // });
       prefetchIfMissing(
         ["candidateCounts", "this month", null, monthKey],
         async () => {

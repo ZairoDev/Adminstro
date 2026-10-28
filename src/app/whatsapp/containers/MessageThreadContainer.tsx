@@ -416,7 +416,7 @@ export const MessageThreadContainer = memo(function MessageThreadContainer({
       patchConversationsList((prev) =>
         repositionConversationAfterUpdate(prev, selectedConversation._id, (conv) => ({
           ...conv,
-          lastMessageContent: `📎 ${file.name}`,
+          lastMessageContent: file.name,
           lastMessageTime: sendTimestamp,
           lastMessageDirection: "outgoing",
         })),

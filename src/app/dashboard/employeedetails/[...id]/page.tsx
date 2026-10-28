@@ -1543,7 +1543,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                             ([key, config]) => (
                               <SelectItem key={key} value={key}>
                                 <span className="flex items-center gap-2">
-                                  <span>{config.icon}</span>
+                                  <ConfigIcon icon={config.icon} />
                                   {config.label}
                                 </span>
                               </SelectItem>
@@ -1864,7 +1864,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                           {Object.entries(PIP_LEVEL_CONFIG).map(([key, config]) => (
                             <SelectItem key={key} value={key}>
                               <span className="flex items-center gap-2">
-                                <span>{config.icon}</span>
+                                <ConfigIcon icon={config.icon} />
                                 {config.label}
                               </span>
                             </SelectItem>
@@ -2279,7 +2279,7 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                             ([key, config]) => (
                               <SelectItem key={key} value={key}>
                                 <span className="flex items-center gap-2">
-                                  <span>{config.icon}</span>
+                                  <ConfigIcon icon={config.icon} />
                                   {config.label}
                                 </span>
                               </SelectItem>

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import Employees from "@/models/employee";
+import type { PricingRule, PricingRules } from "@/util/leadBudgetBand";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,56 @@ function ensureHrOrSuperAdmin(role: unknown) {
     );
   }
   return null;
+}
+
+function toPlainPricingRules(raw: unknown): PricingRules | null {
+  if (!raw || typeof raw !== "object") return null;
+  const doc = raw as { all?: PricingRule; byLocation?: unknown };
+  let byLocation: Record<string, PricingRule> | undefined;
+  if (doc.byLocation instanceof Map) {
+    byLocation = Object.fromEntries(doc.byLocation.entries()) as Record<string, PricingRule>;
+  } else if (doc.byLocation && typeof doc.byLocation === "object") {
+    byLocation = { ...(doc.byLocation as Record<string, PricingRule>) };
+  }
+  return {
+    all: doc.all,
+    byLocation,
+  };
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const token = await getDataFromToken(request);
+    const employeeId = String((token as { id?: string }).id || "").trim();
+    if (!employeeId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    await connectDb();
+    const employee = await Employees.findById(employeeId).select("pricingRules").lean();
+    if (!employee) {
+      return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      pricingRules: toPlainPricingRules(
+        (employee as { pricingRules?: unknown }).pricingRules,
+      ),
+    });
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string; message?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 },
+      );
+    }
+    console.error("pricing-rule GET error:", error);
+    return NextResponse.json(
+      { error: err?.message || "Failed to load pricing rules" },
+      { status: 500 },
+    );
+  }
 }
 
 export async function PUT(request: NextRequest) {

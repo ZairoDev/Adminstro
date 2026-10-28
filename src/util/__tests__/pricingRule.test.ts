@@ -1,3 +1,4 @@
+import { isLeadAllowedByPricingRules } from "@/util/leadBudgetBand";
 import {
   applyEffectiveRangeToQuery,
   applyPricingRulesByLocationToQuery,
@@ -107,6 +108,86 @@ describe("employee rule intersected with UI budget filter", () => {
       uiBudgetTo: "580",
     });
     expect(queryForRange(min, max).impossible).toBe(true);
+  });
+});
+
+describe("live lead visibility for one location band", () => {
+  const athensBands = {
+    byLocation: {
+      athens: { enabled: true, min: 0, max: 580 },
+    },
+  };
+
+  it("hides an Athens lead whose ceiling is outside that employee's band", () => {
+    expect(
+      isLeadAllowedByPricingRules({
+        pricingRules: athensBands,
+        location: "Athens",
+        maxBudget: 900,
+      }),
+    ).toBe(false);
+  });
+
+  it("shows an Athens lead inside the band and any lead when the rule is off", () => {
+    expect(
+      isLeadAllowedByPricingRules({
+        pricingRules: athensBands,
+        location: "athens",
+        maxBudget: 580,
+      }),
+    ).toBe(true);
+    expect(
+      isLeadAllowedByPricingRules({
+        pricingRules: { byLocation: { athens: { enabled: false, min: 0, max: 580 } } },
+        location: "athens",
+        maxBudget: 900,
+      }),
+    ).toBe(true);
+  });
+
+  it("uses the enabled All band when the city row is saved but turned off", () => {
+    const rules = {
+      byLocation: { athens: { enabled: false, min: 600, max: 1200 } },
+      all: { enabled: true, min: 600, max: 1200 },
+    };
+    expect(
+      isLeadAllowedByPricingRules({
+        pricingRules: rules,
+        location: "athens",
+        maxBudget: 350,
+      }),
+    ).toBe(false);
+    expect(
+      isLeadAllowedByPricingRules({
+        pricingRules: rules,
+        location: "athens",
+        maxBudget: 2400,
+      }),
+    ).toBe(false);
+    expect(
+      isLeadAllowedByPricingRules({
+        pricingRules: rules,
+        location: "athens",
+        maxBudget: 900,
+      }),
+    ).toBe(true);
+  });
+
+  it("gives the boundary ceiling to the lower Athens band only", () => {
+    expect(
+      isLeadAllowedByPricingRules({
+        pricingRules: { byLocation: { athens: { enabled: true, min: 580, max: 2500 } } },
+        location: "athens",
+        maxBudget: 580,
+      }),
+    ).toBe(false);
+    expect(
+      isLeadAllowedByPricingRules({
+        pricingRules: { byLocation: { athens: { enabled: true, min: 580, max: 2500 } } },
+        location: "athens",
+        maxBudget: 581,
+      }),
+    ).toBe(true);
   });
 });
 

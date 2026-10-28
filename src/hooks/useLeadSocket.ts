@@ -5,6 +5,10 @@ import { useSocket } from "./useSocket";
 import { useToast } from "./use-toast";
 import { IQuery } from "@/util/type";
 import { isLeadBookingTermAllowed } from "@/util/employeeRentalTypeAccess";
+import {
+  isLeadAllowedByPricingRules,
+  type PricingRules,
+} from "@/util/leadBudgetBand";
 import { useAuthStore } from "@/AuthStore";
 
 type LeadDisposition = "fresh" | "active" | "rejected" | "declined" | "closed";
@@ -58,6 +62,10 @@ export const useLeadSocket = ({
   const roleRef = useRef<string | null>(null);
   const joinedRoomsRef = useRef<{ area: string; disposition: string }[]>([]);
   const processedLeadsRef = useRef<Set<string>>(new Set());
+  const pricingRulesRef = useRef<PricingRules | null>(null);
+  const pricingReadyRef = useRef(false);
+  const queuedLeadsRef = useRef<IQuery[]>([]);
+  const flushQueuedRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     setQueriesRef.current = setQueries;
@@ -72,6 +80,36 @@ export const useLeadSocket = ({
     rentalTypeRef.current = token?.rentalType ?? null;
     roleRef.current = token?.role ?? "";
   }, [token?.rentalType, token?.role]);
+
+  useEffect(() => {
+    let cancelled = false;
+    pricingReadyRef.current = false;
+    pricingRulesRef.current = null;
+
+    const loadRules = async () => {
+      try {
+        const response = await fetch("/api/employee/pricing-rule");
+        if (!response.ok) {
+          throw new Error(`pricing-rule ${response.status}`);
+        }
+        const body = (await response.json()) as { pricingRules?: PricingRules | null };
+        if (cancelled) return;
+        pricingRulesRef.current = body.pricingRules ?? null;
+      } catch {
+        if (cancelled) return;
+        pricingRulesRef.current = null;
+      } finally {
+        if (cancelled) return;
+        pricingReadyRef.current = true;
+        flushQueuedRef.current();
+      }
+    };
+
+    void loadRules();
+    return () => {
+      cancelled = true;
+    };
+  }, [token?.id]);
 
   const areaKey = Array.isArray(allotedArea)
     ? allotedArea.sort().join(",")
@@ -92,15 +130,11 @@ export const useLeadSocket = ({
         if (processedLeadsRef.current.has(leadId)) return;
         processedLeadsRef.current.add(leadId);
 
-        if (
-          !isLeadBookingTermAllowed(
-            rentalTypeRef.current,
-            roleRef.current ?? "",
-            data.bookingTerm,
-          )
-        ) {
-          return;
-        }
+        const bookingAllowed = isLeadBookingTermAllowed(
+          rentalTypeRef.current,
+          roleRef.current ?? "",
+          data.bookingTerm,
+        );
 
         const currentAllotedArea = allotedAreaRef.current;
         const rawAreas = Array.isArray(currentAllotedArea)
@@ -112,8 +146,32 @@ export const useLeadSocket = ({
         const formattedAreas = rawAreas.map(formatArea).filter(Boolean);
         const isGlobalMode = formattedAreas.length === 0;
         const dataArea = formatArea(data.location || "");
+        const areaMatch = formattedAreas.includes(dataArea);
+        const locationAllowed = isGlobalMode || areaMatch;
 
-        if (isGlobalMode || formattedAreas.includes(dataArea)) {
+        if (!bookingAllowed || !locationAllowed) {
+          return;
+        }
+
+        if (!pricingReadyRef.current) {
+          processedLeadsRef.current.delete(leadId);
+          if (!queuedLeadsRef.current.some((lead) => lead._id?.toString() === leadId)) {
+            queuedLeadsRef.current.push(data);
+          }
+          return;
+        }
+
+        const pricingAllowed = isLeadAllowedByPricingRules({
+          pricingRules: pricingRulesRef.current,
+          location: data.location || "",
+          maxBudget: data.maxBudget,
+        });
+
+        if (!pricingAllowed) {
+          return;
+        }
+
+        if (locationAllowed) {
           const ps = pageSizeRef.current;
           const currentPage = pageRef.current;
 
@@ -164,6 +222,14 @@ export const useLeadSocket = ({
     const formattedAreas = rawAreas.map(formatArea).filter(Boolean);
     const isGlobalMode = formattedAreas.length === 0;
 
+    flushQueuedRef.current = () => {
+      const queued = queuedLeadsRef.current.splice(0);
+      queued.forEach((lead) => handleNewLead(lead));
+    };
+    if (pricingReadyRef.current) {
+      flushQueuedRef.current();
+    }
+
     // Register event listeners
     socket.on(addEventName, handleNewLead);
     socket.on(removeEventName, handleLeadRemoved);
@@ -189,6 +255,7 @@ export const useLeadSocket = ({
     }, 5 * 60 * 1000);
 
     return () => {
+      flushQueuedRef.current = () => {};
       socket.off(addEventName, handleNewLead);
       socket.off(removeEventName, handleLeadRemoved);
 

@@ -84,7 +84,6 @@ import {
 // Import refactored modules
 import { Candidate } from "./types";
 import {
-  ROLE_OPTIONS,
   EMPLOYMENT_TYPE_OPTIONS,
   formatEmploymentType,
   type EmploymentType,
@@ -104,6 +103,7 @@ import {
   peopleListPath,
   safeDashboardPath,
 } from "@/features/people/navigation";
+import { JobIdentitySelects } from "@/components/departments/job-identity-selects";
 
 // During transition, optionally redirect to unified page:
 // redirect(`/dashboard/people/${candidateId}`);
@@ -236,14 +236,14 @@ export default function CandidateDetailPage() {
   const [resumeExpanded, setResumeExpanded] = useState(true);
   const [trainingAgreementExpanded, setTrainingAgreementExpanded] = useState(true);
   const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
-  const [newRole, setNewRole] = useState("");
+  const [editDepartmentId, setEditDepartmentId] = useState("");
+  const [editJobPositionId, setEditJobPositionId] = useState("");
   const [updatingRole, setUpdatingRole] = useState(false);
   const [updatingEmploymentType, setUpdatingEmploymentType] = useState(false);
   const [updatingOfficeAddress, setUpdatingOfficeAddress] = useState(false);
   const [officeOptions, setOfficeOptions] = useState<
     { _id: string; name: string; city: string }[]
   >([]);
-  const [availableRoles, setAvailableRoles] = useState<string[]>([...ROLE_OPTIONS]);
   const [unsignedTrainingAgreementUrl, setUnsignedTrainingAgreementUrl] = useState<string | null>(null);
   const [generatingUnsignedPdf, setGeneratingUnsignedPdf] = useState(false);
   const [showSignedPdfDialog, setShowSignedPdfDialog] = useState(false);
@@ -415,23 +415,6 @@ export default function CandidateDetailPage() {
     };
 
       fetchUser();
-  }, []);
-
-  // Fetch available roles from Add Ons (roles collection) for Edit Role dropdown
-  useEffect(() => {
-    const fetchRoles = async () => {
-      try {
-        const response = await fetch("/api/addons/roles/getAllRoles");
-        const result = await response.json();
-        if (result.data && Array.isArray(result.data) && result.data.length > 0) {
-          const roleNames = [...new Set((result.data as { role: string }[]).map((r) => r.role))].sort();
-          setAvailableRoles(roleNames);
-        }
-      } catch (error) {
-        console.error("Error fetching roles:", error);
-      }
-    };
-    fetchRoles();
   }, []);
 
   // Fetch active office addresses for HR assignment
@@ -687,54 +670,52 @@ export default function CandidateDetailPage() {
   // Handle edit role
   const handleEditRole = () => {
     if (!candidate) return;
-    setNewRole(candidate.position);
+    setEditDepartmentId(candidate.departmentId ? String(candidate.departmentId) : "");
+    setEditJobPositionId(candidate.jobPositionId ? String(candidate.jobPositionId) : "");
     setEditRoleDialogOpen(true);
   };
 
-  // Update role
   const handleUpdateRole = async () => {
-    if (!candidate || !newRole) return;
+    if (!candidate || !editDepartmentId || !editJobPositionId) return;
 
     setUpdatingRole(true);
     try {
-      // Update both position and selectionDetails.role (if candidate is selected)
-      const updatePayload: { position: string; "selectionDetails.role"?: string } = {
-        position: newRole,
-      };
-      
-      // Also update selectionDetails.role if candidate has been selected
-      if (candidate.status === "selected" || candidate.status === "onboarding") {
-        updatePayload["selectionDetails.role"] = newRole;
-      }
-
       const response = await fetch(`/api/candidates/${candidate._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatePayload),
+        body: JSON.stringify({
+          departmentId: editDepartmentId,
+          jobPositionId: editJobPositionId,
+        }),
       });
 
       const result = await response.json();
       if (result.success) {
+        const updatedCandidate = result.data as Candidate | undefined;
         setCandidate((prev) => {
           if (!prev) return null;
-          const updated = { ...prev, position: newRole };
-          // Also update selectionDetails.role if it exists
-          if (updated.selectionDetails) {
-            updated.selectionDetails = {
-              ...updated.selectionDetails,
-              role: newRole,
-            };
-          }
-          return updated;
+          return {
+            ...prev,
+            position: updatedCandidate?.position || prev.position,
+            department: updatedCandidate?.department || prev.department,
+            departmentId: editDepartmentId,
+            jobPositionId: editJobPositionId,
+            selectionDetails: prev.selectionDetails
+              ? {
+                  ...prev.selectionDetails,
+                  role: updatedCandidate?.position || prev.selectionDetails.role,
+                }
+              : prev.selectionDetails,
+          };
         });
-        toast.success("Role updated successfully");
+        toast.success("Job title updated");
         setEditRoleDialogOpen(false);
       } else {
-        toast.error(result.error || "Failed to update role");
+        toast.error(result.error || "Failed to update job title");
       }
     } catch (error) {
-      console.error("Error updating role:", error);
-      toast.error("Failed to update role");
+      console.error("Error updating job title:", error);
+      toast.error("Failed to update job title");
     } finally {
       setUpdatingRole(false);
     }
@@ -1578,11 +1559,11 @@ export default function CandidateDetailPage() {
                           className="h-9 justify-start px-3 text-sm font-medium"
                         >
                           <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                          Edit Role
+                          Edit job title
                         </Button>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent><p>Edit candidate role/position</p></TooltipContent>
+                    <TooltipContent><p>Edit department and job title</p></TooltipContent>
                   </Tooltip>
 
                   {/* Schedule Second Round Interview Button */}
@@ -3596,34 +3577,21 @@ export default function CandidateDetailPage() {
       <Dialog open={editRoleDialogOpen} onOpenChange={setEditRoleDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Role</DialogTitle>
+            <DialogTitle>Edit job title</DialogTitle>
             <DialogDescription>
-              Update the role/position for {candidate?.name}
+              Choose the department and job title for {candidate?.name}. This does not change a login role.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Label className="text-sm font-medium mb-2 block">
-              Role/Position
-            </Label>
-            <Select value={newRole} onValueChange={setNewRole}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent>
-                {/* Include current role if not in options */}
-                {candidate?.position &&
-                  !availableRoles.includes(candidate.position) && (
-                    <SelectItem value={candidate.position}>
-                      {candidate.position} (Current)
-                    </SelectItem>
-                  )}
-                {availableRoles.map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {role}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid gap-4 py-4">
+            <JobIdentitySelects
+              departmentId={editDepartmentId}
+              jobPositionId={editJobPositionId}
+              onDepartmentChange={(departmentId) => {
+                setEditDepartmentId(departmentId);
+                setEditJobPositionId("");
+              }}
+              onPositionChange={setEditJobPositionId}
+            />
           </div>
           <DialogFooter>
             <Button
@@ -3633,8 +3601,11 @@ export default function CandidateDetailPage() {
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateRole} disabled={updatingRole}>
-              {updatingRole ? "Updating..." : "Update Role"}
+            <Button
+              onClick={handleUpdateRole}
+              disabled={updatingRole || !editDepartmentId || !editJobPositionId}
+            >
+              {updatingRole ? "Updating..." : "Update job title"}
             </Button>
           </DialogFooter>
         </DialogContent>

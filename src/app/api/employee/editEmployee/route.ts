@@ -16,6 +16,7 @@ import {
   parseGrossSalary,
   updateEmployeeGrossSalary,
 } from "@/modules/finance/services/salary.service";
+import { JobIdentityError, resolveJobIdentity } from "@/lib/departments/jobIdentity";
 
 connectDb();
 
@@ -37,6 +38,10 @@ interface RequestBody {
   experience?: string;
   ifsc?: string;
   role?: string;
+  departmentId?: string | null;
+  jobPositionId?: string | null;
+  department?: string;
+  jobTitle?: string;
   organization?: string;
   assignedCountry?: string;
   rentalType?: string | null;
@@ -100,6 +105,30 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       updateData.experience = updateFields.experience;
     if (updateFields.ifsc) updateData.ifsc = updateFields.ifsc;
     if (updateFields.role) updateData.role = updateFields.role;
+
+    const jobIdentityRequested =
+      Object.prototype.hasOwnProperty.call(body, "departmentId") ||
+      Object.prototype.hasOwnProperty.call(body, "jobPositionId");
+    if (jobIdentityRequested) {
+      try {
+        const jobIdentity = await resolveJobIdentity(
+          updateFields.departmentId,
+          updateFields.jobPositionId,
+        );
+        updateData.departmentId = jobIdentity ? String(jobIdentity.departmentId) : null;
+        updateData.jobPositionId = jobIdentity ? String(jobIdentity.jobPositionId) : null;
+        updateData.department = jobIdentity?.department ?? "";
+        updateData.jobTitle = jobIdentity?.jobTitle ?? "";
+      } catch (error) {
+        if (error instanceof JobIdentityError) {
+          return NextResponse.json(
+            { error: error.message },
+            { status: error.status },
+          );
+        }
+        throw error;
+      }
+    }
     // Ensure hSale always remains Holidaysera organization
     if (updateFields.role === "hSale") {
       updateData.organization = "Holidaysera";

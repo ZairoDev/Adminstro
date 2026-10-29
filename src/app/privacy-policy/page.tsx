@@ -8,24 +8,24 @@ export const metadata: Metadata = {
 
 export default function PrivacyPolicyPage() {
   return (
-    <main className="min-h-dvh bg-white text-neutral-900">
+    <main className="min-h-dvh bg-background text-foreground">
       <article className="mx-auto max-w-3xl px-6 py-12 sm:px-8 sm:py-16">
-        <header className="border-b border-neutral-200 pb-8">
+        <header className="border-b border-border pb-8">
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             Privacy Policy – Adminstro.in
           </h1>
-          <p className="mt-3 text-base text-neutral-700">
+          <p className="mt-3 text-base text-muted-foreground">
             Zairo International Private Limited | Website: adminstro.in | Brand:
             vacationsaga.com
           </p>
-          <p className="mt-4 text-sm font-medium text-neutral-600">
+          <p className="mt-4 text-sm font-medium text-muted-foreground">
             Last updated: 21/10/2026
           </p>
         </header>
 
-        <div className="mt-10 space-y-10 text-[15px] leading-7 text-neutral-800">
+        <div className="mt-10 space-y-10 text-[15px] leading-7 text-foreground">
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               1. Introduction
             </h2>
             <p>
@@ -48,7 +48,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               1A. Exclusive Internal Use of the App
             </h2>
             <p>
@@ -86,7 +86,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               2. Who This Policy Applies To
             </h2>
             <p>
@@ -107,7 +107,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               3. Information We Collect
             </h2>
             <p>
@@ -115,7 +115,7 @@ export default function PrivacyPolicyPage() {
               partner, have voluntarily provided to us.
             </p>
 
-            <h3 className="text-base font-semibold text-neutral-950">
+            <h3 className="text-base font-semibold text-foreground">
               a) Employees
             </h3>
             <ul className="list-disc space-y-1 pl-5">
@@ -130,7 +130,7 @@ export default function PrivacyPolicyPage() {
               </li>
             </ul>
 
-            <h3 className="text-base font-semibold text-neutral-950">
+            <h3 className="text-base font-semibold text-foreground">
               b) Leads
             </h3>
             <ul className="list-disc space-y-1 pl-5">
@@ -143,7 +143,7 @@ export default function PrivacyPolicyPage() {
               </li>
             </ul>
 
-            <h3 className="text-base font-semibold text-neutral-950">
+            <h3 className="text-base font-semibold text-foreground">
               c) Guests
             </h3>
             <ul className="list-disc space-y-1 pl-5">
@@ -160,7 +160,7 @@ export default function PrivacyPolicyPage() {
               </li>
             </ul>
 
-            <h3 className="text-base font-semibold text-neutral-950">
+            <h3 className="text-base font-semibold text-foreground">
               d) Owners
             </h3>
             <ul className="list-disc space-y-1 pl-5">
@@ -173,7 +173,7 @@ export default function PrivacyPolicyPage() {
               <li>Communication history related to property management</li>
             </ul>
 
-            <h3 className="text-base font-semibold text-neutral-950">
+            <h3 className="text-base font-semibold text-foreground">
               e) WhatsApp communication data
             </h3>
             <p>
@@ -183,7 +183,7 @@ export default function PrivacyPolicyPage() {
               media you share.
             </p>
 
-            <h3 className="text-base font-semibold text-neutral-950">
+            <h3 className="text-base font-semibold text-foreground">
               f) Technical data
             </h3>
             <p>
@@ -194,7 +194,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               4. How We Collect Your Information
             </h2>
             <ul className="list-disc space-y-1 pl-5">
@@ -215,7 +215,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               5. Consent and Lawful Basis
             </h2>
             <p>
@@ -235,7 +235,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               6. How We Use Your Information
             </h2>
             <p>We use personal data to:</p>
@@ -270,7 +270,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               7. WhatsApp Business Integration
             </h2>
             <p>
@@ -314,7 +314,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               8. Sharing and Disclosure of Information
             </h2>
             <p>
@@ -353,7 +353,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               9. Data Storage and Security
             </h2>
             <p>
@@ -380,7 +380,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               10. Data Retention
             </h2>
             <p>
@@ -411,7 +411,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               11. Your Rights
             </h2>
             <p>Subject to applicable law, you have the right to:</p>
@@ -448,7 +448,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               12. Employee-Specific Notice
             </h2>
             <p>
@@ -464,7 +464,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               13. Children&apos;s Data
             </h2>
             <p>
@@ -477,7 +477,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               14. Contact Us and Grievance Officer
             </h2>
             <p>
@@ -485,7 +485,7 @@ export default function PrivacyPolicyPage() {
               your personal data, please contact:
             </p>
             <div className="space-y-1">
-              <p className="font-semibold text-neutral-950">
+              <p className="font-semibold text-foreground">
                 Grievance Officer / Data Contact
               </p>
               <p>Name: Ankita Nigam (C.O.O.)</p>
@@ -498,7 +498,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               15. Changes to This Policy
             </h2>
             <p>
@@ -514,7 +514,7 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-xl font-semibold text-neutral-950">
+            <h2 className="text-xl font-semibold text-foreground">
               16. Governing Law
             </h2>
             <p>

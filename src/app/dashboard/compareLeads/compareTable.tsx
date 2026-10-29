@@ -676,10 +676,10 @@ export default function CompareTable({
 
           const color =
             monthly.type === "good"
-              ? "bg-green-100 text-green-700 border-green-300"
+              ? "bg-green-100 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
               : monthly.type === "fair"
-              ? "bg-yellow-100 text-yellow-700 border-yellow-300"
-              : "bg-red-100 text-red-700 border-red-300";
+              ? "bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800"
+              : "bg-red-100 text-red-700 border-red-300 dark:bg-red-950 dark:text-red-300 dark:border-red-800";
 
           const selectedStyle = isSelected
             ? "ring-2 ring-blue-500 ring-offset-2 shadow-lg transform scale-105"

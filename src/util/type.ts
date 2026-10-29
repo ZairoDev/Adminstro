@@ -316,6 +316,8 @@ export interface UserInterface {
   profilePic: string;
   role: string;
   rentalType?: string | null;
+  department?: string;
+  jobTitle?: string;
   spokenLanguage: string;
   updatedAt: string;
   isActive: boolean;

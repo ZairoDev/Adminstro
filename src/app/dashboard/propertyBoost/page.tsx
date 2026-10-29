@@ -301,7 +301,7 @@ export default function PropertyBooster() {
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="text-center space-y-3 pt-8">
           <h1 className="text-4xl font-bold">Property Boost</h1>
-          <p className="text-gray-600 text-lg">
+          <p className="text-muted-foreground text-lg">
             Upload and showcase your properties with ease
           </p>
         </div>
@@ -349,7 +349,7 @@ export default function PropertyBooster() {
               <div>
                 {properties.length > 0 && (
                   <div className="space-y-3">
-                    <p className="text-sm font-medium text-gray-700">
+                    <p className="text-sm font-medium text-foreground">
                       Select a property to auto-fill details:
                     </p>
                     <ScrollArea className="whitespace-nowrap rounded-md border w-full">
@@ -370,8 +370,8 @@ export default function PropertyBooster() {
                               <div
                                 className={`overflow-hidden rounded-md relative border-2 cursor-pointer transition-all ${
                                   isSelected
-                                    ? "border-blue-500 ring-2 ring-blue-300"
-                                    : "border-gray-200 hover:border-blue-400"
+                                    ? "border-blue-500 ring-2 ring-blue-300 dark:ring-blue-800"
+                                    : "border-border hover:border-blue-400"
                                 }`}
                                 onClick={() => {
                                   setSelectedPropertyId(property.VSID);
@@ -388,7 +388,7 @@ export default function PropertyBooster() {
                                 />
                                 {isSelected && (
                                   <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
-                                    <CheckCircle2 className="w-8 h-8 text-blue-600" />
+                                    <CheckCircle2 className="w-8 h-8 text-blue-600 dark:text-blue-400" />
                                   </div>
                                 )}
                               </div>
@@ -410,13 +410,13 @@ export default function PropertyBooster() {
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-dashed border-gray-200 transition-all duration-300 shadow-lg hover:shadow-xl">
+          <Card className="border-2 border-dashed border-border transition-all duration-300 shadow-lg hover:shadow-xl">
             <CardContent className="p-8">
               <div
                 className={`relative rounded-xl border-2 border-dashed p-12 text-center transition-all duration-300 ${
                   dragActive
-                    ? "border-blue-500 bg-blue-50 scale-[1.02]"
-                    : "border-gray-300 hover:border-blue-400 hover:bg-blue-50/50"
+                    ? "border-blue-500 bg-blue-50 dark:bg-blue-950/40 scale-[1.02]"
+                    : "border-border hover:border-blue-400 hover:bg-blue-50/50 dark:hover:bg-blue-950/20"
                 }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
@@ -425,10 +425,10 @@ export default function PropertyBooster() {
               >
                 <Upload className="mx-auto h-16 w-16 mb-4 transition-transform duration-300 hover:scale-110" />
                 <div className="space-y-3">
-                  <p className="text-xl font-semibold text-gray-800">
+                  <p className="text-xl font-semibold text-foreground">
                     Drop your images here, or click to browse
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-muted-foreground">
                     Supports JPG, PNG, GIF, WebP. Multiple files allowed.
                   </p>
                 </div>
@@ -473,7 +473,7 @@ export default function PropertyBooster() {
               <div className="space-y-2">
                 <label
                   htmlFor="title"
-                  className="text-sm font-semibold text-gray-700 block"
+                  className="text-sm font-semibold text-foreground block"
                 >
                   Property Title
                 </label>
@@ -489,7 +489,7 @@ export default function PropertyBooster() {
               <div className="space-y-2">
                 <label
                   htmlFor="Owner-name"
-                  className="text-sm font-semibold text-gray-700 block"
+                  className="text-sm font-semibold text-foreground block"
                 >
                   Owner Name
                 </label>
@@ -505,7 +505,7 @@ export default function PropertyBooster() {
               <div className="space-y-2">
                 <label
                   htmlFor="ownerEmail"
-                  className="text-sm font-semibold text-gray-700 block"
+                  className="text-sm font-semibold text-foreground block"
                 >
                   Owner Email
                 </label>
@@ -522,7 +522,7 @@ export default function PropertyBooster() {
               <div className="space-y-2">
                 <label
                   htmlFor="vsid"
-                  className="text-sm font-semibold text-gray-700 block"
+                  className="text-sm font-semibold text-foreground block"
                 >
                   VSID
                 </label>
@@ -538,7 +538,7 @@ export default function PropertyBooster() {
               <div className="space-y-2">
                 <label
                   htmlFor="location"
-                  className="text-sm font-semibold text-gray-700 block"
+                  className="text-sm font-semibold text-foreground block"
                 >
                   Location
                 </label>
@@ -559,7 +559,7 @@ export default function PropertyBooster() {
               <div className="space-y-2">
                 <label
                   htmlFor="property-description"
-                  className="text-sm font-semibold text-gray-700 block"
+                  className="text-sm font-semibold text-foreground block"
                 >
                   Property Description
                 </label>
@@ -578,9 +578,9 @@ export default function PropertyBooster() {
         {images.length > 0 && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-3xl font-bold text-gray-800">
+              <h2 className="text-3xl font-bold text-foreground">
                 Uploaded Images
-                <span className="ml-3 text-lg font-normal text-blue-600">
+                <span className="ml-3 text-lg font-normal text-blue-600 dark:text-blue-400">
                   ({images.length})
                 </span>
               </h2>
@@ -592,9 +592,9 @@ export default function PropertyBooster() {
                   key={image.id}
                   className="overflow-hidden hover:shadow-xl transition-all duration-300 group"
                 >
-                  <CardHeader className="p-4 bg-gradient-to-r from-blue-50 to-slate-50">
+                  <CardHeader className="p-4 bg-gradient-to-r from-blue-50 to-slate-50 dark:from-blue-950/50 dark:to-slate-900">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium truncate text-gray-700">
+                      <CardTitle className="text-sm font-medium truncate text-foreground">
                         {image.file.name}
                       </CardTitle>
                       <Button
@@ -613,13 +613,13 @@ export default function PropertyBooster() {
                       <img
                         src={image.url || "/placeholder.svg"}
                         alt={image.file.name}
-                        className="w-full h-56 object-cover rounded-lg border-2 border-gray-200 transition-transform duration-300 group-hover/image:scale-[1.02]"
+                        className="w-full h-56 object-cover rounded-lg border-2 border-border transition-transform duration-300 group-hover/image:scale-[1.02]"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/image:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
                         <Eye className="h-10 w-10 text-white drop-shadow-lg" />
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
+                    <p className="text-xs text-muted-foreground mt-2">
                       {(image.file.size / 1024).toFixed(1)} KB
                     </p>
                   </CardContent>
@@ -630,17 +630,17 @@ export default function PropertyBooster() {
         )}
 
         {images.length === 0 && (
-          <Card className="border-2 border-dashed border-gray-300 shadow-lg">
+          <Card className="border-2 border-dashed border-border shadow-lg">
             <CardContent className="p-16 text-center">
               <div className="space-y-6">
                 <div className="mx-auto w-32 h-32 bg-gradient-to-br from-gray-600 to-gray-800 rounded-full flex items-center justify-center shadow-inner">
                   <Upload className="h-16 w-16" />
                 </div>
                 <div className="space-y-3">
-                  <h3 className="text-2xl font-semibold text-gray-200">
+                  <h3 className="text-2xl font-semibold text-foreground">
                     No images uploaded yet
                   </h3>
-                  <p className="text-gray-500 text-lg">
+                  <p className="text-muted-foreground text-lg">
                     Upload your first images to get started with previews
                   </p>
                 </div>

@@ -1761,7 +1761,7 @@ export default function PersonDetailPage() {
                                   ) : (
                                     <Badge
                                       variant="outline"
-                                      className="bg-gray-500/10 text-gray-600 border-gray-500/30"
+                                      className="bg-gray-500/10 text-gray-600 dark:text-gray-300 border-gray-500/30"
                                     >
                                       <MailX className="h-3 w-3 mr-1" />
                                       No Email
@@ -1945,7 +1945,7 @@ export default function PersonDetailPage() {
                                   ) : (
                                     <Badge
                                       variant="outline"
-                                      className="bg-gray-500/10 text-gray-600 border-gray-500/30"
+                                      className="bg-gray-500/10 text-gray-600 dark:text-gray-300 border-gray-500/30"
                                     >
                                       <MailX className="h-3 w-3 mr-1" />
                                       No Email
@@ -2199,7 +2199,7 @@ export default function PersonDetailPage() {
                                   ) : (
                                     <Badge
                                       variant="outline"
-                                      className="bg-gray-500/10 text-gray-600 border-gray-500/30"
+                                      className="bg-gray-500/10 text-gray-600 dark:text-gray-300 border-gray-500/30"
                                     >
                                       <MailX className="h-3 w-3 mr-1" />
                                       No Email

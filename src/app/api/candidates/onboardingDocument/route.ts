@@ -38,7 +38,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import Candidate from "@/models/candidate";
-import Role from "@/models/role";
+import { resolveLetterJobIdentity } from "@/lib/departments/resolveLetterIdentity";
 import { connectDb } from "@/util/db";
 import { resolveIsIntern } from "@/lib/pdf/letterOfIntentIntern";
 import {
@@ -190,30 +190,12 @@ export async function POST(req: NextRequest) {
             candidateGender = candidate.gender;
           }
 
-          let roleSearchValue: string | null = null;
-          if (candidate?.selectionDetails?.role) {
-            roleSearchValue = candidate.selectionDetails.role;
-          } else if (candidate?.position) {
-            roleSearchValue = candidate.position;
-          }
-
-          if (roleSearchValue) {
-            try {
-              let roleDoc = await Role.findOne({ role: roleSearchValue }).lean() as {
-                role: string;
-              } | null;
-              if (!roleDoc) {
-                roleDoc = await Role.findOne({
-                  role: { $regex: new RegExp(`^${roleSearchValue}$`, "i") },
-                }).lean() as { role: string } | null;
-              }
-              if (roleDoc) {
-                roleName = roleDoc.role;
-              }
-            } catch (roleErr) {
-              console.error("Error fetching role document:", roleErr);
-            }
-          }
+          const identity = await resolveLetterJobIdentity({
+            position: candidate.position,
+            department: candidate.department,
+            selectionDetails: candidate.selectionDetails,
+          });
+          roleName = identity.jobTitle || null;
 
           isIntern = resolveIsIntern(
             data.employmentType,

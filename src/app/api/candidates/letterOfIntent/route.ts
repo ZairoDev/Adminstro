@@ -4,7 +4,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import Candidate from "@/models/candidate";
-import Role from "@/models/role";
+import { resolveLetterJobIdentity } from "@/lib/departments/resolveLetterIdentity";
 import { connectDb } from "@/util/db";
 import {
   MissingOfficeAddressError,
@@ -148,52 +148,13 @@ export async function POST(req: NextRequest) {
             phase1Duration = candidate.selectionDetails.duration;
           }
 
-          // Fetch role document to get complete role data including department
-          // Try to find role document using either selectionDetails.role OR position
-          // The role document contains both role name and department
-          let roleSearchValue: string | null = null;
-          
-          // Priority 1: Use selectionDetails.role if available
-          if (candidate?.selectionDetails?.role) {
-            roleSearchValue = candidate.selectionDetails.role;
-          }
-          // Priority 2: Fallback to candidate.position if selectionDetails.role is not available
-          else if (candidate?.position) {
-            roleSearchValue = candidate.position;
-          }
-          
-          if (roleSearchValue) {
-            try {
-              // console.log(`Looking up role document for: ${roleSearchValue}`);
-              
-              // Try exact match first
-              let roleDoc = await Role.findOne({ 
-                role: roleSearchValue 
-              }).lean() as { role: string; department: string } | null;
-              
-              if (!roleDoc) {
-                // Try case-insensitive search as fallback
-                // console.log(`Exact match not found, trying case-insensitive search`);
-                roleDoc = await Role.findOne({ 
-                  role: { $regex: new RegExp(`^${roleSearchValue}$`, "i") }
-                }).lean() as { role: string; department: string } | null;
-              }
-              
-              if (roleDoc) {
-                // roleDoc.role = role name from roles collection (e.g., "LeadGen", "Sales") - used for designation
-                // roleDoc.department = department name from roles collection (e.g., "Backend Developer", "Sales", "HR") - used for department
-                roleName = roleDoc.role;
-                roleDepartment = roleDoc.department;
-                // console.log(`Found role document - Role: ${roleName}, Department: ${roleDepartment}`);
-              } else {
-                console.warn(`Role document not found for: ${roleSearchValue}`);
-              }
-            } catch (roleErr) {
-              console.error("Error fetching role document:", roleErr);
-            }
-          } else {
-            console.warn("No role reference found in candidate (neither selectionDetails.role nor position)");
-          }
+          const identity = await resolveLetterJobIdentity({
+            position: candidate.position,
+            department: candidate.department,
+            selectionDetails: candidate.selectionDetails,
+          });
+          roleName = identity.jobTitle || null;
+          roleDepartment = identity.department || null;
 
           isIntern = resolveIsIntern(
             data.employmentType,

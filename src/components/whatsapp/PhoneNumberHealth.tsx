@@ -55,10 +55,10 @@ const STATUS_DOT: Record<ConnectionLabel, string> = {
 };
 
 const STATUS_BADGE: Record<ConnectionLabel, string> = {
-  Connected: "bg-emerald-500/15 text-emerald-300 border-emerald-500/25",
-  Warning: "bg-amber-500/15 text-amber-300 border-amber-500/25",
-  Disconnected: "bg-red-500/15 text-red-300 border-red-500/25",
-  Unknown: "bg-zinc-500/15 text-zinc-400 border-zinc-500/25",
+  Connected: "bg-emerald-500/15 text-emerald-700 border-emerald-500/25 dark:text-emerald-300",
+  Warning: "bg-amber-500/15 text-amber-700 border-amber-500/25 dark:text-amber-300",
+  Disconnected: "bg-red-500/15 text-red-700 border-red-500/25 dark:text-red-300",
+  Unknown: "bg-zinc-500/15 text-zinc-600 border-zinc-500/25 dark:text-zinc-400",
 };
 
 function formatCount(value: number): string {
@@ -75,16 +75,13 @@ function StatCard({
   value: string;
 }) {
   return (
-    <div
-      className="flex h-[70px] items-center gap-3 rounded-[14px] border border-white/[0.08] bg-gradient-to-br from-[#111827] to-[#0f172a] px-4"
-      style={{ backgroundColor: "#111827" }}
-    >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] text-[#00a884]">
+    <div className="flex h-[70px] items-center gap-3 rounded-[14px] border border-border bg-card px-4">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-[#00a884]">
         <Icon className="h-4 w-4" aria-hidden />
       </div>
       <div className="min-w-0">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">{label}</p>
-        <p className="text-xl font-semibold tabular-nums text-zinc-100">{value}</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-xl font-semibold tabular-nums text-foreground">{value}</p>
       </div>
     </div>
   );
@@ -92,19 +89,16 @@ function StatCard({
 
 function NumberCardSkeleton() {
   return (
-    <div
-      className="flex h-[132px] animate-pulse flex-col gap-3 rounded-[14px] border border-white/[0.08] p-3.5"
-      style={{ backgroundColor: "#111827" }}
-    >
+    <div className="flex h-[132px] animate-pulse flex-col gap-3 rounded-[14px] border border-border bg-card p-3.5">
       <div className="flex justify-between">
-        <div className="h-4 w-2/3 rounded bg-white/10" />
-        <div className="h-4 w-4 rounded bg-white/10" />
+        <div className="h-4 w-2/3 rounded bg-muted" />
+        <div className="h-4 w-4 rounded bg-muted" />
       </div>
-      <div className="h-3 w-1/2 rounded bg-white/10" />
-      <div className="h-3 w-1/3 rounded bg-white/10" />
+      <div className="h-3 w-1/2 rounded bg-muted" />
+      <div className="h-3 w-1/3 rounded bg-muted" />
       <div className="mt-auto flex justify-between">
-        <div className="h-5 w-16 rounded-full bg-white/10" />
-        <div className="h-4 w-10 rounded bg-white/10" />
+        <div className="h-5 w-16 rounded-full bg-muted" />
+        <div className="h-4 w-10 rounded bg-muted" />
       </div>
     </div>
   );
@@ -119,10 +113,9 @@ function NumberCard({ metric }: { metric: PhoneHealthMetrics }) {
   return (
     <article
       className={cn(
-        "group relative flex flex-col gap-3 overflow-hidden rounded-[14px] border border-white/[0.08] p-3.5",
-        "transition-all duration-200 hover:-translate-y-0.5 hover:border-[#00a884]/30 hover:shadow-[0_8px_30px_rgba(0,168,132,0.12)]",
+        "group relative flex flex-col gap-3 overflow-hidden rounded-[14px] border border-border bg-card p-3.5",
+        "transition-all duration-200 hover:-translate-y-0.5 hover:border-[#00a884]/40 hover:shadow-[0_8px_30px_rgba(0,168,132,0.12)]",
       )}
-      style={{ backgroundColor: "#111827" }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
@@ -130,14 +123,14 @@ function NumberCard({ metric }: { metric: PhoneHealthMetrics }) {
             className={cn("h-2 w-2 shrink-0 rounded-full", STATUS_DOT[metric.connectionLabel])}
             aria-hidden
           />
-          <h3 className="truncate text-sm font-medium text-zinc-100">{metric.displayName}</h3>
+          <h3 className="truncate text-sm font-medium text-foreground">{metric.displayName}</h3>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-7 shrink-0 p-0 text-zinc-500 hover:bg-white/10 hover:text-zinc-200"
+              className="h-7 w-7 shrink-0 p-0 text-muted-foreground"
               aria-label={`Actions for ${metric.displayName}`}
             >
               <MoreHorizontal className="h-4 w-4" />
@@ -145,27 +138,26 @@ function NumberCard({ metric }: { metric: PhoneHealthMetrics }) {
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="border-white/10 bg-[#111827] text-zinc-200"
           >
-            <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-zinc-100">
+            <DropdownMenuItem asChild>
               <Link href={inboxUrl}>
                 <BarChart3 className="mr-2 h-3.5 w-3.5" />
                 View Analytics
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-zinc-100">
+            <DropdownMenuItem asChild>
               <Link href={channelsUrl}>
                 <Link2 className="mr-2 h-3.5 w-3.5" />
                 Reconnect
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-zinc-100">
+            <DropdownMenuItem asChild>
               <Link href={channelsUrl}>
                 <MapPin className="mr-2 h-3.5 w-3.5" />
                 Assign Location
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-zinc-100">
+            <DropdownMenuItem asChild>
               <Link href="/whatsapp">
                 <ScrollText className="mr-2 h-3.5 w-3.5" />
                 View Logs
@@ -175,12 +167,12 @@ function NumberCard({ metric }: { metric: PhoneHealthMetrics }) {
         </DropdownMenu>
       </div>
 
-      <p className="truncate text-xs tabular-nums text-zinc-400">{metric.displayNumber}</p>
+      <p className="truncate text-xs tabular-nums text-muted-foreground">{metric.displayNumber}</p>
 
-      <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <MessageCircle className="h-3.5 w-3.5 shrink-0 text-[#00a884]" aria-hidden />
         <span>
-          <span className="font-medium text-zinc-200">{formatCount(metric.chatsToday)}</span>
+          <span className="font-medium text-foreground">{formatCount(metric.chatsToday)}</span>
           {" Chats Today"}
         </span>
       </div>
@@ -194,14 +186,14 @@ function NumberCard({ metric }: { metric: PhoneHealthMetrics }) {
         >
           {metric.connectionLabel}
         </span>
-        <span className="text-sm font-semibold tabular-nums text-zinc-200">
+        <span className="text-sm font-semibold tabular-nums text-foreground">
           {metric.healthPercent !== null ? `${metric.healthPercent}%` : "—"}
         </span>
       </div>
 
       <div
         className={cn(
-          "absolute inset-x-0 bottom-0 flex translate-y-full gap-1 border-t border-white/[0.08] bg-[#0d1320]/95 p-2 backdrop-blur-sm",
+          "absolute inset-x-0 bottom-0 flex translate-y-full gap-1 border-t border-border bg-muted/95 p-2 backdrop-blur-sm",
           "transition-transform duration-200 group-hover:translate-y-0",
         )}
       >
@@ -209,7 +201,7 @@ function NumberCard({ metric }: { metric: PhoneHealthMetrics }) {
           asChild
           variant="ghost"
           size="sm"
-          className="h-7 flex-1 text-[10px] text-zinc-300 hover:bg-white/10 hover:text-white"
+          className="h-7 flex-1 text-[10px] text-muted-foreground hover:text-foreground"
         >
           <Link href={inboxUrl}>Analytics</Link>
         </Button>
@@ -217,7 +209,7 @@ function NumberCard({ metric }: { metric: PhoneHealthMetrics }) {
           asChild
           variant="ghost"
           size="sm"
-          className="h-7 flex-1 text-[10px] text-zinc-300 hover:bg-white/10 hover:text-white"
+          className="h-7 flex-1 text-[10px] text-muted-foreground hover:text-foreground"
         >
           <Link href={channelsUrl}>Reconnect</Link>
         </Button>
@@ -225,7 +217,7 @@ function NumberCard({ metric }: { metric: PhoneHealthMetrics }) {
           asChild
           variant="ghost"
           size="sm"
-          className="h-7 flex-1 text-[10px] text-zinc-300 hover:bg-white/10 hover:text-white"
+          className="h-7 flex-1 text-[10px] text-muted-foreground hover:text-foreground"
         >
           <Link href={channelsUrl}>Location</Link>
         </Button>
@@ -233,7 +225,7 @@ function NumberCard({ metric }: { metric: PhoneHealthMetrics }) {
           asChild
           variant="ghost"
           size="sm"
-          className="h-7 flex-1 text-[10px] text-zinc-300 hover:bg-white/10 hover:text-white"
+          className="h-7 flex-1 text-[10px] text-muted-foreground hover:text-foreground"
         >
           <Link href="/whatsapp">Logs</Link>
         </Button>
@@ -244,22 +236,22 @@ function NumberCard({ metric }: { metric: PhoneHealthMetrics }) {
 
 function DashboardSkeleton() {
   return (
-    <div className="space-y-4 rounded-2xl border border-white/[0.08] bg-[#0b0f17] p-4 sm:p-5">
+    <div className="space-y-4 rounded-2xl border border-border bg-card p-4 sm:p-5">
       <div className="flex justify-between gap-4">
         <div className="space-y-2">
-          <div className="h-6 w-32 animate-pulse rounded bg-white/10" />
-          <div className="h-3 w-64 animate-pulse rounded bg-white/10" />
+          <div className="h-6 w-32 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-64 animate-pulse rounded bg-muted" />
         </div>
         <div className="flex gap-2">
-          <div className="h-9 w-20 animate-pulse rounded-lg bg-white/10" />
-          <div className="h-9 w-28 animate-pulse rounded-lg bg-white/10" />
+          <div className="h-9 w-20 animate-pulse rounded-lg bg-muted" />
+          <div className="h-9 w-28 animate-pulse rounded-lg bg-muted" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="h-[70px] animate-pulse rounded-[14px] border border-white/[0.08] bg-white/5"
+            className="h-[70px] animate-pulse rounded-[14px] border border-border bg-muted"
           />
         ))}
       </div>
@@ -320,12 +312,12 @@ export function PhoneNumberHealth() {
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-500/20 bg-[#111827] p-6 text-center">
-        <p className="text-sm text-red-300">{error}</p>
+      <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-center">
+        <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
         <Button
           variant="outline"
           size="sm"
-          className="mt-3 border-white/10 bg-transparent text-zinc-200 hover:bg-white/10"
+          className="mt-3"
           onClick={() => fetchHealthMetrics(false)}
         >
           Retry
@@ -336,12 +328,12 @@ export function PhoneNumberHealth() {
 
   if (metrics.length === 0) {
     return (
-      <div className="rounded-2xl border border-white/[0.08] bg-[#111827] px-6 py-12 text-center">
+      <div className="rounded-2xl border border-border bg-card px-6 py-12 text-center">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#00a884]/10">
           <Phone className="h-7 w-7 text-[#00a884]" aria-hidden />
         </div>
-        <p className="text-sm font-medium text-zinc-200">No WhatsApp numbers connected yet</p>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="text-sm font-medium text-foreground">No WhatsApp numbers connected yet</p>
+        <p className="mt-1 text-xs text-muted-foreground">
           Connect a channel to monitor health, chats, and agent activity.
         </p>
         {canManageChannels ? (
@@ -365,11 +357,11 @@ export function PhoneNumberHealth() {
   const avgHealth = summary?.avgHealthPercent;
 
   return (
-    <section className="space-y-4 rounded-2xl border border-white/[0.08] bg-[#0b0f17] p-4 sm:p-5">
+    <section className="space-y-4 rounded-2xl border border-border bg-card p-4 sm:p-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight text-zinc-100">Line Health</h2>
-          <p className="mt-0.5 text-sm text-zinc-500">
+          <h2 className="text-lg font-semibold tracking-tight text-foreground">Line Health</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
             Monitor all connected WhatsApp numbers, health status, and activity.
           </p>
         </div>
@@ -377,7 +369,7 @@ export function PhoneNumberHealth() {
           <Button
             variant="outline"
             size="sm"
-            className="h-9 border-white/10 bg-[#111827] text-zinc-200 hover:bg-white/10 hover:text-white"
+            className="h-9"
             onClick={() => fetchHealthMetrics(isSuperAdmin)}
             disabled={refreshing}
           >

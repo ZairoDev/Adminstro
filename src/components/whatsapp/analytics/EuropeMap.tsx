@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   ComposableMap,
   Geographies,
@@ -119,12 +119,31 @@ function markerColor(responseRate: number): string {
   return "#ef4444";
 }
 
+function useIsDark(): boolean {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const update = () => setIsDark(root.classList.contains("dark"));
+    update();
+    const observer = new MutationObserver(update);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
+
+  return isDark;
+}
+
 function countryFill(
   responseRate: number | null,
   hovered: boolean,
+  isDark: boolean,
 ): { fill: string; fillOpacity: number } {
   if (responseRate === null) {
-    return { fill: hovered ? "#1f2937" : "#161b22", fillOpacity: 1 };
+    if (isDark) {
+      return { fill: hovered ? "#374151" : "#1f2937", fillOpacity: 1 };
+    }
+    return { fill: hovered ? "#d1d5db" : "#e5e7eb", fillOpacity: 1 };
   }
   return {
     fill: markerColor(responseRate),
@@ -228,6 +247,7 @@ interface EuropeMapProps {
 export default function EuropeMap({ locationStats }: EuropeMapProps) {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
+  const isDark = useIsDark();
 
   const statsMap = useMemo(
     () =>
@@ -269,8 +289,8 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
   return (
     <div
       data-map-container
-      className="relative w-full overflow-hidden rounded-lg"
-      style={{ background: "#0d1117", minHeight: 420 }}
+      className="relative w-full overflow-hidden rounded-lg bg-muted"
+      style={{ minHeight: 420 }}
     >
       <ComposableMap
         projection="geoMercator"
@@ -292,7 +312,7 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
                 const agg = countryStatsMap.get(countryName);
                 const isHovered = hoveredCountry === countryName;
                 const rate = agg?.responseRate ?? null;
-                const { fill, fillOpacity } = countryFill(rate, isHovered);
+                const { fill, fillOpacity } = countryFill(rate, isHovered, isDark);
 
                 return (
                   <Geography
@@ -301,7 +321,7 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
                     className="cursor-pointer"
                     fill={fill}
                     fillOpacity={fillOpacity}
-                    stroke={isHovered ? "#818cf8" : "#374151"}
+                    stroke={isHovered ? "#6366f1" : isDark ? "#4b5563" : "#9ca3af"}
                     strokeWidth={isHovered ? 1.2 : 0.6}
                     style={{
                       default: { outline: "none", cursor: agg ? "pointer" : "default" },
@@ -348,11 +368,11 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
               onMouseLeave={() => setTooltip(null)}
             >
               <circle r={12} fill={color} fillOpacity={0.2} />
-              <circle r={5} fill={color} stroke="#0d1117" strokeWidth={1.5} />
+              <circle r={5} fill={color} stroke={isDark ? "#111827" : "#ffffff"} strokeWidth={1.5} />
               <text
                 textAnchor="middle"
                 y={-10}
-                fill="#d1d5db"
+                fill={isDark ? "#d1d5db" : "#374151"}
                 fontSize={10}
                 fontWeight={500}
                 fontFamily="system-ui, sans-serif"
@@ -365,8 +385,8 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
         })}
       </ComposableMap>
 
-      <div className="flex flex-wrap items-center gap-4 border-t border-white/5 px-4 py-2.5 text-[10px] text-gray-500">
-        <span className="text-gray-600">Reply rate</span>
+      <div className="flex flex-wrap items-center gap-4 border-t border-border px-4 py-2.5 text-[10px] text-muted-foreground">
+        <span>Reply rate</span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: "#22c55e55" }} />
           &gt;80%
@@ -379,31 +399,30 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
           <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: "#ef444455" }} />
           &lt;50%
         </span>
-        <span className="text-gray-600">· Hover country or city for details</span>
+        <span>· Hover country or city for details</span>
       </div>
 
       {tooltip && (
         <div
-          className="pointer-events-none absolute z-50 rounded-lg border border-white/10 p-3 text-xs shadow-lg"
+          className="pointer-events-none absolute z-50 rounded-lg border border-border bg-popover p-3 text-xs text-popover-foreground shadow-lg"
           style={{
             left: Math.min(tooltip.x + 12, 680),
             top: Math.max(tooltip.y - 8, 8),
-            background: "#1e2433",
             minWidth: 180,
             maxWidth: 240,
           }}
         >
           {tooltip.kind === "country" ? (
             <>
-              <p className="mb-1.5 font-semibold text-white">
+              <p className="mb-1.5 font-semibold text-foreground">
                 {tooltip.data.country}
                 {tooltip.data.locations.length > 1 && (
-                  <span className="ml-1 font-normal text-gray-500">
+                  <span className="ml-1 font-normal text-muted-foreground">
                     ({tooltip.data.locations.length} cities)
                   </span>
                 )}
               </p>
-              <div className="space-y-0.5 text-gray-400">
+              <div className="space-y-0.5 text-muted-foreground">
                 <p>
               Reply Rate:{" "}
               <span
@@ -415,35 +434,35 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
             </p>
             <p>
               Avg Customer Reply:{" "}
-              <span className="text-white">
+              <span className="text-foreground">
                 {Math.round(tooltip.data.avgCustomerReplyMs / 60000)}m
               </span>
             </p>
             <p>
               Conversations:{" "}
-              <span className="text-white">{tooltip.data.outbound}</span>
+              <span className="text-foreground">{tooltip.data.outbound}</span>
             </p>
             <p>
               Responded:{" "}
-              <span className="text-white">{tooltip.data.responded}</span>
+              <span className="text-foreground">{tooltip.data.responded}</span>
             </p>
             <p>
               Visit Rate:{" "}
-              <span className="text-white">{tooltip.data.visitRate}%</span>
+              <span className="text-foreground">{tooltip.data.visitRate}%</span>
             </p>
             <p>
               Booking Rate:{" "}
-              <span className="text-white">{tooltip.data.bookingRate}%</span>
+              <span className="text-foreground">{tooltip.data.bookingRate}%</span>
             </p>
             <p>
               Owners:{" "}
-              <span className="text-white">{tooltip.data.ownerCount}</span>
+              <span className="text-foreground">{tooltip.data.ownerCount}</span>
               {" · "}
               Guests:{" "}
-              <span className="text-white">{tooltip.data.guestCount}</span>
+              <span className="text-foreground">{tooltip.data.guestCount}</span>
             </p>
                 {tooltip.data.locations.length > 1 && (
-                  <p className="pt-1 text-[10px] text-gray-500">
+                  <p className="pt-1 text-[10px] text-muted-foreground">
                     {tooltip.data.locations.map((l) => l.location).join(", ")}
                   </p>
                 )}
@@ -451,10 +470,10 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
             </>
           ) : (
             <>
-              <p className="mb-1.5 font-semibold text-white">
+              <p className="mb-1.5 font-semibold text-foreground">
                 {tooltip.data.location}
               </p>
-              <div className="space-y-0.5 text-gray-400">
+              <div className="space-y-0.5 text-muted-foreground">
                 <p>
               Reply Rate:{" "}
               <span
@@ -466,25 +485,25 @@ export default function EuropeMap({ locationStats }: EuropeMapProps) {
             </p>
             <p>
               Avg Reply:{" "}
-              <span className="text-white">
+              <span className="text-foreground">
                 {Math.round(tooltip.data.avgCustomerReplyMs / 60000)}m
               </span>
             </p>
             <p>
               Owners:{" "}
-              <span className="text-white">{tooltip.data.ownerCount}</span>
+              <span className="text-foreground">{tooltip.data.ownerCount}</span>
             </p>
             <p>
               Guests:{" "}
-              <span className="text-white">{tooltip.data.guestCount}</span>
+              <span className="text-foreground">{tooltip.data.guestCount}</span>
             </p>
             <p>
               Short Term:{" "}
-              <span className="text-white">{tooltip.data.shortTermCount}</span>
+              <span className="text-foreground">{tooltip.data.shortTermCount}</span>
             </p>
             <p>
               Long Term:{" "}
-              <span className="text-white">{tooltip.data.longTermCount}</span>
+              <span className="text-foreground">{tooltip.data.longTermCount}</span>
             </p>
               </div>
             </>

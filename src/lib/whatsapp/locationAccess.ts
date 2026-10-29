@@ -33,6 +33,16 @@ import {
   SUPERADMIN_DEFAULT_INBOX_LOCATION,
 } from "@/lib/whatsapp/locationConstants";
 import { withGuestPropertyTypeClause } from "@/lib/whatsapp/guestPropertyTypeAccess";
+import { withGuestPricingClause } from "@/lib/whatsapp/guestPricingAccess";
+
+/** Property-type + pricing-band guest lead rules on top of phone/location filters. */
+async function withGuestLeadRuleClauses(
+  user: VisibilityUser,
+  filter: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const withPropertyType = await withGuestPropertyTypeClause(user, filter);
+  return withGuestPricingClause(user, withPropertyType);
+}
 
 export {
   SUPERADMIN_INBOX_LOCATION_ALL,
@@ -325,7 +335,7 @@ export async function buildConversationVisibilityFilterAsync(
   if (opts.adminQueue) {
     if (!canAccessWhatsAppAdminQueue(user)) return { _id: null };
     if (isFullAccess) return buildAdminQueueFilter();
-    return withGuestPropertyTypeClause(user, buildAdminQueueFilter());
+    return withGuestLeadRuleClauses(user, buildAdminQueueFilter());
   }
 
   if (isFullAccess) return {};
@@ -344,7 +354,7 @@ export async function buildConversationVisibilityFilterAsync(
 
   if ("_id" in syncFilter && syncFilter._id === null) {
     if (accessibleChannelIds.length === 0) return syncFilter;
-    return withGuestPropertyTypeClause(
+    return withGuestLeadRuleClauses(
       user,
       applyVisibilityFilters(
         buildWhatsappChannelIdVisibilityBranch(accessibleChannelIds, normalizedAreas),
@@ -354,10 +364,10 @@ export async function buildConversationVisibilityFilterAsync(
   }
 
   if (accessibleChannelIds.length === 0) {
-    return withGuestPropertyTypeClause(user, syncFilter);
+    return withGuestLeadRuleClauses(user, syncFilter);
   }
 
-  return withGuestPropertyTypeClause(user, {
+  return withGuestLeadRuleClauses(user, {
     $or: [
       syncFilter,
       applyVisibilityFilters(

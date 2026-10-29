@@ -179,7 +179,7 @@ export const ClosedLeads = () => {
     return (
       <div className="w-full p-6">
         <h2 className="text-xl font-semibold">Access denied</h2>
-        <p className="text-sm text-gray-600">You do not have permission to view Closed Leads.</p>
+        <p className="text-sm text-muted-foreground">You do not have permission to view Closed Leads.</p>
       </div>
     );
   }
@@ -297,7 +297,7 @@ export const ClosedLeads = () => {
                           router.push(`?${params.toString()}&page=1`);
                           filterLeads(1, { ...filters, allotedArea: area });
                         }}
-                        className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
+                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium mx-auto"
                       >
                         Apply
                       </Button>
@@ -310,7 +310,7 @@ export const ClosedLeads = () => {
                           setPage(1);
                           filterLeads(1, defaultFilters);
                         }}
-                        className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
+                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium mx-auto"
                       >
                         Clear
                       </Button>
@@ -340,7 +340,7 @@ export const ClosedLeads = () => {
                     alt="Temporary Image"
                     className=" w-96 h-96 opacity-30"
                   />
-                  <h1 className=" text-gray-600 text-3xl">No Leads</h1>
+                  <h1 className=" text-muted-foreground text-3xl">No Leads</h1>
                 </div>
               )}
             </div>

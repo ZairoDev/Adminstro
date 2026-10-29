@@ -8,6 +8,7 @@ import {
   isCompleteOnboardingBankDetails,
   normalizeOnboardingBankDetails,
 } from "@/lib/people/onboarding-documents";
+import { JobIdentityError, resolveJobIdentity } from "@/lib/departments/jobIdentity";
 
 export async function GET(
   request: NextRequest,
@@ -51,6 +52,38 @@ export async function PATCH(
     // Handle flat fields
     if (body.status) updateData.status = body.status;
     if (body.position) updateData.position = body.position;
+    if (body.departmentId !== undefined || body.jobPositionId !== undefined) {
+      try {
+        const jobIdentity = await resolveJobIdentity(body.departmentId, body.jobPositionId);
+        if (!jobIdentity) {
+          return NextResponse.json(
+            { success: false, error: "Select both a department and a job title" },
+            { status: 400 },
+          );
+        }
+        updateData.departmentId = jobIdentity.departmentId;
+        updateData.jobPositionId = jobIdentity.jobPositionId;
+        updateData.department = jobIdentity.department;
+        updateData.position = jobIdentity.jobTitle;
+        const existing = await Candidate.findById(id).select("status selectionDetails.role");
+        if (
+          existing &&
+          (existing.status === "selected" ||
+            existing.status === "onboarding" ||
+            existing.selectionDetails?.role)
+        ) {
+          updateData["selectionDetails.role"] = jobIdentity.jobTitle;
+        }
+      } catch (error) {
+        if (error instanceof JobIdentityError) {
+          return NextResponse.json(
+            { success: false, error: error.message },
+            { status: error.status },
+          );
+        }
+        throw error;
+      }
+    }
     if (body.employmentType === "fulltime" || body.employmentType === "intern") {
       updateData.employmentType = body.employmentType;
     } else if (body.employmentType === null) {

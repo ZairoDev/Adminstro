@@ -52,32 +52,9 @@ export function SelectCandidateDialog({
   const [duration, setDuration] = useState("");
   const [internDuration, setInternDuration] = useState("");
 
-  // Update role when candidatePosition changes (when dialog opens with different candidate)
   useEffect(() => {
-    if (candidatePosition && open) {
-      // Map candidate position to role dropdown value
-      // Candidate position might be "HR", "Sales", "LeadGen", etc.
-      const positionMap: Record<string, string> = {
-        "HR": "HR",
-        "Sales": "Sales",
-        "LeadGen": "LeadGen",
-        "Marketing": "Marketing",
-        "Developer": "Developer",
-      };
-      
-      // Try exact match first, then try case-insensitive match
-      const matchedRole = positionMap[candidatePosition] || 
-                         Object.keys(positionMap).find(key => 
-                           key.toLowerCase() === candidatePosition.toLowerCase()
-                         );
-      
-      if (matchedRole) {
-        setRole(matchedRole);
-      } else {
-        // If no match found, set it anyway (user can see it and change if needed)
-        // But first check if it's a valid option
-        setRole(candidatePosition);
-      }
+    if (open) {
+      setRole(candidatePosition?.trim() || "");
     }
   }, [candidatePosition, open]);
 
@@ -236,10 +213,9 @@ export function SelectCandidateDialog({
               />
             </div>
 
-            {/* Role Dropdown */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Role/Designation
+                Job title
               </label>
               <select
                 value={role}
@@ -247,21 +223,11 @@ export function SelectCandidateDialog({
                 disabled
                 className="w-full px-3 py-2 border border-muted rounded bg-muted text-foreground cursor-not-allowed opacity-60"
               >
-                <option value="">Select a Role</option>
-                <option value="LeadGen">LeadGen</option>
-                <option value="Marketing">Marketing</option>
-                <option value="HR">Human Resource(HR)</option>
-                <option value="Developer">Developer</option>
-                <option value="Sales">Sales</option>
-                {/* Add candidate position as option if it doesn't match existing options */}
-                {candidatePosition && 
-                 role === candidatePosition &&
-                 !["LeadGen", "Marketing", "HR", "Developer", "Sales"].includes(candidatePosition) && (
-                  <option value={candidatePosition}>{candidatePosition}</option>
-                )}
+                <option value="">No job title</option>
+                {role ? <option value={role}>{role}</option> : null}
               </select>
               <p className="text-xs text-muted-foreground mt-1">
-                Role is locked to candidate&apos;s current position. Use &quot;Edit Role&quot; to change it first.
+                This is the job title from the application. It is not a login role.
               </p>
             </div>
 

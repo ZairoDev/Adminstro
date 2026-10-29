@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import OfficeAddress from "@/models/officeAddress";
 import { seedDefaultOffices } from "@/lib/officeAddress/seedDefaultOffices";
 import { sendJobApplicationReceivedEmails } from "@/lib/email";
+import { JobIdentityError, resolveJobIdentity } from "@/lib/departments/jobIdentity";
 
 export async function POST(req: Request) {
   try {
@@ -57,6 +58,24 @@ export async function POST(req: Request) {
         ? data.phone.trim()
         : [data.countryCode, data.phone].filter(Boolean).join("");
 
+    let jobIdentity;
+    try {
+      jobIdentity = await resolveJobIdentity(data.departmentId, data.jobPositionId, {
+        requireActive: true,
+      });
+    } catch (error) {
+      if (error instanceof JobIdentityError) {
+        return NextResponse.json({ error: error.message }, { status: error.status });
+      }
+      throw error;
+    }
+    if (!jobIdentity) {
+      return NextResponse.json(
+        { error: "Please select a department and a job title" },
+        { status: 400 },
+      );
+    }
+
     const newApplication = await Candidate.create({
       name: data.name,
       email: data.email,
@@ -70,7 +89,10 @@ export async function POST(req: Request) {
       officeAddressId: officeDoc._id,
       officeLocation: officeDoc.city,
 
-      position: data.position,
+      position: jobIdentity.jobTitle,
+      department: jobIdentity.department,
+      departmentId: jobIdentity.departmentId,
+      jobPositionId: jobIdentity.jobPositionId,
       coverLetter: data.coverLetter,
       linkedin: data.linkedin,
       portfolio: data.portfolio,
@@ -91,7 +113,7 @@ export async function POST(req: Request) {
           applicantName: String(data.name || "").trim(),
           applicantEmail,
           phone,
-          position: String(data.position || "").trim(),
+          position: jobIdentity.jobTitle,
           officeCity: officeDoc.city,
           city: String(data.city || "").trim(),
           country: String(data.country || "").trim(),

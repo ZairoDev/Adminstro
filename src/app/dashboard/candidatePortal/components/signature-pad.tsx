@@ -114,7 +114,7 @@ export function SignaturePad({ onSignatureCapture, onCancel, existingSignature }
 
   return (
     <div className="space-y-3">
-      <div className="border-2 border-gray-300 rounded-lg overflow-hidden bg-white">
+      <div className="border-2 border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white">
         <canvas
           ref={canvasRef}
           onMouseDown={startDrawing}

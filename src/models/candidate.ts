@@ -21,6 +21,20 @@ const CandidateSchema = new Schema(
       index: true,
     },
     position: { type: String, required: true },
+    /** Snapshot of the department name at application time. */
+    department: { type: String, default: "" },
+    departmentId: {
+      type: Schema.Types.ObjectId,
+      ref: "Department",
+      default: null,
+      index: true,
+    },
+    jobPositionId: {
+      type: Schema.Types.ObjectId,
+      ref: "JobPosition",
+      default: null,
+      index: true,
+    },
     employmentType: {
       type: String,
       enum: ["fulltime", "intern"],

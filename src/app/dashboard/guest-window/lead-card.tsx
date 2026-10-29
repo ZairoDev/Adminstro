@@ -47,19 +47,19 @@ export function LeadCard({ lead }: LeadCardProps) {
 
   // Get quality badge color based on quality value
   const getQualityColor = (quality: string | null) => {
-    if (!quality) return "bg-gray-200 text-gray-700";
+    if (!quality) return "bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
 
     switch (quality.toLowerCase()) {
       case "very good":
-        return "bg-green-400 text-green-900";
+        return "bg-green-400 text-green-950 dark:bg-green-700 dark:text-green-50";
       case "good":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300";
       case "average":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300";
       case "poor":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
     }
   };
 
@@ -67,13 +67,13 @@ export function LeadCard({ lead }: LeadCardProps) {
   const getPriorityColor = (priority: string) => {
     switch (priority.toLowerCase()) {
       case "high":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300";
       case "medium":
-        return "bg-orange-100 text-orange-800";
+        return "bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300";
       case "low":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
     }
   };
 
@@ -96,7 +96,7 @@ export function LeadCard({ lead }: LeadCardProps) {
             <div className="flex-1">
               <div className="flex items-start gap-3">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                     <User className="h-4 w-4 text-gray-500 dark:text-white" />
                     <p className=" text-gray-500 dark:text-white">{lead.name}</p>
                     {lead.leadQualityByReviewer && (
@@ -249,7 +249,7 @@ export function LeadCard({ lead }: LeadCardProps) {
 
                 {/* {lead. && lead.salesPerson !== "None" && (
                   <div className="flex items-center gap-2 text-sm mt-1">
-                    <p className="text-gray-500">Sales Person:</p>
+                    <p className="text-gray-500 dark:text-gray-300">Sales Person:</p>
                     <p className="font-medium">{lead.salesPerson}</p>
                   </div>
                 )} */}

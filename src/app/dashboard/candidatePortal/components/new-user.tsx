@@ -44,6 +44,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { JobIdentitySelects } from "@/components/departments/job-identity-selects";
 
 // --- Types ---
 export type CandidateLite = {
@@ -57,6 +58,9 @@ export type CandidateLite = {
   fatherName?: string;
   country?: string;
   position?: string;
+  department?: string;
+  departmentId?: string | null;
+  jobPositionId?: string | null;
   spokenLanguage?: string;
   gender?: "Male" | "Female" | "Other" | string;
   resumeUrl?: string;
@@ -175,6 +179,10 @@ const NewUser: React.FC<NewUserProps> = ({
       dateOfBirth: undefined,
       address: "",
       role: undefined,
+      departmentId: "",
+      jobPositionId: "",
+      department: "",
+      jobTitle: "",
       experience: 0,
       salary: undefined,
       country: "",
@@ -315,83 +323,25 @@ const NewUser: React.FC<NewUserProps> = ({
         }
       }
 
-      // Role/Position - validate against enum values
-      const validRoles = [
-        "Admin",
-        "Advert",
-        "Content",
-        "LeadGen",
-        "LeadGen-TeamLead",
-        "Sales",
-        "sales-intern",
-        "Sales-TeamLead",
-        "HR",
-        "Guest",
-        "Developer",
-      ] as const;
-      
-      // Helper function to find matching role
-      const findMatchingRole = (position: string | undefined): typeof validRoles[number] | null => {
-        if (!position) return null;
-        
-        const positionLower = position.toLowerCase();
-        
-        // Direct match
-        const directMatch = validRoles.find(
-          role => role.toLowerCase() === positionLower
-        );
-        if (directMatch) return directMatch;
-        
-        // Partial matches for common variations
-        if (positionLower.includes("content")) return "Content";
-        if (positionLower.includes("leadgen") || positionLower.includes("lead gen")) {
-          if (positionLower.includes("teamlead") || positionLower.includes("team lead")) {
-            return "LeadGen-TeamLead";
-          }
-          return "LeadGen";
-        }
-        if (positionLower.includes("sales")) {
-          if (positionLower.includes("intern")) return "sales-intern";
-          if (positionLower.includes("teamlead") || positionLower.includes("team lead")) {
-            return "Sales-TeamLead";
-          }
-          return "Sales";
-        }
-        if (positionLower.includes("intern")) return "sales-intern";
-        if (positionLower.includes("admin")) return "Admin";
-        if (positionLower.includes("advert")) return "Advert";
-        if (positionLower.includes("hr") || positionLower.includes("human resource")) return "HR";
-        if (positionLower.includes("developer") || positionLower.includes("dev")) return "Developer";
-        if (positionLower.includes("guest")) return "Guest";
-        
-        return null;
-      };
-      
+      // Login role is chosen by HR. Job title is stored separately and is not mapped onto it.
       const isInternCandidate =
         data.employmentType === "intern" ||
         data.selectionDetails?.positionType === "intern";
-
       if (isInternCandidate) {
-        setValue("role", "sales-intern");
         setValue("empType", "Intern");
-      } else {
-        // Try position first
-        if (data.position) {
-          const matchingRole = findMatchingRole(data.position);
-          if (matchingRole) {
-            setValue("role", matchingRole);
-          }
-        }
+      }
 
-        // If position didn't match, try selectionDetails.role
-        if (!data.position || !findMatchingRole(data.position)) {
-          if (data.selectionDetails?.role) {
-            const matchingRole = findMatchingRole(data.selectionDetails.role);
-            if (matchingRole) {
-              setValue("role", matchingRole);
-            }
-          }
-        }
+      if (data.departmentId) {
+        setValue("departmentId", String(data.departmentId));
+      }
+      if (data.jobPositionId) {
+        setValue("jobPositionId", String(data.jobPositionId));
+      }
+      if (data.department) {
+        setValue("department", data.department);
+      }
+      if (data.position) {
+        setValue("jobTitle", data.position);
       }
 
       // Date of Birth - from onboardingDetails.personalDetails.dateOfBirth
@@ -509,6 +459,15 @@ const NewUser: React.FC<NewUserProps> = ({
       toast({
         variant: "destructive",
         description: "Passwords do not match.",
+      });
+      setLoading(false);
+      return;
+    }
+
+    if (!cleanedData.departmentId || !cleanedData.jobPositionId) {
+      toast({
+        variant: "destructive",
+        description: "Select a department and a job title.",
       });
       setLoading(false);
       return;
@@ -711,7 +670,7 @@ const NewUser: React.FC<NewUserProps> = ({
             <div className="px-8 py-12 flex flex-col items-center">
               <div className="relative group">
                 <div
-                  className="relative w-32 h-32 rounded-full border-4 border-white shadow-lg bg-white flex items-center justify-center cursor-pointer transition-all duration-300 group-hover:scale-105"
+                  className="relative w-32 h-32 rounded-full border-4 border-white shadow-lg bg-white flex items-center justify-center cursor-pointer transition-all duration-300 group-hover:scale-105 dark:border-stone-700 dark:bg-stone-800"
                   onClick={handleImageClick}
                   aria-label="Upload profile picture"
                 >
@@ -899,7 +858,7 @@ const NewUser: React.FC<NewUserProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div className="space-y-2">
-                    <Label>Role *</Label>
+                    <Label>Login role *</Label>
                     <Select
                       onValueChange={(v) =>
                         setValue("role", v as any, { shouldValidate: true })
@@ -932,6 +891,20 @@ const NewUser: React.FC<NewUserProps> = ({
                       </p>
                     )}
                   </div>
+
+                  <JobIdentitySelects
+                    departmentId={watch("departmentId") || ""}
+                    jobPositionId={watch("jobPositionId") || ""}
+                    departmentLabel="Department *"
+                    positionLabel="Job title *"
+                    onDepartmentChange={(departmentId) => {
+                      setValue("departmentId", departmentId, { shouldValidate: true });
+                      setValue("jobPositionId", "", { shouldValidate: true });
+                    }}
+                    onPositionChange={(jobPositionId) =>
+                      setValue("jobPositionId", jobPositionId, { shouldValidate: true })
+                    }
+                  />
 
                   <div className="space-y-2">
                     <Label>Employment Type *</Label>

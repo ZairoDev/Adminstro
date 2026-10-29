@@ -103,7 +103,7 @@ export function RejectCandidateDialog({
                   onClick={() => setReason(r)}
                   className={`py-2 px-2 text-xs rounded border transition ${
                     reason === r
-                      ? "border-red-500 bg-red-50 text-red-700"
+                      ? "border-red-500 bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
                       : "border-muted text-muted-foreground hover:border-red-300"
                   }`}
                 >

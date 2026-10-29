@@ -15,6 +15,7 @@ import {
   sendEmployeeSignedDocumentsEmail,
   type SelectionDetails,
 } from "@/lib/email";
+import { JobIdentityError, resolveJobIdentity } from "@/lib/departments/jobIdentity";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   await connectDb();
@@ -83,6 +84,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       profilePic,
       organization: requestedOrganization,
     } = parsedBody;
+
+    let jobIdentity;
+    try {
+      jobIdentity = await resolveJobIdentity(
+        parsedBody.departmentId,
+        parsedBody.jobPositionId,
+      );
+    } catch (error) {
+      if (error instanceof JobIdentityError) {
+        return NextResponse.json(
+          { success: false, message: error.message },
+          { status: error.status },
+        );
+      }
+      throw error;
+    }
+
     const force = reqBody.force === true;
     if (!force) {
       const existingCandidate = await Candidate.findOne({
@@ -155,6 +173,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       password,
       profilePic,
       organization,
+      ...(jobIdentity
+        ? {
+            departmentId: String(jobIdentity.departmentId),
+            jobPositionId: String(jobIdentity.jobPositionId),
+            department: jobIdentity.department,
+            jobTitle: jobIdentity.jobTitle,
+          }
+        : {}),
       passwordExpiresAt: computePasswordExpiryDate(),
     });
     // Assign a permanent ZI-XXXXXX employee code. Retries with a fresh code

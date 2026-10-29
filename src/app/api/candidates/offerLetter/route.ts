@@ -4,7 +4,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import Candidate from "@/models/candidate";
-import Role from "@/models/role";
+import { resolveLetterJobIdentity } from "@/lib/departments/resolveLetterIdentity";
 import { connectDb } from "@/util/db";
 import {
   MissingOfficeAddressError,
@@ -116,45 +116,12 @@ export async function POST(req: NextRequest) {
             phase1Duration = candidate.selectionDetails.duration;
           }
 
-          // Fetch role document to get correct role name for designation
-          let roleSearchValue: string | null = null;
-          
-          // Priority 1: Use selectionDetails.role if available
-          if (candidate?.selectionDetails?.role) {
-            roleSearchValue = candidate.selectionDetails.role;
-          }
-          // Priority 2: Fallback to candidate.position if selectionDetails.role is not available
-          else if (candidate?.position) {
-            roleSearchValue = candidate.position;
-          }
-          
-          if (roleSearchValue) {
-            try {
-             
-              
-              // Try exact match first
-              let roleDoc = await Role.findOne({ 
-                role: roleSearchValue 
-              }).lean() as { role: string; department: string } | null;
-              
-              if (!roleDoc) {
-                // Try case-insensitive search as fallback
-                console.log(`[OfferLetter] Exact match not found, trying case-insensitive search`);
-                roleDoc = await Role.findOne({ 
-                  role: { $regex: new RegExp(`^${roleSearchValue}$`, "i") }
-                }).lean() as { role: string; department: string } | null;
-              }
-              
-              if (roleDoc) {
-                roleNameFromDb = roleDoc.role;
-                console.log(`[OfferLetter] Found role document - Role: ${roleNameFromDb}`);
-              } else {
-                console.warn(`[OfferLetter] Role document not found for: ${roleSearchValue}`);
-              }
-            } catch (roleErr) {
-              console.error("[OfferLetter] Error fetching role document:", roleErr);
-            }
-          }
+          const identity = await resolveLetterJobIdentity({
+            position: candidate.position,
+            department: candidate.department,
+            selectionDetails: candidate.selectionDetails,
+          });
+          roleNameFromDb = identity.jobTitle || null;
         }
       } catch (err) {
         console.error("Error fetching candidate data:", err);

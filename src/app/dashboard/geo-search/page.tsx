@@ -248,19 +248,19 @@ const GeoInfoCard = React.memo(function GeoInfoCard({
   const displayName = name?.trim() || address?.trim() || "Unnamed property";
 
   return (
-    <div className="text-sm space-y-1 max-w-[220px] pr-1">
+    <div className="text-sm space-y-1 max-w-[220px] rounded-md bg-background p-1 pr-2 text-foreground">
       <p className="font-semibold leading-tight">{displayName}</p>
       {address && (
-        <p className="text-xs text-gray-500 leading-snug">{address}</p>
+        <p className="text-xs text-muted-foreground leading-snug">{address}</p>
       )}
-      <p className="text-xs text-gray-600">
+      <p className="text-xs text-muted-foreground">
         {[propertyType, area].filter(Boolean).join(" \u00b7 ")}
       </p>
       {price && price !== "0" && (
-        <p className="text-xs font-semibold text-green-700">{price}</p>
+        <p className="text-xs font-semibold text-green-700 dark:text-green-400">{price}</p>
       )}
       {showDestinationDistance && (
-        <p className="text-xs text-slate-600">
+        <p className="text-xs text-muted-foreground">
           Distance from destination:{" "}
           {formatDistanceKm(distanceFromDestinationMeters)}
         </p>
@@ -268,8 +268,8 @@ const GeoInfoCard = React.memo(function GeoInfoCard({
       <span
         className={`inline-block text-[11px] px-1.5 py-0.5 rounded-full font-medium ${
           availability === "Available"
-            ? "bg-green-100 text-green-700"
-            : "bg-red-100 text-red-700"
+            ? "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300"
+            : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
         }`}
       >
         {availability}

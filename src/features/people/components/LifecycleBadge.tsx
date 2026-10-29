@@ -2,10 +2,14 @@ import { Badge } from "@/components/ui/badge";
 import type { LifecyclePhase } from "@/lib/people/lifecycle";
 
 const PHASE_STYLES: Record<LifecyclePhase, string> = {
-  applicant: "border-amber-200 bg-amber-50 text-amber-800",
-  onboarding: "border-purple-200 bg-purple-50 text-purple-800",
-  active: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  exited: "border-slate-300 bg-slate-100 text-slate-800",
+  applicant:
+    "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300",
+  onboarding:
+    "border-purple-200 bg-purple-50 text-purple-800 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-300",
+  active:
+    "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+  exited:
+    "border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200",
 };
 
 const PHASE_LABELS: Record<LifecyclePhase, string> = {

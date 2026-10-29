@@ -265,7 +265,7 @@ const EditDates = ({ params }: PageProps) => {
               </div>
             </div>
             <DrawerFooter>
-              <Button onClick={handleChangePrice} className="hover:bg-white/60">
+              <Button onClick={handleChangePrice} className="hover:bg-accent">
                 Submit
               </Button>
               <DrawerClose asChild>

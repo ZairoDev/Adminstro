@@ -4,6 +4,9 @@ export interface Candidate {
   email: string;
   phone: string;
   position: string;
+  department?: string;
+  departmentId?: string | null;
+  jobPositionId?: string | null;
   employmentType?: "fulltime" | "intern" | null;
   experience: number;
   address: string;

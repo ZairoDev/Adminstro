@@ -362,7 +362,7 @@ export const LeadPage = () => {
                           router.push(`?${params.toString()}&page=1`);
                           filterLeads(1, { ...filters, allotedArea: area });
                         }}
-                        className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
+                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium mx-auto"
                       >
                         Apply
                       </Button>
@@ -375,7 +375,7 @@ export const LeadPage = () => {
                           setPage(1);
                           filterLeads(1, defaultFilters);
                         }}
-                        className="w-full bg-white text-black hover:bg-gray-100 font-medium mx-auto"
+                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium mx-auto"
                       >
                         Clear
                       </Button>

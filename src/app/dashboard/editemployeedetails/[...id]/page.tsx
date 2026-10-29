@@ -19,6 +19,7 @@ import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import { Loader } from "lucide-react";
 import Heading from "@/components/Heading";
+import { JobIdentitySelects } from "@/components/departments/job-identity-selects";
 
 interface PageProps {
   params: {
@@ -45,6 +46,8 @@ const AccountPage = ({ params }: PageProps) => {
   const [aadhar, setAdhar] = useState("");
   const [ifsc, setIfscCode] = useState("");
   const [role, setRole] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
+  const [jobPositionId, setJobPositionId] = useState("");
   const [loading, setLoading] = useState(false);
   const [experience, setExperience] = useState("");
   const [alias, setAlias] = useState("");
@@ -81,6 +84,16 @@ const AccountPage = ({ params }: PageProps) => {
         setProfilePic(response.data.data.profilePic || "");
         setAdhar(response.data.data.aadhar || " ");
         setRole(response.data.data.role || "");
+        setDepartmentId(
+          response.data.data.departmentId
+            ? String(response.data.data.departmentId)
+            : "",
+        );
+        setJobPositionId(
+          response.data.data.jobPositionId
+            ? String(response.data.data.jobPositionId)
+            : "",
+        );
         setIfscCode(response.data.data.ifsc || " ");
         setExperience(response.data.data.experience || " ");
         setCountry(response.data.data.country || " ");
@@ -155,6 +168,8 @@ const AccountPage = ({ params }: PageProps) => {
         experience,
         ifsc,
         role,
+        departmentId,
+        jobPositionId,
         assignedCountry: assignedTo,
         rentalType: rentalType === "unset" ? null : rentalType,
         allotedArea,
@@ -331,7 +346,7 @@ const AccountPage = ({ params }: PageProps) => {
             />
           </div>
           <div className="w-full">
-            <Label htmlFor="role">Role</Label>
+            <Label htmlFor="role">Login role</Label>
             <Select onValueChange={(e) => setRole(e)}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={role} />
@@ -346,6 +361,18 @@ const AccountPage = ({ params }: PageProps) => {
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <JobIdentitySelects
+            departmentId={departmentId}
+            jobPositionId={jobPositionId}
+            onDepartmentChange={(nextDepartmentId) => {
+              setDepartmentId(nextDepartmentId);
+              setJobPositionId("");
+            }}
+            onPositionChange={setJobPositionId}
+          />
         </div>
 
         <div className="flex items-center mt-2 gap-2 sm:flex-row flex-col">

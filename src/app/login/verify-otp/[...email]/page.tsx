@@ -146,7 +146,7 @@ const Page = ({ params }: PageProps) => {
       <div className="md:w-1/2 w-full flex-col flex items-center justify-center">
         <div className="w-full max-w-sm px-6 py-8 border rounded-lg shadow-lg">
           <h1>Verify OTP</h1>
-          <p className=" text-neutral-700 text-sm mb-4">
+          <p className=" text-muted-foreground text-sm mb-4">
             Enter the 6-digit code sent to your Email
           </p>
 

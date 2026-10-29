@@ -47,10 +47,10 @@ const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {
 };
 
 const CHANNEL_TYPE_COLORS: Record<ChannelType, string> = {
-  guest: "bg-blue-100 text-blue-800",
-  owner: "bg-purple-100 text-purple-800",
-  support: "bg-green-100 text-green-800",
-  backup: "bg-gray-100 text-gray-700",
+  guest: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
+  owner: "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300",
+  support: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
+  backup: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
 };
 
 type Channel = {
@@ -391,7 +391,8 @@ export default function WhatsAppChannelsDashboardPage() {
                   <TableCell>
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        CHANNEL_TYPE_COLORS[channel.channelType] ?? "bg-gray-100"
+                        CHANNEL_TYPE_COLORS[channel.channelType] ??
+                          "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
                       }`}
                     >
                       {CHANNEL_TYPE_LABELS[channel.channelType] ?? channel.channelType}

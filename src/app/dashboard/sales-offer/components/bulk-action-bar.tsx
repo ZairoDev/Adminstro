@@ -106,7 +106,7 @@ export function BulkActionBar({ selectedOffers, onSuccess, onClear }: BulkAction
         <Button
           variant="outline"
           size="sm"
-          className="h-7 text-xs text-red-600 border-red-300 hover:bg-red-50"
+          className="h-7 text-xs text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950"
           disabled={loading}
           onClick={() => setActiveDialog("reject")}
         >
@@ -117,7 +117,7 @@ export function BulkActionBar({ selectedOffers, onSuccess, onClear }: BulkAction
         <Button
           variant="outline"
           size="sm"
-          className="h-7 text-xs text-rose-700 border-rose-300 hover:bg-rose-50"
+          className="h-7 text-xs text-rose-700 border-rose-300 hover:bg-rose-50 dark:text-rose-300 dark:border-rose-800 dark:hover:bg-rose-950"
           disabled={loading}
           onClick={() => setActiveDialog("blacklist")}
         >

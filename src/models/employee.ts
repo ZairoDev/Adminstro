@@ -3,7 +3,7 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 import { EmployeeSchema } from "@/schemas/employee.schema";
 import { DEFAULT_ORGANIZATION, ORGANIZATIONS } from "@/util/organizationConstants";
 
-interface IEmployee extends Document, EmployeeSchema {
+interface IEmployee extends Document, Omit<EmployeeSchema, "departmentId" | "jobPositionId"> {
   /**
    * Human-readable, permanent employee identifier, e.g. "ZI-4K7QXH".
    * Assigned once at creation (see src/lib/people/employeeCode.ts) and never
@@ -17,6 +17,8 @@ interface IEmployee extends Document, EmployeeSchema {
     assignedNumber?: string | null;
   };
   candidateId?: Types.ObjectId | null;
+  departmentId?: Types.ObjectId | null;
+  jobPositionId?: Types.ObjectId | null;
   salaryStructure?: {
     gross: number;
     basic: number;
@@ -275,6 +277,26 @@ const employeeSchema = new Schema<IEmployee>(
         "HAdmin",
       ],
       default: "Advert",
+    },
+    departmentId: {
+      type: Schema.Types.ObjectId,
+      ref: "Department",
+      default: null,
+    },
+    jobPositionId: {
+      type: Schema.Types.ObjectId,
+      ref: "JobPosition",
+      default: null,
+    },
+    department: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    jobTitle: {
+      type: String,
+      default: "",
+      trim: true,
     },
     organization: {
       type: String,

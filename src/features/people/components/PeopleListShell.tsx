@@ -136,6 +136,7 @@ interface PeopleListRow {
   email: string;
   phone: string;
   position: string;
+  department?: string;
   experience: number;
   status: string;
   createdAt: string;
@@ -260,14 +261,14 @@ function getDocumentStatus(
 function DocumentStatusBadge({ status }: { status: DocumentStatus }) {
   if (status === "verified") {
     return (
-      <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">
+      <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 dark:bg-green-950 dark:text-green-300 dark:border-green-800 dark:hover:bg-green-950">
         Verified
       </Badge>
     );
   }
   if (status === "uploaded") {
     return (
-      <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100">
+      <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800 dark:hover:bg-blue-950">
         Uploaded
       </Badge>
     );
@@ -328,7 +329,7 @@ function InterviewDateCategoryBadge({
     return (
       <Badge
         variant="outline"
-        className="text-xs font-normal bg-blue-50 text-blue-700 border-blue-200"
+        className="text-xs font-normal bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800"
       >
         Today
       </Badge>
@@ -338,7 +339,7 @@ function InterviewDateCategoryBadge({
     return (
       <Badge
         variant="outline"
-        className="text-xs font-normal bg-purple-50 text-purple-700 border-purple-200"
+        className="text-xs font-normal bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800"
       >
         Tomorrow
       </Badge>
@@ -365,7 +366,7 @@ function InterviewScheduleCell({ person }: { person: PeopleListRow }) {
             {formatDateForDisplay(first?.scheduledDate)}
             <Badge
               variant="outline"
-              className="text-xs font-normal bg-indigo-50 text-indigo-700 border-indigo-200"
+              className="text-xs font-normal bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800"
             >
               First Round
             </Badge>
@@ -384,12 +385,12 @@ function InterviewScheduleCell({ person }: { person: PeopleListRow }) {
         </div>
       )}
       {hasSecond && (
-        <div className={hasFirst ? "pt-3 border-t" : ""}>
+        <div className={hasFirst ? "pt-3 border-t border-border" : ""}>
           <div className="font-medium flex items-center gap-2 flex-wrap">
             {formatDateForDisplay(second?.scheduledDate)}
             <Badge
               variant="outline"
-              className="text-xs font-normal bg-orange-50 text-orange-700 border-orange-200"
+              className="text-xs font-normal bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800"
             >
               Second Round
             </Badge>
@@ -424,8 +425,8 @@ function InterviewModeBadge({
       variant="outline"
       className={
         isPhysical
-          ? "text-xs font-normal bg-emerald-50 text-emerald-700 border-emerald-200"
-          : "text-xs font-normal bg-sky-50 text-sky-700 border-sky-200"
+          ? "text-xs font-normal bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800"
+          : "text-xs font-normal bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:border-sky-800"
       }
     >
       {isPhysical ? (
@@ -484,14 +485,14 @@ function AttendanceMark({
           aria-label={label}
           aria-pressed={active}
           onClick={onClick}
-          className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+          className={`inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
             isPresent
               ? active
                 ? "border-green-600 bg-green-600 text-white shadow-sm focus-visible:ring-green-500"
-                : "border-green-300 bg-background text-green-600 hover:bg-green-50 focus-visible:ring-green-500"
+                : "border-green-300 dark:border-green-700 bg-background text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950 focus-visible:ring-green-500"
               : active
                 ? "border-red-600 bg-red-600 text-white shadow-sm focus-visible:ring-red-500"
-                : "border-red-300 bg-background text-red-600 hover:bg-red-50 focus-visible:ring-red-500"
+                : "border-red-300 dark:border-red-700 bg-background text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 focus-visible:ring-red-500"
           }`}
         >
           {isPresent ? (
@@ -654,7 +655,7 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
   // otherwise show a blank column for every row.
   const showEmployeeCode = tab === "active" || tab === "exited";
   const columnCount =
-    9 + (tab === "interview" ? 1 : 0) + (showEmployeeCode ? 1 : 0);
+    10 + (tab === "interview" ? 1 : 0) + (showEmployeeCode ? 1 : 0);
 
   // Get user role for reschedule permissions
   useEffect(() => {
@@ -952,10 +953,10 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
               onValueChange={(value) => updateListQuery({ role: value, page: 1 })}
             >
               <SelectTrigger className="h-10 w-[150px]">
-                <SelectValue placeholder="Filter by Role" />
+                <SelectValue placeholder="Filter by job title" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="all">All job titles</SelectItem>
                 {availableRoles.map((role) => (
                   <SelectItem key={role} value={role}>
                     {role}
@@ -1109,7 +1110,10 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                   Phone
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
-                  Role
+                  Job title
+                </th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
+                  Department
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">
                   Experience
@@ -1237,7 +1241,10 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                         />
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
-                        {person.position}
+                        {person.position || "—"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-foreground">
+                        {person.department || "—"}
                       </td>
                       <td className="px-6 py-4 text-sm text-foreground">
                         {person.experience === 0
@@ -1309,7 +1316,7 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                             ) : phase === "active" ? (
                               <Badge
                                 variant="outline"
-                                className="text-xs font-normal border-emerald-200 bg-emerald-50 text-emerald-800"
+                                className="text-xs font-normal border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                               >
                                 Employed
                               </Badge>
@@ -1349,7 +1356,7 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                                 }
                                 className={`p-2 rounded-md transition-colors ${
                                   person.notes && person.notes.length > 0
-                                    ? "text-green-600 hover:bg-green-50"
+                                    ? "text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950"
                                     : "text-muted-foreground hover:bg-muted"
                                 }`}
                               >

@@ -301,18 +301,18 @@ export function TakeLeadDialog({
 
         {loading || !form ? (
           <div className="flex justify-center py-10">
-            <Loader2 className="h-6 w-6 animate-spin text-stone-400" />
+            <Loader2 className="h-6 w-6 animate-spin text-stone-400 dark:text-stone-500" />
           </div>
         ) : (
           <div className="space-y-4">
             {(meta.VSID || meta.propertyLabel) && (
-              <p className="text-xs text-stone-500">
+              <p className="text-xs text-stone-500 dark:text-stone-400">
                 {meta.propertyLabel ? `${meta.propertyLabel} · ` : ""}
                 {meta.VSID ? `VSID ${meta.VSID}` : ""}
               </p>
             )}
             {meta.message ? (
-              <p className="rounded-md bg-stone-50 p-2 text-xs text-stone-600 line-clamp-3">
+              <p className="rounded-md bg-stone-50 p-2 text-xs text-stone-600 line-clamp-3 dark:bg-stone-900 dark:text-stone-300">
                 {meta.message}
               </p>
             ) : null}

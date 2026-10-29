@@ -19,6 +19,7 @@ import { InfinityLoader } from "@/components/Loaders";
 import AgentModal from "@/app/dashboard/agents/agent-modal";
 import BrokerModal from "@/app/dashboard/brokers/broker-modal";
 import RoleModal, { RoleRow } from "@/app/dashboard/roles/role-modal";
+import DepartmentCatalog from "./department-catalog";
 import TargetModal from "../../target/target_model";
 import { TargetEditModal } from "../../target/target-edit-model";
 import { AreaModel } from "../../target/area-model";
@@ -279,7 +280,7 @@ const Addons = () => {
       <h1 className=" text-2xl font-semibold">Add Ons</h1>
 
       {/* Add Agents and Brokers — SuperAdmin only */}
-      <div className=" flex items-center gap-3">
+      <div className=" flex flex-wrap items-start gap-3">
         {mounted && token?.role === "SuperAdmin" && (
           <>
           <section className=" border rounded-md w-64 min-h-80 h-80 overflow-y-scroll flex flex-col items-center justify-between gap-2 mt-8 p-2">
@@ -470,6 +471,10 @@ const Addons = () => {
             getAllTargets={getTargets}
           />
         )}
+        {mounted &&
+          ["SuperAdmin", "Admin", "HR", "HAdmin"].includes(token?.role ?? "") && (
+            <DepartmentCatalog />
+          )}
       </div>
     </div>
   );

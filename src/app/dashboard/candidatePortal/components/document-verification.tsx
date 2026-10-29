@@ -194,7 +194,7 @@ export function DocumentVerification({
           <DialogTitle className="flex items-center justify-between pr-8">
             <span className="text-lg">{label}</span>
             {verified && (
-              <Badge className="bg-green-100 text-green-800 border-0">
+              <Badge className="bg-green-100 text-green-800 border-0 dark:bg-green-950 dark:text-green-300">
                 <CheckCircle2 className="h-3 w-3 mr-1" />
                 Verified
               </Badge>

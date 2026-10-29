@@ -54,16 +54,16 @@ const getStatusColor = (status: string) => {
     case "paid":
     case "completed":
     case "confirmed":
-      return "bg-green-100 text-green-800 border-green-200";
+      return "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
     case "pending":
-      return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-950 dark:text-yellow-300 dark:border-yellow-800";
     case "failed":
     case "cancelled":
-      return "bg-red-100 text-red-800 border-red-200";
+      return "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800";
     case "partial":
-      return "bg-blue-100 text-blue-800 border-blue-200";
+      return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800";
     default:
-      return "bg-gray-100 text-gray-800 border-gray-200";
+      return "bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700";
   }
 };
 
@@ -264,8 +264,8 @@ const BookingPage = ({ params }: PageProps) => {
           <CardContent className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <CreditCard className="w-5 h-5 text-blue-600" />
+                <div className="p-2 bg-blue-100 dark:bg-blue-950 rounded-lg">
+                  <CreditCard className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
                   <p className="text-sm ">Payment Status</p>
@@ -282,8 +282,8 @@ const BookingPage = ({ params }: PageProps) => {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <DollarSign className="w-5 h-5 text-green-600" />
+                <div className="p-2 bg-green-100 dark:bg-green-950 rounded-lg">
+                  <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                   <p className="text-sm ">Total Amount</p>
@@ -293,8 +293,8 @@ const BookingPage = ({ params }: PageProps) => {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Calendar className="w-5 h-5 text-purple-600" />
+                <div className="p-2 bg-purple-100 dark:bg-purple-950 rounded-lg">
+                  <Calendar className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
                   <p className="text-sm ">Duration</p>
@@ -302,8 +302,8 @@ const BookingPage = ({ params }: PageProps) => {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <Users className="w-5 h-5 text-orange-600" />
+                <div className="p-2 bg-orange-100 dark:bg-orange-950 rounded-lg">
+                  <Users className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                 </div>
                 <div>
                   <p className="text-sm ">Guests</p>
@@ -350,7 +350,7 @@ const BookingPage = ({ params }: PageProps) => {
                               <h3 className="font-semibold text-lg">
                                 {guest.name}
                               </h3>
-                              <div className="text-sm text-gray-600 flex flex-col">
+                              <div className="text-sm text-muted-foreground flex flex-col">
                                 <span className="flex items-center gap-1">
                                   <Mail className="w-4 h-4" />{" "}
                                   {guest.email || "N/A"}
@@ -399,7 +399,7 @@ const BookingPage = ({ params }: PageProps) => {
                                       key={i}
                                       variant="outline"
                                       size="sm"
-                                      className="w-full justify-start  hover:bg-gray-800"
+                                      className="w-full justify-start hover:bg-muted"
                                       onClick={() => window.open(doc, "_blank")}
                                     >
                                       <Download className="w-4 h-4 mr-2" />
@@ -485,12 +485,12 @@ const BookingPage = ({ params }: PageProps) => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className=" rounded-lg">
-                  <p className="text-gray-600">
-                    <span className=" font-medium text-gray-300">VSID:</span>
+                  <p className="text-muted-foreground">
+                    <span className=" font-medium text-foreground">VSID:</span>
                     {"  "}
                     {booking.visit.VSID}
                     <br />
-                    <span className=" font-medium text-gray-300">
+                    <span className=" font-medium text-foreground">
                       BookingId:
                     </span>
                     {"  "}
@@ -513,14 +513,14 @@ const BookingPage = ({ params }: PageProps) => {
                   <div>
                     <p className="text-sm ">Owner</p>
                     <p className="font-medium">{booking.visit.ownerName}</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       {booking.visit.ownerPhone}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm ">Agent</p>
                     <p className="font-medium">{booking.visit.agentName}</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       {booking.visit.agentPhone}
                     </p>
                   </div>
@@ -626,12 +626,12 @@ const BookingPage = ({ params }: PageProps) => {
 
                 <div className="p-3rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    <span className="font-medium text-green-800">
+                    <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    <span className="font-medium text-green-800 dark:text-green-300">
                       Payment Completed
                     </span>
                   </div>
-                  <div className="text-sm text-green-700">
+                  <div className="text-sm text-green-700 dark:text-green-400">
                     <p>
                       Order ID:{" "}
                       {booking?.travellerPayment?.history?.[0]?.linkId ?? "N/A"}
@@ -714,7 +714,7 @@ const BookingPage = ({ params }: PageProps) => {
                   </div>
                 )}
 
-                <div className="text-xs text-gray-500 space-y-1">
+                <div className="text-xs text-muted-foreground space-y-1">
                   <p>
                     Created: {format(booking.createdAt!, "MMM d, yyyy h:mm a")}
                   </p>

@@ -263,6 +263,8 @@ export default function EmployeeTable({
             <TableHead>Contact</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
+            <TableHead>Job title</TableHead>
+            <TableHead>Department</TableHead>
             <TableHead>Rental Type</TableHead>
             {showOrgColumn && <TableHead>Organization</TableHead>}
             {showLockControls && <TableHead>Status</TableHead>}
@@ -332,6 +334,8 @@ export default function EmployeeTable({
                   )}
                 </TableCell>
                 <TableCell>{employee.role}</TableCell>
+                <TableCell>{employee.jobTitle || "—"}</TableCell>
+                <TableCell>{employee.department || "—"}</TableCell>
                 <TableCell>
                   <Badge
                     variant={employee.rentalType ? "outline" : "secondary"}

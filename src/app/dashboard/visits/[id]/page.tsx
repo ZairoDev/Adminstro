@@ -139,10 +139,10 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                 </Link>
               </Button>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                <h1 className="text-3xl font-bold text-foreground">
                   Visit Details
                 </h1>
-                <p className="text-gray-600 dark:text-white">
+                <p className="text-muted-foreground">
                   Complete information about visit {visitData?.VSID}
                 </p>
               </div>
@@ -202,11 +202,11 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">VSID</p>
+                  <p className="text-sm font-medium text-muted-foreground">VSID</p>
                   <p className="text-lg font-semibold">{visitData.VSID}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">
+                  <p className="text-sm font-medium text-muted-foreground">
                     Property ID
                   </p>
                   <p className="text-lg font-semibold">
@@ -214,7 +214,7 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-gray-500">
+                  <p className="text-sm font-medium text-muted-foreground">
                     Created By
                   </p>
                   <p className="text-lg font-semibold">{visitData.createdBy}</p>
@@ -287,23 +287,23 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
               <CardContent className="space-y-4">
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3">
-                    <User className="h-4 w-4 text-gray-500" />
+                    <User className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Name</p>
+                      <p className="text-sm font-medium text-muted-foreground">Name</p>
                       <p className="font-medium">{visitData.ownerName}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <Phone className="h-4 w-4 text-gray-500" />
+                    <Phone className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Phone</p>
+                      <p className="text-sm font-medium text-muted-foreground">Phone</p>
                       <p className="font-medium">{visitData.ownerPhone}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <Mail className="h-4 w-4 text-gray-500" />
+                    <Mail className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Email</p>
+                      <p className="text-sm font-medium text-muted-foreground">Email</p>
                       <p className="font-medium">{visitData.ownerEmail}</p>
                     </div>
                   </div>
@@ -335,23 +335,23 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
               <CardContent className="space-y-4">
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3">
-                    <User className="h-4 w-4 text-gray-500" />
+                    <User className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Name</p>
+                      <p className="text-sm font-medium text-muted-foreground">Name</p>
                       <p className="font-medium">{visitData?.lead?.name}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <Phone className="h-4 w-4 text-gray-500" />
+                    <Phone className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Phone</p>
+                      <p className="text-sm font-medium text-muted-foreground">Phone</p>
                       <p className="font-medium">{visitData?.lead?.phoneNo}</p>
                     </div>
                   </div>
                   {/* <div className="flex items-center space-x-3">
-                    <Mail className="h-4 w-4 text-gray-500" />
+                    <Mail className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Email</p>
+                      <p className="text-sm font-medium text-muted-foreground">Email</p>
                       <p className="font-semibold">{visitData.lead}</p>
                     </div>
                   </div> */}
@@ -373,18 +373,18 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
               <CardContent className=" space-y-4">
                 <div className=" flex justify-between items-end space-y-3 ">
                   <div className="flex items-center space-x-3">
-                    <User className="h-4 w-4 text-gray-500" />
+                    <User className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium text-gray-500">
+                      <p className="text-sm font-medium text-muted-foreground">
                         Agent Name
                       </p>
                       <p className="font-medium">{visitData.agentName}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <Phone className="h-4 w-4 text-gray-500" />
+                    <Phone className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium text-gray-500">
+                      <p className="text-sm font-medium text-muted-foreground">
                         Agent Phone
                       </p>
                       <p className="font-medium">{visitData.agentPhone}</p>
@@ -412,12 +412,12 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                     className="flex items-center space-x-4 p-3rounded-lg"
                   >
                     <div className="flex items-center space-x-2">
-                      <Calendar className="h-4 w-4 text-gray-500" />
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">{formatDate(new Date(slot.date))}</span>
                     </div>
                     <Separator orientation="vertical" className="h-4" />
                     <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-gray-500" />
+                      <Clock className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">{slot.time}</span>
                     </div>
                     {/* {index === 0 && (
@@ -466,8 +466,8 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <CreditCard className="h-4 w-4 text-gray-500" />
-                    <p className="text-sm font-medium text-gray-500">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium text-muted-foreground">
                       Pitch Amount
                     </p>
                   </div>
@@ -477,8 +477,8 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <EuroIcon className="h-4 w-4 text-gray-500" />
-                    <p className="text-sm font-medium text-gray-500">
+                    <EuroIcon className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium text-muted-foreground">
                       Owner Commission
                     </p>
                   </div>
@@ -488,8 +488,8 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <EuroIcon className="h-4 w-4 text-gray-500" />
-                    <p className="text-sm font-medium text-gray-500">
+                    <EuroIcon className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium text-muted-foreground">
                       Traveller Commission
                     </p>
                   </div>
@@ -499,8 +499,8 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-gray-500" />
-                    <p className="text-sm font-medium text-gray-500">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium text-muted-foreground">
                       Agent Commission
                     </p>
                   </div>
@@ -510,8 +510,8 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center space-x-2">
-                    <FileText className="h-4 w-4 text-gray-500" />
-                    <p className="text-sm font-medium text-gray-500">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium text-muted-foreground">
                       Documentation
                     </p>
                   </div>
@@ -539,12 +539,12 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                 {visitData.reason && (
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
-                      <AlertCircle className="h-4 w-4 text-gray-500" />
-                      <p className="text-sm font-medium text-gray-500">
+                      <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm font-medium text-muted-foreground">
                         Reason
                       </p>
                     </div>
-                    <p className="text-gray-900  p-3 rounded-lg">
+                    <p className="text-foreground  p-3 rounded-lg">
                       {visitData.reason}
                     </p>
                   </div>
@@ -552,10 +552,10 @@ const DetailedVisit = ({ params }: { params: { id: string } }) => {
                 {visitData.note && (
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
-                      <MessageSquare className="h-4 w-4 text-gray-500" />
-                      <p className="text-sm font-medium text-gray-500">Notes</p>
+                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      <p className="text-sm font-medium text-muted-foreground">Notes</p>
                     </div>
-                    <p className="text-gray-900 p-3 rounded-lg">
+                    <p className="text-foreground p-3 rounded-lg">
                       {visitData.note}
                     </p>
                   </div>

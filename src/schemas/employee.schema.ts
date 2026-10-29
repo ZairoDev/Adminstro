@@ -44,6 +44,10 @@ export const employeeSchema = z.object({
     "Developer",
     "HAdmin",
   ]),
+  departmentId: z.string().optional().default(""),
+  jobPositionId: z.string().optional().default(""),
+  department: z.string().optional().default(""),
+  jobTitle: z.string().optional().default(""),
   assignedCountry: z.string().optional().default(""),
   rentalType: z
     .enum(["Short Term", "Long Term"])

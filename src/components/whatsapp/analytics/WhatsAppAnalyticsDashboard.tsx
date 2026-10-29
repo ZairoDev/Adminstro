@@ -34,7 +34,7 @@ import { InitiationLimitBadge } from "@/app/whatsapp/components/InitiationLimitB
 const EuropeMap = dynamic(() => import("./EuropeMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-64 items-center justify-center text-xs text-gray-600" style={{ background: "#0d1117" }}>
+    <div className="flex h-64 items-center justify-center bg-muted text-xs text-muted-foreground">
       Loading map…
     </div>
   ),
@@ -157,7 +157,7 @@ function MetricInfo({ text }: { text: string }) {
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="inline-flex shrink-0 rounded-full text-gray-500 transition-colors hover:text-gray-300 focus:outline-none focus-visible:ring-1 focus-visible:ring-indigo-400"
+          className="inline-flex shrink-0 rounded-full text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           aria-label="How this metric works"
         >
           <Info size={12} strokeWidth={2} />
@@ -165,7 +165,7 @@ function MetricInfo({ text }: { text: string }) {
       </TooltipTrigger>
       <TooltipContent
         side="top"
-        className="z-[100] max-w-[min(320px,calc(100vw-2rem))] !overflow-visible whitespace-normal break-words border-gray-700 bg-gray-900 px-3 py-2 text-xs leading-relaxed text-gray-200"
+        className="z-[100] max-w-[min(320px,calc(100vw-2rem))] !overflow-visible whitespace-normal break-words px-3 py-2 text-xs leading-relaxed"
       >
         <p className="m-0 whitespace-normal break-words">{text}</p>
       </TooltipContent>
@@ -184,7 +184,7 @@ function LabelWithInfo({ label, info }: { label: string; info: string }) {
 
 function SectionTitle({ title, info }: { title: string; info: string }) {
   return (
-    <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-gray-400">
+    <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
       {title}
       <MetricInfo text={info} />
     </p>
@@ -205,10 +205,7 @@ function Card({
   className?: string;
 }) {
   return (
-    <div
-      className={`rounded-xl border ${className}`}
-      style={{ background: "#0d1117", borderColor: "rgba(255,255,255,0.08)" }}
-    >
+    <div className={`rounded-xl border border-border bg-card ${className}`}>
       {children}
     </div>
   );
@@ -229,16 +226,16 @@ function KpiCard({
 }) {
   return (
     <Card className="flex items-center gap-3 px-4 py-3">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: "rgba(255,255,255,0.06)" }}>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="flex items-center gap-1 truncate text-[11px] text-gray-500">
+        <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
           <span className="truncate">{label}</span>
           <MetricInfo text={info} />
         </p>
-        <p className="text-xl font-semibold leading-tight text-white">{value}</p>
-        {sub && <p className="truncate text-[10px] text-gray-600">{sub}</p>}
+        <p className="text-xl font-semibold leading-tight text-foreground">{value}</p>
+        {sub && <p className="truncate text-[10px] text-muted-foreground">{sub}</p>}
       </div>
     </Card>
   );
@@ -257,12 +254,12 @@ function FunnelCard({
 }) {
   return (
     <Card className="px-4 py-3">
-      <p className="flex items-center gap-1 text-[10px] text-gray-500">
+      <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
         <span>{label}</span>
         <MetricInfo text={info} />
       </p>
-      <p className="text-xl font-semibold text-white">{value}</p>
-      <p className="text-[10px] text-gray-600">{sub}</p>
+      <p className="text-xl font-semibold text-foreground">{value}</p>
+      <p className="text-[10px] text-muted-foreground">{sub}</p>
     </Card>
   );
 }
@@ -278,11 +275,11 @@ function CallStatCard({
 }) {
   return (
     <Card className="px-3 py-3">
-      <p className="flex items-center gap-1 text-[10px] text-gray-500">
+      <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
         <span>{label}</span>
         <MetricInfo text={info} />
       </p>
-      <p className="text-lg font-semibold text-white">{value}</p>
+      <p className="text-lg font-semibold text-foreground">{value}</p>
     </Card>
   );
 }
@@ -291,10 +288,10 @@ function RateBar({ rate }: { rate: number }) {
   const color = rate >= 70 ? "#22c55e" : rate >= 40 ? "#f59e0b" : "#ef4444";
   return (
     <div className="flex items-center gap-1.5">
-      <div className="h-1 w-12 rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
+      <div className="h-1 w-12 rounded-full bg-muted">
         <div className="h-1 rounded-full" style={{ width: `${Math.min(100, rate)}%`, background: color }} />
       </div>
-      <span className="text-xs text-white">{rate}%</span>
+      <span className="text-xs text-foreground">{rate}%</span>
     </div>
   );
 }
@@ -304,10 +301,10 @@ function Skeleton() {
     <div className="animate-pulse space-y-4">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-16 rounded-xl" style={{ background: "rgba(255,255,255,0.05)" }} />
+          <div key={i} className="h-16 rounded-xl bg-muted" />
         ))}
       </div>
-      <div className="h-64 rounded-xl" style={{ background: "rgba(255,255,255,0.05)" }} />
+      <div className="h-64 rounded-xl bg-muted" />
     </div>
   );
 }
@@ -383,12 +380,12 @@ export default function WhatsAppAnalyticsDashboard() {
 
   return (
     <TooltipProvider delayDuration={200}>
-    <div className="min-h-screen" style={{ background: "#090c11", color: "#e5e7eb" }}>
+    <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-screen-2xl space-y-5 px-4 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-base font-semibold text-white">WhatsApp Analytics</h1>
-            <p className="text-xs text-gray-500">Customer response, agent SLA, funnel & line health</p>
+            <h1 className="text-base font-semibold text-foreground">WhatsApp Analytics</h1>
+            <p className="text-xs text-muted-foreground">Customer response, agent SLA, funnel & line health</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <CustomSelect
@@ -403,7 +400,7 @@ export default function WhatsAppAnalyticsDashboard() {
                   setCustomRange(undefined);
                 }
               }}
-              triggerClassName="w-[140px] h-8 text-xs text-white"
+              triggerClassName="w-[140px] h-8 text-xs"
             />
             {period === "custom" ? (
               <DateRangePicker
@@ -415,8 +412,7 @@ export default function WhatsAppAnalyticsDashboard() {
             <button
               onClick={() => void fetchData({ refresh: true })}
               disabled={loading}
-              className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs text-gray-400 transition-colors hover:text-white disabled:opacity-50"
-              style={{ borderColor: "rgba(255,255,255,0.12)" }}
+              className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
             >
               <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
               Refresh
@@ -431,7 +427,7 @@ export default function WhatsAppAnalyticsDashboard() {
         </div>
 
         {error && (
-          <div className="rounded-lg border px-4 py-3 text-sm text-red-400" style={{ borderColor: "rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.07)" }}>
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
             {error}
           </div>
         )}
@@ -442,18 +438,18 @@ export default function WhatsAppAnalyticsDashboard() {
           <div className="space-y-4">
             {/* Row 1 — Core response KPIs */}
             <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-              <KpiCard icon={<MessageSquare size={16} className="text-emerald-400" />} label="Customer Response Rate" value={`${data.kpis.customerResponseRate}%`} sub={`${fmt(data.funnel.customerResponded)} / ${fmt(data.funnel.outbound)} outbound`} info={METRIC_HELP.customerResponseRate} />
-              <KpiCard icon={<Clock size={16} className="text-blue-400" />} label="Avg Customer Reply" value={data.kpis.avgCustomerReplyTime.averageLabel} sub={`Median ${data.kpis.avgCustomerReplyTime.medianLabel} · P90 ${data.kpis.avgCustomerReplyTime.p90Label}`} info={METRIC_HELP.avgCustomerReply} />
-              <KpiCard icon={<Users size={16} className="text-violet-400" />} label="Agent Response Rate" value={`${data.kpis.agentResponseRate}%`} sub={`${fmt(data.funnel.agentReplied)} replied to customers`} info={METRIC_HELP.agentResponseRate} />
-              <KpiCard icon={<Timer size={16} className="text-amber-400" />} label="Avg Agent Reply" value={data.kpis.avgAgentReplyTime.averageLabel} sub={`Median ${data.kpis.avgAgentReplyTime.medianLabel} · P90 ${data.kpis.avgAgentReplyTime.p90Label}`} info={METRIC_HELP.avgAgentReply} />
+              <KpiCard icon={<MessageSquare size={16} className="text-emerald-600 dark:text-emerald-400" />} label="Customer Response Rate" value={`${data.kpis.customerResponseRate}%`} sub={`${fmt(data.funnel.customerResponded)} / ${fmt(data.funnel.outbound)} outbound`} info={METRIC_HELP.customerResponseRate} />
+              <KpiCard icon={<Clock size={16} className="text-blue-600 dark:text-blue-400" />} label="Avg Customer Reply" value={data.kpis.avgCustomerReplyTime.averageLabel} sub={`Median ${data.kpis.avgCustomerReplyTime.medianLabel} · P90 ${data.kpis.avgCustomerReplyTime.p90Label}`} info={METRIC_HELP.avgCustomerReply} />
+              <KpiCard icon={<Users size={16} className="text-violet-600 dark:text-violet-400" />} label="Agent Response Rate" value={`${data.kpis.agentResponseRate}%`} sub={`${fmt(data.funnel.agentReplied)} replied to customers`} info={METRIC_HELP.agentResponseRate} />
+              <KpiCard icon={<Timer size={16} className="text-amber-600 dark:text-amber-400" />} label="Avg Agent Reply" value={data.kpis.avgAgentReplyTime.averageLabel} sub={`Median ${data.kpis.avgAgentReplyTime.medianLabel} · P90 ${data.kpis.avgAgentReplyTime.p90Label}`} info={METRIC_HELP.avgAgentReply} />
             </div>
 
             {/* Row 2 — Operational */}
             <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-              <KpiCard icon={<MessageSquare size={16} className="text-green-400" />} label="Active (24h)" value={fmt(data.operational.activeConversations)} sub="message in last 24h" info={METRIC_HELP.active24h} />
-              <KpiCard icon={<AlertCircle size={16} className="text-red-400" />} label="Unanswered" value={fmt(data.operational.unansweredConversations)} sub="customer waiting on agent" info={METRIC_HELP.unanswered} />
-              <KpiCard icon={<Flame size={16} className="text-orange-400" />} label="Hot Leads" value={fmt(data.operational.hotLeads)} sub={`${data.operational.warmLeads} warm · ${data.operational.coldLeads} cold`} info={METRIC_HELP.hotLeads} />
-              <KpiCard icon={<CheckCircle2 size={16} className="text-indigo-400" />} label="SLA Compliance" value={`${data.sla.metPct}%`} sub={`${data.sla.met} met · ${data.sla.missed} missed (15m)`} info={METRIC_HELP.slaCompliance} />
+              <KpiCard icon={<MessageSquare size={16} className="text-green-600 dark:text-green-400" />} label="Active (24h)" value={fmt(data.operational.activeConversations)} sub="message in last 24h" info={METRIC_HELP.active24h} />
+              <KpiCard icon={<AlertCircle size={16} className="text-red-600 dark:text-red-400" />} label="Unanswered" value={fmt(data.operational.unansweredConversations)} sub="customer waiting on agent" info={METRIC_HELP.unanswered} />
+              <KpiCard icon={<Flame size={16} className="text-orange-600 dark:text-orange-400" />} label="Hot Leads" value={fmt(data.operational.hotLeads)} sub={`${data.operational.warmLeads} warm · ${data.operational.coldLeads} cold`} info={METRIC_HELP.hotLeads} />
+              <KpiCard icon={<CheckCircle2 size={16} className="text-indigo-600 dark:text-indigo-400" />} label="SLA Compliance" value={`${data.sla.metPct}%`} sub={`${data.sla.met} met · ${data.sla.missed} missed (15m)`} info={METRIC_HELP.slaCompliance} />
             </div>
 
             {/* Row 3 — Distribution + leaderboards */}
@@ -464,7 +460,7 @@ export default function WhatsAppAnalyticsDashboard() {
                   {data.responseDistribution.map((b) => (
                     <div key={b.label}>
                       <div className="mb-0.5 flex justify-between text-[11px]">
-                        <span className="inline-flex items-center gap-1 text-gray-400">
+                        <span className="inline-flex items-center gap-1 text-muted-foreground">
                           {b.label}
                           <MetricInfo
                             text={
@@ -474,9 +470,9 @@ export default function WhatsAppAnalyticsDashboard() {
                             }
                           />
                         </span>
-                        <span className="text-white">{b.count} ({b.pct}%)</span>
+                        <span className="text-foreground">{b.count} ({b.pct}%)</span>
                       </div>
-                      <div className="h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.07)" }}>
+                      <div className="h-1.5 rounded-full bg-muted">
                         <div className="h-1.5 rounded-full bg-indigo-500" style={{ width: `${b.pct}%` }} />
                       </div>
                     </div>
@@ -489,7 +485,7 @@ export default function WhatsAppAnalyticsDashboard() {
                 <div className="max-h-48 overflow-y-auto">
                   <table className="w-full text-[11px]">
                     <thead>
-                      <tr className="text-gray-500">
+                      <tr className="text-muted-foreground">
                         <th className="py-1 text-left">Agent</th>
                         <th className="py-1 text-right"><LabelWithInfo label="Resp%" info={METRIC_HELP.agentRespRate} /></th>
                         <th className="py-1 text-right"><LabelWithInfo label="SLA" info={METRIC_HELP.agentSla} /></th>
@@ -497,10 +493,10 @@ export default function WhatsAppAnalyticsDashboard() {
                     </thead>
                     <tbody>
                       {data.agentStats.slice(0, 8).map((a) => (
-                        <tr key={a.agentId} className="border-t border-white/5">
-                          <td className="max-w-[90px] truncate py-1.5 text-white">{a.name}</td>
-                          <td className="py-1.5 text-right text-gray-300">{a.responseRate}%</td>
-                          <td className="py-1.5 text-right text-gray-300">{a.slaMetPct}%</td>
+                        <tr key={a.agentId} className="border-t border-border">
+                          <td className="max-w-[90px] truncate py-1.5 text-foreground">{a.name}</td>
+                          <td className="py-1.5 text-right text-muted-foreground">{a.responseRate}%</td>
+                          <td className="py-1.5 text-right text-muted-foreground">{a.slaMetPct}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -513,7 +509,7 @@ export default function WhatsAppAnalyticsDashboard() {
                 <div className="max-h-48 overflow-y-auto">
                   <table className="w-full text-[11px]">
                     <thead>
-                      <tr className="text-gray-500">
+                      <tr className="text-muted-foreground">
                         <th className="py-1 text-left">City</th>
                         <th className="py-1 text-right"><LabelWithInfo label="Resp%" info={METRIC_HELP.locationRespRate} /></th>
                         <th className="py-1 text-right"><LabelWithInfo label="Book%" info={METRIC_HELP.locationBookingRate} /></th>
@@ -521,10 +517,10 @@ export default function WhatsAppAnalyticsDashboard() {
                     </thead>
                     <tbody>
                       {[...data.locationMapRows].sort((a, b) => b.responseRate - a.responseRate).slice(0, 8).map((l) => (
-                        <tr key={l.locationKey} className="border-t border-white/5">
-                          <td className="max-w-[90px] truncate py-1.5 text-white">{l.location}</td>
-                          <td className="py-1.5 text-right text-gray-300">{l.responseRate}%</td>
-                          <td className="py-1.5 text-right text-gray-300">{l.bookingRate}%</td>
+                        <tr key={l.locationKey} className="border-t border-border">
+                          <td className="max-w-[90px] truncate py-1.5 text-foreground">{l.location}</td>
+                          <td className="py-1.5 text-right text-muted-foreground">{l.responseRate}%</td>
+                          <td className="py-1.5 text-right text-muted-foreground">{l.bookingRate}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -537,16 +533,16 @@ export default function WhatsAppAnalyticsDashboard() {
                 <div className="max-h-48 overflow-y-auto">
                   <table className="w-full text-[11px]">
                     <thead>
-                      <tr className="text-gray-500">
+                      <tr className="text-muted-foreground">
                         <th className="py-1 text-left">Template</th>
                         <th className="py-1 text-right"><LabelWithInfo label="Resp%" info={METRIC_HELP.templateRespRate} /></th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.templateStats.rows.slice(0, 8).map((t) => (
-                        <tr key={t.templateName} className="border-t border-white/5">
-                          <td className="max-w-[100px] truncate py-1.5 font-mono text-blue-400">{t.templateName}</td>
-                          <td className="py-1.5 text-right text-gray-300">{t.responseRate}%</td>
+                        <tr key={t.templateName} className="border-t border-border">
+                          <td className="max-w-[100px] truncate py-1.5 font-mono text-blue-600 dark:text-blue-400">{t.templateName}</td>
+                          <td className="py-1.5 text-right text-muted-foreground">{t.responseRate}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -567,8 +563,8 @@ export default function WhatsAppAnalyticsDashboard() {
                     {stats.map((s) => (
                       <div key={s.label}>
                         <div className="mb-1 flex flex-wrap justify-between gap-x-2 gap-y-0.5 text-xs">
-                          <span className="text-white">{s.label}</span>
-                          <span className="flex flex-wrap items-center gap-x-2 text-gray-400">
+                          <span className="text-foreground">{s.label}</span>
+                          <span className="flex flex-wrap items-center gap-x-2 text-muted-foreground">
                             <span className="inline-flex items-center gap-0.5">Resp {s.responseRate}%<MetricInfo text={METRIC_HELP.responseRate} /></span>
                             <span className="inline-flex items-center gap-0.5">Eng {s.engagementRate}%<MetricInfo text={METRIC_HELP.engagementRate} /></span>
                             <span className="inline-flex items-center gap-0.5">Multi {s.multiReplyRate}%<MetricInfo text={METRIC_HELP.multiReplyRate} /></span>
@@ -592,9 +588,9 @@ export default function WhatsAppAnalyticsDashboard() {
 
             {/* Dimension table / map */}
             <Card>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
                 <div className="flex items-center gap-1 overflow-x-auto">
-                  <span className="mr-1 inline-flex items-center gap-1 text-[10px] text-gray-600">
+                  <span className="mr-1 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
                     View By
                     <MetricInfo
                       text={
@@ -614,19 +610,18 @@ export default function WhatsAppAnalyticsDashboard() {
                     <button
                       key={d}
                       onClick={() => setDimension(d)}
-                      className="whitespace-nowrap rounded-md px-2.5 py-1 text-[11px]"
-                      style={{
-                        background: dimension === d ? "rgba(99,102,241,0.2)" : "transparent",
-                        color: dimension === d ? "#818cf8" : "#6b7280",
-                        border: dimension === d ? "1px solid rgba(99,102,241,0.3)" : "1px solid transparent",
-                      }}
+                      className={`whitespace-nowrap rounded-md border px-2.5 py-1 text-[11px] ${
+                        dimension === d
+                          ? "border-indigo-300 bg-indigo-100 text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/20 dark:text-indigo-300"
+                          : "border-transparent text-muted-foreground hover:bg-muted"
+                      }`}
                     >
                       {d}
                     </button>
                   ))}
                 </div>
                 {dimension === "Location" && (
-                  <div className="flex rounded-lg border p-0.5" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+                  <div className="flex rounded-lg border border-border p-0.5">
                     {(["list", "map"] as const).map((mode) => (
                       <button
                         key={mode}
@@ -634,11 +629,11 @@ export default function WhatsAppAnalyticsDashboard() {
                           setViewMode(mode);
                           localStorage.setItem("wa_analytics_view", mode);
                         }}
-                        className="flex items-center gap-1 rounded px-2.5 py-1 text-[11px]"
-                        style={{
-                          background: viewMode === mode ? "rgba(255,255,255,0.08)" : "transparent",
-                          color: viewMode === mode ? "#fff" : "#6b7280",
-                        }}
+                        className={`flex items-center gap-1 rounded px-2.5 py-1 text-[11px] ${
+                          viewMode === mode
+                            ? "bg-muted text-foreground"
+                            : "text-muted-foreground"
+                        }`}
                       >
                         {mode === "list" ? <List size={12} /> : <Map size={12} />}
                         {mode === "list" ? "List" : "Map"}
@@ -656,7 +651,7 @@ export default function WhatsAppAnalyticsDashboard() {
                   <>
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="text-gray-500">
+                        <tr className="text-muted-foreground">
                           <th className="px-2 py-2 text-left font-medium">Location</th>
                           <th className="px-2 py-2 text-left font-medium"><LabelWithInfo label="Outbound" info={METRIC_HELP.outbound} /></th>
                           <th className="px-2 py-2 text-left font-medium"><LabelWithInfo label="Responded" info={METRIC_HELP.responded} /></th>
@@ -668,20 +663,20 @@ export default function WhatsAppAnalyticsDashboard() {
                       </thead>
                       <tbody>
                         {data.locationStats.rows.map((r) => (
-                          <tr key={r.locationKey} className="border-t border-white/5">
-                            <td className="px-2 py-2 font-medium text-white">{r.location}</td>
-                            <td className="px-2 py-2 text-gray-400">{r.outbound}</td>
-                            <td className="px-2 py-2 text-gray-400">{r.responded}</td>
+                          <tr key={r.locationKey} className="border-t border-border">
+                            <td className="px-2 py-2 font-medium text-foreground">{r.location}</td>
+                            <td className="px-2 py-2 text-muted-foreground">{r.outbound}</td>
+                            <td className="px-2 py-2 text-muted-foreground">{r.responded}</td>
                             <td className="px-2 py-2"><RateBar rate={r.responseRate} /></td>
-                            <td className="px-2 py-2 text-gray-400">{r.visitRate}%</td>
-                            <td className="px-2 py-2 text-gray-400">{r.bookingRate}%</td>
-                            <td className="px-2 py-2 text-gray-400">{r.hotLeads}</td>
+                            <td className="px-2 py-2 text-muted-foreground">{r.visitRate}%</td>
+                            <td className="px-2 py-2 text-muted-foreground">{r.bookingRate}%</td>
+                            <td className="px-2 py-2 text-muted-foreground">{r.hotLeads}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                     {locationTotalPages > 1 && (
-                      <div className="mt-2 flex justify-between px-2 text-[11px] text-gray-500">
+                      <div className="mt-2 flex justify-between px-2 text-[11px] text-muted-foreground">
                         <span>Page {locationPage} / {locationTotalPages}</span>
                         <div className="flex gap-1">
                           <button disabled={locationPage <= 1} onClick={() => { setLocationPage((p) => p - 1); void fetchData({ lp: locationPage - 1 }); }}><ChevronLeft size={14} /></button>
@@ -700,7 +695,7 @@ export default function WhatsAppAnalyticsDashboard() {
                 {dimension === "Agent" && (
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="text-gray-500">
+                      <tr className="text-muted-foreground">
                         <th className="px-2 py-2 text-left">Agent</th>
                         <th className="px-2 py-2 text-left">Convs</th>
                         <th className="px-2 py-2 text-left"><LabelWithInfo label="Resp%" info={METRIC_HELP.agentRespRate} /></th>
@@ -710,12 +705,12 @@ export default function WhatsAppAnalyticsDashboard() {
                     </thead>
                     <tbody>
                       {data.agentStats.map((a) => (
-                        <tr key={a.agentId} className="border-t border-white/5">
-                          <td className="px-2 py-2 text-white">{a.name}</td>
-                          <td className="px-2 py-2 text-gray-400">{a.conversations}</td>
+                        <tr key={a.agentId} className="border-t border-border">
+                          <td className="px-2 py-2 text-foreground">{a.name}</td>
+                          <td className="px-2 py-2 text-muted-foreground">{a.conversations}</td>
                           <td className="px-2 py-2"><RateBar rate={a.responseRate} /></td>
-                          <td className="px-2 py-2 text-gray-400">{Math.round(a.avgAgentReplyMs / 60000)}m</td>
-                          <td className="px-2 py-2 text-gray-400">{a.slaMetPct}%</td>
+                          <td className="px-2 py-2 text-muted-foreground">{Math.round(a.avgAgentReplyMs / 60000)}m</td>
+                          <td className="px-2 py-2 text-muted-foreground">{a.slaMetPct}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -724,7 +719,7 @@ export default function WhatsAppAnalyticsDashboard() {
                 {dimension === "Template" && (
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="text-gray-500">
+                      <tr className="text-muted-foreground">
                         <th className="px-2 py-2 text-left">Template</th>
                         <th className="px-2 py-2 text-left"><LabelWithInfo label="Sent" info={METRIC_HELP.templateSent} /></th>
                         <th className="px-2 py-2 text-left"><LabelWithInfo label="Delivered" info={METRIC_HELP.templateDelivered} /></th>
@@ -736,14 +731,14 @@ export default function WhatsAppAnalyticsDashboard() {
                     </thead>
                     <tbody>
                       {data.templateStats.rows.map((t) => (
-                        <tr key={t.templateName} className="border-t border-white/5">
-                          <td className="max-w-[140px] truncate px-2 py-2 font-mono text-blue-400">{t.templateName}</td>
-                          <td className="px-2 py-2 text-gray-400">{t.sent}</td>
-                          <td className="px-2 py-2 text-gray-400">{t.delivered}</td>
-                          <td className="px-2 py-2 text-gray-400">{t.read}</td>
-                          <td className="px-2 py-2 text-gray-400">{t.responded}</td>
+                        <tr key={t.templateName} className="border-t border-border">
+                          <td className="max-w-[140px] truncate px-2 py-2 font-mono text-blue-600 dark:text-blue-400">{t.templateName}</td>
+                          <td className="px-2 py-2 text-muted-foreground">{t.sent}</td>
+                          <td className="px-2 py-2 text-muted-foreground">{t.delivered}</td>
+                          <td className="px-2 py-2 text-muted-foreground">{t.read}</td>
+                          <td className="px-2 py-2 text-muted-foreground">{t.responded}</td>
                           <td className="px-2 py-2"><RateBar rate={t.responseRate} /></td>
-                          <td className="px-2 py-2 text-gray-400">{Math.round(t.avgReplyMs / 60000)}m</td>
+                          <td className="px-2 py-2 text-muted-foreground">{Math.round(t.avgReplyMs / 60000)}m</td>
                         </tr>
                       ))}
                     </tbody>
@@ -754,7 +749,7 @@ export default function WhatsAppAnalyticsDashboard() {
 
             {/* Call analytics */}
             <div>
-              <div className="mb-2 flex items-center gap-2 text-xs text-gray-400">
+              <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
                 <BarChart3 size={13} />
                 Call Analytics
                 <MetricInfo text={METRIC_HELP.callAnalytics} />
@@ -782,7 +777,7 @@ function SegmentTable({
   return (
     <table className="w-full text-xs">
       <thead>
-        <tr className="text-gray-500">
+        <tr className="text-muted-foreground">
           <th className="px-2 py-2 text-left">Segment</th>
           <th className="px-2 py-2 text-left"><LabelWithInfo label="Outbound" info={METRIC_HELP.outbound} /></th>
           <th className="px-2 py-2 text-left"><LabelWithInfo label="Responded" info={METRIC_HELP.responded} /></th>
@@ -793,13 +788,13 @@ function SegmentTable({
       </thead>
       <tbody>
         {stats.map((s) => (
-          <tr key={s.label} className="border-t border-white/5">
-            <td className="px-2 py-2 text-white">{s.label}</td>
-            <td className="px-2 py-2 text-gray-400">{s.outbound}</td>
-            <td className="px-2 py-2 text-gray-400">{s.responded}</td>
+          <tr key={s.label} className="border-t border-border">
+            <td className="px-2 py-2 text-foreground">{s.label}</td>
+            <td className="px-2 py-2 text-muted-foreground">{s.outbound}</td>
+            <td className="px-2 py-2 text-muted-foreground">{s.responded}</td>
             <td className="px-2 py-2"><RateBar rate={s.responseRate} /></td>
-            <td className="px-2 py-2 text-gray-400">{s.engagementRate}%</td>
-            <td className="px-2 py-2 text-gray-400">{s.multiReplyRate}%</td>
+            <td className="px-2 py-2 text-muted-foreground">{s.engagementRate}%</td>
+            <td className="px-2 py-2 text-muted-foreground">{s.multiReplyRate}%</td>
           </tr>
         ))}
       </tbody>

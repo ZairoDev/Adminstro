@@ -25,7 +25,12 @@ import { toast } from "@/hooks/use-toast";
 import axios from "@/util/axios";
 // OFFICE_LOCATIONS replaced by DB-backed /api/office-addresses
 
-const positions = ["LeadGen", "Sales", "Developer", "Marketing", "HR"];
+type ApplicationDepartment = {
+  _id: string;
+  name: string;
+  positions: { _id: string; name: string }[];
+};
+
 const colleges = [
   "Select College",
   "Indian Institute of Technology Kanpur (IIT Kanpur)",
@@ -75,7 +80,7 @@ export default function JobApplicationForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [resume, setResume] = useState<File | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
-  const [availableRoles, setAvailableRoles] = useState<string[]>(positions);
+  const [departments, setDepartments] = useState<ApplicationDepartment[]>([]);
   const [officeOptions, setOfficeOptions] = useState<
     { _id: string; name: string; city: string; formattedAddress: string }[]
   >([]);
@@ -92,7 +97,8 @@ export default function JobApplicationForm() {
     college: colleges[0],
     otherCollege: "",
     officeAddressId: "",
-    position: positions[0],
+    departmentId: "",
+    jobPositionId: "",
     resume: "",
     photo: "",
     coverLetter: "",
@@ -100,29 +106,19 @@ export default function JobApplicationForm() {
     portfolio: "",
   });
 
-  // Fetch available roles from Add Ons (roles collection) for position dropdown
   useEffect(() => {
-    const fetchRoles = async () => {
+    const fetchDepartments = async () => {
       try {
-        const response = await fetch("/api/addons/roles/getAllRoles");
+        const response = await fetch("/api/departments?active=1");
         const result = await response.json();
-        if (result.data && Array.isArray(result.data) && result.data.length > 0) {
-          // Filter only active roles
-          const activeRoles = (result.data as { role: string; isActive: boolean }[]).filter(
-            (r) => r.isActive === true
-          );
-          const roleNames = [...new Set(activeRoles.map((r) => r.role))].sort();
-          setAvailableRoles(roleNames);
-          setFormData((prev) => ({
-            ...prev,
-            position: roleNames.includes(prev.position) ? prev.position : roleNames[0],
-          }));
+        if (result.success && Array.isArray(result.data)) {
+          setDepartments(result.data as ApplicationDepartment[]);
         }
       } catch (error) {
-        console.error("Error fetching roles:", error);
+        console.error("Error fetching departments:", error);
       }
     };
-    fetchRoles();
+    fetchDepartments();
   }, []);
 
   // Fetch active office addresses for preferred office select
@@ -335,6 +331,8 @@ export default function JobApplicationForm() {
       otherCollege: "College Name",
       officeLocation: "Preferred Office Location",
       officeAddressId: "Preferred Office Location",
+      departmentId: "Department",
+      jobPositionId: "Job title",
       experience: "Years of Experience",
       resume: "Resume",
       photo: "Personal Photograph",
@@ -398,6 +396,16 @@ export default function JobApplicationForm() {
     if (!formData.officeAddressId.trim()) {
       newErrors.officeAddressId = "Preferred office location is required";
       if (!firstMissingField) firstMissingField = fieldLabels.officeAddressId;
+    }
+
+    if (!formData.departmentId) {
+      newErrors.departmentId = "Department is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.departmentId;
+    }
+
+    if (!formData.jobPositionId) {
+      newErrors.jobPositionId = "Job title is required";
+      if (!firstMissingField) firstMissingField = fieldLabels.jobPositionId;
     }
 
     if (!formData.experience) {
@@ -474,7 +482,8 @@ export default function JobApplicationForm() {
         gender: formData.gender,
         college: resolvedCollege,
         officeAddressId: formData.officeAddressId,
-        position: formData.position,
+        departmentId: formData.departmentId,
+        jobPositionId: formData.jobPositionId,
         coverLetter: formData.coverLetter,
         linkedin: formData.linkedin,
         portfolio: formData.portfolio,
@@ -501,7 +510,8 @@ export default function JobApplicationForm() {
           college: colleges[0],
           otherCollege: "",
           officeAddressId: "",
-          position: availableRoles[0] ?? positions[0],
+          departmentId: "",
+          jobPositionId: "",
           resume: "",
           photo: "",
           coverLetter: "",
@@ -1020,21 +1030,76 @@ export default function JobApplicationForm() {
 
                 <div className="space-y-2">
                   <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
-                    Position Applying For{" "}
-                    <span className="text-destructive">*</span>
+                    Department <span className="text-destructive">*</span>
                   </label>
                   <select
-                    name="position"
-                    value={formData.position}
-                    onChange={handleChange}
-                    className="w-full bg-input border border-transparent rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                    name="departmentId"
+                    value={formData.departmentId}
+                    onChange={(event) => {
+                      const departmentId = event.target.value;
+                      setFormData((current) => ({
+                        ...current,
+                        departmentId,
+                        jobPositionId: "",
+                      }));
+                      if (errors.departmentId || errors.jobPositionId) {
+                        setErrors((current) => ({
+                          ...current,
+                          departmentId: "",
+                          jobPositionId: "",
+                        }));
+                      }
+                    }}
+                    className={`w-full bg-input border ${
+                      errors.departmentId ? "border-destructive/50" : "border-transparent"
+                    } rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all`}
                   >
-                    {availableRoles.map((pos) => (
-                      <option key={pos} value={pos}>
-                        {pos}
+                    <option value="">Select department</option>
+                    {departments.map((department) => (
+                      <option key={department._id} value={department._id}>
+                        {department.name}
                       </option>
                     ))}
                   </select>
+                  {errors.departmentId && (
+                    <p className="text-destructive text-xs flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.departmentId}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center gap-1.5 font-medium text-foreground text-sm">
+                    Job title <span className="text-destructive">*</span>
+                  </label>
+                  <select
+                    name="jobPositionId"
+                    value={formData.jobPositionId}
+                    onChange={handleChange}
+                    disabled={!formData.departmentId}
+                    className={`w-full bg-input border ${
+                      errors.jobPositionId ? "border-destructive/50" : "border-transparent"
+                    } rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all disabled:opacity-60`}
+                  >
+                    <option value="">
+                      {formData.departmentId ? "Select job title" : "Select a department first"}
+                    </option>
+                    {(
+                      departments.find((department) => department._id === formData.departmentId)
+                        ?.positions ?? []
+                    ).map((position) => (
+                      <option key={position._id} value={position._id}>
+                        {position.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.jobPositionId && (
+                    <p className="text-destructive text-xs flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      {errors.jobPositionId}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">

@@ -316,7 +316,7 @@ const VisitModal = ({
             />
             </Link>
           ) : (
-            <div className="w-40 h-24 rounded-md bg-gray-100 flex items-center justify-center text-xs text-muted-foreground">
+            <div className="w-40 h-24 rounded-md bg-muted flex items-center justify-center text-xs text-muted-foreground">
               No preview
             </div>
           )}
@@ -401,7 +401,7 @@ const VisitModal = ({
                         }));
                       }}
                     >
-                      <div className="relative overflow-hidden rounded-md bg-gray-50">
+                      <div className="relative overflow-hidden rounded-md bg-muted">
                         <img
                           src={
                             property.propertyCoverFileUrl ||

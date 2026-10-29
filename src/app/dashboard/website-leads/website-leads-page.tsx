@@ -114,13 +114,13 @@ function formatStay(start?: string, end?: string) {
 function statusClass(status: string) {
   switch (status) {
     case "confirmed":
-      return "bg-emerald-100 text-emerald-800 border-emerald-200";
+      return "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800";
     case "cancelled":
-      return "bg-red-100 text-red-800 border-red-200";
+      return "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800";
     case "inquiry":
-      return "bg-violet-100 text-violet-800 border-violet-200";
+      return "bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-950 dark:text-violet-300 dark:border-violet-800";
     default:
-      return "bg-amber-100 text-amber-900 border-amber-200";
+      return "bg-amber-100 text-amber-900 border-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800";
   }
 }
 
@@ -165,9 +165,9 @@ function LeadRow({
     : null;
 
   return (
-    <tr className="border-b border-stone-100 hover:bg-stone-50/80 transition-colors">
+    <tr className="border-b border-stone-100 hover:bg-stone-50/80 transition-colors dark:border-stone-800 dark:hover:bg-stone-800/60">
       <td className="px-4 py-3">
-        <div className="font-medium text-stone-900">{guest}</div>
+        <div className="font-medium text-stone-900 dark:text-stone-100">{guest}</div>
         {phoneDigits ? (
           <div className="mt-1 flex items-center gap-1">
             <Button
@@ -204,14 +204,14 @@ function LeadRow({
           </div>
         ) : null}
         {lead.email ? (
-          <div className="text-xs text-stone-500 mt-0.5">{lead.email}</div>
+          <div className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{lead.email}</div>
         ) : null}
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <span
             className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
               isMobile
-                ? "border-sky-200 bg-sky-50 text-sky-800"
-                : "border-violet-200 bg-violet-50 text-violet-800"
+                ? "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300"
+                : "border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300"
             }`}
           >
             {isMobile ? (
@@ -222,35 +222,35 @@ function LeadRow({
             {isMobile ? "Mobile" : "Web"}
           </span>
           {isTaken ? (
-            <span className="inline-flex items-center rounded-full border border-stone-200 bg-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-600">
+            <span className="inline-flex items-center rounded-full border border-stone-200 bg-stone-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300">
               Taken
             </span>
           ) : null}
         </div>
       </td>
       <td className="px-4 py-3">
-        <div className="text-stone-800">{property}</div>
+        <div className="text-stone-800 dark:text-stone-200">{property}</div>
         {lead.VSID ? (
-          <div className="text-xs font-medium text-stone-600 mt-0.5">
+          <div className="text-xs font-medium text-stone-600 dark:text-stone-300 mt-0.5">
             VSID: {lead.VSID}
           </div>
         ) : null}
         {location ? (
-          <div className="text-xs text-stone-500 mt-0.5">{location}</div>
+          <div className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">{location}</div>
         ) : null}
         {!isMobile && lead.message ? (
           <div
-            className="text-xs text-stone-500 mt-0.5 line-clamp-2 max-w-[280px]"
+            className="text-xs text-stone-500 dark:text-stone-400 mt-0.5 line-clamp-2 max-w-[280px]"
             title={lead.message}
           >
             {lead.message}
           </div>
         ) : null}
       </td>
-      <td className="px-4 py-3 text-sm text-stone-700 whitespace-nowrap">
+      <td className="px-4 py-3 text-sm text-stone-700 dark:text-stone-300 whitespace-nowrap">
         {formatStay(lead.startDate, lead.endDate)}
         {lead.totalNights ? (
-          <div className="text-xs text-stone-500 mt-0.5">
+          <div className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
             {lead.totalNights} night{lead.totalNights === 1 ? "" : "s"}
           </div>
         ) : null}
@@ -262,17 +262,17 @@ function LeadRow({
           {status}
         </span>
         {isMobile && lead.paymentStatus ? (
-          <div className="text-xs text-stone-500 mt-1 capitalize">
+          <div className="text-xs text-stone-500 dark:text-stone-400 mt-1 capitalize">
             pay: {lead.paymentStatus}
           </div>
         ) : null}
       </td>
-      <td className="px-4 py-3 text-sm font-semibold text-stone-900 whitespace-nowrap">
+      <td className="px-4 py-3 text-sm font-semibold text-stone-900 dark:text-stone-100 whitespace-nowrap">
         {lead.price != null
           ? `€${Number(lead.price || 0).toLocaleString("en-IN")}`
           : "—"}
       </td>
-      <td className="px-4 py-3 text-sm text-stone-600 whitespace-nowrap">
+      <td className="px-4 py-3 text-sm text-stone-600 dark:text-stone-300 whitespace-nowrap">
         {formatDate(lead.createdAt)}
       </td>
       <td className="px-4 py-3">
@@ -674,16 +674,16 @@ const WebsiteLeadsPage = () => {
       <form onSubmit={handleSearch}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400 dark:text-stone-500" />
             <Input
               placeholder="Search…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 pl-9 bg-white"
+              className="h-9 pl-9 bg-background"
             />
           </div>
           <Select value={searchType} onValueChange={setSearchType}>
-            <SelectTrigger className="h-9 w-full sm:w-[140px] bg-white">
+            <SelectTrigger className="h-9 w-full sm:w-[140px] bg-background">
               <SelectValue placeholder="Field" />
             </SelectTrigger>
             <SelectContent>
@@ -697,7 +697,7 @@ const WebsiteLeadsPage = () => {
             value={sourceFilter}
             onValueChange={(v) => handleSourceChange(v as LeadSourceFilter)}
           >
-            <SelectTrigger className="h-9 w-full sm:w-[140px] bg-white">
+            <SelectTrigger className="h-9 w-full sm:w-[140px] bg-background">
               <SelectValue placeholder="Source" />
             </SelectTrigger>
             <SelectContent>
@@ -724,27 +724,27 @@ const WebsiteLeadsPage = () => {
         </div>
       </form>
 
-      <div className="flex flex-wrap items-center gap-3 text-xs text-stone-500">
+      <div className="flex flex-wrap items-center gap-3 text-xs text-stone-500 dark:text-stone-400">
         <span>
           {totalLeads} total · showing {leads.length}
         </span>
         <span>Page {page} of {totalPages}</span>
       </div>
 
-      <div className="rounded-xl border border-stone-200 bg-white overflow-hidden shadow-sm">
+      <div className="rounded-xl border border-stone-200 bg-white overflow-hidden shadow-sm dark:border-stone-700 dark:bg-card">
         {loading ? (
           <div className="flex justify-center py-16">
             <HandLoader />
           </div>
         ) : leads.length === 0 ? (
-          <div className="py-16 text-center text-stone-500">
+          <div className="py-16 text-center text-stone-500 dark:text-stone-400">
             No leads found. Website inquiries and mobile bookings will appear here.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left">
-              <thead className="bg-stone-50 border-b border-stone-200">
-                <tr className="text-xs uppercase tracking-wide text-stone-500">
+              <thead className="bg-stone-50 border-b border-stone-200 dark:bg-stone-900 dark:border-stone-700">
+                <tr className="text-xs uppercase tracking-wide text-stone-500 dark:text-stone-400">
                   <th className="px-4 py-3 font-semibold">Guest</th>
                   <th className="px-4 py-3 font-semibold">Property</th>
                   <th className="px-4 py-3 font-semibold">Stay dates</th>
@@ -784,7 +784,7 @@ const WebsiteLeadsPage = () => {
 
       {leads.length > 0 ? (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-stone-500">
+          <p className="text-sm text-stone-500 dark:text-stone-400">
             Page {page} of {totalPages} — {totalLeads} total
           </p>
           <Pagination className="flex justify-end">

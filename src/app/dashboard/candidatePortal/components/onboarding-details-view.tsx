@@ -632,7 +632,7 @@ export function OnboardingDetailsView({
               size="sm"
               variant="outline"
               onClick={() => setReuploadDialogOpen(true)}
-              className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-100"
+              className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950"
             >
               <RefreshCw className="h-3 w-3 mr-1" />
               Request Re-upload
@@ -662,7 +662,7 @@ export function OnboardingDetailsView({
                 )}
                 <div className="flex flex-wrap gap-1 mt-2">
                   {onboardingDetails.reuploadRequest.requestedDocuments?.map((doc) => (
-                    <Badge key={doc} variant="outline" className="text-[10px] bg-blue-100 text-blue-700 border-blue-300">
+                    <Badge key={doc} variant="outline" className="text-[10px] bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">
                       {getOnboardingDocumentLabel(doc)}
                     </Badge>
                   ))}
@@ -680,7 +680,7 @@ export function OnboardingDetailsView({
                 size="sm"
                 variant="ghost"
                 onClick={handleCancelReupload}
-                className="h-7 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-100"
+                className="h-7 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-100 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950"
               >
                 Cancel Request
               </Button>
@@ -840,7 +840,7 @@ export function OnboardingDetailsView({
               <div className="flex items-center gap-2 mb-3">
                 <FileText className="h-4 w-4 text-primary" />
                 <h3 className="text-sm font-semibold">Signed Onboarding Document</h3>
-                <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
+                <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800">
                   Signed
                 </Badge>
               </div>
@@ -891,7 +891,7 @@ export function OnboardingDetailsView({
               variant="outline" 
               className={`text-[10px] ${
                 verifiedCount === totalDocs
-                  ? "bg-green-50 text-green-700 border-green-200"
+                  ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
                   : ""
               }`}
             >
@@ -1134,11 +1134,11 @@ export function OnboardingDetailsView({
                           >
                             <span>{label}</span>
                             {isVerified ? (
-                              <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
+                              <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800">
                                 Verified
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                              <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800">
                                 Pending
                               </Badge>
                             )}

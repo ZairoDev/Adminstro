@@ -27,6 +27,8 @@ export interface Candidate {
   coverLetter?: string;
   linkedin?: string;
   portfolio?: string;
+  socials?: string;
+  referralSource?: string;
   resumeUrl: string;
   photoUrl?: string;
   status: "pending"|"interview"|"shortlisted"|"selected"|"rejected"|"onboarding";

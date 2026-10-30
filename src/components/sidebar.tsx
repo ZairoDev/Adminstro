@@ -55,6 +55,7 @@ import {
   Plus,
   Mail,
   Building2,
+  Briefcase,
   Wallet,
   Receipt,
   ScrollText,
@@ -288,6 +289,11 @@ const roleRoutes: Record<string, Route[]> = {
     },
   ],
   Admin: [
+    {
+      path: "/dashboard/careers",
+      label: "Careers",
+      Icon: <Briefcase size={18} />,
+    },
     {
       path: "/dashboard/user",
       label: "Manage User",
@@ -524,6 +530,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/people",
       label: "People",
       Icon: <Users size={18} />,
+    },
+    {
+      path: "/dashboard/careers",
+      label: "Careers",
+      Icon: <Briefcase size={18} />,
     },
     {
       path: "/dashboard/office-addresses",
@@ -1004,6 +1015,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <Users size={18} />,
     },
     {
+      path: "/dashboard/careers",
+      label: "Careers",
+      Icon: <Briefcase size={18} />,
+    },
+    {
       path: "/dashboard/office-addresses",
       label: "Office Addresses",
       Icon: <Building2 size={18} />,
@@ -1146,6 +1162,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/people",
       label: "People",
       Icon: <Users size={18} />,
+    },
+    {
+      path: "/dashboard/careers",
+      label: "Careers",
+      Icon: <Briefcase size={18} />,
     },
     {
       path: "/dashboard/employee",
@@ -1405,6 +1426,11 @@ const candidateRoutes = [
     path: "/dashboard/people",
     label: "People",
     Icon: <Users size={18} />,
+  },
+  {
+    path: "/dashboard/careers",
+    label: "Careers",
+    Icon: <Briefcase size={18} />,
   },
   {
     path: "/dashboard/employee",

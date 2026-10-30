@@ -35,6 +35,12 @@ const CandidateSchema = new Schema(
       default: null,
       index: true,
     },
+    jobOpeningId: {
+      type: Schema.Types.ObjectId,
+      ref: "JobOpening",
+      default: null,
+      index: true,
+    },
     employmentType: {
       type: String,
       enum: ["fulltime", "intern"],
@@ -43,6 +49,10 @@ const CandidateSchema = new Schema(
     coverLetter: { type: String },
     linkedin: { type: String },
     portfolio: { type: String },
+    /** Other social profile links, one per line. */
+    socials: { type: String, default: "" },
+    /** How the applicant heard about the role. */
+    referralSource: { type: String, default: "" },
     resumeUrl: { type: String, required: true },
     photoUrl: { type: String, required: true },
     status: {

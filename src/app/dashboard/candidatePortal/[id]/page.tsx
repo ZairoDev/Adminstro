@@ -2907,6 +2907,22 @@ export default function CandidateDetailPage() {
               </Card>
             )}
 
+            {candidate.socials || candidate.referralSource ? (
+              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
+                <h3 className="mb-3 text-sm font-semibold text-[#636366] dark:text-[#aeaeb2]">How they found us</h3>
+                {candidate.referralSource ? (
+                  <p className="text-base leading-7 text-[#1d1d1f] dark:text-[#f5f5f7]">
+                    Heard about us: {candidate.referralSource}
+                  </p>
+                ) : null}
+                {candidate.socials ? (
+                  <p className="mt-2 max-w-prose whitespace-pre-wrap text-base leading-7 text-[#1d1d1f] dark:text-[#f5f5f7]">
+                    {candidate.socials}
+                  </p>
+                ) : null}
+              </Card>
+            ) : null}
+
             {/* Additional Documents */}
             <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
               <button

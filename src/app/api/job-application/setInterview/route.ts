@@ -6,6 +6,7 @@ import OfficeAddress from "@/models/officeAddress";
 import { seedDefaultOffices } from "@/lib/officeAddress/seedDefaultOffices";
 import { sendJobApplicationReceivedEmails } from "@/lib/email";
 import { JobIdentityError, resolveJobIdentity } from "@/lib/departments/jobIdentity";
+import JobOpening from "@/models/jobOpening";
 
 export async function POST(req: Request) {
   try {
@@ -58,11 +59,33 @@ export async function POST(req: Request) {
         ? data.phone.trim()
         : [data.countryCode, data.phone].filter(Boolean).join("");
 
+    const jobOpeningId =
+      typeof data.jobOpeningId === "string" ? data.jobOpeningId.trim() : "";
+    if (!jobOpeningId || !mongoose.Types.ObjectId.isValid(jobOpeningId)) {
+      return NextResponse.json(
+        { error: "Choose a job from the careers page before applying" },
+        { status: 400 },
+      );
+    }
+
+    const opening = await JobOpening.findOne({
+      _id: jobOpeningId,
+      isPublished: true,
+    }).select("departmentId jobPositionId employmentType");
+    if (!opening) {
+      return NextResponse.json(
+        { error: "This job is no longer open" },
+        { status: 404 },
+      );
+    }
+
     let jobIdentity;
     try {
-      jobIdentity = await resolveJobIdentity(data.departmentId, data.jobPositionId, {
-        requireActive: true,
-      });
+      jobIdentity = await resolveJobIdentity(
+        String(opening.departmentId),
+        String(opening.jobPositionId),
+        { requireActive: true },
+      );
     } catch (error) {
       if (error instanceof JobIdentityError) {
         return NextResponse.json({ error: error.message }, { status: error.status });
@@ -71,7 +94,7 @@ export async function POST(req: Request) {
     }
     if (!jobIdentity) {
       return NextResponse.json(
-        { error: "Please select a department and a job title" },
+        { error: "This job is missing a department or job title" },
         { status: 400 },
       );
     }
@@ -93,9 +116,14 @@ export async function POST(req: Request) {
       department: jobIdentity.department,
       departmentId: jobIdentity.departmentId,
       jobPositionId: jobIdentity.jobPositionId,
+      jobOpeningId: opening._id,
+      ...(opening.employmentType ? { employmentType: opening.employmentType } : {}),
       coverLetter: data.coverLetter,
       linkedin: data.linkedin,
       portfolio: data.portfolio,
+      socials: typeof data.socials === "string" ? data.socials.trim() : "",
+      referralSource:
+        typeof data.referralSource === "string" ? data.referralSource.trim() : "",
       resumeUrl: data.resume, // Bunny file URL
       photoUrl: data.photo,
     });

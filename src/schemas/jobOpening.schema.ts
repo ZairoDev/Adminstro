@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-const employmentType = z.enum(["fulltime", "intern"]).nullable().optional();
+const employmentType = z.enum(["fulltime", "parttime", "intern", "contract"]).nullable().optional();
+const workMode = z.enum(["onsite", "hybrid", "remote"]).nullable().optional();
+const experienceLevel = z.enum(["fresher", "range"]).nullable().optional();
+const experienceYear = z.number().int().min(0).max(40).nullable().optional();
 
 export const createJobOpeningSchema = z.object({
   title: z.string().trim().min(1, "Job title is required"),
@@ -12,6 +15,10 @@ export const createJobOpeningSchema = z.object({
   requirements: z.string().trim().optional().default(""),
   location: z.string().trim().optional().default(""),
   employmentType,
+  workMode,
+  experienceLevel,
+  experienceMin: experienceYear,
+  experienceMax: experienceYear,
   isPublished: z.boolean().optional().default(false),
 });
 
@@ -26,6 +33,10 @@ export const updateJobOpeningSchema = z
     requirements: z.string().trim().optional(),
     location: z.string().trim().optional(),
     employmentType,
+    workMode,
+    experienceLevel,
+    experienceMin: experienceYear,
+    experienceMax: experienceYear,
     isPublished: z.boolean().optional(),
   })
   .refine((value) => Object.values(value).some((item) => item !== undefined), {

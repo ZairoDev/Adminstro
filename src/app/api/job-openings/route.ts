@@ -8,6 +8,8 @@ import { requireDepartmentManager } from "@/lib/departments/auth";
 import { JobIdentityError, resolveJobIdentity } from "@/lib/departments/jobIdentity";
 import { slugifyJobTitle } from "@/lib/careers/slug";
 import { serializeJobOpening, type JobOpeningView } from "@/lib/careers/serializeJobOpening";
+import { resolveJobExperience } from "@/lib/careers/experience";
+import type { JobEmploymentType, JobWorkMode } from "@/lib/careers/jobTypes";
 import { createJobOpeningSchema } from "@/schemas/jobOpening.schema";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +41,11 @@ async function withNames(
     responsibilities?: string;
     requirements?: string;
     location?: string;
-    employmentType?: "fulltime" | "intern" | null;
+    employmentType?: JobEmploymentType | null;
+    workMode?: JobWorkMode | null;
+    experienceLevel?: "fresher" | "range" | null;
+    experienceMin?: number | null;
+    experienceMax?: number | null;
     isPublished: boolean;
   }>,
 ): Promise<JobOpeningView[]> {
@@ -120,6 +126,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const experience = resolveJobExperience({
+      employmentType: parsed.data.employmentType ?? null,
+      experienceLevel: parsed.data.experienceLevel ?? null,
+      experienceMin: parsed.data.experienceMin ?? null,
+      experienceMax: parsed.data.experienceMax ?? null,
+    });
+    if (!experience.ok) {
+      return NextResponse.json({ success: false, error: experience.error }, { status: 400 });
+    }
+
     const opening = await JobOpening.create({
       title: parsed.data.title,
       slug: await uniqueSlug(parsed.data.title),
@@ -131,6 +147,10 @@ export async function POST(request: NextRequest) {
       requirements: parsed.data.requirements,
       location: parsed.data.location,
       employmentType: parsed.data.employmentType ?? null,
+      workMode: parsed.data.workMode ?? null,
+      experienceLevel: experience.value.experienceLevel,
+      experienceMin: experience.value.experienceMin,
+      experienceMax: experience.value.experienceMax,
       isPublished: parsed.data.isPublished,
     });
 

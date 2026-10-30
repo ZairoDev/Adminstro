@@ -8,6 +8,7 @@ import JobPosition from "@/models/jobPosition";
 import { requireDepartmentManager } from "@/lib/departments/auth";
 import { JobIdentityError, resolveJobIdentity } from "@/lib/departments/jobIdentity";
 import { serializeJobOpening } from "@/lib/careers/serializeJobOpening";
+import { resolveJobExperience } from "@/lib/careers/experience";
 import { updateJobOpeningSchema } from "@/schemas/jobOpening.schema";
 
 export const dynamic = "force-dynamic";
@@ -81,6 +82,33 @@ export async function PATCH(
     if (parsed.data.location !== undefined) current.location = parsed.data.location;
     if (parsed.data.employmentType !== undefined) {
       current.employmentType = parsed.data.employmentType;
+    }
+    if (parsed.data.workMode !== undefined) {
+      current.workMode = parsed.data.workMode;
+    }
+    const touchesExperience =
+      parsed.data.employmentType !== undefined ||
+      parsed.data.experienceLevel !== undefined ||
+      parsed.data.experienceMin !== undefined ||
+      parsed.data.experienceMax !== undefined;
+    if (touchesExperience) {
+      const experience = resolveJobExperience({
+        employmentType: current.employmentType,
+        experienceLevel:
+          parsed.data.experienceLevel !== undefined
+            ? parsed.data.experienceLevel
+            : current.experienceLevel,
+        experienceMin:
+          parsed.data.experienceMin !== undefined ? parsed.data.experienceMin : current.experienceMin,
+        experienceMax:
+          parsed.data.experienceMax !== undefined ? parsed.data.experienceMax : current.experienceMax,
+      });
+      if (!experience.ok) {
+        return NextResponse.json({ success: false, error: experience.error }, { status: 400 });
+      }
+      current.experienceLevel = experience.value.experienceLevel;
+      current.experienceMin = experience.value.experienceMin;
+      current.experienceMax = experience.value.experienceMax;
     }
     if (parsed.data.isPublished !== undefined) current.isPublished = parsed.data.isPublished;
 

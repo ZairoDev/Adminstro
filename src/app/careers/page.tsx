@@ -2,9 +2,18 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, Briefcase, MapPin } from "lucide-react";
+import { ArrowRight, Briefcase, Building2, Clock, MapPin } from "lucide-react";
 import { CareerHeader } from "@/components/careers/career-header";
 import { ShareJobButton } from "@/components/careers/share-job-button";
+import { formatJobExperience } from "@/lib/careers/experience";
+import {
+  EMPLOYMENT_TYPES,
+  WORK_MODES,
+  employmentTypeLabel,
+  workModeLabel,
+  type JobEmploymentType,
+  type JobWorkMode,
+} from "@/lib/careers/jobTypes";
 
 type CareerJob = {
   _id: string;
@@ -14,13 +23,15 @@ type CareerJob = {
   departmentName: string;
   positionName: string;
   location: string;
-  employmentType: "fulltime" | "intern" | null;
+  employmentType: JobEmploymentType | null;
+  workMode: JobWorkMode | null;
+  experienceLevel: "fresher" | "range" | null;
+  experienceMin: number | null;
+  experienceMax: number | null;
 };
 
 function employmentLabel(value: CareerJob["employmentType"]): string {
-  if (value === "intern") return "Internship";
-  if (value === "fulltime") return "Full time";
-  return "";
+  return employmentTypeLabel(value);
 }
 
 export default function CareersPage() {
@@ -28,6 +39,8 @@ export default function CareersPage() {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [department, setDepartment] = useState("all");
+  const [employment, setEmployment] = useState<"all" | JobEmploymentType>("all");
+  const [workMode, setWorkMode] = useState<"all" | JobWorkMode>("all");
 
   useEffect(() => {
     const load = async () => {
@@ -56,8 +69,12 @@ export default function CareersPage() {
     return [...new Set(jobs.map((job) => job.departmentName).filter(Boolean))].sort();
   }, [jobs]);
 
-  const visibleJobs =
-    department === "all" ? jobs : jobs.filter((job) => job.departmentName === department);
+  const visibleJobs = jobs.filter((job) => {
+    if (department !== "all" && job.departmentName !== department) return false;
+    if (employment !== "all" && job.employmentType !== employment) return false;
+    if (workMode !== "all" && job.workMode !== workMode) return false;
+    return true;
+  });
 
   return (
     <div className="min-h-dvh bg-background">
@@ -93,31 +110,60 @@ export default function CareersPage() {
           </div>
         ) : (
           <>
-            <div className="mt-8 flex flex-wrap items-center gap-2">
-              <p className="mr-2 text-sm text-muted-foreground">
+            <div className="mt-8">
+              <p className="text-sm text-muted-foreground">
                 {visibleJobs.length} {visibleJobs.length === 1 ? "role" : "roles"}
               </p>
-              {departments.length > 1 ? (
-                <>
-                  <FilterChip active={department === "all"} onClick={() => setDepartment("all")}>
-                    All departments
-                  </FilterChip>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <FilterSelect
+                  id="career-department"
+                  label="Department"
+                  value={department}
+                  onChange={setDepartment}
+                >
+                  <option value="all">All departments</option>
                   {departments.map((name) => (
-                    <FilterChip
-                      key={name}
-                      active={department === name}
-                      onClick={() => setDepartment(name)}
-                    >
+                    <option key={name} value={name}>
                       {name}
-                    </FilterChip>
+                    </option>
                   ))}
-                </>
-              ) : null}
+                </FilterSelect>
+                <FilterSelect
+                  id="career-employment"
+                  label="Employment type"
+                  value={employment}
+                  onChange={(value) => setEmployment(value as "all" | JobEmploymentType)}
+                >
+                  <option value="all">All employment types</option>
+                  {EMPLOYMENT_TYPES.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </FilterSelect>
+                <FilterSelect
+                  id="career-job-type"
+                  label="Job type"
+                  value={workMode}
+                  onChange={(value) => setWorkMode(value as "all" | JobWorkMode)}
+                >
+                  <option value="all">All job types</option>
+                  {WORK_MODES.map((item) => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
+                </FilterSelect>
+              </div>
             </div>
 
+            {visibleJobs.length === 0 ? (
+              <p className="mt-6 text-sm text-muted-foreground">No roles match these filters.</p>
+            ) : (
             <ul className="mt-4 grid gap-3">
               {visibleJobs.map((job) => {
                 const typeLabel = employmentLabel(job.employmentType);
+                const experienceLabel = formatJobExperience(job);
                 return (
                   <li
                     key={job._id}
@@ -136,6 +182,10 @@ export default function CareersPage() {
                       <div className="mt-3 flex flex-wrap gap-2">
                         {job.location ? <Meta icon={<MapPin className="h-3.5 w-3.5" />} label={job.location} /> : null}
                         {typeLabel ? <Meta icon={<Briefcase className="h-3.5 w-3.5" />} label={typeLabel} /> : null}
+                        {workModeLabel(job.workMode) ? (
+                          <Meta icon={<Building2 className="h-3.5 w-3.5" />} label={workModeLabel(job.workMode)} />
+                        ) : null}
+                        {experienceLabel ? <Meta icon={<Clock className="h-3.5 w-3.5" />} label={experienceLabel} /> : null}
                       </div>
                     </Link>
                     <div className="flex shrink-0 flex-col gap-2 sm:items-stretch">
@@ -152,6 +202,7 @@ export default function CareersPage() {
                 );
               })}
             </ul>
+            )}
           </>
         )}
       </main>
@@ -159,28 +210,31 @@ export default function CareersPage() {
   );
 }
 
-function FilterChip({
-  active,
-  onClick,
+function FilterSelect({
+  id,
+  label,
+  value,
+  onChange,
   children,
 }: {
-  active: boolean;
-  onClick: () => void;
-  children: string;
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`h-11 rounded-full border px-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
-        active
-          ? "border-foreground bg-foreground text-background"
-          : "border-border bg-card text-foreground hover:bg-accent"
-      }`}
-    >
-      {children}
-    </button>
+    <label htmlFor={id} className="block space-y-1.5">
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-11 w-full rounded-md border border-border bg-background px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:text-sm"
+      >
+        {children}
+      </select>
+    </label>
   );
 }
 

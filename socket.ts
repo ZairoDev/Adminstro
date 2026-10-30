@@ -9,6 +9,7 @@ import { parse } from "url";
 import { startDailyPasswordScheduler } from '@/util/dailyPasswordRotation';
 import { startPersonalReminderScheduler } from '@/util/personalReminderScheduler';
 import { startStaleSessionCleanupScheduler, startWebSessionSweeper } from '@/util/staleSessionCleanup';
+import { startAttendanceReconcileScheduler } from '@/util/attendanceReconcile';
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "0.0.0.0"; // ✅ Listen on all network interfaces (important for VPS)
@@ -23,6 +24,7 @@ app.prepare().then(() => {
   startPersonalReminderScheduler();
   startStaleSessionCleanupScheduler();
   startWebSessionSweeper();
+  startAttendanceReconcileScheduler();
   // Create one HTTP server for both Next.js and Socket.IO
   const httpServer = createServer(async (req, res) => {
     try {

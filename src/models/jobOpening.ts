@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Types } from "mongoose";
+import type { JobEmploymentType, JobWorkMode } from "@/lib/careers/jobTypes";
 
 export interface IJobOpening extends Document {
   _id: Types.ObjectId;
@@ -11,7 +12,11 @@ export interface IJobOpening extends Document {
   responsibilities: string;
   requirements: string;
   location: string;
-  employmentType: "fulltime" | "intern" | null;
+  employmentType: JobEmploymentType | null;
+  workMode: JobWorkMode | null;
+  experienceLevel: "fresher" | "range" | null;
+  experienceMin: number | null;
+  experienceMax: number | null;
   isPublished: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -70,8 +75,30 @@ const jobOpeningSchema = new Schema<IJobOpening>(
     },
     employmentType: {
       type: String,
-      enum: ["fulltime", "intern", null],
+      enum: ["fulltime", "parttime", "intern", "contract", null],
       default: null,
+    },
+    workMode: {
+      type: String,
+      enum: ["onsite", "hybrid", "remote", null],
+      default: null,
+    },
+    experienceLevel: {
+      type: String,
+      enum: ["fresher", "range", null],
+      default: null,
+    },
+    experienceMin: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 40,
+    },
+    experienceMax: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 40,
     },
     isPublished: {
       type: Boolean,

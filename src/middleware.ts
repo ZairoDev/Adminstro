@@ -40,6 +40,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/my-reminders",
     "/dashboard/my-documents",
     "/dashboard/careers",
+    "/dashboard/attendance",
+    /^\/dashboard\/attendance\/.*$/,
     "/dashboard/whatsapp-analytics",
     "/spreadsheet",
     "/spreadsheet-short-term",
@@ -233,6 +235,8 @@ const roleAccess: { [key: string]: (string | RegExp)[] } = {
     "/dashboard/people",
     /^\/dashboard\/people\/.*$/,
     "/dashboard/careers",
+    "/dashboard/attendance",
+    /^\/dashboard\/attendance\/.*$/,
     "/spreadsheet",
     "/spreadsheet-short-term",
   ],
@@ -491,6 +495,10 @@ export async function middleware(request: NextRequest) {
         if (path !== "/norole") { 
           return NextResponse.redirect(new URL("/norole", request.url));
         }
+        return NextResponse.next();
+      }
+
+      if (path === "/dashboard/my-attendance") {
         return NextResponse.next();
       }
 

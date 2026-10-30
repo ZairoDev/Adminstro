@@ -1,4 +1,5 @@
 import type { IJobOpening } from "@/models/jobOpening";
+import type { JobEmploymentType, JobWorkMode } from "@/lib/careers/jobTypes";
 
 export type JobOpeningView = {
   _id: string;
@@ -13,7 +14,11 @@ export type JobOpeningView = {
   responsibilities: string;
   requirements: string;
   location: string;
-  employmentType: "fulltime" | "intern" | null;
+  employmentType: JobEmploymentType | null;
+  workMode: JobWorkMode | null;
+  experienceLevel: "fresher" | "range" | null;
+  experienceMin: number | null;
+  experienceMax: number | null;
   isPublished: boolean;
 };
 
@@ -28,7 +33,11 @@ type OpeningSource = {
   responsibilities?: string;
   requirements?: string;
   location?: string;
-  employmentType?: "fulltime" | "intern" | null;
+  employmentType?: JobEmploymentType | null;
+  workMode?: JobWorkMode | null;
+  experienceLevel?: "fresher" | "range" | null;
+  experienceMin?: number | null;
+  experienceMax?: number | null;
   isPublished: boolean;
 };
 
@@ -50,6 +59,10 @@ export function serializeJobOpening(
     requirements: opening.requirements || "",
     location: opening.location || "",
     employmentType: opening.employmentType ?? null,
+    workMode: opening.workMode ?? null,
+    experienceLevel: opening.employmentType === "intern" ? "fresher" : opening.experienceLevel ?? null,
+    experienceMin: opening.employmentType === "intern" ? null : opening.experienceMin ?? null,
+    experienceMax: opening.employmentType === "intern" ? null : opening.experienceMax ?? null,
     isPublished: opening.isPublished,
   };
 }

@@ -10,6 +10,9 @@ import { toast } from "@/hooks/use-toast";
 import { JobIdentitySelects } from "@/components/departments/job-identity-selects";
 import { Switch } from "@/components/ui/switch";
 import { ShareJobButton } from "@/components/careers/share-job-button";
+import { formatJobExperience } from "@/lib/careers/experience";
+import { employmentTypeLabel, workModeLabel } from "@/lib/careers/jobTypes";
+import { EMPLOYMENT_TYPES, WORK_MODES, type JobEmploymentType, type JobWorkMode } from "@/lib/careers/jobTypes";
 
 type JobRow = {
   _id: string;
@@ -24,7 +27,11 @@ type JobRow = {
   responsibilities: string;
   requirements: string;
   location: string;
-  employmentType: "fulltime" | "intern" | null;
+  employmentType: JobEmploymentType | null;
+  workMode: JobWorkMode | null;
+  experienceLevel: "fresher" | "range" | null;
+  experienceMin: number | null;
+  experienceMax: number | null;
   isPublished: boolean;
 };
 
@@ -37,7 +44,11 @@ const emptyDraft = {
   responsibilities: "",
   requirements: "",
   location: "",
-  employmentType: "" as "" | "fulltime" | "intern",
+  employmentType: "" as "" | JobEmploymentType,
+  workMode: "" as "" | JobWorkMode,
+  experienceLevel: "fresher" as "fresher" | "range",
+  experienceMin: "",
+  experienceMax: "",
   isPublished: false,
 };
 
@@ -76,6 +87,10 @@ export default function CareersAdminPage() {
       requirements: job.requirements,
       location: job.location,
       employmentType: job.employmentType || "",
+      workMode: job.workMode || "",
+      experienceLevel: job.employmentType === "intern" ? "fresher" : job.experienceLevel || "fresher",
+      experienceMin: job.experienceMin == null ? "" : String(job.experienceMin),
+      experienceMax: job.experienceMax == null ? "" : String(job.experienceMax),
       isPublished: job.isPublished,
     });
   };
@@ -110,6 +125,34 @@ export default function CareersAdminPage() {
       return;
     }
 
+    if (!draft.employmentType) {
+      toast({ title: "Choose an employment type", variant: "destructive" });
+      return;
+    }
+    if (!draft.workMode) {
+      toast({ title: "Choose a job type", variant: "destructive" });
+      return;
+    }
+
+    const isIntern = draft.employmentType === "intern";
+    const experienceMin = draft.experienceMin === "" ? null : Number(draft.experienceMin);
+    const experienceMax = draft.experienceMax === "" ? null : Number(draft.experienceMax);
+    if (!isIntern && draft.experienceLevel === "range") {
+      if (
+        experienceMin == null ||
+        experienceMax == null ||
+        !Number.isInteger(experienceMin) ||
+        !Number.isInteger(experienceMax)
+      ) {
+        toast({ title: "Enter the minimum and maximum years", variant: "destructive" });
+        return;
+      }
+      if (experienceMin > experienceMax) {
+        toast({ title: "Minimum experience cannot be higher than the maximum", variant: "destructive" });
+        return;
+      }
+    }
+
     const payload = {
       title: draft.title.trim(),
       departmentId: draft.departmentId,
@@ -119,7 +162,11 @@ export default function CareersAdminPage() {
       responsibilities: draft.responsibilities.trim(),
       requirements: draft.requirements.trim(),
       location: draft.location.trim(),
-      employmentType: draft.employmentType || null,
+      employmentType: draft.employmentType,
+      workMode: draft.workMode,
+      experienceLevel: isIntern ? "fresher" : draft.experienceLevel,
+      experienceMin: isIntern || draft.experienceLevel !== "range" ? null : experienceMin,
+      experienceMax: isIntern || draft.experienceLevel !== "range" ? null : experienceMax,
       isPublished: draft.isPublished,
     };
 
@@ -191,15 +238,118 @@ export default function CareersAdminPage() {
             onChange={(event) =>
               setDraft((current) => ({
                 ...current,
-                employmentType: event.target.value as "" | "fulltime" | "intern",
+                employmentType: event.target.value as "" | JobEmploymentType,
+                ...(event.target.value === "intern"
+                  ? { experienceLevel: "fresher" as const, experienceMin: "", experienceMax: "" }
+                  : {}),
               }))
             }
             className="h-11 w-full rounded-md border bg-background px-3 text-sm"
           >
-            <option value="">Not specified</option>
-            <option value="fulltime">Full time</option>
-            <option value="intern">Internship</option>
+            <option value="">Select employment type</option>
+            {EMPLOYMENT_TYPES.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
           </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="job-type">Job type</Label>
+          <select
+            id="job-type"
+            value={draft.workMode}
+            onChange={(event) =>
+              setDraft((current) => ({
+                ...current,
+                workMode: event.target.value as "" | JobWorkMode,
+              }))
+            }
+            className="h-11 w-full rounded-md border bg-background px-3 text-sm"
+          >
+            <option value="">Select job type</option>
+            {WORK_MODES.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-3 lg:col-span-2">
+          <Label>Experience</Label>
+          {draft.employmentType === "intern" ? (
+            <p className="text-sm text-muted-foreground">Internships are always for freshers.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                aria-pressed={draft.experienceLevel === "fresher"}
+                onClick={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    experienceLevel: "fresher",
+                    experienceMin: "",
+                    experienceMax: "",
+                  }))
+                }
+                className={`h-11 rounded-md border px-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  draft.experienceLevel === "fresher"
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-background text-foreground"
+                }`}
+              >
+                Fresher
+              </button>
+              <button
+                type="button"
+                aria-pressed={draft.experienceLevel === "range"}
+                onClick={() =>
+                  setDraft((current) => ({ ...current, experienceLevel: "range" }))
+                }
+                className={`h-11 rounded-md border px-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  draft.experienceLevel === "range"
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-border bg-background text-foreground"
+                }`}
+              >
+                Experience range
+              </button>
+            </div>
+          )}
+          {draft.employmentType !== "intern" && draft.experienceLevel === "range" ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="experience-min">Minimum years</Label>
+                <Input
+                  id="experience-min"
+                  inputMode="numeric"
+                  value={draft.experienceMin}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      experienceMin: event.target.value.replace(/[^\d]/g, ""),
+                    }))
+                  }
+                  placeholder="1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="experience-max">Maximum years</Label>
+                <Input
+                  id="experience-max"
+                  inputMode="numeric"
+                  value={draft.experienceMax}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      experienceMax: event.target.value.replace(/[^\d]/g, ""),
+                    }))
+                  }
+                  placeholder="3"
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
         <div className="space-y-2 lg:col-span-2">
           <Label>Short summary</Label>
@@ -292,6 +442,9 @@ export default function CareersAdminPage() {
                   {job.positionName}
                   {job.departmentName ? ` · ${job.departmentName}` : ""}
                   {job.location ? ` · ${job.location}` : ""}
+                  {employmentTypeLabel(job.employmentType) ? ` · ${employmentTypeLabel(job.employmentType)}` : ""}
+                  {workModeLabel(job.workMode) ? ` · ${workModeLabel(job.workMode)}` : ""}
+                  {formatJobExperience(job) ? ` · ${formatJobExperience(job)}` : ""}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">

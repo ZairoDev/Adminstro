@@ -1,6 +1,6 @@
 const HOUSING_SAGA_COLLABORATOR_STAFF_ROLES = ["SuperAdmin", "Admin", "HAdmin"] as const;
 
-const HOUSING_SAGA_STAFF_EMAILS = ["siddartha@zairointernational.com"] as const;
+const HOUSING_SAGA_STAFF_EMAILS = ["sid7724@zairointernational.com"] as const;
 
 export function isHousingSagaStaffEmail(email: unknown): boolean {
   const normalized = String(email ?? "").trim().toLowerCase();

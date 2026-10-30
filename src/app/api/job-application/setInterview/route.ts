@@ -117,7 +117,9 @@ export async function POST(req: Request) {
       departmentId: jobIdentity.departmentId,
       jobPositionId: jobIdentity.jobPositionId,
       jobOpeningId: opening._id,
-      ...(opening.employmentType ? { employmentType: opening.employmentType } : {}),
+      ...(opening.employmentType === "fulltime" || opening.employmentType === "intern"
+        ? { employmentType: opening.employmentType }
+        : {}),
       coverLetter: data.coverLetter,
       linkedin: data.linkedin,
       portfolio: data.portfolio,

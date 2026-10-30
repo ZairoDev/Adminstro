@@ -56,6 +56,7 @@ import {
   Mail,
   Building2,
   Briefcase,
+  CalendarCheck,
   Wallet,
   Receipt,
   ScrollText,
@@ -295,6 +296,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <Briefcase size={18} />,
     },
     {
+      path: "/dashboard/attendance",
+      label: "Attendance",
+      Icon: <CalendarCheck size={18} />,
+    },
+    {
       path: "/dashboard/user",
       label: "Manage User",
       Icon: <User2Icon size={18} />,
@@ -395,6 +401,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/employee-activity",
       label: "Activity Tracking",
       Icon: <Activity size={18} />,
+    },
+    {
+      path: "/dashboard/attendance",
+      label: "Attendance",
+      Icon: <CalendarCheck size={18} />,
     },
     {
       path: "/dashboard/user",
@@ -1010,6 +1021,11 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <IdCardIcon size={18} />,
     },
     {
+      path: "/dashboard/attendance",
+      label: "Attendance",
+      Icon: <CalendarCheck size={18} />,
+    },
+    {
       path: "/dashboard/people",
       label: "People",
       Icon: <Users size={18} />,
@@ -1443,6 +1459,11 @@ const candidateRoutes = [
     Icon: <Activity size={18} />,
   },
   {
+    path: "/dashboard/attendance",
+    label: "Attendance",
+    Icon: <CalendarCheck size={18} />,
+  },
+  {
     path: "/dashboard/employee/employeeList",
     label: "All Employees",
     Icon: <IdCardIcon size={18} />,
@@ -1718,6 +1739,11 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
               path: "/dashboard/my-documents",
               label: "My Documents",
               Icon: <FolderOpen size={18} />,
+            },
+            {
+              path: "/dashboard/my-attendance",
+              label: "My Attendance",
+              Icon: <CalendarCheck size={18} />,
             },
           ];
     const leadRoute = inGroup(leadManagementRoutes);

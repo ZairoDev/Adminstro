@@ -86,6 +86,7 @@ export default function SalariesClient() {
   const [slipDraft, setSlipDraft] = useState<SalaryRow | null>(null);
   const [lossOfPayInput, setLossOfPayInput] = useState("0");
   const [lossOfPayError, setLossOfPayError] = useState<string | null>(null);
+  const [lossOfPayHint, setLossOfPayHint] = useState<string | null>(null);
 
   const currentMonth = currentPayrollMonth();
   const latestMonth = latestOpenPayrollMonth();
@@ -407,7 +408,38 @@ export default function SalariesClient() {
                             onClick={() => {
                               setLossOfPayInput("0");
                               setLossOfPayError(null);
+                              setLossOfPayHint(null);
                               setSlipDraft(row);
+                              void axios
+                                .get<{
+                                  success: boolean;
+                                  data?: {
+                                    lossOfPayDays: number;
+                                    policyConfirmed: boolean;
+                                    lastSlip: { lossOfPayDays: number; payrollStale: boolean } | null;
+                                  };
+                                }>("/api/attendance/lop", {
+                                  params: { month: payrollMonth.key, employeeId: row.id },
+                                })
+                                .then((lopResponse) => {
+                                  const lop = lopResponse.data.data;
+                                  if (!lop) return;
+                                  setLossOfPayInput(String(lop.lossOfPayDays));
+                                  const notes = [
+                                    lop.policyConfirmed
+                                      ? `Attendance calculated ${lop.lossOfPayDays} loss of pay days for this month.`
+                                      : "The attendance policy is not confirmed, so missing logins are not loss of pay yet.",
+                                  ];
+                                  if (lop.lastSlip?.payrollStale) {
+                                    notes.push(
+                                      `The last slip used ${lop.lastSlip.lossOfPayDays} days, and attendance has changed since then.`,
+                                    );
+                                  }
+                                  setLossOfPayHint(notes.join(" "));
+                                })
+                                .catch(() => {
+                                  setLossOfPayHint("Attendance loss of pay could not be loaded. You can still enter the days.");
+                                });
                             }}
                           >
                             {slipFor === row.id ? "Generating…" : "Generate slip"}
@@ -494,8 +526,9 @@ export default function SalariesClient() {
                 aria-describedby="loss-of-pay-hint"
               />
               <p id="loss-of-pay-hint" className="text-xs leading-5 text-muted-foreground">
-                Enter 0 if this employee has no loss of pay. This month has{" "}
-                {daysInPayrollMonth(payrollMonth)} days.
+                {lossOfPayHint
+                  ? `${lossOfPayHint} You can change the number before generating the slip. This month has ${daysInPayrollMonth(payrollMonth)} days.`
+                  : `Enter 0 if this employee has no loss of pay. This month has ${daysInPayrollMonth(payrollMonth)} days.`}
               </p>
               {lossOfPayError ? (
                 <p className="text-sm text-destructive" role="alert">

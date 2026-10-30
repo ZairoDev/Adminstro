@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Briefcase, MapPin } from "lucide-react";
+import { ArrowLeft, Briefcase, Building2, Clock, MapPin } from "lucide-react";
 import JobApplicationForm from "@/components/careers/job-application-form";
 import { CareerHeader } from "@/components/careers/career-header";
 import { ShareJobButton } from "@/components/careers/share-job-button";
+import { formatJobExperience } from "@/lib/careers/experience";
+import { employmentTypeLabel, workModeLabel, type JobEmploymentType, type JobWorkMode } from "@/lib/careers/jobTypes";
 
 type CareerJob = {
   _id: string;
@@ -21,7 +23,11 @@ type CareerJob = {
   responsibilities: string;
   requirements: string;
   location: string;
-  employmentType: "fulltime" | "intern" | null;
+  employmentType: JobEmploymentType | null;
+  workMode: JobWorkMode | null;
+  experienceLevel: "fresher" | "range" | null;
+  experienceMin: number | null;
+  experienceMax: number | null;
 };
 
 function lines(value: string): string[] {
@@ -32,9 +38,7 @@ function lines(value: string): string[] {
 }
 
 function employmentLabel(value: CareerJob["employmentType"]): string {
-  if (value === "intern") return "Internship";
-  if (value === "fulltime") return "Full time";
-  return "";
+  return employmentTypeLabel(value);
 }
 
 export default function CareerJobPage() {
@@ -86,6 +90,7 @@ export default function CareerJobPage() {
   const responsibilityLines = lines(job?.responsibilities || "");
   const requirementLines = lines(job?.requirements || "");
   const typeLabel = employmentLabel(job?.employmentType ?? null);
+  const experienceLabel = job ? formatJobExperience(job) : "";
 
   return (
     <div className={`min-h-dvh bg-background ${showApplyBar && job ? "pb-24 md:pb-10" : "pb-10"}`}>
@@ -139,6 +144,18 @@ export default function CareerJobPage() {
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
                     <Briefcase className="h-4 w-4" />
                     {typeLabel}
+                  </span>
+                ) : null}
+                {workModeLabel(job.workMode) ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
+                    <Building2 className="h-4 w-4" />
+                    {workModeLabel(job.workMode)}
+                  </span>
+                ) : null}
+                {experienceLabel ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    {experienceLabel}
                   </span>
                 ) : null}
               </div>

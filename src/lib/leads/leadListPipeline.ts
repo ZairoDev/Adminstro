@@ -13,7 +13,12 @@ export function buildPagedLeadListPipeline(
     { $sort: { updatedAt: -1 } },
     { $skip: skip },
     { $limit: limit },
-    { $project: LEAD_LIST_PROJECTION },
+    {
+      $project: {
+        ...LEAD_LIST_PROJECTION,
+        stageHistory: { $slice: ["$stageHistory", -1] },
+      },
+    },
     { $addFields: LEAD_LIST_IST_ADD_FIELDS },
   ];
 }

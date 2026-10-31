@@ -6,24 +6,10 @@ import {
   Ellipsis,
   Check,
   ThumbsUp,
-  CircleDot,
-  Info,
   BedSingle,
   ReceiptText,
-  ArrowBigUpDash,
-  ArrowBigDownDash,
-  Mail,
-  MailCheck,
   Image,
   Map,
-  MailOpen,
-  MessageSquare,
-  MessageSquareText,
-  MailX, 
-  MessageSquareX,
-  MessageSquareDashed,
-  MessageSquareOff,
-  CheckCheck,
   Copy,
 } from "lucide-react";
 import axios from "@/util/axios";
@@ -78,6 +64,8 @@ import { Calendar } from "../ui/calendar";
 import { Textarea } from "../ui/textarea";
 import CustomTooltip from "../CustomToolTip";
 import { getWhatsAppErrorInfo, getActionMessage, getFullErrorMessage } from "@/lib/whatsapp/errorHandler";
+import { LEAD_STAGES, formatLeadStageWhen, latestStageChange, selectedLeadStage, type LeadStage } from "@/lib/leads/stage";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import VisitModal from "@/app/dashboard/goodtogoleads/visit-modal";
 import { EditableCell } from "@/app/dashboard/goodtogoleads/EditableCell";
 import { TooltipEditableCell } from "@/app/dashboard/goodtogoleads/ToolTipEditableProp";
@@ -97,6 +85,65 @@ interface TargetType {
   city: string;
   areas: AreaType[];
 }
+
+function StageSelect({
+  name,
+  stage,
+  history,
+  disabled,
+  onChange,
+}: {
+  name?: string;
+  stage?: string;
+  history?: IQuery["stageHistory"];
+  disabled: boolean;
+  onChange: (stage: LeadStage) => void;
+}) {
+  const latest = latestStageChange(history);
+  const when = formatLeadStageWhen(latest?.changedAt);
+  const updatedBy = latest?.changedByName?.trim() || "Unknown";
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="block w-full">
+            <select
+              aria-label={`Stage for ${name || "lead"}`}
+              value={selectedLeadStage(stage)}
+              disabled={disabled}
+              onChange={(event) => {
+                const next = event.target.value;
+                if (selectedLeadStage(next)) onChange(next as LeadStage);
+              }}
+              className="h-10 w-full min-w-[11.5rem] cursor-pointer rounded-md border border-input bg-background px-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <option value="" disabled>
+                Select stage
+              </option>
+              {LEAD_STAGES.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs text-left">
+          {latest ? (
+            <div>
+              <p>Last updated by {updatedBy}</p>
+              {when ? <p>{when}</p> : null}
+            </div>
+          ) : (
+            <p>No stage update recorded yet</p>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 export default function  LeadTable({ queries ,setQueries, page = 1}: { queries: IQuery[] ,setQueries:Function, page?: number}) {
   const router = useRouter();
   const path = usePathname();
@@ -182,52 +229,6 @@ export default function  LeadTable({ queries ,setQueries, page = 1}: { queries: 
     }
   };
 
-  const handleLeadGenResponse = async (leadId: string | undefined, index: number) => {
-    if (!leadId || updatingStatusId === leadId) return;
-
-    const currentPriority = queries[index].salesPriority;
-    let newPriority: string;
-
-    // Cycle: None → Replying → NR → Block → Replying
-    if (currentPriority === "Replying") {
-      newPriority = "NR";
-    } else if (currentPriority === "NR") {
-      newPriority = "Block";
-    } else {
-      newPriority = "Replying";
-    }
-
-    // Optimistic update
-    const prevQueries = [...queries];
-    setQueries((q: IQuery[]) =>
-      q.map((item: IQuery) =>
-        item._id === leadId ? { ...item, salesPriority: newPriority } : item
-      )
-    );
-
-    setUpdatingStatusId(leadId);
-    try {
-      await axios.post("/api/sales/updateSalesPriority", {
-        leadId,
-        changedPriority: newPriority,
-      });
-      toast({
-        description: "Response updated successfully",
-      });
-    } catch (error) {
-      console.error("Failed to update sales priority", error);
-      // Rollback on failure
-      setQueries(prevQueries);
-      toast({
-        description: "Failed to update status. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setUpdatingStatusId(null);
-    }
-  };
-  
-  
 const handleSave = async (
   _id: string,
   key: keyof IQuery,
@@ -359,103 +360,55 @@ const handleSave = async (
     }
   };
 
-  const handleSalesPriority = async (leadId: string | undefined, index: number) => {
+  const handleLeadStage = async (leadId: string | undefined, stage: LeadStage) => {
     if (!leadId || updatingStatusId === leadId) return;
+    const current = queries.find((item) => item._id === leadId);
+    if (!current || current.messageStatus === stage) return;
 
-    const currentPriority = queries[index].salesPriority;
-    let newPriority: string;
-
-    // Cycle: None → Low → High → Medium → NR → Replying → None
-    if (!currentPriority || currentPriority === "None") {
-      newPriority = "Low";
-    } else if (currentPriority === "Low") {
-      newPriority = "High";
-    } else if (currentPriority === "High") {
-      newPriority = "Medium";
-    } else if (currentPriority === "Medium") {
-      newPriority = "NR";
-    } else if (currentPriority === "NR") {
-      newPriority = "Replying";
-    } else if (currentPriority === "Replying") {
-      newPriority = "None";
-    } else if (currentPriority === "Block") {
-      newPriority = "Block"; // Block stays as Block
-    } else {
-      newPriority = "None";
-    }
-
-    // Optimistic update
     const prevQueries = [...queries];
-    setQueries((q: IQuery[]) =>
-      q.map((item: IQuery) =>
-        item._id === leadId ? { ...item, salesPriority: newPriority } : item
-      )
+    setQueries((items: IQuery[]) =>
+      items.map((item: IQuery) =>
+        item._id === leadId
+          ? {
+              ...item,
+              messageStatus: stage,
+              salesPriority: stage === "Not Replying" ? "NR" : item.salesPriority === "NR" ? "None" : item.salesPriority,
+            }
+          : item,
+      ),
     );
 
     setUpdatingStatusId(leadId);
     try {
-      await axios.post("/api/sales/updateSalesPriority", {
+      const result = await axios.post<{
+        data?: Pick<IQuery, "messageStatus" | "salesPriority" | "stageHistory">;
+      }>("/api/sales/updateMessageStatus", {
         leadId,
-        changedPriority: newPriority,
+        changedStatus: stage,
       });
+      const saved = result.data?.data;
+      if (saved) {
+        setQueries((items: IQuery[]) =>
+          items.map((item: IQuery) =>
+            item._id === leadId
+              ? {
+                  ...item,
+                  messageStatus: saved.messageStatus ?? stage,
+                  salesPriority: saved.salesPriority ?? item.salesPriority,
+                  stageHistory: saved.stageHistory ?? item.stageHistory,
+                }
+              : item,
+          ),
+        );
+      }
       toast({
-        description: "Priority updated successfully",
+        description: "Stage updated",
       });
     } catch (error) {
-      console.error("Failed to update sales priority", error);
-      // Rollback on failure
+      console.error("Failed to update lead stage", error);
       setQueries(prevQueries);
       toast({
-        description: "Failed to update priority. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setUpdatingStatusId(null);
-    }
-  };
-
-  const handleMessageStatus = async (leadId: string | undefined, index: number) => {
-    if (!leadId || updatingStatusId === leadId) return;
-
-    const currentStatus = queries[index].messageStatus;
-    let newStatus: string;
-
-    // Cycle: None → First → Second → Third → Fourth → None
-    if (!currentStatus || currentStatus === "None") {
-      newStatus = "First";
-    } else if (currentStatus === "First") {
-      newStatus = "Second";
-    } else if (currentStatus === "Second") {
-      newStatus = "Third";
-    } else if (currentStatus === "Third") {
-      newStatus = "Fourth";
-    } else {
-      newStatus = "None";
-    }
-
-    // Optimistic update
-    const prevQueries = [...queries];
-    setQueries((q: IQuery[]) =>
-      q.map((item: IQuery) =>
-        item._id === leadId ? { ...item, messageStatus: newStatus } : item
-      )
-    );
-
-    setUpdatingStatusId(leadId);
-    try {
-      await axios.post("/api/sales/updateMessageStatus", {
-        leadId,
-        changedStatus: newStatus,
-      });
-      toast({
-        description: "Status updated successfully",
-      });
-    } catch (error) {
-      console.error("Failed to update message status", error);
-      // Rollback on failure
-      setQueries(prevQueries);
-      toast({
-        description: "Failed to update status. Please try again.",
+        description: "Could not update the stage. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -578,12 +531,8 @@ const handleSave = async (
             <TableHead>S.No.</TableHead>
             {(token?.role === "Sales" ||
               token?.role === "Sales-TeamLead" ||
-              token?.role === "SuperAdmin") && <TableHead>Status</TableHead>}
-
-            {(token?.role === "Sales" ||
-              token?.role === "Sales-TeamLead" ||
               token?.role === "SuperAdmin" ||
-              token?.role === "LeadGen") && <TableHead>Response</TableHead>}
+              token?.role === "LeadGen") && <TableHead>Stage</TableHead>}
             <TableHead>Name</TableHead>
             <TableHead>Property Type</TableHead>
             <TableHead>Guests</TableHead>
@@ -627,58 +576,9 @@ const handleSave = async (
               <TableCell>{(page - 1) * 50 + index + 1}</TableCell>
               {(token?.role === "Sales" ||
                 token?.role === "Sales-TeamLead" ||
-                token?.role === "SuperAdmin") && (
-                <TableCell
-                  className=" cursor-pointer relative "
-                  onClick={() => handleMessageStatus(query?._id, index)}
-                >
-                  {query?.reminder === null && (
-                    <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
-                      <p className=" rotate-90 text-xs font-semibold mt-1">
-                        Reminder
-                      </p>
-                    </div>
-                  )}
-                  {query.messageStatus === "First" ? (
-                    <CustomTooltip
-                      icon={<Mail color="green" />}
-                      desc="First Message"
-                    />
-                  ) : query.messageStatus === "Second" ? (
-                    <CustomTooltip
-                      icon={<MailCheck color="yellow" />}
-                      desc="Second Message"
-                    />
-                  ) : query.messageStatus === "Third" ? (
-                    <CustomTooltip
-                      icon={<MailX color="magenta" />}
-                      desc="Shared Options"
-                    />
-                  ) : query.messageStatus === "Fourth" ? (
-                    <CustomTooltip
-                      icon={<MessageSquareX color="red" />}
-                      desc="Lead Rejected"
-                    />
-                  ) : (
-                    <CustomTooltip
-                      icon={<CircleDot fill="" color="gray" />}
-                      desc="No Status"
-                    />
-                  )}
-                </TableCell>
-              )}
-              {(token?.role === "Sales" ||
-                token?.role === "Sales-TeamLead" ||
                 token?.role === "SuperAdmin" ||
                 token?.role === "LeadGen") && (
-                <TableCell
-                  className=" cursor-pointer relative "
-                  onClick={() =>
-                    token?.role === "LeadGen"
-                      ? handleLeadGenResponse(query?._id, index)
-                      : handleSalesPriority(query?._id, index)
-                  }
-                >
+                <TableCell className="relative min-w-[12rem]">
                   {query?.reminder === null && (
                     <div className=" h-[70px] w-4 absolute top-0 left-0 bg-gradient-to-t from-[#0f2027] via-[#203a43] to-[#2c5364]">
                       <p className=" rotate-90 text-xs font-semibold mt-1">
@@ -686,72 +586,13 @@ const handleSave = async (
                       </p>
                     </div>
                   )}
-
-                  {/* 🔹 For LeadGen: Only Replying & NR */}
-                  {token?.role === "LeadGen" &&
-                  path?.toString().trim().split("/")[2] !== "notReplying" ? (
-                    query.salesPriority === "Replying" ? (
-                      <CustomTooltip
-                        icon={<CheckCheck color="green" />}
-                        desc="Replying"
-                      />
-                    ) : query.salesPriority === "NR" ? (
-                      <CustomTooltip
-                        icon={<MessageSquareOff color="yellow" />}
-                        desc="Not Replying"
-                      />
-                    ) : query.salesPriority === "Block" ? (
-                      <CustomTooltip
-                        icon={<MessageSquareX color="red" />}
-                        desc="Block"
-                      />
-                    ) : (
-                      <CustomTooltip
-                        icon={<CircleDot color="gray" />}
-                        desc="No Response"
-                      />
-                    )
-                  ) : (
-                    /* 🔹 For Sales / TeamLead / SuperAdmin: Full cycle */
-                    <>
-                      {query.salesPriority === "High" ? (
-                        <CustomTooltip
-                          icon={<ArrowBigUpDash fill="green" color="green" />}
-                          desc="High Priority"
-                        />
-                      ) : query.salesPriority === "Low" ? (
-                        <CustomTooltip
-                          icon={<ArrowBigDownDash fill="red" color="red" />}
-                          desc="Low Priority"
-                        />
-                      ) : query.salesPriority === "Medium" ? (
-                        <CustomTooltip
-                          icon={<Info fill="" color="blue" />}
-                          desc="Need Information"
-                        />
-                      ) : query.salesPriority === "NR" ? (
-                        <CustomTooltip
-                          icon={<MessageSquareOff fill="" color="yellow" />}
-                          desc="Not Replying"
-                        />
-                      ) : query.salesPriority === "Replying" ? (
-                        <CustomTooltip
-                          icon={<CheckCheck color="green" />}
-                          desc="Replying"
-                        />
-                      ) : query.salesPriority === "Block" ? (
-                        <CustomTooltip
-                          icon={<MessageSquareX color="red" />}
-                          desc="Block"
-                        />
-                      ) : (
-                        <CustomTooltip
-                          icon={<CircleDot fill="" color="gray" />}
-                          desc="No Priority"
-                        />
-                      )}
-                    </>
-                  )}
+                  <StageSelect
+                    name={query?.name}
+                    stage={query.messageStatus}
+                    history={query.stageHistory}
+                    disabled={!query?._id || updatingStatusId === query._id}
+                    onChange={(next) => void handleLeadStage(query?._id, next)}
+                  />
                 </TableCell>
               )}
 

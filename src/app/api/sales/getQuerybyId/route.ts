@@ -80,7 +80,25 @@ export async function POST(req: NextRequest) {
       data.leadDocuments = docs ?? {};
     }
 
-    return NextResponse.json({ success: true, data }, { status: 200 });
+    const storedStage = await Query.collection.findOne(
+      { _id: query._id },
+      { projection: { stageHistory: 1, messageStatus: 1 } },
+    );
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          ...data,
+          messageStatus:
+            typeof storedStage?.messageStatus === "string"
+              ? storedStage.messageStatus
+              : query.messageStatus,
+          stageHistory: Array.isArray(storedStage?.stageHistory) ? storedStage.stageHistory : [],
+        },
+      },
+      { status: 200 },
+    );
   } catch (error: unknown) {
     const err = error as { status?: number; code?: string };
     if (err?.status === 401 || err?.code) {

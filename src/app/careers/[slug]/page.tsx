@@ -91,101 +91,109 @@ export default function CareerJobPage() {
   const requirementLines = lines(job?.requirements || "");
   const typeLabel = employmentLabel(job?.employmentType ?? null);
   const experienceLabel = job ? formatJobExperience(job) : "";
+  const facts = job
+    ? [
+        job.location ? { label: "Location", value: job.location, icon: MapPin } : null,
+        typeLabel ? { label: "Employment", value: typeLabel, icon: Briefcase } : null,
+        workModeLabel(job.workMode) ? { label: "Work mode", value: workModeLabel(job.workMode), icon: Building2 } : null,
+        experienceLabel ? { label: "Experience", value: experienceLabel, icon: Clock } : null,
+      ].filter((fact): fact is { label: string; value: string; icon: typeof MapPin } => fact !== null)
+    : [];
 
   return (
-    <div className={`min-h-dvh bg-background ${showApplyBar && job ? "pb-24 md:pb-10" : "pb-10"}`}>
+    <div
+      className={`min-h-dvh overflow-x-hidden bg-background ${
+        showApplyBar && job ? "pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:pb-12" : "pb-12"
+      }`}
+    >
       <CareerHeader />
-      <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
+      <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
         <Link
           href="/careers"
-          className="inline-flex h-11 items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="inline-flex h-11 cursor-pointer items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <ArrowLeft className="h-4 w-4" />
           All open roles
         </Link>
 
         {loading ? (
-          <div className="mt-8 h-64 animate-pulse rounded-2xl border border-border bg-muted/40" aria-busy="true" />
+          <div className="mt-6 space-y-4" aria-busy="true">
+            <div className="h-44 animate-pulse rounded-2xl border border-border bg-muted/40" />
+            <div className="h-32 animate-pulse rounded-2xl border border-border bg-muted/40" />
+          </div>
         ) : missing || !job ? (
-          <div className="mt-8 rounded-2xl border border-border bg-card p-8">
+          <div className="mt-6 rounded-2xl border border-border bg-card p-6 sm:p-8">
             <h1 className="text-2xl font-semibold text-foreground">This role is not open</h1>
-            <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-2 max-w-lg text-base leading-relaxed text-muted-foreground">
               It may have been closed. You can look at the roles that are still open.
             </p>
             <Link
               href="/careers"
-              className="mt-6 inline-flex h-11 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+              className="mt-6 inline-flex h-12 cursor-pointer items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               Back to open roles
             </Link>
           </div>
         ) : (
-          <div className="mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <article>
-              <p className="text-sm text-muted-foreground">
-                {job.positionName}
-                {job.departmentName ? ` · ${job.departmentName}` : ""}
-              </p>
-              <div className="mt-2 flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          <div className="mt-4 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8">
+            <article className="min-w-0">
+              <div className="rounded-2xl border border-border bg-card p-4 sm:p-6">
+                <p className="text-sm text-muted-foreground">
+                  {job.positionName}
+                  {job.departmentName ? ` · ${job.departmentName}` : ""}
+                </p>
+                <h1 className="mt-2 break-words text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
                   {job.title}
                 </h1>
-                <ShareJobButton title={job.title} slug={job.slug} />
-              </div>
-              <p className="mt-4 max-w-2xl text-base leading-relaxed text-foreground">{job.summary}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {job.location ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    {job.location}
-                  </span>
-                ) : null}
-                {typeLabel ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
-                    <Briefcase className="h-4 w-4" />
-                    {typeLabel}
-                  </span>
-                ) : null}
-                {workModeLabel(job.workMode) ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
-                    <Building2 className="h-4 w-4" />
-                    {workModeLabel(job.workMode)}
-                  </span>
-                ) : null}
-                {experienceLabel ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    {experienceLabel}
-                  </span>
+                <p className="mt-3 max-w-2xl text-base leading-relaxed text-foreground">{job.summary}</p>
+                <div className="mt-4 sm:max-w-xs">
+                  <ShareJobButton
+                    title={job.title}
+                    slug={job.slug}
+                    className="inline-flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-auto"
+                  />
+                </div>
+                {facts.length > 0 ? (
+                  <dl className="mt-5 grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
+                    {facts.map((fact) => (
+                      <div key={fact.label} className="min-w-0 rounded-xl bg-muted/60 px-3 py-3">
+                        <dt className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                          <fact.icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                          {fact.label}
+                        </dt>
+                        <dd className="mt-1 break-words text-sm font-medium leading-snug text-foreground">{fact.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 ) : null}
               </div>
 
-              <div className="mt-8 max-w-2xl space-y-8 text-base leading-relaxed text-foreground">
-                <section>
+              <div className="mt-4 space-y-4 text-base leading-relaxed text-foreground">
+                <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
                   <h2 className="text-lg font-semibold">About the role</h2>
-                  <p className="mt-2 whitespace-pre-wrap">{job.description}</p>
+                  <p className="mt-3 max-w-2xl whitespace-pre-wrap">{job.description}</p>
                 </section>
                 {responsibilityLines.length > 0 ? (
-                  <section>
-                    <h2 className="text-lg font-semibold text-foreground">What you will do</h2>
-                    <ul className="mt-3 space-y-2">
+                  <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
+                    <h2 className="text-lg font-semibold">What you will do</h2>
+                    <ul className="mt-3 max-w-2xl space-y-3">
                       {responsibilityLines.map((line) => (
                         <li key={line} className="flex gap-3">
                           <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground" aria-hidden />
-                          <span>{line}</span>
+                          <span className="min-w-0 break-words">{line}</span>
                         </li>
                       ))}
                     </ul>
                   </section>
                 ) : null}
                 {requirementLines.length > 0 ? (
-                  <section>
-                    <h2 className="text-lg font-semibold text-foreground">What we look for</h2>
-                    <ul className="mt-3 space-y-2">
+                  <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
+                    <h2 className="text-lg font-semibold">What we look for</h2>
+                    <ul className="mt-3 max-w-2xl space-y-3">
                       {requirementLines.map((line) => (
                         <li key={line} className="flex gap-3">
                           <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground" aria-hidden />
-                          <span>{line}</span>
+                          <span className="min-w-0 break-words">{line}</span>
                         </li>
                       ))}
                     </ul>
@@ -194,23 +202,23 @@ export default function CareerJobPage() {
               </div>
             </article>
 
-            <aside>
-              <div className="hidden rounded-2xl border border-border bg-card p-5 lg:block">
+            <aside className="hidden lg:block">
+              <div className="sticky top-6 rounded-2xl border border-border bg-card p-5">
                 <p className="text-sm text-muted-foreground">Apply for</p>
-                <p className="mt-1 text-lg font-semibold text-foreground">{job.title}</p>
+                <p className="mt-1 break-words text-lg font-semibold text-foreground">{job.title}</p>
                 <a
                   href="#apply"
-                  className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="mt-4 inline-flex h-12 w-full cursor-pointer items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   Continue to application
                 </a>
-                <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                   The form is on this page. Your application is saved against this role.
                 </p>
               </div>
             </aside>
 
-            <div className="lg:col-span-2">
+            <div className="min-w-0 lg:col-span-2">
               <JobApplicationForm
                 embedded
                 lockedJob={{
@@ -228,10 +236,10 @@ export default function CareerJobPage() {
       </main>
 
       {job && showApplyBar ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 p-3 backdrop-blur md:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-4 pt-3 backdrop-blur lg:hidden pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           <a
             href="#apply"
-            className="flex h-12 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground"
+            className="flex h-12 cursor-pointer items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             Apply for this role
           </a>

@@ -37,6 +37,8 @@ import { apartmentTypes } from "@/app/spreadsheet/spreadsheetTable";
 import { metroLines } from "@/app/dashboard/target/components/editArea";
 import { useLeadSocketEmit } from "@/hooks/useLeadSocketEmit";
 import { LeadDocumentsViewer } from "@/components/leads/LeadDocumentsViewer";
+import { LeadStageJourney } from "@/components/leads/lead-stage-journey";
+import type { LeadStage } from "@/lib/leads/stage";
 import {
   canViewLeadDocuments,
   normalizeLeadDocuments,
@@ -79,6 +81,7 @@ const QueryDetails = ({ params }: PageProps) => {
   const [startDateState, setStartDateState] = useState<Date | undefined>(undefined);
   const [endDateState, setEndDateState] = useState<Date | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [stageSaving, setStageSaving] = useState(false);
 
   // const handleSave = async () => {
   //   try {
@@ -249,6 +252,27 @@ const QueryDetails = ({ params }: PageProps) => {
     }
   };
 
+  const updateStage = async (stage: LeadStage) => {
+    if (!id || stageSaving) return;
+    setStageSaving(true);
+    try {
+      const result = await axios.post("/api/sales/updateMessageStatus", {
+        leadId: id,
+        changedStatus: stage,
+      });
+      const updated = result.data?.data as IQuery | undefined;
+      if (updated) {
+        setApiData((current) => ({ ...(current ?? {}), ...updated }));
+      }
+      toast({ description: "Stage updated" });
+    } catch (err) {
+      console.error("Failed to update lead stage", err);
+      toast({ description: "Could not update the stage. Please try again.", variant: "destructive" });
+    } finally {
+      setStageSaving(false);
+    }
+  };
+
   const fetchEmployeeDetails = async () => {
     if (!apiData?.createdBy) return;
     try {
@@ -312,7 +336,7 @@ setBooster(res.data);
             </div>
           </Card>
         ) : (
-          <div>
+          <div className="space-y-4">
             <Card className="p-6 space-y-4">
               <div className="flex items-center space-x-3">
                 <Link
@@ -773,6 +797,12 @@ setBooster(res.data);
                   <p className=" text-gray-500">Created By: {createdByEmail}</p>
                 )}
             </Card>
+            <LeadStageJourney
+              stage={apiData.messageStatus}
+              history={apiData.stageHistory}
+              saving={stageSaving}
+              onChange={(stage) => void updateStage(stage)}
+            />
           </div>
         )}
         {apiData?.rejectionReason && (

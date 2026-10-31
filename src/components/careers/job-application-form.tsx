@@ -688,10 +688,10 @@ export default function JobApplicationForm({
         )}
 
         {/* Form Card */}
-        <div id="apply" className="scroll-mt-6 rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="border-b border-border px-5 py-5 sm:px-8">
+        <div id="apply" className={`rounded-2xl border border-border bg-card overflow-hidden ${embedded ? "scroll-mt-28 lg:scroll-mt-6" : "scroll-mt-6"}`}>
+          <div className="border-b border-border px-4 py-5 sm:px-8">
             <p className="text-sm font-medium text-muted-foreground">Application</p>
-            <h2 className="mt-1 text-2xl font-semibold text-foreground">
+            <h2 className="mt-1 break-words text-xl font-semibold text-foreground sm:text-2xl">
               {lockedJob ? lockedJob.title : "Career application"}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -703,7 +703,7 @@ export default function JobApplicationForm({
 
           <form
             onSubmit={handleSubmit}
-            className="p-5 sm:p-8 space-y-6 sm:space-y-8"
+            className="space-y-6 p-4 sm:space-y-8 sm:p-8"
           >
             {submitError && (
               <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 flex items-start gap-3 animate-in fade-in duration-300">
@@ -852,12 +852,13 @@ export default function JobApplicationForm({
                     <Phone className="w-3.5 h-3.5 text-muted-foreground" />
                     Phone Number <span className="text-destructive">*</span>
                   </label>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[10.5rem_minmax(0,1fr)]">
                     <select
                       name="countryCode"
+                      aria-label="Country code"
                       value={formData.countryCode}
                       onChange={handleChange}
-                      className="h-12 w-40 shrink-0 rounded-xl border border-border bg-input px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      className="h-12 w-full min-w-0 rounded-xl border border-border bg-input px-3 text-base text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     >
                       {countryCodes.map((item) => (
                         <option key={item.code} value={item.code}>
@@ -977,11 +978,11 @@ export default function JobApplicationForm({
                   onChange={handleChange}
                   rows={3}
                   placeholder="Street address, building number, apartment/suite"
-                  className={`w-full bg-input border ${
+                  className={`min-h-24 w-full resize-y bg-input border ${
                     errors.address
                       ? "border-destructive/50"
                       : "border-border"
-                  } h-12 rounded-xl px-4 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors resize-none`}
+                  } rounded-xl px-4 py-3 text-base text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors`}
                 />
                 {errors.address && (
                   <p className="text-destructive text-xs flex items-center gap-1">

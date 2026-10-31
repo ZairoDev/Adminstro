@@ -507,6 +507,13 @@ export interface IQuery {
   priority: string;
   salesPriority: string;
   messageStatus?: string;
+  stageHistory?: {
+    fromStage?: string;
+    toStage: string;
+    changedByName?: string;
+    changedById?: string;
+    changedAt?: string | Date;
+  }[];
   leadStatus?: string;
   BoostID?: string;
   firstReply?: boolean; // true if customer sent their first reply via WhatsApp

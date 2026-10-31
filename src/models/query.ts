@@ -168,9 +168,35 @@ const querySchema = new Schema(
     },
     messageStatus: {
       type: String,
-      enum: ["First", "Second", "Third", "Fourth", "Options", "Visit", "None"],
+      enum: [
+        "First Message",
+        "Second Message",
+        "Third Message",
+        "Need to send options",
+        "Options Send",
+        "Visit",
+        "Not Replying",
+        "First",
+        "Second",
+        "Third",
+        "Fourth",
+        "Options",
+        "None",
+      ],
       require: [true, "Status must be provided"],
       default: "None",
+    },
+    stageHistory: {
+      type: [
+        {
+          fromStage: { type: String, default: "" },
+          toStage: { type: String, required: true },
+          changedByName: { type: String, default: "" },
+          changedById: { type: String, default: "" },
+          changedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
     },
     // Indicates whether the lead (customer) has sent their first reply via WhatsApp
     firstReply: {
@@ -303,6 +329,12 @@ querySchema.index({ leadStatus: 1, updatedAt: -1 });
 querySchema.index({ leadStatus: 1, location: 1, updatedAt: -1 });
 querySchema.index({ leadStatus: 1, salesPriority: 1, updatedAt: -1 });
 querySchema.index({ createdBy: 1, createdAt: -1, leadStatus: 1 });
+
+// A long-running dev server keeps the first compiled model. Stage history added
+// later would be stripped on save and omitted on read until the process restarts.
+if (models.Query && !models.Query.schema.path("stageHistory")) {
+  mongoose.deleteModel("Query");
+}
 
 const Query = models.Query || model("Query", querySchema);
 export default Query;

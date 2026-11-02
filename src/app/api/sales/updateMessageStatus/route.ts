@@ -5,7 +5,14 @@ import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDataFromToken } from "@/util/getDataFromToken";
-import { LEAD_STAGES, selectedLeadStage } from "@/lib/leads/stage";
+import { LEAD_STAGES, selectedLeadStage, type LeadStageChange } from "@/lib/leads/stage";
+
+type LeadStatusWrite = {
+  messageStatus?: string;
+  salesPriority?: string;
+  updatedAt?: Date;
+  stageHistory?: LeadStageChange[];
+};
 
 const bodySchema = z.object({
   leadId: z.string().trim().min(1),
@@ -75,22 +82,23 @@ export async function POST(req: NextRequest) {
 
     const leadObjectIdValue = leadObjectId(leadId);
     const changedAt = new Date();
-    // Write through the collection so a stale in-memory schema cannot drop stageHistory.
-    await Query.collection.updateOne(
+    const stageChange: LeadStageChange = {
+      fromStage: previous && previous !== "None" ? previous : "",
+      toStage: changedStatus,
+      changedByName: actor.name,
+      changedById: actor.id,
+      changedAt,
+    };
+    // Model.collection is typed as a generic document, and the driver rejects $push on that shape.
+    // The raw collection write is intentional so a stale in-memory schema cannot drop stageHistory.
+    const leads = Query.collection as unknown as mongoose.mongo.Collection<LeadStatusWrite>;
+    await leads.updateOne(
       { _id: leadObjectIdValue },
       {
         $set: { ...update, updatedAt: changedAt },
         $push: {
           stageHistory: {
-            $each: [
-              {
-                fromStage: previous && previous !== "None" ? previous : "",
-                toStage: changedStatus,
-                changedByName: actor.name,
-                changedById: actor.id,
-                changedAt,
-              },
-            ],
+            $each: [stageChange],
             $slice: -100,
           },
         },

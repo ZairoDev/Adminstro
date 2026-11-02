@@ -140,6 +140,8 @@ export const WHATSAPP_ACCESS_ROLES = [
   "Advert",
   "Sales",
   "sales-intern",
+  "Sales-Onboarding",
+  "Sales-Onboarding-Broker",
   "Sales-TeamLead",
   "LeadGen",
   "LeadGen-TeamLead",
@@ -170,6 +172,8 @@ export function getAllowedPhoneConfigs(
   const UNALLOCATED_AREA_USES_ALL_LINES: readonly string[] = [
     "Sales",
     "sales-intern",
+    "Sales-Onboarding",
+    "Sales-Onboarding-Broker",
     "Sales-TeamLead",
     "LeadGen",
     "LeadGen-TeamLead",

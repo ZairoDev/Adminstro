@@ -4,6 +4,8 @@ export const employeeRoles = [
   "Admin",
   "Sales",
   "sales-intern",
+  "Sales-Onboarding",
+  "Sales-Onboarding-Broker",
   "Sales-TeamLead",
   "hSale",
   "Guest",

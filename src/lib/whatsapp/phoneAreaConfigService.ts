@@ -97,6 +97,8 @@ const UNALLOCATED_AREA_USES_ALL_LINES: readonly string[] = [
   "Sales",
   "sales-intern",
   "Sales-TeamLead",
+  "Sales-Onboarding",
+  "Sales-Onboarding-Broker",
   "LeadGen",
   "LeadGen-TeamLead",
 ];

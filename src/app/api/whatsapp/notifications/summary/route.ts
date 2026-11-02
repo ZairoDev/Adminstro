@@ -40,7 +40,13 @@ export async function GET(req: NextRequest) {
 
     const whatsappToken = token as WhatsAppToken & { id?: string; _id?: string };
     const userRole = whatsappToken.role || "";
-    const allowedRoles = ["SuperAdmin", "Sales-TeamLead", "Sales"];
+    const allowedRoles = [
+      "SuperAdmin",
+      "Sales-TeamLead",
+      "Sales",
+      "Sales-Onboarding",
+      "Sales-Onboarding-Broker",
+    ];
 
     if (!allowedRoles.includes(userRole)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -878,6 +878,10 @@ const NewUser: React.FC<NewUserProps> = ({
                         <SelectItem value="Content">Content Writer</SelectItem>
                         <SelectItem value="Sales">Sales</SelectItem>
                         <SelectItem value="sales-intern">Sales Intern</SelectItem>
+                        <SelectItem value="Sales-Onboarding">Sales Onboarding</SelectItem>
+                        <SelectItem value="Sales-Onboarding-Broker">
+                          Sales Onboarding Broker
+                        </SelectItem>
                         <SelectItem value="Sales-TeamLead">
                           Sales-TeamLead
                         </SelectItem>
@@ -1000,7 +1004,9 @@ const NewUser: React.FC<NewUserProps> = ({
 
                   {(selectedRole === "Sales" ||
                     selectedRole === "Sales-TeamLead" ||
-                    selectedRole === "sales-intern") && (
+                    selectedRole === "sales-intern" ||
+                    selectedRole === "Sales-Onboarding" ||
+                    selectedRole === "Sales-Onboarding-Broker") && (
                     <>
                       <div className="space-y-2">
                         <Label>Rental Type *</Label>

@@ -57,6 +57,7 @@ import {
   Building2,
   Briefcase,
   CalendarCheck,
+  CalendarClock,
   Wallet,
   Receipt,
   ScrollText,
@@ -75,6 +76,7 @@ import {
 import SidebarSection from "./sidebarSection";
 import type { JSX } from "react/jsx-runtime";
 import { ModeToggle } from "./themeChangeButton";
+import { canViewAssignedInterviews } from "@/lib/interviews/assignedInterviews";
 import { FaWhatsapp } from "react-icons/fa6";
 import axios from "@/util/axios";
 import { AiFillDashboard } from "react-icons/ai";
@@ -722,6 +724,76 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/spreadsheet-short-term",
       label: "Owner Sheet Short Term",
       Icon: <FileSpreadsheet size={18} />,
+    },
+    {
+      path: "/whatsapp",
+      label: "WhatsApp",
+      Icon: <MessageSquare size={18} />,
+      openInNewTab: true,
+    },
+  ],
+  "Sales-Onboarding": [
+    {
+      path: "/dashboard",
+      label: "Dashboard",
+      Icon: <LayoutDashboard size={18} />,
+    },
+    {
+      path: "/spreadsheet",
+      label: "Owner Sheet Long Term",
+      Icon: <FileSpreadsheet size={18} />,
+      openInNewTab: true,
+    },
+    {
+      path: "/spreadsheet-short-term",
+      label: "Owner Sheet Short Term",
+      Icon: <FileSpreadsheet size={18} />,
+      openInNewTab: true,
+    },
+    {
+      path: "/dashboard/unregistered-owner",
+      label: "New Owners",
+      Icon: <PersonStanding size={18} />,
+    },
+    {
+      path: "/dashboard/newproperty/filteredProperties",
+      label: "Property Filter",
+      Icon: <SlidersHorizontal size={18} />,
+    },
+    {
+      path: "/whatsapp",
+      label: "WhatsApp",
+      Icon: <MessageSquare size={18} />,
+      openInNewTab: true,
+    },
+  ],
+  "Sales-Onboarding-Broker": [
+    {
+      path: "/dashboard",
+      label: "Dashboard",
+      Icon: <LayoutDashboard size={18} />,
+    },
+    {
+      path: "/spreadsheet",
+      label: "Owner Sheet Long Term",
+      Icon: <FileSpreadsheet size={18} />,
+      openInNewTab: true,
+    },
+    {
+      path: "/spreadsheet-short-term",
+      label: "Owner Sheet Short Term",
+      Icon: <FileSpreadsheet size={18} />,
+      openInNewTab: true,
+    },
+    {
+      path: "/dashboard/unregistered-owner",
+      label: "New Owners",
+      Icon: <PersonStanding size={18} />,
+    },
+    {
+      path: "/dashboard/newproperty/filteredProperties",
+      label: "Property Filter",
+      Icon: <SlidersHorizontal size={18} />,
     },
     {
       path: "/whatsapp",
@@ -1745,6 +1817,15 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
               label: "My Attendance",
               Icon: <CalendarCheck size={18} />,
             },
+            ...(canViewAssignedInterviews(role)
+              ? [
+                  {
+                    path: "/dashboard/my-interviews",
+                    label: "My Interviews",
+                    Icon: <CalendarClock size={18} />,
+                  },
+                ]
+              : []),
           ];
     const leadRoute = inGroup(leadManagementRoutes);
     const visitsManagementRoute = inGroup(visitsManagementRoutes).map((route) =>

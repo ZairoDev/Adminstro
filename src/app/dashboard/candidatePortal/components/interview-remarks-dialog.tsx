@@ -18,19 +18,19 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 interface InterviewRemarks {
-  experienceValidation?: string;
-  motherTongueInfluence?: string;
-  englishSpeaking?: string;
-  understandingScale?: string;
-  listeningSkills?: string;
-  basicProfessionalism?: string;
-  stabilitySignals?: string;
-  salaryExpectations?: string;
-  hrNotes?: string;
-  evaluatedBy?: string;
-  evaluatedAt?: string;
-  lastUpdatedBy?: string;
-  lastUpdatedAt?: string;
+  experienceValidation?: string | null;
+  motherTongueInfluence?: string | null;
+  englishSpeaking?: string | null;
+  understandingScale?: string | null;
+  listeningSkills?: string | null;
+  basicProfessionalism?: string | null;
+  stabilitySignals?: string | null;
+  salaryExpectations?: string | null;
+  hrNotes?: string | null;
+  evaluatedBy?: string | null;
+  evaluatedAt?: string | null;
+  lastUpdatedBy?: string | null;
+  lastUpdatedAt?: string | null;
 }
 
 interface InterviewRemarksDialogProps {

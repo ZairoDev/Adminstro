@@ -140,6 +140,22 @@ export async function POST(
       );
     }
 
+    if (
+      status === "rejected" &&
+      !isOnboardingRejection &&
+      !isTrainingDiscontinuation &&
+      existing.status === "interview" &&
+      !existing.interviewDetails?.remarks?.evaluatedBy
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Interview remarks must be completed before rejecting",
+        },
+        { status: 400 }
+      );
+    }
+
     const updateData: Record<string, unknown> = { status };
 
     if (status === "selected" && selectionDetails)

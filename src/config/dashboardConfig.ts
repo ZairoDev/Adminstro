@@ -54,6 +54,8 @@ export const ROLE_TEAM_MAP: Record<string, TeamType[]> = {
   "Sales-TeamLead": ["Sales", "Admin"], // Full Sales access + some admin features
   Sales: ["Sales"],
   "sales-intern": ["Sales"],
+  "Sales-Onboarding": ["Sales"],
+  "Sales-Onboarding-Broker": ["Sales"],
   Advert: ["Advert"],
   Developer: ["LeadGeneration", "Sales", "HR", "Admin", "Advert"],
   Content: ["LeadGeneration"],
@@ -115,6 +117,8 @@ export const ROLE_SECTION_OVERRIDES: Record<string, DashboardSection[]> = {
   ],
   // Sales intern should only see Owner details (New Owners) on dashboard.
   "sales-intern": ["newOwners"],
+  "Sales-Onboarding": ["newOwners"],
+  "Sales-Onboarding-Broker": ["newOwners"],
   "Sales-TeamLead": [
     "visitStatistics",
     "newOwners",
@@ -154,6 +158,7 @@ export const LOCATION_EXEMPT_ROLES: string[] = [
   "Developer",
   "HR",
   "Sales-TeamLead", // Sales Team Lead has no location restriction
+  "Sales-Onboarding-Broker",
   "LeadGen-TeamLead",
   "LeadGen", // LeadGen can see all locations
   "Advert",
@@ -436,7 +441,7 @@ export function isAdminRole(role: string): boolean {
  * Check if role is a team lead (has elevated permissions)
  */
 export function isTeamLead(role: string): boolean {
-  return ["LeadGen-TeamLead", "Sales-TeamLead"].includes(role);
+  return ["LeadGen-TeamLead", "Sales-TeamLead", "Sales-Onboarding-Broker"].includes(role);
 }
 
 /**

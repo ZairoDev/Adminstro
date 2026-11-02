@@ -268,6 +268,8 @@ const employeeSchema = new Schema<IEmployee>(
         "Content",
         "Sales",
         "sales-intern",
+        "Sales-Onboarding",
+        "Sales-Onboarding-Broker",
         "hSale",
         "Sales-TeamLead",
         "HR",

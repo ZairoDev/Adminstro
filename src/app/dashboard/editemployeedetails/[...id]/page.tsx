@@ -356,6 +356,10 @@ const AccountPage = ({ params }: PageProps) => {
                 <SelectItem value="Advert">Advert</SelectItem>
                 <SelectItem value="Content">Content Writer</SelectItem>
                 <SelectItem value="Sales">Sales</SelectItem>
+                <SelectItem value="Sales-Onboarding">Sales Onboarding</SelectItem>
+                <SelectItem value="Sales-Onboarding-Broker">
+                  Sales Onboarding Broker
+                </SelectItem>
                 <SelectItem value="HR">Human Resource(HR)</SelectItem>
                 <SelectItem value="Developer">Developer</SelectItem>
               </SelectContent>

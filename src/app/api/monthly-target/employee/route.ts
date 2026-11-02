@@ -10,7 +10,14 @@ connectDb();
 
 const ALLOWED_ROLES = ["SuperAdmin", "Sales-TeamLead", "LeadGen-TeamLead"];
 
-const SALES_ROLES = ["Sales", "hSale", "Sales-TeamLead", "Subscription-Sales"];
+const SALES_ROLES = [
+  "Sales",
+  "hSale",
+  "Sales-TeamLead",
+  "Sales-Onboarding",
+  "Sales-Onboarding-Broker",
+  "Subscription-Sales",
+];
 const LEAD_ROLES = ["LeadGen", "LeadGen-TeamLead"];
 
 // Fields each role is permitted to set on an employee target

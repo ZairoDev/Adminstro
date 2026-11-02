@@ -1218,6 +1218,14 @@ export default function CandidateDetailPage() {
                       </span>
                     </div>
                   )}
+                  {candidate.interviewAttendance ? (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Attendance</span>
+                      <span className="text-foreground font-medium">
+                        {candidate.interviewAttendance === "appeared" ? "Appeared" : "Not appeared"}
+                      </span>
+                    </div>
+                  ) : null}
                   {candidate.interviewDetails.interviewMode && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Mode</span>
@@ -2355,7 +2363,7 @@ export default function CandidateDetailPage() {
 
             {/* Interview Remarks - Prominent Section */}
             {/* Show remarks if status is interview, selected, or onboarding and remarks exist */}
-            {(candidate.status === "interview" || candidate.status === "selected" || candidate.status === "onboarding") && candidate.interviewDetails?.remarks && (
+            {(candidate.status === "interview" || candidate.status === "selected" || candidate.status === "rejected" || candidate.status === "onboarding") && candidate.interviewDetails?.remarks && (
               <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
                 <button
                   aria-expanded={remarksExpanded}

@@ -441,6 +441,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       role === "Advert" ||
       role === "Sales" ||
       role === "Sales-TeamLead" ||
+      role === "Sales-Onboarding" ||
+      role === "Sales-Onboarding-Broker" ||
       role === "LeadGen-TeamLead" ||
       role === "HCollaborator";
     if (!isGeoAllowedRole) {
@@ -448,7 +450,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     }
     // Keep geo-search data tied to long-term owner sheet dataset.
     // Sales/Advert roles are allowed even if their rentalType token is Short Term.
-    if (role !== "Sales" && role !== "Sales-TeamLead") {
+    if (
+      role !== "Sales" &&
+      role !== "Sales-TeamLead" &&
+      role !== "Sales-Onboarding" &&
+      role !== "Sales-Onboarding-Broker"
+    ) {
       const denied = await enforceOwnerSheetRentalTypeAccess(token, "long-term");
       if (denied) return denied;
     }

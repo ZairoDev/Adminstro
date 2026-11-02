@@ -146,6 +146,8 @@ export function OwnerSheetPage({ config }: { config: OwnerSheetConfig }) {
     !isSalesInternOnly &&
     (      role === "Sales" ||
       role === "Sales-TeamLead" ||
+      role === "Sales-Onboarding" ||
+      role === "Sales-Onboarding-Broker" ||
       role === "Advert" ||
       role === "SuperAdmin" ||
       role === "LeadGen-TeamLead" ||

@@ -12,7 +12,14 @@ connectDb();
 const ALLOWED_ROLES = ["SuperAdmin", "Sales-TeamLead", "LeadGen-TeamLead"];
 
 // Roles considered "Sales" department
-const SALES_ROLES = ["Sales", "hSale", "Sales-TeamLead", "Subscription-Sales"];
+const SALES_ROLES = [
+  "Sales",
+  "hSale",
+  "Sales-TeamLead",
+  "Sales-Onboarding",
+  "Sales-Onboarding-Broker",
+  "Subscription-Sales",
+];
 // Roles considered "LeadGen" department
 const LEAD_ROLES = ["LeadGen", "LeadGen-TeamLead"];
 

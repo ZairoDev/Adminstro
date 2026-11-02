@@ -67,7 +67,9 @@ export function WhatsAppNotifications() {
   // Check if user has access
   const hasAccess = token?.role === "SuperAdmin" || 
                    token?.role === "Sales-TeamLead" || 
-                   token?.role === "Sales";
+                   token?.role === "Sales" ||
+                   token?.role === "Sales-Onboarding" ||
+                   token?.role === "Sales-Onboarding-Broker";
 
   const currentUserId =
     token?.id?.toString() ??

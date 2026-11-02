@@ -137,6 +137,8 @@ const UNALLOCATED_AREA_SKIP_LOCATION_CHECK: readonly string[] = [
   "Sales",
   "sales-intern",
   "Sales-TeamLead",
+  "Sales-Onboarding",
+  "Sales-Onboarding-Broker",
   "LeadGen",
   "LeadGen-TeamLead",
 ];
@@ -256,7 +258,7 @@ function buildScopedStaffVisibilityFilter(
   const normalizedAreas = normalizeAreas(getUserAreasFromToken(user));
   if (normalizedAreas.length === 0) {
     const unallocatedBypassRoles: readonly string[] = [
-      "Sales", "sales-intern", "Sales-TeamLead", "LeadGen", "LeadGen-TeamLead",
+      "Sales", "sales-intern", "Sales-TeamLead", "Sales-Onboarding", "Sales-Onboarding-Broker", "LeadGen", "LeadGen-TeamLead",
     ];
     if (unallocatedBypassRoles.includes(role)) {
       return applyVisibilityFilters(
@@ -484,7 +486,7 @@ export function canUserSeeConversation(
       fallbackKey &&
       (normalizedAreas.includes(fallbackKey) ||
         (normalizedAreas.length === 0 &&
-          ["Sales", "sales-intern", "Sales-TeamLead", "LeadGen", "LeadGen-TeamLead"].includes(
+          ["Sales", "sales-intern", "Sales-TeamLead", "Sales-Onboarding", "Sales-Onboarding-Broker", "LeadGen", "LeadGen-TeamLead"].includes(
             role,
           )));
     if (!locationOk) return false;

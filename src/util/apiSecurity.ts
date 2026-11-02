@@ -9,6 +9,7 @@ export const LOCATION_EXEMPT_ROLES = [
   "Developer",
   "HR",
   "Sales-TeamLead",
+  "Sales-Onboarding-Broker",
   "LeadGen-TeamLead",
   "LeadGen",
   "Advert",
@@ -36,6 +37,7 @@ export function isSalesTeamRestricted(role: string): boolean {
   return (
     role === "Sales" ||
     role === "sales-intern" ||
+    role === "Sales-Onboarding" ||
     role === "Subscription-Sales"
   );
 }

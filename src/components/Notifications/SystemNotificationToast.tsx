@@ -221,7 +221,9 @@ export function SystemNotificationToast({
   const hasWhatsAppAccess =
     token?.role === "SuperAdmin" ||
     token?.role === "Sales-TeamLead" ||
-    token?.role === "Sales";
+    token?.role === "Sales" ||
+    token?.role === "Sales-Onboarding" ||
+    token?.role === "Sales-Onboarding-Broker";
 
   const archivedIdsFromQuery = useArchivedConversationIds(
     hasWhatsAppAccess && !!token,

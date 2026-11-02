@@ -49,6 +49,8 @@ export function BroadcastNotificationForm({
     "SuperAdmin",
     "Admin",
     "Sales",
+    "Sales-Onboarding",
+    "Sales-Onboarding-Broker",
     "Sales-TeamLead",
     "LeadGen",
     "LeadGen-TeamLead",

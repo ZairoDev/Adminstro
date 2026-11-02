@@ -147,7 +147,9 @@ export default function DashboardLayout({
             {!isHousingCollaborator &&
               (token?.role === "SuperAdmin" ||
                 token?.role === "Sales" ||
-                token?.role === "Sales-TeamLead") && (
+                token?.role === "Sales-TeamLead" ||
+                token?.role === "Sales-Onboarding" ||
+                token?.role === "Sales-Onboarding-Broker") && (
               <>
                 <Notifications />
                 <WhatsAppNotifications />

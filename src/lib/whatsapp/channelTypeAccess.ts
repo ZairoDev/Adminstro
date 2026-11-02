@@ -13,6 +13,7 @@
  *
  * Role → allowed channelTypes map:
  *   Sales / sales-intern / Sales-TeamLead  → guest (they work guest acquisition)
+ *   Sales-Onboarding / Sales-Onboarding-Broker → owner
  *   LeadGen / LeadGen-TeamLead             → guest, support
  *   Advert                                 → guest, support
  *   owner-sheet roles (OwnerSales, etc.)   → owner
@@ -27,6 +28,8 @@ const OWNER_OUTREACH_ROLES: readonly string[] = [
   "Sales",
   "sales-intern",
   "Sales-TeamLead",
+  "Sales-Onboarding",
+  "Sales-Onboarding-Broker",
   "OwnerSales",
   "OwnerLeadGen",
   "OwnerAdvert",
@@ -47,6 +50,8 @@ const CHANNEL_TYPE_ROLE_MAP: Record<string, WhatsappChannelType[]> = {
   Sales: ["guest"],
   "sales-intern": ["guest"],
   "Sales-TeamLead": ["guest"],
+  "Sales-Onboarding": ["owner"],
+  "Sales-Onboarding-Broker": ["owner"],
   LeadGen: ["guest", "support"],
   "LeadGen-TeamLead": ["guest", "support"],
   // Advert/retarget team sees guests + support but NOT owner

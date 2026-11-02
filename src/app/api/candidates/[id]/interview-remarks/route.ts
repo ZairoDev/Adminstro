@@ -1,5 +1,6 @@
 import Candidate from "@/models/candidate";
 import Employee from "@/models/employee";
+import { isAssignedInterviewer } from "@/lib/interviews/assignedInterviews";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { type NextRequest, NextResponse } from "next/server";
@@ -64,14 +65,16 @@ export async function PATCH(
   try {
     // Check authentication and role
     const token = await getDataFromToken(request);
-    const userRole = token.role as string;
-    const userId = token.id as string;
-    let userName = token.name as string;
+    const userRole = String(token.role ?? "");
+    const userId = String(token.id ?? "");
+    let userName = typeof token.name === "string" ? token.name : "";
+    const isHrOrAdmin = userRole === "HR" || userRole === "SuperAdmin";
+    const isInterviewer =
+      userRole === "LeadGen-TeamLead" || userRole === "Sales-TeamLead";
 
-    // Only HR and SuperAdmin can save interview remarks
-    if (!["HR", "SuperAdmin"].includes(userRole)) {
+    if (!isHrOrAdmin && !isInterviewer) {
       return NextResponse.json(
-        { success: false, error: "Unauthorized. Only HR and SuperAdmin can save interview remarks." },
+        { success: false, error: "You cannot save interview remarks" },
         { status: 403 }
       );
     }
@@ -208,6 +211,13 @@ export async function PATCH(
       );
     }
 
+    if (!isHrOrAdmin && !isAssignedInterviewer(candidate, userId)) {
+      return NextResponse.json(
+        { success: false, error: "You can only add remarks for interviews assigned to you" },
+        { status: 403 }
+      );
+    }
+
     // Determine if this is a new entry or update
     const isNewEntry = !candidate.interviewDetails.remarks?.evaluatedBy;
     const updateData: Record<string, unknown> = {
@@ -244,7 +254,7 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-      data: updatedCandidate,
+      data: updatedCandidate.interviewDetails?.remarks ?? null,
       message: isNewEntry ? "Interview remarks saved successfully" : "Interview remarks updated successfully",
     });
   } catch (error: any) {

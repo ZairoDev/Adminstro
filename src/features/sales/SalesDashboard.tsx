@@ -145,14 +145,17 @@ export default function SalesDashboard({ className }: SalesDashboardProps) {
     return byAccess.filter((stat) => stat.target > 0);
   }, [visitStats, accessibleLocations, hasFullAccess]);
 
-  // Filter new owners count by location (sales-intern only)
+  // Filter new owners count by allotted location for scoped sales roles.
   const filteredNewOwnersCount = useMemo(() => {
     if (hasFullAccess) {
       return newOwnersCount;
     }
     // Requirement: only sales-intern should be scoped by allotted locations.
     // Other roles should see the global graph as-is.
-    if (role !== "sales-intern" || accessibleLocations.length === 0) {
+    if (
+      (role !== "sales-intern" && role !== "Sales-Onboarding") ||
+      accessibleLocations.length === 0
+    ) {
       return newOwnersCount;
     }
     return newOwnersCount.filter((item: any) => {

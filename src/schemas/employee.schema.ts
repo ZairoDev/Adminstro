@@ -37,6 +37,8 @@ export const employeeSchema = z.object({
     "LeadGen-TeamLead",
     "Sales",
     "sales-intern",
+    "Sales-Onboarding",
+    "Sales-Onboarding-Broker",
     "Sales-TeamLead",
     "hSale",
     "HR",
@@ -340,8 +342,14 @@ export const employeeSchema = z.object({
   webTokenValidAfter: z.number().optional(),
   mobileTokenValidAfter: z.number().optional(),
 }).superRefine((data, ctx) => {
-  const salesRoles = ["Sales", "Sales-TeamLead", "sales-intern"];
-  const allotedAreaRequiredRoles = ["Sales", "sales-intern"];
+  const salesRoles = [
+    "Sales",
+    "Sales-TeamLead",
+    "sales-intern",
+    "Sales-Onboarding",
+    "Sales-Onboarding-Broker",
+  ];
+  const allotedAreaRequiredRoles = ["Sales", "sales-intern", "Sales-Onboarding"];
 
   if (salesRoles.includes(data.role)) {
     if (!data.rentalType) {

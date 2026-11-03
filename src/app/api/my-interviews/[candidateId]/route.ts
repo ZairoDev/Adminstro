@@ -21,6 +21,10 @@ const bodySchema = z.discriminatedUnion("action", [
     action: z.literal("reject"),
     reason: z.string().trim().min(1).max(500),
   }),
+  z.object({
+    action: z.literal("shortlist"),
+    endingNotes: z.string().trim().min(1, "Ending notes are required").max(1000),
+  }),
 ]);
 
 function jsonError(error: unknown, fallback: string) {
@@ -96,19 +100,48 @@ export async function PATCH(
 
     if (candidate.status !== "interview") {
       return NextResponse.json(
-        { success: false, error: "Only a candidate in interview can be rejected here" },
-        { status: 400 }
-      );
-    }
-    if (candidate.employeeId) {
-      return NextResponse.json(
-        { success: false, error: "Employed people cannot be rejected" },
+        { success: false, error: "Only a candidate in interview can be updated here" },
         { status: 400 }
       );
     }
     if (!candidate.interviewDetails?.remarks?.evaluatedBy) {
       return NextResponse.json(
-        { success: false, error: "Interview remarks must be completed before rejecting" },
+        { success: false, error: "Interview remarks must be completed first" },
+        { status: 400 }
+      );
+    }
+
+    if (parsedBody.data.action === "shortlist") {
+      const position = typeof candidate.position === "string" ? candidate.position.trim() : "";
+      candidate.status = "shortlisted";
+      candidate.shortlistDetails = {
+        suitableRoles: position ? [position] : [],
+        notes: parsedBody.data.endingNotes,
+      };
+      await candidate.save();
+
+      try {
+        await sendEmail({
+          to: candidate.email,
+          candidateName: candidate.name,
+          status: "shortlisted",
+          position: candidate.position,
+          companyName: process.env.COMPANY_NAME || "Zairo International",
+          shortlistRoles: position ? [position] : undefined,
+        });
+      } catch (emailError: unknown) {
+        console.error("Failed to send shortlist email:", emailError);
+      }
+
+      return NextResponse.json({
+        success: true,
+        status: "shortlisted",
+      });
+    }
+
+    if (candidate.employeeId) {
+      return NextResponse.json(
+        { success: false, error: "Employed people cannot be rejected" },
         { status: 400 }
       );
     }

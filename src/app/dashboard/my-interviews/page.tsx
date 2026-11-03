@@ -14,6 +14,15 @@ import { toast } from "sonner";
 import axios from "@/util/axios";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { InterviewRemarksDialog } from "@/app/dashboard/candidatePortal/components/interview-remarks-dialog";
 import { RejectCandidateDialog } from "@/app/dashboard/candidatePortal/components/reject-candidate-dialog";
 import type {
@@ -90,6 +99,11 @@ export default function MyInterviewsPage() {
   const [loading, setLoading] = useState(true);
   const [attendanceCandidateId, setAttendanceCandidateId] = useState<string | null>(null);
   const [remarksTarget, setRemarksTarget] = useState<AssignedInterview | null>(null);
+  const [decisionTarget, setDecisionTarget] = useState<AssignedInterview | null>(null);
+  const [notesTarget, setNotesTarget] = useState<AssignedInterview | null>(null);
+  const [endingNotes, setEndingNotes] = useState("");
+  const [notesError, setNotesError] = useState("");
+  const [shortlisting, setShortlisting] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<AssignedInterview | null>(null);
   const [rejecting, setRejecting] = useState(false);
 
@@ -171,6 +185,35 @@ export default function MyInterviewsPage() {
       toast.error(message);
     } finally {
       setRejecting(false);
+    }
+  };
+
+  const shortlistInterview = async () => {
+    if (!notesTarget || shortlisting) return;
+    const notes = endingNotes.trim();
+    if (!notes) {
+      setNotesError("Ending notes are required");
+      return;
+    }
+    setShortlisting(true);
+    setNotesError("");
+    try {
+      await axios.patch(`/api/my-interviews/${notesTarget.candidateId}`, {
+        action: "shortlist",
+        endingNotes: notes,
+      });
+      toast.success(`${notesTarget.candidateName} shortlisted`);
+      setNotesTarget(null);
+      setEndingNotes("");
+      await load(range);
+    } catch (error: unknown) {
+      const message =
+        axios.isAxiosError(error) && typeof error.response?.data?.error === "string"
+          ? error.response.data.error
+          : "Could not shortlist this interview";
+      toast.error(message);
+    } finally {
+      setShortlisting(false);
     }
   };
 
@@ -321,7 +364,7 @@ export default function MyInterviewsPage() {
                     </details>
                   ) : null}
 
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
                     {interview.phone ? (
                       <a
                         href={`tel:${interview.phone}`}
@@ -362,68 +405,57 @@ export default function MyInterviewsPage() {
                         Join meet
                       </a>
                     ) : null}
-                  </div>
-
-                  <div className="mt-4 space-y-3 border-t pt-4">
-                    <div>
-                      <p className="mb-2 text-sm font-medium" id={`attendance-${interview.candidateId}-${interview.round}`}>
-                        Attendance
-                      </p>
-                      <div
-                        className="flex flex-wrap gap-2"
-                        role="group"
-                        aria-labelledby={`attendance-${interview.candidateId}-${interview.round}`}
-                      >
-                        <Button
-                          type="button"
-                          variant={interview.interviewAttendance === "appeared" ? "default" : "outline"}
-                          className="min-h-11"
-                          disabled={attendanceBusy}
-                          aria-pressed={interview.interviewAttendance === "appeared"}
-                          onClick={() => void markAttendance(interview, "appeared")}
-                        >
-                          Appeared
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={interview.interviewAttendance === "not_appeared" ? "default" : "outline"}
-                          className="min-h-11"
-                          disabled={attendanceBusy}
-                          aria-pressed={interview.interviewAttendance === "not_appeared"}
-                          onClick={() => void markAttendance(interview, "not_appeared")}
-                        >
-                          Not appeared
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
+                    <div
+                      className="flex flex-wrap items-center gap-2"
+                      role="group"
+                      aria-label="Attendance"
+                    >
                       <Button
                         type="button"
-                        variant="outline"
+                        variant={interview.interviewAttendance === "appeared" ? "default" : "outline"}
                         className="min-h-11"
-                        onClick={() => setRemarksTarget(interview)}
+                        disabled={attendanceBusy}
+                        aria-pressed={interview.interviewAttendance === "appeared"}
+                        onClick={() => void markAttendance(interview, "appeared")}
                       >
-                        <ClipboardList className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                        {interview.hasRemarks ? "Edit remarks" : "Fill remarks"}
+                        Appeared
                       </Button>
-                      {canReject ? (
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          className="min-h-11"
-                          onClick={() => requestReject(interview)}
-                        >
-                          Reject
-                        </Button>
-                      ) : null}
+                      <Button
+                        type="button"
+                        variant={interview.interviewAttendance === "not_appeared" ? "default" : "outline"}
+                        className="min-h-11"
+                        disabled={attendanceBusy}
+                        aria-pressed={interview.interviewAttendance === "not_appeared"}
+                        onClick={() => void markAttendance(interview, "not_appeared")}
+                      >
+                        Not appeared
+                      </Button>
                     </div>
-                    {canReject && !interview.hasRemarks ? (
-                      <p className="text-sm text-muted-foreground">
-                        Fill the remarks form before you can reject this interview.
-                      </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11"
+                      onClick={() => setRemarksTarget(interview)}
+                    >
+                      <ClipboardList className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                      {interview.hasRemarks ? "Edit remarks" : "Fill remarks"}
+                    </Button>
+                    {canReject ? (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        className="min-h-11"
+                        onClick={() => requestReject(interview)}
+                      >
+                        Reject
+                      </Button>
                     ) : null}
                   </div>
+                  {canReject && !interview.hasRemarks ? (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Fill the remarks form before you can reject this interview.
+                    </p>
+                  ) : null}
                 </article>
               </li>
             );
@@ -440,9 +472,126 @@ export default function MyInterviewsPage() {
         candidateName={remarksTarget?.candidateName ?? ""}
         existingRemarks={remarksTarget?.remarks}
         onSuccess={() => {
+          const saved = remarksTarget;
           void load(range);
+          if (saved?.status === "interview") {
+            setDecisionTarget(saved);
+          }
         }}
       />
+      <Dialog
+        open={decisionTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDecisionTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Shortlist or reject</DialogTitle>
+            <DialogDescription>
+              Remarks for {decisionTarget?.candidateName ?? "this candidate"} are saved. Choose what happens next.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              onClick={() => setDecisionTarget(null)}
+            >
+              Decide later
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="min-h-11"
+              onClick={() => {
+                if (!decisionTarget) return;
+                setRejectTarget(decisionTarget);
+                setDecisionTarget(null);
+              }}
+            >
+              Reject
+            </Button>
+            <Button
+              type="button"
+              className="min-h-11"
+              onClick={() => {
+                if (!decisionTarget) return;
+                setEndingNotes("");
+                setNotesError("");
+                setNotesTarget(decisionTarget);
+                setDecisionTarget(null);
+              }}
+            >
+              Shortlist
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={notesTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !shortlisting) {
+            setNotesTarget(null);
+            setNotesError("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ending notes</DialogTitle>
+            <DialogDescription>
+              Add the closing notes for {notesTarget?.candidateName ?? "this candidate"} before they are shortlisted.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium" htmlFor="ending-notes">
+              Ending notes
+            </label>
+            <Textarea
+              id="ending-notes"
+              value={endingNotes}
+              maxLength={1000}
+              disabled={shortlisting}
+              aria-invalid={notesError ? true : undefined}
+              aria-describedby={notesError ? "ending-notes-error" : undefined}
+              onChange={(event) => {
+                setEndingNotes(event.target.value);
+                if (notesError) setNotesError("");
+              }}
+              className="min-h-28"
+            />
+            {notesError ? (
+              <p id="ending-notes-error" className="text-sm text-destructive" role="alert">
+                {notesError}
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              disabled={shortlisting}
+              onClick={() => {
+                setNotesTarget(null);
+                setNotesError("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="min-h-11"
+              disabled={shortlisting}
+              onClick={() => void shortlistInterview()}
+            >
+              {shortlisting ? "Shortlisting…" : "Shortlist"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <RejectCandidateDialog
         open={rejectTarget !== null}
         onClose={() => {

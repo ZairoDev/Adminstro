@@ -5,11 +5,12 @@ import path from "path";
 import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import Candidate from "@/models/candidate";
 import { connectDb } from "@/util/db";
+import { missingOfficeAddressResponse } from "@/lib/officeAddress/resolveCandidateOfficeAddress";
 import {
-  MissingOfficeAddressError,
-  missingOfficeAddressResponse,
-  resolveCandidateOfficeAddress,
-} from "@/lib/officeAddress/resolveCandidateOfficeAddress";
+  MissingRegisteredOfficeError,
+  missingRegisteredOfficeResponse,
+  resolveRegisteredOfficeAddress,
+} from "@/lib/officeAddress/resolveRegisteredOfficeAddress";
 
 type Payload = {
   candidateName: string;
@@ -87,7 +88,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Defaults matching the original document
-    const companyName = "ZAIRO INTERNATIONAL P. LTD.";
     const companyCIN = "U93090UP2017PTC089137";
     if (!data.candidateId) {
       return NextResponse.json(
@@ -97,13 +97,11 @@ export async function POST(req: NextRequest) {
     }
     let companyAddress: string;
     try {
-      const office = await resolveCandidateOfficeAddress({
-        candidateId: data.candidateId,
-      });
-      companyAddress = office.companyAddress;
+      const registered = await resolveRegisteredOfficeAddress();
+      companyAddress = registered.companyAddress;
     } catch (err) {
-      if (err instanceof MissingOfficeAddressError) {
-        return NextResponse.json(missingOfficeAddressResponse(), { status: 400 });
+      if (err instanceof MissingRegisteredOfficeError) {
+        return NextResponse.json(missingRegisteredOfficeResponse(), { status: 400 });
       }
       throw err;
     }
@@ -329,9 +327,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Company info lines
+    // CIN / office / contact only — company brand is drawn above as Zairo International (red) Private Limited
     const companyInfoLines = [
-      `${companyName}`,
       `CIN: ${companyCIN}`,
       `Registered Office: ${companyAddress}`,
       "+91 95198 03665",
@@ -472,17 +469,158 @@ export async function POST(req: NextRequest) {
     yPosition -= paragraphSpacing;
     drawWrappedText("- Failure to mark attendance may result in the day being treated as absent or half-day, subject to verification.", leftMargin, bodySize);
     yPosition -= paragraphSpacing;
-
-    drawWrappedText("Late Coming", leftMargin, bodySize, true);
-    yPosition -= lineHeight;
-    drawWrappedText("- Employees reporting after the prescribed reporting time i.e 10 mins late may be marked half-day, as per attendance rules communicated internally.", leftMargin, bodySize);
+    drawWrappedText("- Late login, grace period, punctuality-related salary deductions, half-day / UL marking, and CRM attendance validity shall be governed by Section 3 (Employee Punctuality & Late Login Policies).", leftMargin, bodySize);
     yPosition -= paragraphSpacing;
-    drawWrappedText("- Salary deductions, if any, shall strictly comply with company policies.", leftMargin, bodySize);
+    drawWrappedText("- Employees must report to work and log in according to their assigned shift timings, as detailed in Section 3.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 3: Breaks
+    // Section 3: Employee Punctuality & Late Login Policies
     drawFullWidthSectionHeading(
-      "3. Breaks",
+      "3. Employee Punctuality & Late Login Policies",
+      currentPage,
+      fontBold,
+      { value: yPosition },
+      leftMargin,
+      rightMargin,
+      sectionSize,
+      pageWidth
+    );
+    yPosition -= lineHeight;
+
+    drawWrappedText("- This section shall be read together with Section 2 (Working Hours & Attendance).", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- Official working hours, daily login/logout requirements, and attendance marking rules under Section 2 remain fully applicable.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    drawWrappedText("3.1 Purpose", leftMargin, bodySize, true);
+    yPosition -= lineHeight;
+    drawWrappedText("The purpose of this policy is to maintain workplace discipline, ensure punctuality, and establish clear attendance guidelines for all employees. Every employee is expected to report to work and log in according to their assigned shift timings.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    drawWrappedText("3.2 Shift Timings & Grace Period", leftMargin, bodySize, true);
+    yPosition -= lineHeight;
+    drawWrappedText("Employees are expected to log in on or before their scheduled shift starting time. A grace period of 10 minutes will be provided to accommodate occasional delays.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("The following rules will apply:", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+
+    drawWrappedText("3.2.1 Grace Period – First 10 Minutes", leftMargin, bodySize, true);
+    yPosition -= lineHeight;
+    drawWrappedText("- Employees logging in within 10 minutes after their scheduled shift timing will be considered late but will not face any immediate salary deduction.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- Every employee will be entitled to 9 grace instances per month.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- No salary deduction will be applicable for the first 9 grace instances.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- On the 10th grace instance and every subsequent grace instance, 25% of that day's salary will be deducted.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+
+    drawWrappedText("3.2.2 Late Login – After Grace Period (11th to 30th Minute)", leftMargin, bodySize, true);
+    yPosition -= lineHeight;
+    drawWrappedText("- If an employee logs in after the initial 10-minute grace period but within the next 20 minutes (up to 30 minutes from the scheduled shift timing), 25% of that day's salary will be deducted.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- Such instances will not be counted as regular grace entries.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+
+    drawWrappedText("3.2.3 Late Login – Beyond 30 Minutes of Shift Timing", leftMargin, bodySize, true);
+    yPosition -= lineHeight;
+    drawWrappedText("- If an employee logs in more than 30 minutes after the scheduled shift starting time, 50% of that day's salary will be deducted.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- Such attendance will be treated as a Half Day.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+
+    drawWrappedText("3.2.4 Late Login Beyond Cut-Off Time", leftMargin, bodySize, true);
+    yPosition -= lineHeight;
+    drawWrappedText("- If an employee logs in after the officially designated cut-off time, the day will be marked as UL (Unauthorised Leave).", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- No attendance credit will be provided for that day, subject to applicable company policy.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    drawWrappedText("3.3 Attendance Calculation – Quick Reference", leftMargin, bodySize, true);
+    yPosition -= lineHeight;
+
+    const attendanceTableRows: Array<[string, string, string]> = [
+      ["Login Time", "Attendance Status", "Deduction"],
+      ["On or before shift time", "Present", "No deduction"],
+      ["1–10 minutes late (first 9 instances)", "Grace", "No deduction"],
+      ["1–10 minutes late (10th instance onwards)", "Grace Exhausted", "25%"],
+      ["11–30 minutes late", "Late Login", "25%"],
+      ["More than 30 minutes late", "Half Day", "50%"],
+      ["After official cut-off time (after 4th hour)", "UL", "As per applicable policy"],
+    ];
+    const col1X = leftMargin;
+    const col2X = leftMargin + 210;
+    const col3X = leftMargin + 320;
+    const tableFontSize = 9;
+    for (let rowIndex = 0; rowIndex < attendanceTableRows.length; rowIndex++) {
+      const [col1, col2, col3] = attendanceTableRows[rowIndex];
+      const rowBold = rowIndex === 0;
+      if (yPosition - lineHeight < bottomMargin) {
+        addNewPage();
+      }
+      currentPage.drawText(col1, {
+        x: col1X,
+        y: yPosition - lineHeight,
+        size: tableFontSize,
+        font: rowBold ? fontBold : font,
+        color: textColor,
+      });
+      currentPage.drawText(col2, {
+        x: col2X,
+        y: yPosition - lineHeight,
+        size: tableFontSize,
+        font: rowBold ? fontBold : font,
+        color: textColor,
+      });
+      currentPage.drawText(col3, {
+        x: col3X,
+        y: yPosition - lineHeight,
+        size: tableFontSize,
+        font: rowBold ? fontBold : font,
+        color: textColor,
+      });
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing * 2;
+
+    drawWrappedText("3.4 Important Guidelines", leftMargin, bodySize, true);
+    yPosition -= lineHeight;
+    drawWrappedText("- Grace instances will be calculated on a monthly basis and will reset at the beginning of every new month.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- Employees must strictly adhere to their assigned shift timings.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- Any technical issue affecting login or attendance must be immediately reported to the reporting manager or HR department.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- Repeated late arrivals may result in additional disciplinary action, irrespective of salary deductions.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- Any exception to this policy must receive prior approval from the reporting manager and HR.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    drawWrappedText("3.5 Attendance Tracking Through CRM", leftMargin, bodySize, true);
+    yPosition -= lineHeight;
+    drawWrappedText("- Employee attendance will be tracked exclusively through the company's CRM login system within the official office premises. Only CRM logins recorded from the office premises will be considered valid for attendance purposes.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- Any CRM login recorded from a location outside the official office premises will be automatically disregarded.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- CRM logins through mobile devices will not be considered valid for attendance tracking.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- Employees must ensure that they log in to the CRM using the designated office system to receive attendance credit.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- Employees are responsible for ensuring that their CRM login is completed correctly at the beginning of their assigned shift.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("- Any login that does not meet these requirements will not be considered valid attendance.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    drawWrappedText("3.6 Policy Compliance", leftMargin, bodySize, true);
+    yPosition -= lineHeight;
+    drawWrappedText("The company expects all employees to maintain professional discipline and punctuality. Repeated violations of attendance guidelines may affect performance evaluations, incentives, appraisals, and other employment-related decisions, subject to applicable company policies and law.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing;
+    drawWrappedText("The company reserves the right to review and amend this policy whenever required.", leftMargin, bodySize);
+    yPosition -= paragraphSpacing * 2;
+
+    // Section 4: Breaks
+    drawFullWidthSectionHeading(
+      "4. Breaks",
       currentPage,
       fontBold,
       { value: yPosition },
@@ -500,9 +638,9 @@ export async function POST(req: NextRequest) {
     drawWrappedText("- Employees must resume work immediately after the break period.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 4: Leave Policy (Uttar Pradesh Compliant)
+    // Section 5: Leave Policy (Uttar Pradesh Compliant)
     drawFullWidthSectionHeading(
-      "4. Leave Policy (Uttar Pradesh Compliant)",
+      "5. Leave Policy (Uttar Pradesh Compliant)",
       currentPage,
       fontBold,
       { value: yPosition },
@@ -553,9 +691,9 @@ export async function POST(req: NextRequest) {
     drawWrappedText("- Employment shall be terminated with due process and will lead to absconding.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 5: Absconding
+    // Section 6: Absconding
     drawFullWidthSectionHeading(
-      "5. Absconding",
+      "6. Absconding",
       currentPage,
       fontBold,
       { value: yPosition },
@@ -571,9 +709,9 @@ export async function POST(req: NextRequest) {
     drawWrappedText("- The Company reserves the right to withhold relieving/experience letters/ FNF includes any pending variables and recover contractual dues, if any.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 6: Salary & Wages
+    // Section 7: Salary & Wages
     drawFullWidthSectionHeading(
-      "6. Salary & Wages",
+      "7. Salary & Wages",
       currentPage,
       fontBold,
       { value: yPosition },
@@ -600,9 +738,9 @@ export async function POST(req: NextRequest) {
     drawWrappedText("  o Authorized recoveries", leftMargin + 10, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 7: Performance Management & PIP
+    // Section 8: Performance Management & PIP
     drawFullWidthSectionHeading(
-      "7. Performance Management & PIP",
+      "8. Performance Management & PIP",
       currentPage,
       fontBold,
       { value: yPosition },
@@ -622,9 +760,9 @@ export async function POST(req: NextRequest) {
     drawWrappedText("- No Resignation will be accepted while you are on PIP.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 8: Termination of Employment
+    // Section 9: Termination of Employment
     drawFullWidthSectionHeading(
-      "8. Termination of Employment",
+      "9. Termination of Employment",
       currentPage,
       fontBold,
       { value: yPosition },
@@ -640,9 +778,9 @@ export async function POST(req: NextRequest) {
     drawWrappedText("- Termination shall always follow principles of natural justice, including notice and enquiry where applicable.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 9: Resignation Policy
+    // Section 10: Resignation Policy
     drawFullWidthSectionHeading(
-      "9. Resignation Policy",
+      "10. Resignation Policy",
       currentPage,
       fontBold,
       { value: yPosition },
@@ -687,9 +825,9 @@ export async function POST(req: NextRequest) {
     drawWrappedText("Employees on probation must adhere to the notice period which is 50% of the period as mentioned on your joining or offer letter or otherwise agreed in writing.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 10: Referral Policy
+    // Section 11: Referral Policy
     drawFullWidthSectionHeading(
-      "10. Referral Policy",
+      "11. Referral Policy",
       currentPage,
       fontBold,
       { value: yPosition },
@@ -703,9 +841,9 @@ export async function POST(req: NextRequest) {
     drawWrappedText("- Employees referring successful candidates may be eligible for a referral bonus, payable after the referred employee completes 6 months of continuous service, as per policy.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 11: Code of Conduct & Discipline
+    // Section 12: Code of Conduct & Discipline
     drawFullWidthSectionHeading(
-      "11. Code of Conduct & Discipline",
+      "12. Code of Conduct & Discipline",
       currentPage,
       fontBold,
       { value: yPosition },
@@ -729,9 +867,9 @@ export async function POST(req: NextRequest) {
     drawWrappedText("  o Conflict of interest (e.g., reporting line issue, favoritism, misuse of authority or any other ethical ground which may damage the company production or reputation)", leftMargin + 10, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 12: Use of Mobile Phones & Internet
+    // Section 13: Use of Mobile Phones & Internet
     drawFullWidthSectionHeading(
-      "12. Use of Mobile Phones & Internet",
+      "13. Use of Mobile Phones & Internet",
       currentPage,
       fontBold,
       { value: yPosition },
@@ -747,9 +885,9 @@ export async function POST(req: NextRequest) {
     drawWrappedText("- Personal internet usage and social media access during working hours is prohibited unless work-related.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 13: Workplace Relationships
+    // Section 14: Workplace Relationships
     drawFullWidthSectionHeading(
-      "13. Workplace Relationships",
+      "14. Workplace Relationships",
       currentPage,
       fontBold,
       { value: yPosition },
@@ -767,9 +905,9 @@ export async function POST(req: NextRequest) {
     drawWrappedText("- Harassment, favoritism, or misuse of authority shall invite disciplinary action.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 14: Promotion & Incentives
+    // Section 15: Promotion & Incentives
     drawFullWidthSectionHeading(
-      "14. Promotion & Incentives",
+      "15. Promotion & Incentives",
       currentPage,
       fontBold,
       { value: yPosition },
@@ -783,9 +921,9 @@ export async function POST(req: NextRequest) {
     drawWrappedText("- Promotions and incentives shall be performance-based and at the discretion of management.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 15: Grievance Redressal
+    // Section 16: Grievance Redressal
     drawFullWidthSectionHeading(
-      "15. Grievance Redressal",
+      "16. Grievance Redressal",
       currentPage,
       fontBold,
       { value: yPosition },
@@ -801,9 +939,9 @@ export async function POST(req: NextRequest) {
     drawWrappedText("- All grievances shall be addressed in a fair and confidential manner.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Section 16: Amendments
+    // Section 17: Amendments
     drawFullWidthSectionHeading(
-      "16. Amendments",
+      "17. Amendments",
       currentPage,
       fontBold,
       { value: yPosition },

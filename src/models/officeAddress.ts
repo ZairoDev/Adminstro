@@ -11,6 +11,8 @@ export interface IOfficeAddress extends Document {
   country: string;
   formattedAddress: string;
   isActive: boolean;
+  /** Legal registered office used on LOI / agreements / letterheads (exactly one). */
+  isRegisteredOffice: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,6 +34,20 @@ export function formatOfficeAddress(parts: {
 
   const locality = [city, state, pincode].filter(Boolean).join(", ");
   return [line1, line2, locality, country].filter(Boolean).join(", ");
+}
+
+/** Letterhead style: no pincode / country (e.g. Registered Office line). */
+export function formatOfficeAddressShort(parts: {
+  addressLine1: string;
+  addressLine2?: string | null;
+  city: string;
+  state: string;
+}): string {
+  const line1 = String(parts.addressLine1 || "").trim();
+  const line2 = String(parts.addressLine2 || "").trim();
+  const city = String(parts.city || "").trim();
+  const state = String(parts.state || "").trim();
+  return [line1, line2, city, state].filter(Boolean).join(", ");
 }
 
 const officeAddressSchema = new Schema<IOfficeAddress>(
@@ -82,8 +98,22 @@ const officeAddressSchema = new Schema<IOfficeAddress>(
       default: true,
       index: true,
     },
+    isRegisteredOffice: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   { timestamps: true },
+);
+
+/** At most one document may be the registered office. */
+officeAddressSchema.index(
+  { isRegisteredOffice: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { isRegisteredOffice: true },
+  },
 );
 
 officeAddressSchema.pre("validate", function (next) {

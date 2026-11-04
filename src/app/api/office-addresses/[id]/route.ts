@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { connectDb } from "@/util/db";
 import OfficeAddress, { formatOfficeAddress } from "@/models/officeAddress";
 import { requireOfficeAddressManager } from "@/lib/officeAddress/auth";
+import { setRegisteredOffice } from "@/lib/officeAddress/resolveRegisteredOfficeAddress";
 
 export const dynamic = "force-dynamic";
 
@@ -110,7 +111,29 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       country: office.country,
     });
 
+    const wantsRegistered =
+      body.isRegisteredOffice !== undefined
+        ? Boolean(body.isRegisteredOffice)
+        : undefined;
+
+    if (wantsRegistered === false && office.isRegisteredOffice) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Cannot unset the registered office. Mark another office as registered first.",
+        },
+        { status: 400 },
+      );
+    }
+
     await office.save();
+
+    if (wantsRegistered === true) {
+      await setRegisteredOffice(office._id.toString());
+      office.isRegisteredOffice = true;
+    }
+
     return NextResponse.json({ success: true, data: office });
   } catch (error) {
     console.error("[office-addresses] PATCH failed:", error);
@@ -135,13 +158,25 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     }
 
     await connectDb();
-    const deleted = await OfficeAddress.findByIdAndDelete(id);
-    if (!deleted) {
+    const existing = await OfficeAddress.findById(id);
+    if (!existing) {
       return NextResponse.json(
         { success: false, error: "Office address not found" },
         { status: 404 },
       );
     }
+    if (existing.isRegisteredOffice) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Cannot delete the registered office. Mark another office as registered first.",
+        },
+        { status: 400 },
+      );
+    }
+
+    await existing.deleteOne();
 
     return NextResponse.json({ success: true, message: "Office address deleted" });
   } catch (error) {

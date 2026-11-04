@@ -84,6 +84,7 @@ export const generateUnsignedHrPolicies = async (candidate: Candidate) => {
       candidateName: candidate.name,
       position: candidate.position,
       date: agreementDate,
+      candidateId: candidate._id,
     };
 
     const pdfResponse = await axios.post(

@@ -53,6 +53,7 @@ type OfficeAddress = {
   country: string;
   formattedAddress: string;
   isActive: boolean;
+  isRegisteredOffice?: boolean;
 };
 
 type OfficeFormValues = {
@@ -64,6 +65,7 @@ type OfficeFormValues = {
   pincode: string;
   country: string;
   isActive: boolean;
+  isRegisteredOffice: boolean;
 };
 
 const EMPTY_FORM: OfficeFormValues = {
@@ -75,6 +77,7 @@ const EMPTY_FORM: OfficeFormValues = {
   pincode: "",
   country: "India",
   isActive: true,
+  isRegisteredOffice: false,
 };
 
 const MANAGE_ROLES = new Set(["SuperAdmin", "Admin", "HR", "HAdmin"]);
@@ -171,6 +174,7 @@ export default function OfficeAddressesPage() {
       pincode: office.pincode,
       country: office.country || "India",
       isActive: office.isActive,
+      isRegisteredOffice: Boolean(office.isRegisteredOffice),
     });
     setDialogOpen(true);
   };
@@ -200,6 +204,7 @@ export default function OfficeAddressesPage() {
       pincode: form.pincode.trim(),
       country: form.country.trim() || "India",
       isActive: form.isActive,
+      isRegisteredOffice: form.isRegisteredOffice,
     };
 
     // Capture before any state resets from dialog close
@@ -277,7 +282,7 @@ export default function OfficeAddressesPage() {
           <div>
             <h1 className="text-2xl font-bold">Office Addresses</h1>
             <p className="text-sm text-muted-foreground">
-              Manage office locations used on candidate applications and HR PDFs
+              Manage work locations and the legal registered office used on LOI / agreements
             </p>
           </div>
         </div>
@@ -339,7 +344,16 @@ export default function OfficeAddressesPage() {
             ) : (
               filtered.map((office) => (
                 <TableRow key={officeId(office) || office.name}>
-                  <TableCell className="font-medium">{office.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex flex-col gap-1">
+                      <span>{office.name}</span>
+                      {office.isRegisteredOffice && (
+                        <Badge variant="outline" className="w-fit text-xs">
+                          Registered Office
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="max-w-md text-sm text-muted-foreground">
                     {office.formattedAddress}
                   </TableCell>
@@ -467,6 +481,28 @@ export default function OfficeAddressesPage() {
                 </SelectContent>
               </Select>
             </div>
+            <label className="flex items-start gap-3 rounded-md border p-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={form.isRegisteredOffice}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    isRegisteredOffice: e.target.checked,
+                  }))
+                }
+              />
+              <span className="space-y-1">
+                <span className="block text-sm font-medium">
+                  Legal registered office
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Used on LOI, training agreement, HR policies, and offer letter
+                  headers. Only one office can be registered.
+                </span>
+              </span>
+            </label>
           </div>
           <DialogFooter>
             <Button

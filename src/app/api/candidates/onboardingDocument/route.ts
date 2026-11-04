@@ -47,6 +47,11 @@ import {
   resolveCandidateOfficeAddress,
 } from "@/lib/officeAddress/resolveCandidateOfficeAddress";
 import {
+  MissingRegisteredOfficeError,
+  missingRegisteredOfficeResponse,
+  resolveRegisteredOfficeAddress,
+} from "@/lib/officeAddress/resolveRegisteredOfficeAddress";
+import {
   renderInternOnboardingNda,
   type OnboardingPdfWriter,
 } from "@/lib/pdf/renderInternOnboardingNda";
@@ -221,14 +226,20 @@ export async function POST(req: NextRequest) {
     let companyAddress: string;
     let agreementCityResolved: string;
     try {
-      const office = await resolveCandidateOfficeAddress({
-        candidateId: data.candidateId,
-      });
-      companyAddress = data.companyAddress?.trim() || office.companyAddress;
-      agreementCityResolved = data.agreementCity?.trim() || office.agreementCity;
+      const [registered, office] = await Promise.all([
+        resolveRegisteredOfficeAddress(),
+        resolveCandidateOfficeAddress({ candidateId: data.candidateId }),
+      ]);
+      // Bond / registered-office clause always uses the legal registered office
+      companyAddress = data.companyAddress?.trim() || registered.companyAddress;
+      agreementCityResolved =
+        data.agreementCity?.trim() || registered.city || office.agreementCity;
     } catch (err) {
       if (err instanceof MissingOfficeAddressError) {
         return NextResponse.json(missingOfficeAddressResponse(), { status: 400 });
+      }
+      if (err instanceof MissingRegisteredOfficeError) {
+        return NextResponse.json(missingRegisteredOfficeResponse(), { status: 400 });
       }
       throw err;
     }

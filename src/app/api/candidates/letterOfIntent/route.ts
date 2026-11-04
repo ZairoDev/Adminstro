@@ -188,6 +188,7 @@ export async function POST(req: NextRequest) {
     }
     let companyAddress: string;
     let workLocation: string;
+    let workAddress: string;
     try {
       const [registered, office] = await Promise.all([
         resolveRegisteredOfficeAddress(),
@@ -195,8 +196,9 @@ export async function POST(req: NextRequest) {
       ]);
       // Letterhead / "having its registered office at" — always legal registered office
       companyAddress = registered.companyAddress;
-      // Work location follows the candidate's assigned office (Kanpur / Noida / …)
+      // Work location + address follow the candidate's reporting office (Kanpur / Noida / …)
       workLocation = office.workLocation;
+      workAddress = office.companyAddress;
     } catch (err) {
       if (err instanceof MissingOfficeAddressError) {
         return NextResponse.json(missingOfficeAddressResponse(), { status: 400 });
@@ -612,6 +614,7 @@ export async function POST(req: NextRequest) {
         `- Designation: ${internDesignation}`,
         `- Department: ${internDepartment}`,
         `- Work Location: ${workLocation}`,
+        `- Work Address: ${workAddress}`,
         `- Duration: ${internDuration}`,
         `- Stipend: ${formattedStipend}`,
       ];
@@ -786,6 +789,7 @@ export async function POST(req: NextRequest) {
       `- Designation: ${designation}`,
       `- Department: ${department}`,
       `- Work Location: ${workLocation}`,
+      `- Work Address: ${workAddress}`,
       `- Proposed Start Date: ${formattedStartDate}`,
       `- Remuneration: ${formattedSalary}`
     ];

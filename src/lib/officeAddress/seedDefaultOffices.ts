@@ -25,31 +25,15 @@ const DEFAULT_OFFICES = [
 ] as const;
 
 /**
- * Bootstrap defaults when the collection is empty, keep Kanpur address in sync,
- * and ensure exactly one office is marked as the legal registered office.
+ * Create Kanpur and Noida only when the collection is empty.
+ * If offices already exist and none is the registered office, mark Kanpur
+ * when it is present. A saved address is left as stored.
  */
 export async function seedDefaultOffices() {
-  const kanpurDefault = DEFAULT_OFFICES.find((o) => o.name === "Kanpur Office");
-  if (kanpurDefault) {
-    const existingKanpur = await OfficeAddress.findOne({ name: "Kanpur Office" });
-    if (existingKanpur) {
-      existingKanpur.addressLine1 = kanpurDefault.addressLine1;
-      existingKanpur.addressLine2 = kanpurDefault.addressLine2 || null;
-      existingKanpur.city = kanpurDefault.city;
-      existingKanpur.state = kanpurDefault.state;
-      existingKanpur.pincode = kanpurDefault.pincode;
-      existingKanpur.country = kanpurDefault.country;
-      existingKanpur.formattedAddress = formatOfficeAddress(kanpurDefault);
-      await existingKanpur.save();
-      await setRegisteredOffice(existingKanpur._id.toString());
-    }
-  }
-
   const count = await OfficeAddress.countDocuments();
   if (count > 0) {
-    // Collection already bootstrapped — still ensure a registered office exists
     const hasRegistered = await OfficeAddress.exists({ isRegisteredOffice: true });
-    if (!hasRegistered && kanpurDefault) {
+    if (!hasRegistered) {
       const kanpur = await OfficeAddress.findOne({ name: "Kanpur Office" });
       if (kanpur) {
         await setRegisteredOffice(kanpur._id.toString());

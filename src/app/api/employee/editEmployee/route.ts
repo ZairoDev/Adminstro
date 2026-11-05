@@ -17,6 +17,7 @@ import {
   updateEmployeeGrossSalary,
 } from "@/modules/finance/services/salary.service";
 import { JobIdentityError, resolveJobIdentity } from "@/lib/departments/jobIdentity";
+import { missingFeaturedFields } from "@/lib/employee/featuredProfile";
 
 connectDb();
 
@@ -42,6 +43,7 @@ interface RequestBody {
   jobPositionId?: string | null;
   department?: string;
   jobTitle?: string;
+  description?: string;
   organization?: string;
   assignedCountry?: string;
   rentalType?: string | null;
@@ -91,7 +93,9 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       updateData.profilePic = updateFields.profilePic;
     if (updateFields.nationality)
       updateData.nationality = updateFields.nationality;
-    if (updateFields.name) updateData.name = updateFields.name;
+    if (typeof updateFields.name === "string" && updateFields.name.trim()) {
+      updateData.name = updateFields.name.trim();
+    }
     if (updateFields.gender) updateData.gender = updateFields.gender;
     if (updateFields.spokenLanguage)
       updateData.spokenLanguage = updateFields.spokenLanguage;
@@ -128,6 +132,16 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
         }
         throw error;
       }
+    } else {
+      if (typeof updateFields.department === "string") {
+        updateData.department = updateFields.department.trim();
+      }
+      if (typeof updateFields.jobTitle === "string") {
+        updateData.jobTitle = updateFields.jobTitle.trim();
+      }
+    }
+    if (typeof updateFields.description === "string") {
+      updateData.description = updateFields.description.trim();
     }
     // Ensure hSale always remains Holidaysera organization
     if (updateFields.role === "hSale") {
@@ -186,6 +200,36 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
           );
         }
         throw salaryError;
+      }
+    }
+
+    if (updateData.isfeatured === true) {
+      const current = await Employees.findById(_id)
+        .select("name jobTitle department description")
+        .lean<{
+          name?: string | null;
+          jobTitle?: string | null;
+          department?: string | null;
+          description?: string | null;
+        } | null>();
+      if (!current) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+      const missingFields = missingFeaturedFields({
+        name: updateData.name ?? current.name,
+        jobTitle: updateData.jobTitle ?? current.jobTitle,
+        department: updateData.department ?? current.department,
+        description: updateData.description ?? current.description,
+      });
+      if (missingFields.length > 0) {
+        return NextResponse.json(
+          {
+            error:
+              "Fill name, position, department, and description before featuring this employee.",
+            missingFields,
+          },
+          { status: 400 },
+        );
       }
     }
 

@@ -370,6 +370,11 @@ const employeeSchema = new Schema<IEmployee>(
       type: Boolean,
       default: false,
     },
+    description: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     extras: {
       type: Map,
       of: Schema.Types.Mixed,
@@ -645,6 +650,7 @@ const employeeSchema = new Schema<IEmployee>(
   { timestamps: true },
 );
 
+employeeSchema.index({ isActive: 1, isfeatured: 1 });
 employeeSchema.index({ location: 1, isActive: 1 });
 employeeSchema.index({ role: 1, isActive: 1 });
 employeeSchema.index({ "officeDetails.assignedEmail": 1},{unique: true, sparse: true})

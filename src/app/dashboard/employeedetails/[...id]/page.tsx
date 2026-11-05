@@ -98,6 +98,12 @@ import {
   AppreciationType,
 } from "@/util/type";
 import { Button } from "@/components/ui/button";
+import { FeaturedProfileDialog } from "@/components/employee/FeaturedProfileDialog";
+import {
+  toFeaturedProfileValues,
+  missingFeaturedFields,
+  type FeaturedProfileValues,
+} from "@/lib/employee/featuredProfile";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmailPreviewDialog } from "@/components/EmailPreviewDialog";
@@ -217,6 +223,8 @@ export default function EmployeeProfilePage({ params }: PageProps) {
   const [loadinguserDetails, setLoadinguserDetails] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [isFeatured, setIsFeatured] = useState(false);
+  const [featuredDialogOpen, setFeaturedDialogOpen] = useState(false);
+  const [savingFeatured, setSavingFeatured] = useState(false);
 
   // Warning Section State - declared before getUserDetails
   const [warnings, setWarnings] = useState<WarningRecord[]>([]);
@@ -530,15 +538,65 @@ export default function EmployeeProfilePage({ params }: PageProps) {
   };
 
   const handleFeaturedChange = async (featured: boolean) => {
+    if (!user?._id) return;
+    if (featured) {
+      const missing = missingFeaturedFields(user);
+      if (missing.length > 0) {
+        setFeaturedDialogOpen(true);
+        return;
+      }
+    }
     setIsFeatured(featured);
     try {
       await axios.put("/api/employee/editEmployee", {
-        _id: user?._id,
+        _id: user._id,
         isfeatured: featured,
       });
     } catch (error) {
       setIsFeatured(!featured);
       alert("Featured cannot be changed");
+    }
+  };
+
+  const handleFeaturedProfileSave = async (values: FeaturedProfileValues) => {
+    if (!user?._id) return;
+    setSavingFeatured(true);
+    try {
+      await axios.put("/api/employee/editEmployee", {
+        _id: user._id,
+        isfeatured: true,
+        name: values.name,
+        jobTitle: values.position,
+        department: values.department,
+        description: values.description,
+      });
+      setUser((current) =>
+        current
+          ? {
+              ...current,
+              name: values.name,
+              jobTitle: values.position,
+              department: values.department,
+              description: values.description,
+              isfeatured: true,
+            }
+          : current,
+      );
+      setIsFeatured(true);
+      setFeaturedDialogOpen(false);
+      toast({
+        title: "Featured",
+        description: "This employee now appears on the company site.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Could not feature employee",
+        description:
+          error?.response?.data?.error || "Featured cannot be changed",
+      });
+    } finally {
+      setSavingFeatured(false);
     }
   };
 
@@ -1391,6 +1449,15 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                     {isFeatured ? "F" : "NF"}
                   </motion.div>
                 </div>
+                <FeaturedProfileDialog
+                  open={featuredDialogOpen}
+                  onOpenChange={setFeaturedDialogOpen}
+                  values={toFeaturedProfileValues(user ?? {})}
+                  saving={savingFeatured}
+                  onSave={(values) => {
+                    void handleFeaturedProfileSave(values);
+                  }}
+                />
               </div>
             </CardHeader>
             <CardContent>

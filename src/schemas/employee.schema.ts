@@ -67,6 +67,8 @@ export const employeeSchema = z.object({
   isLocked: z.boolean().optional().default(false),
   lockReason: z.enum(["manual", "pip"]).nullable().optional().default(null),
   isfeatured: z.boolean().optional().default(false),
+  /** Public bio shown on the company site when the employee is featured. */
+  description: z.string().optional().default(""),
   organization: z.enum(ORGANIZATIONS).optional().default("VacationSaga"),
   passwordExpiresAt: z.date().optional(),
   extras: z

@@ -107,6 +107,11 @@ export interface EmployeeInterface {
   address: string;
   isVerified: boolean;
   isActive?: boolean;
+  isfeatured?: boolean;
+  department?: string;
+  jobTitle?: string;
+  /** Public bio shown on the company site when the employee is featured. */
+  description?: string;
   candidateId?: string | null;
   inactiveReason?: SeparationType | null;
   inactiveDate?: string | null;

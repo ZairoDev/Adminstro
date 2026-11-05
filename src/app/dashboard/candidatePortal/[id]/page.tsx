@@ -335,6 +335,7 @@ export default function CandidateDetailPage() {
         candidateName: candidate.name,
         position: candidate.position,
         date: agreementDate,
+        candidateId: candidate._id,
         // No signature for unsigned PDF
       };
 

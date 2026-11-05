@@ -4,6 +4,7 @@ import OfficeAddress, { formatOfficeAddress } from "@/models/officeAddress";
 import { requireOfficeAddressManager } from "@/lib/officeAddress/auth";
 import { seedDefaultOffices } from "@/lib/officeAddress/seedDefaultOffices";
 import { backfillCandidateOfficeAddresses } from "@/lib/officeAddress/backfillCandidateOfficeAddresses";
+import { setRegisteredOffice } from "@/lib/officeAddress/resolveRegisteredOfficeAddress";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +27,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Seed defaults only when the collection is empty (first bootstrap)
-    const count = await OfficeAddress.countDocuments();
-    if (count === 0) {
-      await seedDefaultOffices();
-    }
+    // Bootstrap empty collection + keep Kanpur marked as registered office
+    await seedDefaultOffices();
 
     const query = activeOnly ? { isActive: true } : {};
     const offices = await OfficeAddress.find(query).sort({ name: 1 }).lean();
@@ -62,6 +60,7 @@ export async function POST(request: NextRequest) {
     const pincode = String(body.pincode || "").trim();
     const country = String(body.country || "India").trim() || "India";
     const isActive = body.isActive !== false;
+    const isRegisteredOffice = Boolean(body.isRegisteredOffice);
 
     if (!name || !addressLine1 || !city || !state || !pincode) {
       return NextResponse.json(
@@ -90,6 +89,7 @@ export async function POST(request: NextRequest) {
       pincode,
       country,
       isActive,
+      isRegisteredOffice: false,
       formattedAddress: formatOfficeAddress({
         addressLine1,
         addressLine2,
@@ -99,6 +99,11 @@ export async function POST(request: NextRequest) {
         country,
       }),
     });
+
+    if (isRegisteredOffice) {
+      await setRegisteredOffice(office._id.toString());
+      office.isRegisteredOffice = true;
+    }
 
     return NextResponse.json({ success: true, data: office }, { status: 201 });
   } catch (error) {

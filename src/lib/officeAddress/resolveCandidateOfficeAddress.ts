@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 import Candidate from "@/models/candidate";
-import OfficeAddress, { type IOfficeAddress } from "@/models/officeAddress";
+import OfficeAddress, {
+  formatOfficeAddress,
+  formatOfficeAddressShort,
+  type IOfficeAddress,
+} from "@/models/officeAddress";
 
 export class MissingOfficeAddressError extends Error {
   constructor(message = "Candidate has no office address assigned") {
@@ -13,6 +17,10 @@ export type ResolvedOfficeAddress = {
   officeAddressId: string;
   name: string;
   companyAddress: string;
+  /** Without pincode/country — for letterhead "Registered Office:" */
+  registeredOfficeShort: string;
+  /** With pincode + country — for agreement parties clause */
+  registeredOfficeFull: string;
   city: string;
   state: string;
   pincode: string;
@@ -25,15 +33,30 @@ export type ResolvedOfficeAddress = {
 
 function toResolved(office: IOfficeAddress): ResolvedOfficeAddress {
   const city = String(office.city || "").trim() || "Kanpur";
-  const companyAddress = String(office.formattedAddress || "").trim();
+  const state = String(office.state || "").trim();
+  const pincode = String(office.pincode || "").trim();
+  const country = String(office.country || "India").trim();
+  const addressParts = {
+    addressLine1: String(office.addressLine1 || "").trim(),
+    addressLine2: office.addressLine2,
+    city,
+    state,
+    pincode,
+    country,
+  };
+  const companyAddress =
+    String(office.formattedAddress || "").trim() ||
+    formatOfficeAddress(addressParts);
   return {
     officeAddressId: office._id.toString(),
     name: String(office.name || "").trim(),
     companyAddress,
+    registeredOfficeShort: formatOfficeAddressShort(addressParts),
+    registeredOfficeFull: formatOfficeAddress(addressParts),
     city,
-    state: String(office.state || "").trim(),
-    pincode: String(office.pincode || "").trim(),
-    country: String(office.country || "India").trim(),
+    state,
+    pincode,
+    country,
     postingLocation: city,
     agreementCity: city,
     jurisdictionCity: city,

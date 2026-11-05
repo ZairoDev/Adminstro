@@ -6,10 +6,12 @@ import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import Candidate from "@/models/candidate";
 import { connectDb } from "@/util/db";
 import {
-  MissingOfficeAddressError,
-  missingOfficeAddressResponse,
-  resolveCandidateOfficeAddress,
-} from "@/lib/officeAddress/resolveCandidateOfficeAddress";
+  MissingRegisteredOfficeError,
+  missingRegisteredOfficeResponse,
+  resolveRegisteredOfficeAddress,
+} from "@/lib/officeAddress/resolveRegisteredOfficeAddress";
+import { seedDefaultOffices } from "@/lib/officeAddress/seedDefaultOffices";
+import { missingOfficeAddressResponse } from "@/lib/officeAddress/resolveCandidateOfficeAddress";
 
 type Payload = {
   candidateName: string;
@@ -23,6 +25,36 @@ async function getBase64FromPublic(relativePath: string) {
   const filePath = path.join(process.cwd(), "public", relativePath);
   const fileData = await fs.readFile(filePath);
   return fileData.toString("base64");
+}
+
+function formatDisplayDate(date: Date): string {
+  if (!(date instanceof Date) || isNaN(date.getTime())) {
+    return "______________";
+  }
+  const day = date.getDate();
+  const monthName = date.toLocaleString("en-US", { month: "long" });
+  const year = date.getFullYear();
+  return `${day} ${monthName} ${year}`;
+}
+
+function parseTrainingPeriodDays(period: string | null | undefined): number | null {
+  if (!period) return null;
+  const match = String(period).match(/(\d+)/);
+  if (!match) return null;
+  const days = parseInt(match[1], 10);
+  return Number.isNaN(days) || days <= 0 ? null : days;
+}
+
+function computeEndDate(start: Date, days: number): Date {
+  const end = new Date(start);
+  end.setDate(end.getDate() + days);
+  return end;
+}
+
+function parseFlexibleDate(value: string | Date | null | undefined): Date | null {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return isNaN(date.getTime()) ? null : date;
 }
 
 function drawFullWidthSectionHeading(
@@ -86,50 +118,48 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fetch candidate training duration and date if candidateId is provided
-    let phase1Duration = "4 to 5 working days"; // Default fallback
+    // Fetch candidate fields for agreement parties / training dates
     let candidateSelectedDate: Date | null = null;
+    let employeeName = data.candidateName || "";
+    let employeeDesignation = data.position || "";
+    let employeeAddress = "";
+    let employeeEmail = "";
+    let trainingStartDate: Date | null = null;
+    let trainingPeriodDays: number | null = null;
+
     if (data.candidateId) {
       try {
         await connectDb();
-        const candidate = await Candidate.findById(data.candidateId).lean();
+        const candidate = await Candidate.findById(data.candidateId)
+          .select(
+            "name email address position selectedForTrainingAt selectionDetails.role selectionDetails.trainingDate selectionDetails.trainingPeriod"
+          )
+          .lean();
         if (candidate) {
-          // Get the date when candidate was selected for training
           if (candidate.selectedForTrainingAt) {
             candidateSelectedDate = new Date(candidate.selectedForTrainingAt);
           }
-          
-          // Get training duration
-          if (candidate?.selectionDetails?.trainingPeriod) {
-            // Use trainingPeriod from selectionDetails
-            // Format: "5 days" -> "5 working days" or keep as is if already formatted
-            const trainingPeriod = candidate.selectionDetails.trainingPeriod;
-            if (trainingPeriod.includes("day") || trainingPeriod.includes("Day")) {
-              phase1Duration = trainingPeriod.includes("working") 
-                ? trainingPeriod 
-                : trainingPeriod.replace(/days?/i, "working days");
-            } else {
-              // If it's just a number, format it
-              const days = parseInt(trainingPeriod);
-              if (!isNaN(days)) {
-                phase1Duration = `${days} working days`;
-              } else {
-                phase1Duration = trainingPeriod;
-              }
-            }
-          } else if (candidate?.selectionDetails?.duration) {
-            // Fallback to duration field
-            phase1Duration = candidate.selectionDetails.duration;
-          }
+          employeeName = candidate.name || employeeName;
+          employeeEmail = candidate.email || "";
+          employeeAddress = candidate.address || "";
+          employeeDesignation =
+            candidate.selectionDetails?.role ||
+            candidate.position ||
+            employeeDesignation;
+          trainingStartDate = parseFlexibleDate(
+            candidate.selectionDetails?.trainingDate
+          );
+          trainingPeriodDays = parseTrainingPeriodDays(
+            candidate.selectionDetails?.trainingPeriod
+          );
         }
       } catch (err) {
         console.error("Error fetching candidate data:", err);
-        // Use default fallback
       }
     }
 
     // Defaults matching the original document
-    const companyName = "ZAIRO INTERNATIONAL P. LTD.";
+    const companyDisplayName = "Zairo International Private Limited";
     const companyCIN = "U93090UP2017PTC089137";
     if (!data.candidateId) {
       return NextResponse.json(
@@ -137,21 +167,22 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-    let companyAddress: string;
+    let registeredOfficeShort: string;
+    let registeredOfficeFull: string;
     try {
-      const office = await resolveCandidateOfficeAddress({
-        candidateId: data.candidateId,
-      });
-      companyAddress = office.companyAddress;
+      await seedDefaultOffices();
+      const registered = await resolveRegisteredOfficeAddress();
+      // Letterhead: without pincode/country
+      // Parties clause: with pincode + India
+      // Always legal registered office — independent of candidate work location
+      registeredOfficeShort = registered.registeredOfficeShort;
+      registeredOfficeFull = registered.registeredOfficeFull;
     } catch (err) {
-      if (err instanceof MissingOfficeAddressError) {
-        return NextResponse.json(missingOfficeAddressResponse(), { status: 400 });
+      if (err instanceof MissingRegisteredOfficeError) {
+        return NextResponse.json(missingRegisteredOfficeResponse(), { status: 400 });
       }
       throw err;
     }
-    const officeStart = "10:00 hrs ISD";
-    const officeEnd = "18:30 hrs ISD";
-
     // Create PDF
     const pdfDoc = await PDFDocument.create();
     const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
@@ -192,9 +223,23 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    const day = agreementDate.getDate();
-    const monthName = agreementDate.toLocaleString("en-US", { month: "long" });
-    const year = agreementDate.getFullYear();
+    if (!trainingStartDate) {
+      trainingStartDate = agreementDate;
+    }
+    const trainingEndDate =
+      trainingPeriodDays != null
+        ? computeEndDate(trainingStartDate, trainingPeriodDays)
+        : null;
+    const formattedAgreementDate = formatDisplayDate(agreementDate);
+    const formattedStartDate = formatDisplayDate(trainingStartDate);
+    const formattedEndDate = trainingEndDate
+      ? formatDisplayDate(trainingEndDate)
+      : "______________";
+    const blank = "______________";
+    const resolvedEmployeeName = employeeName?.trim() || blank;
+    const resolvedDesignation = employeeDesignation?.trim() || blank;
+    const resolvedAddress = employeeAddress?.trim() || blank;
+    const resolvedEmail = employeeEmail?.trim() || blank;
 
     const titleTextLeft = "Zairo ";
     const titleTextMid = "International ";
@@ -215,7 +260,6 @@ export async function POST(req: NextRequest) {
     let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
     let yPosition = pageHeight - topMargin;
     let pageNumber = 1;
-    const totalPages = 2; // Training agreement is typically 2 pages
 
     // Helper function to add a new page
     const addNewPage = () => {
@@ -227,13 +271,31 @@ export async function POST(req: NextRequest) {
 
     // Helper function to add page header/footer
     const addPageHeader = () => {
-      currentPage.drawText(`Page ${pageNumber} of ${totalPages}`, {
+      currentPage.drawText(`Page ${pageNumber}`, {
         x: leftMargin,
         y: pageHeight - 50,
         size: footerSize,
         font: font,
         color: textColor,
       });
+    };
+
+    const drawSectionHeading = (title: string) => {
+      if (yPosition - sectionSize * 2 - 20 < bottomMargin) {
+        addNewPage();
+      }
+      const yRef = { value: yPosition };
+      drawFullWidthSectionHeading(
+        title,
+        currentPage,
+        fontBold,
+        yRef,
+        leftMargin,
+        rightMargin,
+        sectionSize,
+        pageWidth
+      );
+      yPosition = yRef.value;
     };
 
     // Helper function to draw text with word wrapping
@@ -359,10 +421,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Company info lines
+    // CIN / office / contact only — company brand is drawn above as Zairo International (red) Private Limited
     const companyInfoLines = [
-      `${companyName}`,
       `CIN: ${companyCIN}`,
-      `Registered Office: ${companyAddress}`,
+      `Registered Office: ${registeredOfficeShort}`,
       "+91 95198 03665",
       "zairointernationalpvtltd@gmail.com",
     ];
@@ -449,7 +511,7 @@ export async function POST(req: NextRequest) {
     yPosition -= 15;
 
     // Document title
-    const documentTitle = "PRE-EMPLOYMENT TRAINING AGREEMENT";
+    const documentTitle = "EMPLOYEE TRAINING AGREEMENT";
     const titleWidth = fontBold.widthOfTextAtSize(documentTitle, titleSize);
     currentPage.drawText(documentTitle, {
       x: (pageWidth - titleWidth) / 2,
@@ -460,120 +522,404 @@ export async function POST(req: NextRequest) {
     });
     yPosition -= titleSize * 2;
 
-    // Date line - format date without time
-    const formattedDate = `${day} ${monthName} ${year}`;
-    const dateLine = `Date: ${formattedDate}`;
-    drawWrappedText(dateLine, leftMargin, bodySize);
+    drawWrappedText(
+      `This Employee Training Agreement is executed on ${formattedAgreementDate}, between:`,
+      leftMargin,
+      bodySize
+    );
     yPosition -= paragraphSpacing;
 
-    // Dear candidate line
-    const dearLine = `Dear ${data.candidateName || "______________"},`;
-    drawWrappedText(dearLine, leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 2;
-
-    // First paragraph
-    const firstParagraph = `We are pleased to welcome you to Zairo International Pvt. Ltd. as a potential member of our team in the position of ${data.position || "______________________________"}. This letter outlines the terms and conditions of your training and evaluation period with the organisation.`;
-    drawWrappedText(firstParagraph, leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 2;
-
-    // Training Duration & Structure section
-    drawFullWidthSectionHeading(
-      "Training Duration & Structure",
-      currentPage,
-      fontBold,
-      { value: yPosition },
+    drawWrappedText(
+      `${companyDisplayName}, having its registered office at ${registeredOfficeFull}, hereinafter referred to as the "Company".`,
       leftMargin,
-      rightMargin,
-      sectionSize,
-      pageWidth
+      bodySize
+    );
+    yPosition -= paragraphSpacing;
+
+    // Centered "AND" between Company and Employee parties
+    if (yPosition - lineHeight < bottomMargin) {
+      addNewPage();
+    }
+    const andLabel = "AND";
+    const andWidth = fontBold.widthOfTextAtSize(andLabel, bodySize);
+    currentPage.drawText(andLabel, {
+      x: (pageWidth - andWidth) / 2,
+      y: yPosition - lineHeight,
+      size: bodySize,
+      font: fontBold,
+      color: textColor,
+    });
+    yPosition -= lineHeight + paragraphSpacing;
+
+    drawWrappedText(
+      `${resolvedEmployeeName}, residing at ${resolvedAddress}, designated as ${resolvedDesignation}, and reachable at ${resolvedEmail}, hereinafter referred to as the "Employee".`,
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing;
+
+    drawWrappedText(
+      "Both parties voluntarily agree to the following terms and conditions:",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing * 2;
+
+    // 1. PURPOSE OF TRAINING
+    drawSectionHeading("1. PURPOSE OF TRAINING");
+    drawWrappedText(
+      "The Company shall provide the Employee with structured training to develop the professional knowledge, practical skills, communication abilities and job-specific competencies required to perform the assigned responsibilities effectively.",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing;
+    drawWrappedText(
+      "The training is intended to familiarise the Employee with the Company's business operations, internal processes, working standards, policies and performance expectations.",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing * 2;
+
+    // 2. TRAINING DURATION
+    drawSectionHeading("2. TRAINING DURATION");
+    drawWrappedText(
+      `• The training period shall commence from ${formattedStartDate} and continue until ${formattedEndDate}.`,
+      leftMargin,
+      bodySize
     );
     yPosition -= lineHeight;
-
-    drawWrappedText("Your training will be conducted in two phases:", leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
-
-    // Phase 1
-    drawWrappedText("Phase 1 – Initial Training Period", leftMargin + 10, bodySize, true);
-    yPosition -= lineHeight;
-    drawWrappedText(`Duration: ${phase1Duration}`, leftMargin + 20, bodySize);
-    yPosition -= lineHeight;
-    drawWrappedText("Nature: Unpaid", leftMargin + 20, bodySize);
-    yPosition -= lineHeight;
-    drawWrappedText("Purpose: To provide you with the required knowledge of processes, systems, and operations of the company.", leftMargin + 20, bodySize);
-    yPosition -= paragraphSpacing;
-
-    // Phase 2
-    drawWrappedText("Phase 2 – Paid Training & Assessment Period", leftMargin + 10, bodySize, true);
-    yPosition -= lineHeight;
-    drawWrappedText("Duration: 10 working days (Observational Period)", leftMargin + 20, bodySize);
-    yPosition -= lineHeight;
-    drawWrappedText("Nature: Paid training (Stipend/Salary as applicable)", leftMargin + 20, bodySize);
-    yPosition -= lineHeight;
-    drawWrappedText("Purpose: During this period, your performance, conduct, learning ability, and stability will be closely evaluated by the management.", leftMargin + 20, bodySize);
-    yPosition -= paragraphSpacing * 2;
-
-    // Conditions of Continuation section
-    drawFullWidthSectionHeading(
-      "Conditions of Continuation",
-      currentPage,
-      fontBold,
-      { value: yPosition },
+    drawWrappedText(
+      "• The training duration may be extended if additional training, skill development or performance improvement is reasonably required.",
       leftMargin,
-      rightMargin,
-      sectionSize,
-      pageWidth
+      bodySize
     );
     yPosition -= lineHeight;
-
-    drawWrappedText("Successful completion of both phases is mandatory for further employment with the organization.", leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("The company reserves full rights to discontinue your training or not offer permanent employment if performance standards are not met during the assessment period.", leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("Salary and appointment confirmation details will be shared only after successful evaluation.", leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("Zairo International Pvt. Ltd.", leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 2;
-
-    // General Terms section
-    drawFullWidthSectionHeading(
-      "General Terms",
-      currentPage,
-      fontBold,
-      { value: yPosition },
+    drawWrappedText(
+      "• Any extension or modification of the training period shall be communicated to the Employee.",
       leftMargin,
-      rightMargin,
-      sectionSize,
-      pageWidth
+      bodySize
     );
     yPosition -= lineHeight;
-
-    drawWrappedText("You are required to maintain professional behavior, punctuality, and adhere to all company policies during the training period.", leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("Any unauthorized absence during the training period may result in immediate termination of training.", leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("Confidentiality of company information must be strictly maintained.", leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 2;
-
-    // No Guarantee of Employment section
-    drawFullWidthSectionHeading(
-      "No Guarantee of Employment",
-      currentPage,
-      fontBold,
-      { value: yPosition },
+    drawWrappedText(
+      "• Successful completion of training shall be determined by the Company's evaluation criteria.",
       leftMargin,
-      rightMargin,
-      sectionSize,
-      pageWidth
+      bodySize
     );
-    yPosition -= lineHeight;
-
-    drawWrappedText("Completion of the training period does not guarantee employment with the Company. The decision to offer employment shall be solely based on the Company's assessment of the trainee's performance, skills, conduct, and overall suitability, as well as the organizational requirements at that time.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Acceptance paragraph
-    drawWrappedText("If you agree to the above terms and conditions, kindly sign this letter as a token of your acceptance and submit the signed copy to the HR Department.", leftMargin, bodySize);
+    // 3. TRAINING RESPONSIBILITIES
+    drawSectionHeading("3. TRAINING RESPONSIBILITIES");
+    drawWrappedText(
+      "During the training period, the Employee shall:",
+      leftMargin,
+      bodySize
+    );
     yPosition -= paragraphSpacing;
-    drawWrappedText("We look forward to seeing your progress and contribution in the organization.", leftMargin, bodySize);
+    const trainingResponsibilities = [
+      "• Attend all scheduled training sessions, meetings and assigned activities.",
+      "• Follow instructions provided by trainers, reporting managers and department heads.",
+      "• Actively participate in practical assignments, assessments and performance evaluations.",
+      "• Maintain punctuality, discipline and professional conduct.",
+      "• Complete all assigned tasks within the stipulated timelines.",
+      "• Demonstrate continuous improvement in knowledge, skills and work performance.",
+      "• Understand and follow the Company's operational procedures, policies and guidelines.",
+    ];
+    for (const item of trainingResponsibilities) {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+
+    // 4. PERFORMANCE EVALUATION
+    drawSectionHeading("4. PERFORMANCE EVALUATION");
+    const performanceEvaluation = [
+      "• The Employee's performance shall be evaluated periodically throughout the training period.",
+      "• Assessments may include practical assignments, process knowledge, communication skills, productivity, attendance, discipline and overall performance.",
+      "• The Employee is expected to meet the performance standards and benchmarks established by the Company.",
+      "• In case of unsatisfactory performance, the Company may provide additional guidance, counselling or extend the training period.",
+      "• Continued failure to meet the required standards may result in discontinuation of training or other appropriate employment-related action.",
+    ];
+    for (const item of performanceEvaluation) {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+
+    // 5. COMPENSATION DURING TRAINING AND ONBOARDING COMPLETION
+    drawSectionHeading("5. COMPENSATION DURING TRAINING AND ONBOARDING COMPLETION");
+    const compensationTerms = [
+      "• The training period shall be paid, subject to the Employee successfully completing the Company's prescribed onboarding process.",
+      "• The onboarding process may include completion of required documentation, submission of necessary information, mandatory training sessions, assessments and other formalities communicated by the Company.",
+      "• The Employee is required to complete all prescribed onboarding activities within the stipulated timeline and comply with the Company's onboarding requirements.",
+      "• Successful completion of the onboarding process shall be confirmed by the Company's authorised HR or management representative.",
+      "• If the Employee fails to complete the onboarding process, abandons the training or discontinues participation before completing the prescribed requirements, the Company may withhold any conditional training completion benefit, subject to applicable employment terms and laws.",
+      "• Any applicable salary, incentives or benefits shall otherwise be governed by the Company's employment terms and applicable laws.",
+    ];
+    for (const item of compensationTerms) {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+
+    // 6. ATTENDANCE AND LEAVE
+    drawSectionHeading("6. ATTENDANCE AND LEAVE");
+    const attendanceTerms = [
+      "• The Employee must maintain regular attendance throughout the training period.",
+      "• Any leave or absence will not be entertained.",
+      "• Repeated absenteeism, late arrivals or failure to follow attendance procedures may adversely affect the Employee's training evaluation.",
+    ];
+    for (const item of attendanceTerms) {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+
+    // 7. CONFIDENTIALITY AND DATA PROTECTION
+    drawSectionHeading("7. CONFIDENTIALITY AND DATA PROTECTION");
+    drawWrappedText(
+      "The Employee shall maintain strict confidentiality regarding all Company information, including but not limited to:",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing;
+    const confidentialityItems = [
+      "• Client and customer information.",
+      "• Business strategies, pricing and commercial information.",
+      "• Internal processes, databases and CRM records.",
+      "• Financial information, documents and business operations.",
+      "• Employee information and internal communications.",
+      "• Any confidential information accessed during training or employment.",
+    ];
+    for (const item of confidentialityItems) {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+    drawWrappedText(
+      "The Employee shall not disclose, copy, misuse, transfer or share such information with any unauthorised individual or third party, during or after employment.",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing * 2;
+
+    // 8. COMPANY PROPERTY AND RESOURCES
+    drawSectionHeading("8. COMPANY PROPERTY AND RESOURCES");
+    const propertyTerms = [
+      "• All training materials, documents, equipment, software access, login credentials and other resources provided by the Company shall remain Company property.",
+      "• The Employee shall not misuse, reproduce, distribute or retain Company property without written authorisation.",
+      "• All Company assets, documents and access credentials must be returned or surrendered upon request or separation from the Company.",
+    ];
+    for (const item of propertyTerms) {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+
+    // 9. CODE OF CONDUCT, ETHICAL STANDARDS AND WORKPLACE DISCIPLINE
+    drawSectionHeading("9. CODE OF CONDUCT, ETHICAL STANDARDS AND WORKPLACE DISCIPLINE");
+    drawWrappedText(
+      "The Employee is expected to maintain the highest standards of professional behaviour, workplace discipline, ethical conduct and responsibility throughout the training period.",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing;
+    drawWrappedText(
+      "The following activities and behaviours may be considered violations of Company discipline and grounds for appropriate disciplinary action, including discontinuation of training:",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing;
+
+    drawWrappedText("9.1 Excessive Mobile Phone Usage", leftMargin + 10, bodySize, true);
+    yPosition -= lineHeight;
+    for (const item of [
+      "• Excessive or unnecessary personal mobile phone usage during working hours.",
+      "• Repeated use of mobile phones during training sessions, meetings or assigned tasks.",
+      "• Any activity that affects productivity, concentration or the overall training environment.",
+    ]) {
+      drawWrappedText(item, leftMargin + 10, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+
+    drawWrappedText("9.2 Lack of Commitment and Lazy Attitude", leftMargin + 10, bodySize, true);
+    yPosition -= lineHeight;
+    for (const item of [
+      "• Consistently demonstrating a careless, irresponsible or non-serious approach towards assigned responsibilities.",
+      "• Showing unwillingness to learn, improve or participate in training activities.",
+      "• Repeatedly delaying assigned tasks without reasonable justification.",
+      "• Avoiding responsibilities or demonstrating a lack of initiative.",
+    ]) {
+      drawWrappedText(item, leftMargin + 10, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+
+    drawWrappedText("9.3 Misbehaviour and Misconduct", leftMargin + 10, bodySize, true);
+    yPosition -= lineHeight;
+    for (const item of [
+      "• Disrespectful behaviour towards trainers, colleagues, reporting managers, seniors or other employees.",
+      "• Use of inappropriate, abusive or offensive language.",
+      "• Arguments, aggressive behaviour, insubordination or deliberate disruption of the workplace.",
+      "• Any conduct that negatively affects workplace harmony or professional relationships.",
+    ]) {
+      drawWrappedText(item, leftMargin + 10, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+
+    drawWrappedText("9.4 Unprofessional Attitude", leftMargin + 10, bodySize, true);
+    yPosition -= lineHeight;
+    for (const item of [
+      "• Repeatedly ignoring instructions provided by trainers or reporting managers.",
+      "• Disrupting training sessions or team activities.",
+      "• Failure to follow reasonable workplace instructions and operational procedures.",
+      "• Demonstrating a consistently negative or non-cooperative attitude.",
+    ]) {
+      drawWrappedText(item, leftMargin + 10, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+
+    drawWrappedText("9.5 Lack of Work Ethics and Integrity", leftMargin + 10, bodySize, true);
+    yPosition -= lineHeight;
+    for (const item of [
+      "• Providing false information or manipulating work records, attendance or performance reports.",
+      "• Deliberate negligence or misuse of Company resources.",
+      "• Dishonesty, misrepresentation or breach of professional trust.",
+      "• Any activity that compromises the Company's business interests or reputation.",
+    ]) {
+      drawWrappedText(item, leftMargin + 10, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+
+    drawWrappedText("9.6 Unacceptable or Disruptive Behaviour", leftMargin + 10, bodySize, true);
+    yPosition -= lineHeight;
+    for (const item of [
+      "• Engaging in activities that disturb the working environment.",
+      "• Influencing or encouraging other employees to disregard Company policies or instructions.",
+      "• Any inappropriate conduct that affects team productivity, discipline or organisational functioning.",
+    ]) {
+      drawWrappedText(item, leftMargin + 10, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+
+    drawWrappedText(
+      "The Company reserves the right to investigate such incidents and take appropriate action based on their nature, severity and frequency. Depending on the circumstances, action may include counselling, verbal or written warnings, additional monitoring, extension of training or discontinuation of training.",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing;
+    drawWrappedText(
+      "Serious misconduct may warrant immediate disciplinary action, subject to applicable law and contractual terms.",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing * 2;
+
+    // 10. COMPLETION OF TRAINING
+    drawSectionHeading("10. COMPLETION OF TRAINING");
+    const completionTerms = [
+      "• Upon successful completion of training, the Employee may proceed to the next stage of employment, subject to the Company's evaluation and applicable employment terms.",
+      "• Completion of training does not automatically make you a permanent employee, grant a promotion or any specific compensation revision unless separately communicated in writing.",
+      "• The Company shall communicate the outcome of the training evaluation to the Employee.",
+    ];
+    for (const item of completionTerms) {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+
+    // 11. DISCONTINUATION OF TRAINING OR EMPLOYMENT
+    drawSectionHeading("11. DISCONTINUATION OF TRAINING OR EMPLOYMENT");
+    drawWrappedText(
+      "The Company reserves the right to discontinue the Employee's training or employment, in accordance with applicable employment terms and laws, under circumstances including but not limited to:",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing;
+    for (const item of [
+      "• Consistently failing to meet the required performance standards.",
+      "• Demonstrating misconduct or serious disciplinary violations.",
+      "• Breaching confidentiality or misusing Company information.",
+      "• Repeated unauthorised absenteeism or failure to maintain workplace discipline.",
+      "• Failure to comply with reasonable training instructions or Company policies.",
+      "• Demonstrating unethical behaviour, a lack of commitment or an unprofessional attitude.",
+      "• Any action that adversely affects the Company's business operations, workplace environment or reputation.",
+    ]) {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+    drawWrappedText(
+      "The Employee may also choose to discontinue the training or employment by following the applicable resignation and notice requirements specified in the appointment letter.",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing;
+    drawWrappedText(
+      "Any discontinuation shall be handled in accordance with the applicable contractual terms and statutory requirements.",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing * 2;
+
+    // 12. NO UNREASONABLE TRAINING BOND
+    drawSectionHeading("12. NO UNREASONABLE TRAINING BOND");
+    drawWrappedText(
+      "This Agreement does not impose any arbitrary financial penalty or compulsory service bond on the Employee.",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing;
+    drawWrappedText(
+      "Any separately agreed recovery of specific training expenses, if applicable, must be documented independently, be reasonable and comply with applicable laws.",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing * 2;
+
+    // 13. GENERAL TERMS AND CONDITIONS
+    drawSectionHeading("13. GENERAL TERMS AND CONDITIONS");
+    for (const item of [
+      "• This Agreement shall be read together with the Employee's offer letter, appointment letter and applicable Company policies.",
+      "• The Employee shall comply with all existing and subsequently communicated workplace policies and reasonable operational instructions.",
+      "• Any amendments to this Agreement must be made in writing and acknowledged by both parties.",
+      "• If any provision is found unenforceable, the remaining provisions shall continue to apply to the extent permitted by law.",
+      "• This Agreement shall be governed by the applicable laws of India.",
+    ]) {
+      drawWrappedText(item, leftMargin, bodySize);
+      yPosition -= lineHeight;
+    }
+    yPosition -= paragraphSpacing;
+
+    // 14. DECLARATION AND ACCEPTANCE
+    drawSectionHeading("14. DECLARATION AND ACCEPTANCE");
+    drawWrappedText(
+      "I hereby confirm that I have carefully read, understood and voluntarily accepted all the terms and conditions mentioned in this Employee Training Agreement.",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing;
+    drawWrappedText(
+      "I understand that the training period is intended to evaluate my professional capabilities, work ethics, discipline, commitment and suitability for the assigned role.",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing;
+    drawWrappedText(
+      "I agree to maintain professional conduct, follow all Company policies and instructions, respect workplace discipline and fulfil my responsibilities throughout the training period.",
+      leftMargin,
+      bodySize
+    );
+    yPosition -= paragraphSpacing;
+    drawWrappedText(
+      "I further acknowledge that any violation of the terms mentioned in this Agreement may result in appropriate disciplinary action, including discontinuation of training, subject to applicable laws and employment terms.",
+      leftMargin,
+      bodySize
+    );
     yPosition -= paragraphSpacing * 3;
 
     // I Accept section
@@ -658,12 +1004,12 @@ export async function POST(req: NextRequest) {
       } catch (err) {
         console.error("Error drawing company logo at bottom:", err);
         // Fallback to text if logo fails
-        drawWrappedText("Zairo International Pvt. Ltd.", leftMargin, bodySize);
+        drawWrappedText(companyDisplayName, leftMargin, bodySize);
         yPosition -= paragraphSpacing;
       }
     } else {
       // Fallback to text if no logo
-      drawWrappedText("Zairo International Pvt. Ltd.", leftMargin, bodySize);
+      drawWrappedText(companyDisplayName, leftMargin, bodySize);
       yPosition -= paragraphSpacing;
     }
 
@@ -708,8 +1054,8 @@ export async function POST(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="Pre-Employment-Training-Agreement-${
-          data.candidateName?.replace(/\s+/g, "_") || "Candidate"
+        "Content-Disposition": `attachment; filename="Employee-Training-Agreement-${
+          (employeeName || data.candidateName)?.replace(/\s+/g, "_") || "Candidate"
         }.pdf"`,
         "Cache-Control": "no-store",
       },

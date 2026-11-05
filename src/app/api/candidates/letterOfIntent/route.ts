@@ -12,6 +12,11 @@ import {
   resolveCandidateOfficeAddress,
 } from "@/lib/officeAddress/resolveCandidateOfficeAddress";
 import {
+  MissingRegisteredOfficeError,
+  missingRegisteredOfficeResponse,
+  resolveRegisteredOfficeAddress,
+} from "@/lib/officeAddress/resolveRegisteredOfficeAddress";
+import {
   buildInternDesignation,
   formatInternStipend,
   buildInternTerms,
@@ -174,7 +179,6 @@ export async function POST(req: NextRequest) {
     }
 
     // Defaults matching the original document
-    const companyName = "ZAIRO INTERNATIONAL P. LTD.";
     const companyCIN = "U93090UP2017PTC089137";
     if (!data.candidateId) {
       return NextResponse.json(
@@ -184,15 +188,23 @@ export async function POST(req: NextRequest) {
     }
     let companyAddress: string;
     let workLocation: string;
+    let workAddress: string;
     try {
-      const office = await resolveCandidateOfficeAddress({
-        candidateId: data.candidateId,
-      });
-      companyAddress = office.companyAddress;
+      const [registered, office] = await Promise.all([
+        resolveRegisteredOfficeAddress(),
+        resolveCandidateOfficeAddress({ candidateId: data.candidateId }),
+      ]);
+      // Letterhead / "having its registered office at" — always legal registered office
+      companyAddress = registered.companyAddress;
+      // Work location + address follow the candidate's reporting office (Kanpur / Noida / …)
       workLocation = office.workLocation;
+      workAddress = office.companyAddress;
     } catch (err) {
       if (err instanceof MissingOfficeAddressError) {
         return NextResponse.json(missingOfficeAddressResponse(), { status: 400 });
+      }
+      if (err instanceof MissingRegisteredOfficeError) {
+        return NextResponse.json(missingRegisteredOfficeResponse(), { status: 400 });
       }
       throw err;
     }
@@ -442,9 +454,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Company info lines
+    // CIN / office / contact only — company brand is drawn above as Zairo International (red) Private Limited
     const companyInfoLines = [
-      `${companyName}`,
       `CIN: ${companyCIN}`,
       `Registered Office: ${companyAddress}`,
       "+91 95198 03665",
@@ -603,6 +614,7 @@ export async function POST(req: NextRequest) {
         `- Designation: ${internDesignation}`,
         `- Department: ${internDepartment}`,
         `- Work Location: ${workLocation}`,
+        `- Work Address: ${workAddress}`,
         `- Duration: ${internDuration}`,
         `- Stipend: ${formattedStipend}`,
       ];
@@ -777,6 +789,7 @@ export async function POST(req: NextRequest) {
       `- Designation: ${designation}`,
       `- Department: ${department}`,
       `- Work Location: ${workLocation}`,
+      `- Work Address: ${workAddress}`,
       `- Proposed Start Date: ${formattedStartDate}`,
       `- Remuneration: ${formattedSalary}`
     ];

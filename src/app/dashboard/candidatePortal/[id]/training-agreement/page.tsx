@@ -605,6 +605,7 @@ export default function TrainingAgreementPage() {
             candidateName: updatedCandidate.name,
             position: updatedCandidate.position,
             date: new Date().toISOString(),
+            candidateId: updatedCandidate._id || candidateId,
             signatureBase64: updatedCandidate.trainingAgreementDetails.eSign.signatureImage,
           };
 

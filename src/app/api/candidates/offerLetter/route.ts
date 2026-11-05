@@ -11,6 +11,11 @@ import {
   missingOfficeAddressResponse,
   resolveCandidateOfficeAddress,
 } from "@/lib/officeAddress/resolveCandidateOfficeAddress";
+import {
+  MissingRegisteredOfficeError,
+  missingRegisteredOfficeResponse,
+  resolveRegisteredOfficeAddress,
+} from "@/lib/officeAddress/resolveRegisteredOfficeAddress";
 
 type Payload = {
   letterDate: string; // ISO date string
@@ -141,21 +146,27 @@ export async function POST(req: NextRequest) {
     let companyAddress: string;
     let resolvedPostingLocation: string;
     try {
-      const office = await resolveCandidateOfficeAddress({
-        candidateId: data.candidateId,
-      });
-      companyAddress = office.companyAddress;
+      const [registered, office] = await Promise.all([
+        resolveRegisteredOfficeAddress(),
+        resolveCandidateOfficeAddress({ candidateId: data.candidateId }),
+      ]);
+      // Letterhead registered office is always the legal registered office
+      companyAddress = registered.companyAddress;
       const clientPosting = String(data.postingLocation || "").trim();
       const isLegacyHardcode =
         !clientPosting ||
         /^117\/N\/70/i.test(clientPosting) ||
         clientPosting.toLowerCase() === "kanpur";
+      // Posting / place of work follows the candidate's assigned office
       resolvedPostingLocation = isLegacyHardcode
         ? office.companyAddress
         : clientPosting;
     } catch (err) {
       if (err instanceof MissingOfficeAddressError) {
         return NextResponse.json(missingOfficeAddressResponse(), { status: 400 });
+      }
+      if (err instanceof MissingRegisteredOfficeError) {
+        return NextResponse.json(missingRegisteredOfficeResponse(), { status: 400 });
       }
       throw err;
     }

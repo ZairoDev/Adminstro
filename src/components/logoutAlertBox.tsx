@@ -1,9 +1,10 @@
 "use client";
 
 import axios from "@/util/axios";
-import { useRef, useState } from "react";
-import { CircleHelp } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { CircleHelp, ImagePlus } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { useAuthStore } from "@/AuthStore";
 import { clearMonthlyTargetGateSkip } from "@/lib/monthly-target-gate-skip";
@@ -36,7 +37,56 @@ export function LogoutButton() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const initials = token?.name?.trim()?.charAt(0)?.toUpperCase() || "U";
+
+  useEffect(() => {
+    if (!token?.id) {
+      setPhotoUrl("");
+      return;
+    }
+    let cancelled = false;
+    axios
+      .get<{ photoUrl?: string }>("/api/user/profile-picture")
+      .then((response) => {
+        if (!cancelled) setPhotoUrl(response.data.photoUrl?.trim() ?? "");
+      })
+      .catch(() => {
+        if (!cancelled) setPhotoUrl("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token?.id]);
+
+  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+    setUploadingPhoto(true);
+    try {
+      const response = await axios.post<{ photoUrl?: string }>(
+        "/api/user/profile-picture",
+        formData,
+      );
+      setPhotoUrl(response.data.photoUrl?.trim() ?? "");
+      toast.success("Profile picture updated");
+    } catch (error: unknown) {
+      const message =
+        axios.isAxiosError(error) && typeof error.response?.data?.error === "string"
+          ? error.response.data.error
+          : "Could not update the profile picture";
+      toast.error(message);
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -76,17 +126,37 @@ export function LogoutButton() {
 
   return (
     <div className="relative">
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="sr-only"
+        onChange={(event) => {
+          void handlePhotoChange(event);
+        }}
+      />
       <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
         <DropdownMenuTrigger asChild>
           <Avatar className="cursor-pointer">
-            <AvatarImage src="https://github.com/shadcn.png" />
-            <AvatarFallback>A</AvatarFallback>
+            <AvatarImage src={photoUrl || undefined} alt={token?.name || "Profile"} />
+            <AvatarFallback>{uploadingPhoto ? "…" : initials}</AvatarFallback>
           </Avatar>
         </DropdownMenuTrigger>
 
         <DropdownMenuContent>
-          <DropdownMenuLabel>User Menu</DropdownMenuLabel>
+          <DropdownMenuLabel>{token?.name || "User menu"}</DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="cursor-pointer"
+            disabled={uploadingPhoto}
+            onSelect={() => {
+              setDropdownOpen(false);
+              window.setTimeout(() => photoInputRef.current?.click(), 0);
+            }}
+          >
+            <ImagePlus className="mr-2 h-4 w-4" />
+            {uploadingPhoto ? "Uploading photo..." : "Update profile picture"}
+          </DropdownMenuItem>
           <DropdownMenuItem
             className="cursor-pointer"
             onSelect={() => {

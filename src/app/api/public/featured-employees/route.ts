@@ -17,6 +17,7 @@ type FeaturedEmployeeRow = {
   jobTitle?: string | null;
   department?: string | null;
   description?: string | null;
+  profilePic?: string | null;
 };
 
 function json(body: unknown, status = 200) {
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
         ...(organization ? { organization } : {}),
       }),
     )
-      .select("name jobTitle department description")
+      .select("name jobTitle department description profilePic")
       .sort({ name: 1 })
       .lean<FeaturedEmployeeRow[]>();
 
@@ -65,6 +66,7 @@ export async function GET(request: NextRequest) {
         position: employee.jobTitle?.trim() ?? "",
         department: employee.department?.trim() ?? "",
         description: employee.description?.trim() ?? "",
+        photoUrl: employee.profilePic?.trim() ?? "",
       }))
       .filter(
         (employee) =>

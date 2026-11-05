@@ -28,6 +28,7 @@ export interface IHousingCollaborator extends Document {
   password: string;
   issuedPassword: string;
   isActive: boolean;
+  profilePic?: string;
   webSession?: IHousingCollaboratorWebSession;
   tokenValidAfter?: number | null;
   createdAt: Date;
@@ -105,6 +106,11 @@ const housingCollaboratorSchema = new Schema<IHousingCollaborator>(
       type: Boolean,
       default: true,
       index: true,
+    },
+    profilePic: {
+      type: String,
+      default: "",
+      trim: true,
     },
     webSession: {
       sessionId: { type: String, default: null },

@@ -445,6 +445,115 @@ export async function sendEmployeeSignedDocumentsEmail(
   return sendCustomEmail(payload.to, template, companyName, attachments);
 }
 
+export interface SignedOfferPacketEmailPayload {
+  to: string;
+  candidateName: string;
+  position?: string;
+  designation?: string;
+  dateOfJoining?: string;
+  workingHours?: string;
+  annualCtc?: string | number;
+  signedAt?: Date;
+  offerLetterUrl?: string | null;
+  hrPoliciesUrl?: string | null;
+  companyName?: string;
+}
+
+function formatPacketDate(value: string): string {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return value;
+  return new Date(year, month - 1, day).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatPacketCtc(value: string | number): string {
+  const amount = typeof value === "number" ? value : Number(String(value).replace(/,/g, ""));
+  if (!Number.isFinite(amount)) return String(value);
+  return `Rs. ${amount.toLocaleString("en-IN")} per year`;
+}
+
+export async function sendSignedOfferPacketEmail(
+  payload: SignedOfferPacketEmailPayload,
+): Promise<EmailResponse> {
+  const companyName = payload.companyName || DEFAULT_COMPANY_NAME;
+  const attachments: EmailAttachment[] = [];
+  const sources = [
+    { filename: "Offer-Letter-Signed.pdf", url: payload.offerLetterUrl },
+    { filename: "HR-Policies-Signed.pdf", url: payload.hrPoliciesUrl },
+  ];
+
+  for (const document of sources) {
+    const url = document.url?.trim();
+    if (!url) continue;
+    const content = await fetchUrlAsBuffer(url);
+    if (!content) continue;
+    attachments.push({
+      filename: document.filename,
+      content,
+      contentType: "application/pdf",
+    });
+  }
+
+  if (attachments.length === 0) {
+    return { success: false, error: "No signed documents available to attach" };
+  }
+
+  const name = escapeLoginEmailHtml(payload.candidateName);
+  const company = escapeLoginEmailHtml(companyName);
+  const designation = payload.designation || payload.position || "";
+  const rows = [
+    ["Designation", designation],
+    ["Date of joining", payload.dateOfJoining ? formatPacketDate(payload.dateOfJoining) : ""],
+    ["Working hours", payload.workingHours || ""],
+    ["Annual CTC", payload.annualCtc !== undefined && payload.annualCtc !== "" ? formatPacketCtc(payload.annualCtc) : ""],
+    ["Signed on", payload.signedAt ? payload.signedAt.toLocaleString("en-IN", { dateStyle: "long", timeStyle: "short" }) : ""],
+  ].filter(([, value]) => value);
+
+  const hrEmployee = await getActiveHREmployee();
+  const template: EmailTemplate = {
+    subject: `Signed offer letter and HR policies - ${companyName}`,
+    html: `
+      <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; color: #111; line-height: 1.6;">
+        <p>Dear ${name},</p>
+        <p>
+          Your offer letter and HR policies have been signed successfully. Copies of both documents are attached for your records.
+        </p>
+        <p>HR will update you on the further steps.</p>
+        ${
+          rows.length
+            ? `<table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+                ${rows
+                  .map(
+                    ([label, value]) => `
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600;">${escapeLoginEmailHtml(label)}:</td>
+                    <td style="padding: 8px 0;">${escapeLoginEmailHtml(value)}</td>
+                  </tr>`,
+                  )
+                  .join("")}
+              </table>`
+            : ""
+        }
+        <p style="font-size: 15px; margin-bottom: 8px;"><strong>Attached documents</strong></p>
+        <ul style="margin: 0 0 16px 0; padding-left: 20px;">
+          ${attachments.map((item) => `<li style="margin: 6px 0;">${escapeLoginEmailHtml(item.filename)}</li>`).join("")}
+        </ul>
+        <p>Please keep these files for your records.</p>
+        ${getEmailSignature(hrEmployee)}
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #555; margin: 0;">© ${new Date().getFullYear()} ${company}. All rights reserved.</p>
+      </div>
+    `,
+  };
+
+  const hrCopy = JOB_APPLICATION_HR_INBOX;
+  const cc = payload.to.trim().toLowerCase() === hrCopy.toLowerCase() ? undefined : [hrCopy];
+  return sendCustomEmail(payload.to, template, companyName, attachments, cc);
+}
+
 export interface PersonalReminderEmailPayload {
   to: string;
   employeeName: string;

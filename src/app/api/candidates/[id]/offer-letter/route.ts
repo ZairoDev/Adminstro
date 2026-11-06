@@ -1,3 +1,4 @@
+import { sendSignedOfferPacketEmail } from "@/lib/email";
 import { connectDb } from "@/util/db";
 import { type NextRequest, NextResponse } from "next/server";
 import Candidate from "@/models/candidate";
@@ -81,9 +82,42 @@ export async function POST(
       );
     }
 
+    let emailSent = false;
+    const recipient = typeof candidate.email === "string" ? candidate.email.trim() : "";
+    if (recipient) {
+      const emailResult = await sendSignedOfferPacketEmail({
+        to: recipient,
+        candidateName: candidate.name,
+        position: candidate.position,
+        designation: candidate.selectionDetails?.role || candidate.position,
+        dateOfJoining: candidate.selectionDetails?.trainingDate
+          ? String(candidate.selectionDetails.trainingDate)
+          : undefined,
+        workingHours: candidate.selectionDetails?.workingHours || undefined,
+        annualCtc: candidate.selectionDetails?.salary ?? undefined,
+        signedAt,
+        offerLetterUrl: signedPdfUrl,
+        hrPoliciesUrl: signedHrPoliciesPdfUrl,
+      });
+      emailSent = emailResult.success;
+      if (emailSent) {
+        const sentAt = new Date();
+        await Candidate.updateOne(
+          { _id: id },
+          { $set: { "selectionDetails.signedDocumentsEmailSentAt": sentAt } },
+        );
+        if (candidate.selectionDetails) {
+          candidate.selectionDetails.signedDocumentsEmailSentAt = sentAt;
+        }
+      } else {
+        console.error("Signed documents email failed:", emailResult.error);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: candidate,
+      emailSent,
       message: "Offer letter completed successfully",
     });
   } catch (error) {

@@ -181,6 +181,7 @@ const CandidateSchema = new Schema(
       offerLetterSigned: { type: Boolean, default: false },
       offerLetterSignedAt: { type: Date, default: null },
       offerLetterSignature: { type: String, default: null },
+      signedDocumentsEmailSentAt: { type: Date, default: null },
     },
     shortlistDetails: {
       suitableRoles: [{ type: String }],

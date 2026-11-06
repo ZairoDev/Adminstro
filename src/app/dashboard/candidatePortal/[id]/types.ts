@@ -128,6 +128,7 @@ export interface Candidate {
     signedOfferLetterPdfUrl?: string;
     offerLetterSigned?: boolean;
     offerLetterSignedAt?: string;
+    signedDocumentsEmailSentAt?: string;
   };
   shortlistDetails?: {
     suitableRoles: string[];

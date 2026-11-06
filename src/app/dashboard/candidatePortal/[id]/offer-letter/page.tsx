@@ -46,6 +46,8 @@ interface Candidate {
     offerLetterSentAt?: string;
     offerLetterSigningLink?: string;
     signedOfferLetterPdfUrl?: string;
+    offerLetterSigned?: boolean;
+    signedDocumentsEmailSentAt?: string;
   };
   trainingAgreementDetails?: {
     signedHrPoliciesPdfUrl?: string;
@@ -101,6 +103,7 @@ export default function OfferLetterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [confirmationEmailed, setConfirmationEmailed] = useState(false);
   const [signature, setSignature] = useState<UploadedFile | null>(null);
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [previewSignature, setPreviewSignature] = useState<string | null>(null);
@@ -547,6 +550,7 @@ export default function OfferLetterPage() {
         );
       }
 
+      setConfirmationEmailed(Boolean(offerLetterRes.data.emailSent));
       setSuccess(true);
       setHrPoliciesPdfUrl(signedHrPoliciesPdfUrl);
       const updatedCandidate = offerLetterRes.data.data;
@@ -589,7 +593,7 @@ export default function OfferLetterPage() {
 
       toast({
         title: "Success",
-        description: "Offer letter and HR policies signed. Download both documents below.",
+        description: "Your documents have been signed. You may close this tab.",
         duration: 6000,
       });
 
@@ -609,6 +613,31 @@ export default function OfferLetterPage() {
 
   if (loading) {
     return <LoadingSkeleton />;
+  }
+
+  const confirmationSent = confirmationEmailed || Boolean(candidate?.selectionDetails?.signedDocumentsEmailSentAt);
+
+  if (candidate && (success || documentsSigned)) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
+        <Card className="w-full max-w-lg p-8 text-center bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-green-500">
+            <Check className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-semibold text-foreground">
+            Documents signed successfully
+          </h1>
+          <p className="mt-4 text-base leading-7 text-muted-foreground">
+            HR will update you on the further steps. You may close this tab.
+          </p>
+          {confirmationSent ? (
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              A copy of the signed offer letter and HR policies has been sent to your email.
+            </p>
+          ) : null}
+        </Card>
+      </div>
+    );
   }
 
   if (!candidate || (candidate.status !== "selected" && candidate.status !== "onboarding")) {

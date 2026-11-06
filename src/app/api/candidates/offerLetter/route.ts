@@ -16,6 +16,8 @@ import {
   missingRegisteredOfficeResponse,
   resolveRegisteredOfficeAddress,
 } from "@/lib/officeAddress/resolveRegisteredOfficeAddress";
+import { rupeesInWords } from "@/modules/finance/rupees-in-words";
+import { parseLocalDateString } from "@/lib/utils";
 
 type Payload = {
   letterDate: string; // ISO date string
@@ -25,6 +27,7 @@ type Payload = {
   dateOfJoining: string; // ISO date string
   postingLocation: string; // e.g., "117/N/70 3rd Floor Kakadeo, Kanpur 208025"
   annualCTC: string; // e.g., "₹2,52,000" or "₹2.52 LPA"
+  workingHours?: string; // e.g., "11:00 AM to 8:00 PM"
   workingHoursStart?: string; // e.g., "11:30 AM"
   workingHoursEnd?: string; // e.g., "8:30 PM"
   salaryPaymentCycle?: string; // e.g., "15th to 18th"
@@ -34,6 +37,29 @@ type Payload = {
   signingDate?: string; // ISO string of when candidate signed
   candidateId?: string;
 };
+
+function parseLetterDate(value: string | undefined): Date {
+  if (value && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return parseLocalDateString(value.slice(0, 10));
+  }
+  const parsed = value ? new Date(value) : new Date();
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+}
+
+function parseAnnualCtc(value: string | undefined): number | null {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const lpaMatch = raw.match(/([\d.]+)\s*lpa/i);
+  if (lpaMatch) {
+    const amount = Number(lpaMatch[1]) * 100000;
+    return Number.isFinite(amount) && amount > 0 ? Math.round(amount) : null;
+  }
+  if (/lakh|thousand/i.test(raw)) return null;
+  const numeric = Number(raw.replace(/[₹,\s]|rs\.?/gi, ""));
+  if (!Number.isFinite(numeric) || numeric <= 0) return null;
+  return numeric;
+}
 
 async function getBase64FromPublic(relativePath: string) {
   const filePath = path.join(process.cwd(), "public", relativePath);
@@ -93,6 +119,7 @@ export async function POST(req: NextRequest) {
     // Fetch candidate training duration and role details if candidateId is provided
     let phase1Duration = "4 to 5 working days"; // Default fallback
     let roleNameFromDb: string | null = null;
+    let candidateGender: string | null = null;
     if (data.candidateId) {
       try {
         await connectDb();
@@ -127,6 +154,7 @@ export async function POST(req: NextRequest) {
             selectionDetails: candidate.selectionDetails,
           });
           roleNameFromDb = identity.jobTitle || null;
+          candidateGender = typeof candidate.gender === "string" ? candidate.gender : null;
         }
       } catch (err) {
         console.error("Error fetching candidate data:", err);
@@ -519,23 +547,12 @@ export async function POST(req: NextRequest) {
     // Add spacing before main content
     yPosition -= 15;
 
-    // Title: APPOINTMENT LETTER
-    drawWrappedText("APPOINTMENT LETTER", leftMargin, titleSize, true);
+    // Title: OFFER LETTER
+    drawWrappedText("OFFER LETTER", leftMargin, titleSize, true);
     yPosition -= paragraphSpacing * 2;
 
     // Format date with validation
-    let letterDate: Date;
-    try {
-      letterDate = new Date(data.letterDate);
-      // Check if date is valid
-      if (isNaN(letterDate.getTime())) {
-        // If invalid, use current date
-        letterDate = new Date();
-      }
-    } catch (error) {
-      // If parsing fails, use current date
-      letterDate = new Date();
-    }
+    const letterDate = parseLetterDate(data.letterDate);
     
     const day = letterDate.getDate();
     const daySuffix = day === 1 || day === 21 || day === 31 ? "st" : day === 2 || day === 22 ? "nd" : day === 3 || day === 23 ? "rd" : "th";
@@ -548,18 +565,19 @@ export async function POST(req: NextRequest) {
     drawWrappedText(dateLine, leftMargin, bodySize);
     yPosition -= paragraphSpacing;
 
-    // Employee name (first name only for "Mr./Ms." line)
-    const employeeFirstName = data.employeeName || "______________";
-    drawWrappedText(`Mr. ${employeeFirstName}`, leftMargin, bodySize);
+    const employeeFullName = data.employeeFullName || data.employeeName || "______________";
+    const employeeFirstName = data.employeeName || employeeFullName.split(" ")[0] || "______________";
+    const salutation =
+      candidateGender === "Female" ? "Ms." : candidateGender === "Male" ? "Mr." : "";
+    const addressedName = `${salutation ? `${salutation} ` : ""}${employeeFullName}`;
+    drawWrappedText(addressedName, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
     // Subject line
-    drawWrappedText("Subject: Appointment Letter", leftMargin, bodySize);
+    drawWrappedText("Subject: Offer Letter", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Dear candidate line (with full name)
-    const employeeFullName = data.employeeFullName || data.employeeName || "______________";
-    const dearLine = `Dear ${employeeFullName}`;
+    const dearLine = `Dear ${employeeFirstName},`;
     drawWrappedText(dearLine, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
@@ -575,7 +593,7 @@ export async function POST(req: NextRequest) {
     // Format date of joining
     let formattedJoiningDate = "______________";
     try {
-      const joiningDate = new Date(data.dateOfJoining);
+      const joiningDate = parseLetterDate(data.dateOfJoining);
       if (!isNaN(joiningDate.getTime())) {
         const joinDay = joiningDate.getDate();
         const joinDaySuffix = joinDay === 1 || joinDay === 21 || joinDay === 31 ? "st" : joinDay === 2 || joinDay === 22 ? "nd" : joinDay === 3 || joinDay === 23 ? "rd" : "th";
@@ -587,63 +605,20 @@ export async function POST(req: NextRequest) {
       // Keep placeholder if parsing fails
     }
 
-    // Format annual CTC
-    // IMPORTANT: Replace ₹ with "Rs." because PDF standard fonts don't support rupee symbol
-    let formattedCTC = "______________";
-    if (data.annualCTC) {
-      const ctcStr = String(data.annualCTC).trim();
-      // Check if it contains "LPA" or is already formatted
-      if (ctcStr.toLowerCase().includes("lpa") || ctcStr.includes("Lakh") || ctcStr.includes("Thousand")) {
-        // Replace ₹ with Rs. for PDF compatibility
-        formattedCTC = ctcStr.replace(/₹/g, "Rs.").replace(/Rs\./g, "Rs.");
-      } else {
-        // Try to format as currency
-        const numericStr = ctcStr.replace(/[₹Rs.,\s]/g, "").trim();
-        const ctcValue = parseFloat(numericStr);
-        if (!isNaN(ctcValue) && ctcValue > 0) {
-          // Format with Indian number system, using "Rs." instead of ₹
-          if (ctcValue >= 100000) {
-            const lakhs = ctcValue / 100000;
-            const thousands = Math.floor((ctcValue % 100000) / 1000);
-            if (thousands > 0) {
-              formattedCTC = `Rs. ${lakhs.toFixed(0)},${thousands.toString().padStart(2, '0')},000`;
-            } else {
-              formattedCTC = `Rs. ${lakhs.toFixed(0)},00,000`;
-            }
-          } else {
-            formattedCTC = `Rs. ${ctcValue.toLocaleString('en-IN')}`;
-          }
-        } else {
-          // Replace ₹ with Rs. for PDF compatibility
-          formattedCTC = ctcStr.replace(/₹/g, "Rs.").replace(/Rs\./g, "Rs.");
-        }
-      }
-    }
-    
-    // Ensure no ₹ symbols remain (double-check for PDF compatibility)
-    formattedCTC = formattedCTC.replace(/₹/g, "Rs.");
-
-    // Format CTC in words (simplified)
-    let ctcInWords = "______________";
-    if (data.annualCTC) {
-      const numericStr = String(data.annualCTC).replace(/[₹Rs.,\s]/g, "").trim();
-      const ctcValue = parseFloat(numericStr);
-      if (!isNaN(ctcValue) && ctcValue > 0) {
-        // Simple conversion to words (can be enhanced)
-        const lakhs = Math.floor(ctcValue / 100000);
-        const thousands = Math.floor((ctcValue % 100000) / 1000);
-        if (lakhs > 0 && thousands > 0) {
-          ctcInWords = `Rupees ${lakhs === 1 ? "One" : lakhs === 2 ? "Two" : lakhs === 3 ? "Three" : lakhs === 4 ? "Four" : lakhs === 5 ? "Five" : lakhs.toString()} Lakh ${thousands === 50 ? "Fifty" : thousands === 52 ? "Fifty-Two" : thousands.toString()} Thousand Only`;
-        } else if (lakhs > 0) {
-          ctcInWords = `Rupees ${lakhs === 2 ? "Two" : lakhs === 3 ? "Three" : lakhs.toString()} Lakh ${thousands === 50 ? "Fifty" : thousands === 52 ? "Fifty-Two" : thousands.toString()} Thousand Only`;
-        }
-      }
-    }
+    const parsedCtc = parseAnnualCtc(data.annualCTC);
+    const formattedCTC = parsedCtc
+      ? `Rs. ${parsedCtc.toLocaleString("en-IN")}`
+      : data.annualCTC
+        ? String(data.annualCTC).replace(/₹/g, "Rs.")
+        : "______________";
+    const ctcInWords = parsedCtc
+      ? `Rupees ${rupeesInWords(parsedCtc).replace(/ Rupees Only$/, " Only").replace(/ Rupee Only$/, " Only")}`
+      : "______________";
 
     // Section 1: Date of Joining
     drawWrappedText("1. Date of Joining", leftMargin, bodySize, true);
     yPosition -= paragraphSpacing;
-    drawWrappedText(`Your date of joining shall be ${formattedJoiningDate}. This appointment letter is issued post joining and confirms your employment with the Company.`, leftMargin, bodySize);
+    drawWrappedText(`Your date of joining shall be ${formattedJoiningDate}. This offer letter is issued post joining and confirms your employment with the Company.`, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
     // Section 2: Place of Posting / Transfer
@@ -656,9 +631,12 @@ export async function POST(req: NextRequest) {
     // Section 3: Working Hours
     drawWrappedText("3. Working Hours", leftMargin, bodySize, true);
     yPosition -= paragraphSpacing;
-    const workingHoursStart = data.workingHoursStart || "11:30 AM";
-    const workingHoursEnd = data.workingHoursEnd || "8:30 PM";
-    drawWrappedText(`Your normal working hours shall be from ${workingHoursStart} to ${workingHoursEnd}, or as required based on business needs and Company policy.`, leftMargin, bodySize);
+    const workingHours =
+      data.workingHours?.trim() ||
+      (data.workingHoursStart && data.workingHoursEnd
+        ? `${data.workingHoursStart} to ${data.workingHoursEnd}`
+        : "11:00 AM to 8:00 PM");
+    drawWrappedText(`Your normal working hours shall be from ${workingHours}, or as required based on business needs and Company policy.`, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
     // Section 4: Compensation
@@ -702,7 +680,7 @@ export async function POST(req: NextRequest) {
     yPosition -= paragraphSpacing * 2;
 
     // Closing statement
-    drawWrappedText("This Appointment Letter along with Annexures A to I constitutes the complete and binding terms of employment.", leftMargin, bodySize);
+    drawWrappedText("This Offer Letter along with Annexures A to I constitutes the complete and binding terms of employment.", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 3;
 
     // For Zairo International
@@ -1279,7 +1257,7 @@ export async function POST(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="Appointment-Letter-${
+        "Content-Disposition": `attachment; filename="Offer-Letter-${
           data.employeeFullName?.replace(/\s+/g, "_") || data.employeeName?.replace(/\s+/g, "_") || "Candidate"
         }.pdf"`,
         "Cache-Control": "no-store",
@@ -1289,7 +1267,7 @@ export async function POST(req: NextRequest) {
     console.error("PDF Generation Error:", err);
     return NextResponse.json(
       {
-        error: "Failed to generate appointment letter",
+        error: "Failed to generate offer letter",
         details: err instanceof Error ? err.message : String(err),
       },
       { status: 500 }

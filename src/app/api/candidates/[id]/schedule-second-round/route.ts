@@ -6,7 +6,10 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { type NextRequest, NextResponse } from "next/server";
 import { scheduleInterviewBodySchema } from "@/lib/interviews/scheduleInterviewSchema";
 import { loadActiveInterviewer } from "@/lib/interviews/loadInterviewer";
-import { finalizeScheduledInterview } from "@/lib/interviews/publishInterview";
+import {
+  finalizeRescheduledInterview,
+  finalizeScheduledInterview,
+} from "@/lib/interviews/publishInterview";
 import {
   parseLocalDateString,
   normalizeToLocalMidnight,
@@ -114,6 +117,16 @@ export async function PATCH(
       );
     }
 
+    if (!candidate.interviewDetails?.scheduledDate) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Schedule the first interview before a second round",
+        },
+        { status: 400 }
+      );
+    }
+
     const updateData: Record<string, unknown> = {
       status: "interview",
       "secondRoundInterviewDetails.scheduledDate": interviewDate,
@@ -169,6 +182,9 @@ export async function PATCH(
       },
     });
 
+    const alreadyScheduled = Boolean(
+      candidate.secondRoundInterviewDetails?.scheduledDate
+    );
     const existingEventId =
       typeof candidate.secondRoundInterviewDetails?.googleEventId === "string"
         ? candidate.secondRoundInterviewDetails.googleEventId
@@ -178,8 +194,10 @@ export async function PATCH(
         ? candidate.secondRoundInterviewDetails.googleMeetLink
         : null;
 
-    try {
-      await finalizeScheduledInterview({
+    const publish = alreadyScheduled
+      ? finalizeRescheduledInterview
+      : finalizeScheduledInterview;
+    void publish({
         candidateId: id,
         round: "second",
         candidateName: updatedCandidate.name,
@@ -202,13 +220,12 @@ export async function PATCH(
         rescheduleLink,
         existingEventId,
         existingMeetLink,
+      }).catch((emailError: unknown) => {
+        console.error(
+          `Failed to publish second round notice for ${updatedCandidate.email}:`,
+          emailError
+        );
       });
-    } catch (emailError: unknown) {
-      console.error(
-        `❌ Failed to send second round interview email to ${updatedCandidate.email}:`,
-        emailError
-      );
-    }
 
     const latest = await Candidate.findById(id);
 

@@ -69,6 +69,10 @@ function privateKey(): string | null {
   return raw.trim().replace(/^"|"$/g, "").replace(/\\n/g, "\n");
 }
 
+export function isGoogleCalendarConfigured(): boolean {
+  return calendarConfigured() !== null;
+}
+
 function calendarConfigured(): {
   clientEmail: string;
   key: string;

@@ -315,22 +315,48 @@ export async function POST(
 
     // Parse experience data - critical for persistence
     const yearsOfExperience = formData.get("yearsOfExperience") as string || null;
-    let companies = [];
+    const experienceYears = Number(yearsOfExperience);
+    let companies: Array<{
+      companyName: string | null;
+      yearsInCompany: string | null;
+      experienceLetter: string | null;
+      relievingLetter: string | null;
+      salarySlip: string | null;
+      hrPhone: string | null;
+      hrEmail: string | null;
+    }> = [];
     try {
       const companiesRaw = formData.get("companies") as string;
-      if (companiesRaw) {
-        companies = JSON.parse(companiesRaw);
-        // Transform companies array to match schema structure
-        // Remove frontend-only 'id' field and ensure proper structure
-        companies = companies.map((company: any) => ({
-          companyName: company.companyName || null,
-          yearsInCompany: company.yearsInCompany || null,
-          experienceLetter: company.experienceLetter?.url || company.experienceLetter || null,
-          relievingLetter: company.relievingLetter?.url || company.relievingLetter || null,
-          salarySlip: company.salarySlip?.url || company.salarySlip || null,
-          hrPhone: company.hrPhone || null,
-          hrEmail: company.hrEmail || null,
-        }));
+      if (companiesRaw && Number.isFinite(experienceYears) && experienceYears > 0) {
+        const parsed: unknown = JSON.parse(companiesRaw);
+        if (Array.isArray(parsed)) {
+          companies = parsed.flatMap((entry) => {
+            if (!entry || typeof entry !== "object") return [];
+            const company = entry as Record<string, unknown>;
+            const companyName =
+              typeof company.companyName === "string" ? company.companyName.trim() : "";
+            if (!companyName) return [];
+            const documentUrl = (value: unknown): string | null => {
+              if (typeof value === "string" && value.trim()) return value;
+              if (value && typeof value === "object" && "url" in value) {
+                const url = (value as { url?: unknown }).url;
+                return typeof url === "string" && url.trim() ? url : null;
+              }
+              return null;
+            };
+            const text = (value: unknown): string | null =>
+              typeof value === "string" && value.trim() ? value.trim() : null;
+            return [{
+              companyName,
+              yearsInCompany: text(company.yearsInCompany),
+              experienceLetter: documentUrl(company.experienceLetter),
+              relievingLetter: documentUrl(company.relievingLetter),
+              salarySlip: documentUrl(company.salarySlip),
+              hrPhone: text(company.hrPhone),
+              hrEmail: text(company.hrEmail),
+            }];
+          });
+        }
       }
     } catch (error) {
       console.error("Error parsing companies data:", error);

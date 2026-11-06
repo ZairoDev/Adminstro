@@ -8,6 +8,25 @@ export const convertTo24Hour = (hour: string, minute: string, amPm: "AM" | "PM")
   return `${hour24.toString().padStart(2, "0")}:${minute}`;
 };
 
+export const formatAnnualCtc = (annualCtc: number | string): string => {
+  const numericCtc = typeof annualCtc === "number"
+    ? annualCtc
+    : parseFloat(String(annualCtc).replace(/,/g, "")) || 0;
+  return `Rs. ${numericCtc.toLocaleString("en-IN")} per year`;
+};
+
+export const formatJoiningDate = (value: string): string => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return value;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+};
+
 export const formatSalary = (monthlySalary: number | string): string => {
   const numericSalary = typeof monthlySalary === 'number' 
     ? monthlySalary 

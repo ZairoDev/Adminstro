@@ -16,6 +16,9 @@ export async function openMailbox(key: MailboxKey): Promise<MailboxTransporter> 
     mailbox.password.length > 0 && mailbox.passwordSource !== "unreadable";
   const transporter = nodemailer.createTransport({
     service: "gmail",
+    connectionTimeout: 8_000,
+    greetingTimeout: 8_000,
+    socketTimeout: 12_000,
     auth: {
       user: mailbox.loginEmail,
       pass: hasPassword ? mailbox.password : "",

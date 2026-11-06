@@ -40,7 +40,7 @@ export const getStatusColor = (status: string) => {
 export const getStatusLabel = (status: string) => {
   switch (status) {
     case "selected":
-      return "Selected for Training";
+      return "Selected";
     case "interview":
       return "Interview";
     default:

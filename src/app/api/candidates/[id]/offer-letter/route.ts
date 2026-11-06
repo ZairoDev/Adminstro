@@ -17,26 +17,54 @@ export async function POST(
     // Parse form data
     const signature = formData.get("signature") as string;
     const signedPdfUrl = formData.get("signedPdfUrl") as string;
-    const unsignedPdfUrl = formData.get("unsignedPdfUrl") as string | null; // Optional - may already be saved
-    const agreementAccepted = formData.get("agreementAccepted") === "true";
+    const signedHrPoliciesPdfUrl = formData.get("signedHrPoliciesPdfUrl") as string;
+    const unsignedPdfUrl = formData.get("unsignedPdfUrl") as string | null;
 
-    if (!signature || !signedPdfUrl) {
+    if (!signature || !signedPdfUrl || !signedHrPoliciesPdfUrl) {
       return NextResponse.json(
-        { success: false, error: "Signature and signed PDF URL are required" },
+        { success: false, error: "The offer letter, HR policies, and a signature are required" },
         { status: 400 }
       );
     }
 
-    // Update candidate with offer letter details
-    // Save both signed and unsigned PDF URLs if provided
-    const updateData: any = {
+    const existing = await Candidate.findById(id).select(
+      "status selectionDetails.signedOfferLetterPdfUrl trainingAgreementDetails.signedHrPoliciesPdfUrl"
+    );
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, error: "Candidate not found" },
+        { status: 404 }
+      );
+    }
+    if (existing.status !== "selected" && existing.status !== "onboarding") {
+      return NextResponse.json(
+        { success: false, error: "These documents can only be signed after the candidate is selected" },
+        { status: 400 }
+      );
+    }
+    if (
+      existing.selectionDetails?.signedOfferLetterPdfUrl &&
+      existing.trainingAgreementDetails?.signedHrPoliciesPdfUrl
+    ) {
+      return NextResponse.json(
+        { success: false, error: "These documents are already signed" },
+        { status: 409 }
+      );
+    }
+
+    const signedAt = new Date();
+    const updateData: Record<string, unknown> = {
       "selectionDetails.signedOfferLetterPdfUrl": signedPdfUrl,
       "selectionDetails.offerLetterSigned": true,
-      "selectionDetails.offerLetterSignedAt": new Date(),
+      "selectionDetails.offerLetterSignedAt": signedAt,
+      "selectionDetails.offerLetterSignature": signature,
+      "trainingAgreementDetails.signedHrPoliciesPdfUrl": signedHrPoliciesPdfUrl,
+      "trainingAgreementDetails.hrPoliciesSignedAt": signedAt,
+      "trainingAgreementDetails.eSign.signatureImage": signature,
+      "trainingAgreementDetails.eSign.signedAt": signedAt,
     };
 
-    // Only update unsigned PDF URL if provided (it might already be saved from preview generation)
-    if (unsignedPdfUrl) {
+    if (unsignedPdfUrl && !unsignedPdfUrl.startsWith("blob:")) {
       updateData["selectionDetails.unsignedOfferLetterPdfUrl"] = unsignedPdfUrl;
     }
 

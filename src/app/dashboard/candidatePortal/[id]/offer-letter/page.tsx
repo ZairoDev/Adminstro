@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { SignaturePad } from "../../components/signature-pad";
 import { SignaturePreviewModal } from "../../components/signature-preview-modal";
 import axios from "@/util/axios";
+import { PdfFrame } from "@/components/pdf-frame";
 import { parseDashboardPath } from "@/features/people/navigation";
 
 interface Candidate {
@@ -41,10 +42,14 @@ interface Candidate {
     role: string;
     salary?: string | number;
     trainingDate?: string;
+    workingHours?: string;
     offerLetterSent?: boolean;
     offerLetterSentAt?: string;
     offerLetterSigningLink?: string;
     signedOfferLetterPdfUrl?: string;
+  };
+  trainingAgreementDetails?: {
+    signedHrPoliciesPdfUrl?: string;
   };
 }
 
@@ -108,6 +113,7 @@ export default function OfferLetterPage() {
   const [signedPdfUrl, setSignedPdfUrl] = useState<string | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [hrPoliciesPdfUrl, setHrPoliciesPdfUrl] = useState<string | null>(null);
   const pdfGeneratedRef = useRef(false);
   const pdfAutoOpenedRef = useRef(false);
 
@@ -124,12 +130,13 @@ export default function OfferLetterPage() {
           if (result.data.selectionDetails?.signedOfferLetterPdfUrl) {
             setSignedPdfUrl(result.data.selectionDetails.signedOfferLetterPdfUrl);
             setUnsignedPdfUrl(null);
-            console.log("✅ Loaded signed Offer Letter PDF from database on page load");
           } else if (result.data.selectionDetails?.unsignedOfferLetterPdfUrl) {
             // Load unsigned PDF if signed PDF doesn't exist
             setUnsignedPdfUrl(result.data.selectionDetails.unsignedOfferLetterPdfUrl);
             setSignedPdfUrl(null);
-            console.log("✅ Loaded unsigned Offer Letter PDF from database on page load");
+          }
+          if (result.data.trainingAgreementDetails?.signedHrPoliciesPdfUrl) {
+            setHrPoliciesPdfUrl(result.data.trainingAgreementDetails.signedHrPoliciesPdfUrl);
           }
         } else {
           setError("Failed to load candidate information");
@@ -186,12 +193,10 @@ export default function OfferLetterPage() {
           : new Date().toISOString().slice(0, 10),
         postingLocation: (candidate.officeAddressId && typeof candidate.officeAddressId === "object" && (candidate.officeAddressId.formattedAddress || candidate.officeAddressId.city)) || candidate.officeLocation || candidate.city || "",
         annualCTC: annualCTC,
-        workingHoursStart: "11:30 AM",
-        workingHoursEnd: "8:30 PM",
+        workingHours: candidate.selectionDetails?.workingHours?.trim() || "11:00 AM to 8:00 PM",
         salaryPaymentCycle: "15th to 18th",
         probationPeriod: "six (6) months",
         candidateId: candidate._id,
-        // No candidateSignatureBase64 for unsigned PDF - this is the key difference
       };
 
       const pdfResponse = await axios.post(
@@ -239,8 +244,24 @@ export default function OfferLetterPage() {
           console.warn("⚠️ Failed to upload unsigned PDF to CDN");
         }
       } catch (uploadError) {
-        console.error("❌ Error uploading/saving unsigned PDF:", uploadError);
-        // Don't fail the entire process if unsigned PDF upload fails
+        console.error("Error uploading unsigned appointment letter:", uploadError);
+      }
+
+      try {
+        const hrPdfResponse = await axios.post(
+          "/api/candidates/hrPolicies",
+          {
+            candidateName: candidate.name,
+            position: candidate.position,
+            date: new Date().toISOString(),
+            candidateId: candidate._id,
+          },
+          { responseType: "arraybuffer", headers: { "Content-Type": "application/json" } },
+        );
+        const hrPdfBlob = new Blob([hrPdfResponse.data], { type: "application/pdf" });
+        setHrPoliciesPdfUrl(URL.createObjectURL(hrPdfBlob));
+      } catch (hrError) {
+        console.error("Error generating HR policies preview:", hrError);
       }
     } catch (error: any) {
       console.error("Error generating unsigned PDF:", error);
@@ -255,25 +276,23 @@ export default function OfferLetterPage() {
     }
   };
 
-  // Auto-load signed PDF or generate unsigned PDF when component loads
+  // Auto-load signed PDF or generate unsigned PDF when component loads.
+  // The ready flag is set only after the timer fires, so a cancelled first pass can run again.
   useEffect(() => {
-    if (!loading && candidate && !pdfGeneratedRef.current) {
-      // CRITICAL: Always prioritize signed PDF if available
-      if (candidate.selectionDetails?.signedOfferLetterPdfUrl) {
-        setSignedPdfUrl(candidate.selectionDetails.signedOfferLetterPdfUrl);
-        setUnsignedPdfUrl(null); // Clear unsigned PDF when signed exists
-        setShowPdfPreview(true); // Open preview to show signed PDF
-        pdfGeneratedRef.current = true;
-        console.log("✅ Auto-loaded signed Offer Letter PDF on page load:", candidate.selectionDetails.signedOfferLetterPdfUrl);
-      } else if (!unsignedPdfUrl && !generatingPdf && !signedPdfUrl && candidate.name && candidate.position) {
-        // Only generate unsigned PDF if no signed PDF exists
-        pdfGeneratedRef.current = true;
-        const timer = setTimeout(() => {
-          generateUnsignedPdf();
-        }, 1500);
-        return () => clearTimeout(timer);
-      }
+    if (loading || !candidate || pdfGeneratedRef.current) return;
+    if (candidate.selectionDetails?.signedOfferLetterPdfUrl) {
+      setSignedPdfUrl(candidate.selectionDetails.signedOfferLetterPdfUrl);
+      setUnsignedPdfUrl(null);
+      setShowPdfPreview(true);
+      pdfGeneratedRef.current = true;
+      return;
     }
+    if (!candidate.name || !candidate.position) return;
+    const timer = setTimeout(() => {
+      pdfGeneratedRef.current = true;
+      generateUnsignedPdf();
+    }, 300);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, candidate]);
 
@@ -403,8 +422,23 @@ export default function OfferLetterPage() {
     }
   };
 
+  const documentsSigned = Boolean(
+    candidate?.selectionDetails?.signedOfferLetterPdfUrl &&
+    candidate?.trainingAgreementDetails?.signedHrPoliciesPdfUrl
+  );
+  const documentsReviewed = Boolean(unsignedPdfUrl && hrPoliciesPdfUrl);
+
   const handleSubmitClick = (e: React.FormEvent) => {
     e.preventDefault();
+    if (documentsSigned) {
+      setError("These documents are already signed.");
+      return;
+    }
+    if (!documentsReviewed) {
+      setError("Open the offer letter and the HR policies before signing.");
+      return;
+    }
+    setError(null);
     setShowConfirmDialog(true);
   };
 
@@ -439,12 +473,11 @@ export default function OfferLetterPage() {
           : new Date().toISOString().slice(0, 10),
         postingLocation: (candidate.officeAddressId && typeof candidate.officeAddressId === "object" && (candidate.officeAddressId.formattedAddress || candidate.officeAddressId.city)) || candidate.officeLocation || candidate.city || "",
         annualCTC: annualCTC,
-        workingHoursStart: "11:30 AM",
-        workingHoursEnd: "8:30 PM",
+        workingHours: candidate.selectionDetails?.workingHours?.trim() || "11:00 AM to 8:00 PM",
         salaryPaymentCycle: "15th to 18th",
         probationPeriod: "six (6) months",
         candidateId: candidate._id,
-        candidateSignatureBase64: signature.url, // CRITICAL: Use candidateSignatureBase64 (not signatureBase64)
+        candidateSignatureBase64: signature.url,
         signingDate: new Date().toISOString(), // Add signing date
       };
 
@@ -496,15 +529,36 @@ export default function OfferLetterPage() {
 
       const signedPdfUrl = imageUrls[0];
 
-      // Save offer letter to backend
-      // Include unsigned PDF URL if available (it should already be saved, but include it for completeness)
+      const hrPdfResponse = await axios.post(
+        "/api/candidates/hrPolicies",
+        {
+          candidateName: candidate.name,
+          position: candidate.position,
+          date: new Date().toISOString(),
+          candidateId: candidate._id,
+          signatureBase64: signature.url,
+        },
+        { responseType: "arraybuffer", headers: { "Content-Type": "application/json" } },
+      );
+      const hrPdfBlob = new Blob([hrPdfResponse.data], { type: "application/pdf" });
+      const hrPdfFile = new File(
+        [hrPdfBlob],
+        `HR-Policies-${candidateId}-Signed.pdf`,
+        { type: "application/pdf" },
+      );
+      const { imageUrls: hrUrls, error: hrUploadErr } = await uploadFiles(
+        [hrPdfFile],
+        "Documents/SignedPDFs",
+      );
+      if (hrUploadErr || !hrUrls?.length) {
+        throw new Error("Failed to upload the signed HR policies");
+      }
+      const signedHrPoliciesPdfUrl = hrUrls[0];
+
       const formData = new FormData();
       formData.append("signature", signature.url);
       formData.append("signedPdfUrl", signedPdfUrl);
-      if (unsignedPdfUrl) {
-        // Extract URL from blob URL if needed, or use CDN URL if already saved
-        // For now, we'll let the backend handle it - unsigned PDF should already be saved during preview generation
-      }
+      formData.append("signedHrPoliciesPdfUrl", signedHrPoliciesPdfUrl);
       formData.append("agreementAccepted", "true");
 
       const offerLetterRes = await axios.post(
@@ -519,6 +573,7 @@ export default function OfferLetterPage() {
       }
 
       setSuccess(true);
+      setHrPoliciesPdfUrl(signedHrPoliciesPdfUrl);
       const updatedCandidate = offerLetterRes.data.data;
       setCandidate(updatedCandidate);
 
@@ -565,7 +620,7 @@ export default function OfferLetterPage() {
 
       toast({
         title: "Success",
-        description: "Offer letter signed and submitted successfully. Please download the signed document below.",
+        description: "Offer letter and HR policies signed. Download both documents below.",
         duration: 6000,
       });
 
@@ -587,7 +642,7 @@ export default function OfferLetterPage() {
     return <LoadingSkeleton />;
   }
 
-  if (!candidate || candidate.status !== "onboarding") {
+  if (!candidate || (candidate.status !== "selected" && candidate.status !== "onboarding")) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-8">
         <div className="max-w-4xl mx-auto">
@@ -597,7 +652,7 @@ export default function OfferLetterPage() {
               Access Denied
             </p>
             <p className="text-muted-foreground">
-              Only candidates with onboarding status can access this page
+              This page opens after you are selected.
             </p>
           </Card>
         </div>
@@ -621,10 +676,10 @@ export default function OfferLetterPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent mb-3">
-            Appointment Letter
+            Offer Letter
           </h1>
           <p className="text-lg text-muted-foreground">
-            Please review and sign your appointment letter
+            Please review and sign your offer letter and the HR policies
           </p>
         </div>
 
@@ -639,10 +694,10 @@ export default function OfferLetterPage() {
               </div>
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-green-800 dark:text-green-300 mb-2">
-                  Appointment Letter Signed Successfully!
+                  Offer Letter Signed Successfully!
                 </h3>
                 <p className="text-base text-green-700 dark:text-green-400 mb-4">
-                  Your signature has been applied to the appointment letter.
+                  Your signature has been applied to the offer letter and the HR policies.
                 </p>
                 <div className="bg-white dark:bg-gray-800/50 p-4 rounded-lg border border-green-200 dark:border-green-800">
                   <p className="text-sm font-semibold text-green-800 dark:text-green-300 mb-2 flex items-center gap-2">
@@ -715,7 +770,7 @@ export default function OfferLetterPage() {
                 2
               </div>
               <h2 className="text-lg font-semibold text-foreground">
-                Appointment Letter Document Preview
+                Offer Letter Document Preview
               </h2>
               {signedPdfUrl && (
                 <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-800">
@@ -726,8 +781,8 @@ export default function OfferLetterPage() {
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 {signedPdfUrl 
-                  ? "Your signed appointment letter document. This is the final signed version with your signature embedded."
-                  : "Preview and download the unsigned appointment letter document before signing. The document contains blank signature placeholders where signatures can be made."}
+                  ? "Your signed offer letter. This is the final signed version with your signature embedded."
+                  : "Preview and download the unsigned offer letter before signing. The document contains blank signature placeholders where signatures can be made."}
               </p>
               
               {generatingPdf && (
@@ -788,7 +843,7 @@ export default function OfferLetterPage() {
               {(signedPdfUrl || unsignedPdfUrl) && !generatingPdf && (
                 <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
                   {/* CRITICAL: Always prioritize signed PDF - once signed, never show unsigned */}
-                  <iframe
+                  <PdfFrame
                     src={signedPdfUrl || unsignedPdfUrl || ""}
                     className="w-full h-[500px] border-0"
                     title={signedPdfUrl ? "Signed PDF Preview" : "PDF Preview"}
@@ -814,6 +869,20 @@ export default function OfferLetterPage() {
               )}
             </div>
           </Card>
+
+          {hrPoliciesPdfUrl ? (
+            <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-foreground mb-2">HR Policies</h2>
+              <p className="text-sm text-muted-foreground mb-4">
+                The same signature applies to the HR policies.
+              </p>
+              <PdfFrame
+                src={hrPoliciesPdfUrl}
+                className="w-full h-[420px] border-0"
+                title="HR Policies"
+              />
+            </Card>
+          ) : null}
 
           {/* Digital Signature */}
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
@@ -912,7 +981,7 @@ export default function OfferLetterPage() {
                     Upload Signature
                   </label>
 
-                  <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
+                  <label className="relative flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
                     <div className="flex items-center gap-2 text-foreground">
                       {signature ? (
                         <>
@@ -938,7 +1007,7 @@ export default function OfferLetterPage() {
                       type="file"
                       accept=".jpg,.jpeg,.png,.pdf"
                       onChange={handleSignatureUpload}
-                      className="hidden"
+                      className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                       disabled={uploadingSignature}
                       required={!signature}
                     />
@@ -965,11 +1034,28 @@ export default function OfferLetterPage() {
             </div>
           </Card>
 
+          {documentsSigned ? (
+            <p className="text-sm text-green-700 dark:text-green-400">
+              The offer letter and HR policies are already signed.
+            </p>
+          ) : !documentsReviewed ? (
+            <p className="text-sm text-amber-700 dark:text-amber-400">
+              Open the offer letter and the HR policies before you can sign.
+            </p>
+          ) : null}
+
           {/* Submit Button */}
           <div className="flex gap-4">
             <Button
               type="submit"
-              disabled={submitting || !signature || uploadingSignature || success}
+              disabled={
+                submitting ||
+                !signature ||
+                uploadingSignature ||
+                success ||
+                documentsSigned ||
+                !documentsReviewed
+              }
               className="flex-1 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
               size="lg"
             >
@@ -1010,7 +1096,7 @@ export default function OfferLetterPage() {
             <DialogHeader>
               <DialogTitle className="text-foreground">Confirm Submission</DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                Are you sure that you have read all the terms and conditions properly and correctly filled everything and want to submit?
+                Sign the offer letter and the HR policies with this signature?
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2">
@@ -1055,21 +1141,21 @@ export default function OfferLetterPage() {
           <DialogContent className="max-w-5xl max-h-[90vh] bg-white dark:bg-gray-800">
             <DialogHeader>
               <DialogTitle className="text-foreground">
-                {signedPdfUrl ? "Signed Appointment Letter Document" : "Appointment Letter Document Preview"}
+                {signedPdfUrl ? "Signed Offer Letter" : "Offer Letter Preview"}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground">
                 {signedPdfUrl 
-                  ? "Your signed appointment letter document. This will be saved after submission."
-                  : "Preview of the unsigned appointment letter document. Please review before signing."}
+                  ? "Your signed offer letter. This will be saved after submission."
+                  : "Preview of the unsigned offer letter. Please review before signing."}
               </DialogDescription>
             </DialogHeader>
             <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
               {/* CRITICAL: Always prioritize signed PDF - once signed, never show unsigned */}
               {(signedPdfUrl || unsignedPdfUrl) && (
-                <iframe
+                <PdfFrame
                   src={signedPdfUrl || unsignedPdfUrl || ""}
                   className="w-full h-[70vh] border-0"
-                  title={signedPdfUrl ? "Signed Appointment Letter Document" : "Appointment Letter Document Preview"}
+                  title={signedPdfUrl ? "Signed Offer Letter" : "Offer Letter Preview"}
                 />
               )}
               {signedPdfUrl && (

@@ -50,7 +50,9 @@ export async function PATCH(
     const updateData: Record<string, any> = {};
     
     // Handle flat fields
-    if (body.status) updateData.status = body.status;
+    if (body.status && body.status !== "onboarding" && body.status !== "selected") {
+      updateData.status = body.status;
+    }
     if (body.position) updateData.position = body.position;
     if (body.departmentId !== undefined || body.jobPositionId !== undefined) {
       try {
@@ -128,17 +130,49 @@ export async function PATCH(
       updateData.additionalDocuments = body.additionalDocuments;
     }
     
-    // Handle nested fields using dot notation (e.g., "trainingAgreementDetails.signedHrPoliciesPdfUrl", "selectionDetails.role")
+    const blockedSigningFields = new Set([
+      "selectionDetails.signedOfferLetterPdfUrl",
+      "selectionDetails.offerLetterSigned",
+      "selectionDetails.offerLetterSignedAt",
+      "selectionDetails.offerLetterSignature",
+      "trainingAgreementDetails.hrPoliciesSignedAt",
+      "trainingAgreementDetails.eSign",
+      "trainingAgreementDetails.eSign.signatureImage",
+      "trainingAgreementDetails.eSign.signedAt",
+      "trainingAgreementDetails.signedPdfUrl",
+      "trainingAgreementDetails.agreementComplete",
+    ]);
+    const legacyDocumentFields = new Set([
+      "trainingAgreementDetails.signedHrPoliciesPdfUrl",
+      "trainingAgreementDetails.signedLetterOfIntentPdfUrl",
+      "trainingAgreementDetails.letterOfIntentSigningDate",
+    ]);
+    const existingAgreement = await Candidate.findById(id).select(
+      "trainingAgreementDetails.signedPdfUrl"
+    );
+    const legacyAgreementSigned = Boolean(
+      existingAgreement?.trainingAgreementDetails?.signedPdfUrl
+    );
+
+    // Handle nested fields using dot notation (e.g., "selectionDetails.unsignedOfferLetterPdfUrl")
     Object.keys(body).forEach((key) => {
-      if (key.includes(".")) {
-        updateData[key] = body[key];
-      }
+      if (!key.includes(".") || blockedSigningFields.has(key)) return;
+      if (legacyDocumentFields.has(key) && !legacyAgreementSigned) return;
+      updateData[key] = body[key];
     });
     
     // Also handle selectionDetails as an object if provided
     if (body.selectionDetails && typeof body.selectionDetails === "object") {
+      const blockedSelectionKeys = new Set([
+        "signedOfferLetterPdfUrl",
+        "offerLetterSigned",
+        "offerLetterSignedAt",
+        "offerLetterSignature",
+      ]);
       Object.keys(body.selectionDetails).forEach((key) => {
-        updateData[`selectionDetails.${key}`] = body.selectionDetails[key];
+        if (!blockedSelectionKeys.has(key)) {
+          updateData[`selectionDetails.${key}`] = body.selectionDetails[key];
+        }
       });
     }
 

@@ -147,6 +147,24 @@ function interviewRemindersHtml(mode?: "physical" | "virtual") {
             </ul>`;
 }
 
+function formatSelectionDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return value;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatAnnualCtc(value: string | number): string {
+  const amount = typeof value === "number" ? value : Number(String(value).replace(/,/g, ""));
+  if (!Number.isFinite(amount)) return String(value);
+  return `Rs. ${amount.toLocaleString("en-IN")} per year`;
+}
+
 export const getCandidateEmailTemplate = (
   payload: CandidateEmailPayload,
   hrEmployee?: EmailSignatureConfig
@@ -159,7 +177,7 @@ export const getCandidateEmailTemplate = (
     selectionDetails,
     rejectionReason,
     shortlistRoles,
-    trainingAgreementLink,
+    appointmentLetterLink,
     interviewDetails,
   } = payload;
 
@@ -223,7 +241,7 @@ export const getCandidateEmailTemplate = (
       `,
     },
     selected: {
-      subject: `Offer Confirmation - ${position} at ${companyName}`,
+      subject: `Offer Letter - ${position} at ${companyName}`,
       html: `
         <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; color: #111; line-height: 1.6;">
           
@@ -242,43 +260,47 @@ export const getCandidateEmailTemplate = (
           ${
             selectionDetails
               ? `
-                <p><strong>Position Details</strong></p>
+                <p><strong>Appointment details</strong></p>
                 <table style="width: 100%; border-collapse: collapse;">
                   <tr>
-                    <td style="padding: 8px 0; font-weight: 600;">Position Type:</td>
-                    <td style="padding: 8px 0;">${selectionDetails.positionType}</td>
+                    <td style="padding: 8px 0; font-weight: 600;">Designation:</td>
+                    <td style="padding: 8px 0;">${escapeHtml(selectionDetails.role)}</td>
                   </tr>
+                  ${selectionDetails.trainingDate ? `
                   <tr>
-                    <td style="padding: 8px 0; font-weight: 600;">Training Period:</td>
-                    <td style="padding: 8px 0;">${selectionDetails.trainingPeriod}</td>
-                  </tr>
-                  ${selectionDetails.duration ? `
-                  <tr>
-                    <td style="padding: 8px 0; font-weight: 600;">Training Duration:</td>
-                    <td style="padding: 8px 0;">${selectionDetails.duration}</td>
+                    <td style="padding: 8px 0; font-weight: 600;">Date of joining:</td>
+                    <td style="padding: 8px 0;">${escapeHtml(formatSelectionDate(selectionDetails.trainingDate))}</td>
                   </tr>
                   ` : ""}
+                  ${selectionDetails.workingHours ? `
                   <tr>
-                    <td style="padding: 8px 0; font-weight: 600;">Role Description:</td>
-                    <td style="padding: 8px 0;">${selectionDetails.role}</td>
+                    <td style="padding: 8px 0; font-weight: 600;">Working hours:</td>
+                    <td style="padding: 8px 0;">${escapeHtml(selectionDetails.workingHours)}</td>
                   </tr>
+                  ` : ""}
+                  ${selectionDetails.salary !== undefined && selectionDetails.salary !== "" ? `
+                  <tr>
+                    <td style="padding: 8px 0; font-weight: 600;">Annual CTC:</td>
+                    <td style="padding: 8px 0;">${escapeHtml(formatAnnualCtc(selectionDetails.salary))}</td>
+                  </tr>
+                  ` : ""}
                 </table>
               `
               : ""
           }
     
           ${
-            trainingAgreementLink
+            appointmentLetterLink
               ? `
                 <p>
-                  <strong>Next Step:</strong> Please review and sign the Pre-Employment Training Agreement to proceed with the training process.
+                  <strong>Next step:</strong> Please review and sign your offer letter and the HR policies.
                 </p>
     
                 <div style="text-align: center; margin: 20px 0;">
-                  <a href="${trainingAgreementLink}" 
+                  <a href="${appointmentLetterLink}" 
                      style="display: inline-block; background: #2563eb; color: #ffffff; padding: 16px 40px; 
                             border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
-                    Sign Training Agreement
+                    Review and sign
                   </a>
                 </div>
     
@@ -286,19 +308,18 @@ export const getCandidateEmailTemplate = (
                   If you are unable to access the button above, please copy and paste the following link into your browser:
                 </p>
                 <p style="font-size: 13px; color: #2563eb; word-break: break-all; margin: 0;">
-                  ${trainingAgreementLink}
+                  ${appointmentLetterLink}
                 </p>
               `
               : `
                 <p>
-                  Our HR team will share the next steps regarding training and onboarding formalities shortly.
-                  You may expect further communication within 2–3 business days.
+                  Our HR team will share your offer letter and HR policies shortly.
                 </p>
               `
           }
     
           <p>
-            We look forward to your association with ${companyName} and wish you success in your upcoming training period.
+            We look forward to your association with ${companyName}.
           </p>
     
           ${getEmailSignature(hrEmployee)}

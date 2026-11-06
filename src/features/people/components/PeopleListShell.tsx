@@ -204,7 +204,7 @@ const EMPTY_LABEL: Record<PeopleListTab, string> = {
   pipeline: "No pipeline candidates found",
   interview: "No candidates in interview stage",
   shortlisted: "No shortlisted candidates found",
-  selected: "No candidates selected for training",
+  selected: "No selected candidates",
   rejected: "No rejected candidates found",
   onboarding: "No onboarding candidates found",
   active: "No employed people found",
@@ -1212,15 +1212,19 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
-                                className="flex items-center gap-2 hover:text-foreground transition-colors"
+                                className="flex max-w-[220px] items-center gap-2 text-left hover:text-foreground transition-colors"
                                 onClick={() => {
+                                  if (!person.email) return;
                                   void navigator.clipboard.writeText(
                                     person.email
                                   );
                                   toast.success("Email copied to clipboard");
                                 }}
                               >
-                                <Mail className="h-4 w-4" />
+                                <Mail className="h-4 w-4 shrink-0" />
+                                <span className="truncate">
+                                  {person.email || "—"}
+                                </span>
                               </button>
                             </TooltipTrigger>
                             <TooltipContent>

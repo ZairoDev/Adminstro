@@ -47,11 +47,11 @@ export async function POST(
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Appointment Letter</title>
+        <title>Offer Letter</title>
       </head>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="margin: 0; font-size: 24px;">Appointment Letter</h1>
+          <h1 style="margin: 0; font-size: 24px;">Offer Letter</h1>
         </div>
         
         <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0;">
@@ -60,14 +60,14 @@ export async function POST(
           <p>We are pleased to offer you the position of <strong>${candidate.selectionDetails?.role || candidate.position}</strong> at Zairo International Private Limited.</p>
           
           <p>
-            <strong>Next Step:</strong> Please review and sign your appointment letter to proceed with the onboarding process.
+            <strong>Next step:</strong> Please review and sign your offer letter and the HR policies.
           </p>
     
           <div style="text-align: center; margin: 20px 0;">
             <a href="${offerLetterSigningLink}" 
                style="display: inline-block; background: #2563eb; color: #ffffff; padding: 16px 40px; 
                       border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
-              Sign Appointment Letter
+              Sign Offer Letter
             </a>
           </div>
     
@@ -94,7 +94,7 @@ export async function POST(
     await transporter.sendMail({
       from: `"Zairo International HR" <${transporter.fromEmail}>`,
       to: candidate.email,
-      subject: `Appointment Letter - ${candidate.name}`,
+      subject: `Offer Letter - ${candidate.name}`,
       html: emailHtml,
     });
 

@@ -65,8 +65,32 @@ export function canRejectFromOnboarding(c: MinimalCandidate): boolean {
   return c.status === "onboarding" && !c.employeeId && !c.exitedAt;
 }
 
-export function canStartOnboarding(c: MinimalCandidate): boolean {
-  return c.status === "selected";
+type SelectedDocumentCandidate = MinimalCandidate & {
+  selectionDetails?: {
+    signedOfferLetterPdfUrl?: string | null;
+    offerLetterSigned?: boolean | null;
+  } | null;
+  trainingAgreementDetails?: {
+    signedHrPoliciesPdfUrl?: string | null;
+    signedPdfUrl?: string | null;
+    signedLetterOfIntentPdfUrl?: string | null;
+  } | null;
+};
+
+export function hasSignedSelectedDocuments(c: SelectedDocumentCandidate): boolean {
+  const offerLetterSigned =
+    Boolean(c.selectionDetails?.signedOfferLetterPdfUrl) &&
+    Boolean(c.selectionDetails?.offerLetterSigned) &&
+    Boolean(c.trainingAgreementDetails?.signedHrPoliciesPdfUrl);
+  const previousPacketSigned =
+    Boolean(c.trainingAgreementDetails?.signedPdfUrl) &&
+    Boolean(c.trainingAgreementDetails?.signedHrPoliciesPdfUrl) &&
+    Boolean(c.trainingAgreementDetails?.signedLetterOfIntentPdfUrl);
+  return offerLetterSigned || previousPacketSigned;
+}
+
+export function canStartOnboarding(c: SelectedDocumentCandidate): boolean {
+  return c.status === "selected" && hasSignedSelectedDocuments(c);
 }
 
 export function canDiscontinueTraining(c: MinimalCandidate): boolean {

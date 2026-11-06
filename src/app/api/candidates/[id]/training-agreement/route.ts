@@ -26,6 +26,27 @@ export async function POST(
       );
     }
 
+    const existing = await Candidate.findById(id).select(
+      "status trainingAgreementDetails.signingLink trainingAgreementDetails.signedPdfUrl trainingAgreementDetails.signedLetterOfIntentPdfUrl"
+    );
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, error: "Candidate not found" },
+        { status: 404 }
+      );
+    }
+    const previousPacket = Boolean(
+      existing.trainingAgreementDetails?.signingLink ||
+      existing.trainingAgreementDetails?.signedPdfUrl ||
+      existing.trainingAgreementDetails?.signedLetterOfIntentPdfUrl
+    );
+    if (!previousPacket) {
+      return NextResponse.json(
+        { success: false, error: "The offer letter and HR policies are the documents for this selection" },
+        { status: 400 }
+      );
+    }
+
     // Update candidate with training agreement details
     const candidate = await Candidate.findByIdAndUpdate(
       id,

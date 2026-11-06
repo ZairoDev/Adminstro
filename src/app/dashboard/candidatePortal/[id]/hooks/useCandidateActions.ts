@@ -23,14 +23,10 @@ export function useCandidateActions(
           status: "selected",
           selectionDetails: {
             positionType: data.positionType,
-            trainingDate: data.trainingDate,
-            trainingPeriod: data.trainingPeriod,
+            trainingDate: data.dateOfJoining,
             role: data.role,
-            salary: data.salary,
-            duration: data.duration,
-            ...(data.internDuration
-              ? { internDuration: data.internDuration }
-              : {}),
+            salary: data.annualCtc,
+            workingHours: data.workingHours,
           },
         }
       );

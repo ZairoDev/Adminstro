@@ -28,6 +28,7 @@ export function useCandidatePermissions(candidate: Candidate | null) {
     canCreateEmployee: () => (candidate ? LC.canCreateEmployee(c) : false),
     canScheduleInterview: () => (candidate ? LC.canScheduleInterview(c) : false),
     canScheduleSecondRound: () =>
+      Boolean(candidate?.interviewDetails?.scheduledDate) &&
       !candidate?.secondRoundInterviewDetails?.scheduledDate,
     canSeparate: () => (candidate ? LC.canSeparate(c) : false),
   };

@@ -425,6 +425,7 @@ const publicRoutes = [
   "/privacy-policy",
   /^\/dashboard\/candidatePortal\/[^\/]+\/onboarding$/,
   /^\/dashboard\/candidatePortal\/[^\/]+\/training-agreement$/,
+  /^\/dashboard\/candidatePortal\/[^\/]+\/offer-letter$/,
 ];
 
 export async function middleware(request: NextRequest) {

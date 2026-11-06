@@ -146,6 +146,7 @@
     "novel": "^0.5.0",
     "novel-lightweight": "^0.2.1",
     "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^3.11.174",
     "pdfmake": "^0.2.20",
     "pusher": "^5.2.0",
     "pusher-js": "^8.4.0-rc2",

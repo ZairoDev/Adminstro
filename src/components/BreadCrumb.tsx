@@ -40,7 +40,7 @@ const BreadCrumb = () => {
                 {isLast || !isClickable(name) ? (
                   <BreadcrumbPage className="text-xs">{name}</BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink>
+                  <BreadcrumbLink asChild>
                     <Link className="text-xs" href={routeTo}>
                       {name}
                     </Link>

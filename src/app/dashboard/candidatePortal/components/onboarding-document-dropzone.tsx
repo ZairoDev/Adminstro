@@ -174,7 +174,7 @@ export function OnboardingDocumentDropzone({
           type="file"
           accept=".pdf,.jpg,.jpeg,.png"
           onChange={onChange}
-          className="sr-only"
+          className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
           disabled={disabled}
           required={required && !uploaded}
         />

@@ -36,6 +36,7 @@ import {
 } from "../../components/onboarding-shell";
 import { PDFDocument } from "pdf-lib";
 import axios from "@/util/axios";
+import { PdfFrame } from "@/components/pdf-frame";
 
 
 
@@ -1374,8 +1375,11 @@ export default function OnboardingPage() {
         "graduationMarksheet",
         documents.graduationMarksheet?.url || ""
       );
+      const experienceYears = Number(yearsOfExperience);
+      const companiesToSave =
+        Number.isFinite(experienceYears) && experienceYears > 0 ? companies : [];
       formData.append("yearsOfExperience", yearsOfExperience);
-      formData.append("companies", JSON.stringify(companies));
+      formData.append("companies", JSON.stringify(companiesToSave));
 
       formData.append("signature", signature.url);
       formData.append("signedPdfUrl", signedPdfUrl);
@@ -1587,7 +1591,7 @@ export default function OnboardingPage() {
             Onboarding is not available
           </h1>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Only selected candidates can complete onboarding from this page.
+            Onboarding opens after HR moves this application into onboarding.
           </p>
         </OnboardingCard>
       </OnboardingPageShell>
@@ -1943,7 +1947,7 @@ export default function OnboardingPage() {
                       />
                     </div>
                   ) : null}
-                  <label className="flex min-h-14 cursor-pointer items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 px-4 py-4 text-sm font-medium text-foreground">
+                  <label className="relative flex min-h-14 cursor-pointer items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 px-4 py-4 text-sm font-medium text-foreground">
                     <span className="flex items-center gap-2">
                       {signature ? (
                         <>
@@ -1961,7 +1965,7 @@ export default function OnboardingPage() {
                       type="file"
                       accept="image/*"
                       onChange={handleSignatureChange}
-                      className="sr-only"
+                      className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                       disabled={uploadingFiles.has("signature")}
                       required
                     />
@@ -2978,7 +2982,7 @@ export default function OnboardingPage() {
             ) : (
               <div className="space-y-4">
                 <OnboardingSignaturePhotoGuide />
-                <label className="flex min-h-14 cursor-pointer items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 px-4 py-5 text-sm font-medium text-foreground">
+                <label className="relative flex min-h-14 cursor-pointer items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 px-4 py-5 text-sm font-medium text-foreground">
                   <span className="flex items-center gap-2">
                     {signature ? (
                       <>
@@ -2996,7 +3000,7 @@ export default function OnboardingPage() {
                     type="file"
                     accept=".jpg,.jpeg,.png,.pdf"
                     onChange={handleSignatureChange}
-                    className="sr-only"
+                    className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                     disabled={uploadingFiles.has("signature")}
                     required
                   />
@@ -3079,7 +3083,7 @@ export default function OnboardingPage() {
           </DialogHeader>
           <div className="mt-2 overflow-hidden rounded-xl border border-border bg-muted/30">
             {(signedPdfUrl || unsignedPdfUrl) && (
-              <iframe
+              <PdfFrame
                 src={signedPdfUrl || unsignedPdfUrl || ""}
                 className="h-[50vh] w-full border-0 sm:h-[70vh]"
                 title={signedPdfUrl ? "Signed Onboarding Document" : "Onboarding Document Preview"}

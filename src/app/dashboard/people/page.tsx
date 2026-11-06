@@ -30,7 +30,7 @@ const PEOPLE_TABS: {
   { value: "pipeline", label: "Pipeline", icon: ClipboardList },
   { value: "interview", label: "Interviews", icon: CalendarClock },
   { value: "shortlisted", label: "Shortlisted", icon: Star },
-  { value: "selected", label: "Selected for Training", icon: GraduationCap },
+  { value: "selected", label: "Selected", icon: GraduationCap },
   { value: "rejected", label: "Rejected", icon: Ban },
   { value: "onboarding", label: "Onboarding", icon: Users },
   { value: "active", label: "Employed", icon: Briefcase },

@@ -19,8 +19,10 @@ export interface SelectionDetails {
   positionType: string;
   duration: string;
   internDuration?: string;
-  trainingPeriod: string;
-  trainingDate?: string; // Training start date (YYYY-MM-DD format)
+  trainingPeriod?: string;
+  trainingDate?: string;
+  workingHours?: string;
+  salary?: string | number;
   role: string;
 }
 
@@ -35,6 +37,7 @@ export interface CandidateEmailPayload {
   shortlistRoles?: string[];
   onboardingLink?: string;
   trainingAgreementLink?: string;
+  appointmentLetterLink?: string;
   interviewDetails?: {
     scheduledDate: string;
     scheduledTime: string;

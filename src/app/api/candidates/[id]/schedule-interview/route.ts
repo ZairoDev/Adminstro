@@ -6,7 +6,10 @@ import { getDataFromToken } from "@/util/getDataFromToken";
 import { type NextRequest, NextResponse } from "next/server";
 import { scheduleInterviewBodySchema } from "@/lib/interviews/scheduleInterviewSchema";
 import { loadActiveInterviewer } from "@/lib/interviews/loadInterviewer";
-import { finalizeScheduledInterview } from "@/lib/interviews/publishInterview";
+import {
+  finalizeRescheduledInterview,
+  finalizeScheduledInterview,
+} from "@/lib/interviews/publishInterview";
 import {
   parseLocalDateString,
   normalizeToLocalMidnight,
@@ -170,6 +173,7 @@ export async function PATCH(
       },
     });
 
+    const alreadyScheduled = Boolean(candidate.interviewDetails?.scheduledDate);
     const existingEventId =
       typeof candidate.interviewDetails?.googleEventId === "string"
         ? candidate.interviewDetails.googleEventId
@@ -179,8 +183,10 @@ export async function PATCH(
         ? candidate.interviewDetails.googleMeetLink
         : null;
 
-    try {
-      await finalizeScheduledInterview({
+    const publish = alreadyScheduled
+      ? finalizeRescheduledInterview
+      : finalizeScheduledInterview;
+    void publish({
         candidateId: id,
         round: "first",
         candidateName: updatedCandidate.name,
@@ -203,13 +209,12 @@ export async function PATCH(
         rescheduleLink,
         existingEventId,
         existingMeetLink,
+      }).catch((emailError: unknown) => {
+        console.error(
+          `Failed to publish interview notice for ${updatedCandidate.email}:`,
+          emailError
+        );
       });
-    } catch (emailError: unknown) {
-      console.error(
-        `❌ Failed to send interview scheduled email to ${updatedCandidate.email}:`,
-        emailError
-      );
-    }
 
     const latest = await Candidate.findById(id);
 

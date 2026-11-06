@@ -169,13 +169,18 @@ const CandidateSchema = new Schema(
       duration: { type: String, default: null }, // Daily training time slot (e.g. 12:00 pm to 4:00 pm)
       internDuration: { type: String, default: null }, // Internship length (e.g. 3 months)
       trainingPeriod: { type: String, default: null },
-      trainingDate: { type: String, default: null }, // Training start date (YYYY-MM-DD format)
+      trainingDate: { type: String, default: null }, // Date of joining (YYYY-MM-DD)
+      workingHours: { type: String, default: null },
       role: { type: String, default: null },
-      salary: { type: String, default: null },
+      salary: { type: String, default: null }, // Annual CTC
       offerLetterSent: { type: Boolean, default: false },
       offerLetterSentAt: { type: Date, default: null },
       offerLetterSigningLink: { type: String, default: null },
+      unsignedOfferLetterPdfUrl: { type: String, default: null },
       signedOfferLetterPdfUrl: { type: String, default: null },
+      offerLetterSigned: { type: Boolean, default: false },
+      offerLetterSignedAt: { type: Date, default: null },
+      offerLetterSignature: { type: String, default: null },
     },
     shortlistDetails: {
       suitableRoles: [{ type: String }],
@@ -214,6 +219,7 @@ const CandidateSchema = new Schema(
       },
       signedPdfUrl: { type: String, default: null },
       signedHrPoliciesPdfUrl: { type: String, default: null },
+      hrPoliciesSignedAt: { type: Date, default: null },
       signedLetterOfIntentPdfUrl: { type: String, default: null },
       letterOfIntentSigningDate: { type: Date, default: null },
       agreementAccepted: { type: Boolean, default: false },

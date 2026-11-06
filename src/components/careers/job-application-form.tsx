@@ -89,6 +89,44 @@ const countryCodes = [
   { code: "+86", country: "China" },
 ];
 
+async function resumeFileError(file: File): Promise<string | null> {
+  const name = file.name.toLowerCase();
+  const extension = name.endsWith(".pdf")
+    ? "pdf"
+    : name.endsWith(".docx")
+      ? "docx"
+      : name.endsWith(".doc")
+        ? "doc"
+        : null;
+  if (!extension) {
+    return "Upload a PDF, DOC, or DOCX file";
+  }
+
+  const header = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+  const isPdf =
+    header[0] === 0x25 &&
+    header[1] === 0x50 &&
+    header[2] === 0x44 &&
+    header[3] === 0x46;
+  const isOleDoc =
+    header[0] === 0xd0 &&
+    header[1] === 0xcf &&
+    header[2] === 0x11 &&
+    header[3] === 0xe0;
+  const isZip = header[0] === 0x50 && header[1] === 0x4b;
+
+  if (extension === "pdf" && !isPdf) {
+    return "That file is not a valid PDF";
+  }
+  if (extension === "doc" && !isOleDoc) {
+    return "That file is not a valid Word document";
+  }
+  if (extension === "docx" && !isZip) {
+    return "That file is not a valid Word document";
+  }
+  return null;
+}
+
 export type LockedJobApplication = {
   id: string;
   title: string;
@@ -230,14 +268,16 @@ export default function JobApplicationForm({
     }
 
     // Validate image types (jpeg, png, webp)
-    if (
-      !(
-        file.type === "image/jpeg" ||
-        file.type === "image/jpg" ||
-        file.type === "image/png" ||
-        file.type === "image/webp"
-      )
-    ) {
+    const photoExtension = file.name.toLowerCase().split(".").pop() ?? "";
+    const photoTypeAllowed =
+      file.type === "image/jpeg" ||
+      file.type === "image/jpg" ||
+      file.type === "image/png" ||
+      file.type === "image/webp" ||
+      file.type === "" ||
+      file.type === "application/octet-stream";
+    const photoExtensionAllowed = ["jpg", "jpeg", "png", "webp"].includes(photoExtension);
+    if (!photoTypeAllowed || !photoExtensionAllowed) {
       setErrors({
         ...errors,
         photo: "Please upload a JPEG, PNG, or WebP image",
@@ -313,6 +353,14 @@ export default function JobApplicationForm({
 
     if (file.size > 10 * 1024 * 1024) {
       setErrors({ ...errors, resume: "File size must be less than 10MB" });
+      e.target.value = "";
+      return;
+    }
+
+    const resumeError = await resumeFileError(file);
+    if (resumeError) {
+      setErrors({ ...errors, resume: resumeError });
+      e.target.value = "";
       return;
     }
 
@@ -340,6 +388,7 @@ export default function JobApplicationForm({
       console.log("Resume uploaded successfully:", resumeUrl);
 
       setFormData({ ...formData, resume: resumeUrl }); // store URL instead of file
+      setResume(file);
       setErrors({ ...errors, resume: "" });
 
       toast({
@@ -590,37 +639,6 @@ export default function JobApplicationForm({
 
       setSubmitted(true);
       setIsFormSubmitted(true);
-      setTimeout(() => {
-        setSubmitted(false);
-        setFormData({
-          name: "",
-          email: "",
-          countryCode: "+91",
-          phone: "",
-          experience: "",
-          address: "",
-          city: "",
-          country: "",
-          gender: "",
-          college: colleges[0],
-          otherCollege: "",
-          officeAddressId: "",
-          departmentId: "",
-          jobPositionId: "",
-          resume: "",
-          photo: "",
-          coverLetter: "",
-          linkedin: "",
-          github: "",
-          portfolio: "",
-          instagram: "",
-          xProfile: "",
-          referralSource: "",
-          referralDetail: "",
-        });
-        setResume(null);
-        setPhoto(null);
-      }, 5000);
     } catch (error) {
       setSubmitError(
         error instanceof Error ? error.message : "Failed to submit application"
@@ -642,8 +660,8 @@ export default function JobApplicationForm({
           </h2>
           <p className="mt-3 text-base leading-relaxed text-muted-foreground">
             {lockedJob
-              ? `Thanks for applying for ${lockedJob.title}. HR will review it and contact you if there is a next step.`
-              : "Thanks for applying to Zairo International. HR will review it and contact you if there is a next step."}
+              ? `Thanks, ${formData.name.trim()}. Your application for ${lockedJob.title} is with HR. They will contact you if there is a next step.`
+              : `Thanks, ${formData.name.trim()}. Your application is with HR. They will contact you if there is a next step.`}
           </p>
           <a
             href="/careers"
@@ -758,7 +776,7 @@ export default function JobApplicationForm({
                       type="file"
                       accept="image/jpeg,image/jpg,image/png,image/webp"
                       onChange={handlePhotoChange}
-                      className="hidden"
+                      className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                     />
                   </label>
                 ) : (
@@ -1447,7 +1465,7 @@ export default function JobApplicationForm({
                       type="file"
                       accept=".pdf,.doc,.docx"
                       onChange={handleFileChange}
-                      className="hidden"
+                      className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                     />
                   </label>
                 ) : (

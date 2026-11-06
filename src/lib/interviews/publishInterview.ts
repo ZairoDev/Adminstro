@@ -238,6 +238,25 @@ function asMode(value: string | null | undefined): InterviewMode {
   return value === "virtual" ? "virtual" : "physical";
 }
 
+export async function cancelInterviewRound(
+  candidate: {
+    _id: { toString(): string } | string;
+    name: string;
+    email: string;
+    position: string;
+    interviewDetails?: unknown;
+    secondRoundInterviewDetails?: unknown;
+  },
+  round: InterviewRound
+): Promise<void> {
+  const candidateId = String(candidate._id);
+  const details =
+    round === "first"
+      ? readRound(candidate.interviewDetails)
+      : readRound(candidate.secondRoundInterviewDetails);
+  await cancelRound(candidate, candidateId, round, details);
+}
+
 export async function cancelCandidateInterviews(candidate: {
   _id: { toString(): string } | string;
   name: string;

@@ -116,14 +116,18 @@ export interface Candidate {
     positionType: "fulltime" | "intern";
     duration: string;
     internDuration?: string;
-    trainingPeriod: string;
-    trainingDate?: string; // Training start date (YYYY-MM-DD format)
+    trainingPeriod?: string;
+    trainingDate?: string; // Date of joining (YYYY-MM-DD)
+    workingHours?: string;
     role: string;
     salary?: string;
     offerLetterSent?: boolean;
     offerLetterSentAt?: string;
     offerLetterSigningLink?: string;
+    unsignedOfferLetterPdfUrl?: string;
     signedOfferLetterPdfUrl?: string;
+    offerLetterSigned?: boolean;
+    offerLetterSignedAt?: string;
   };
   shortlistDetails?: {
     suitableRoles: string[];
@@ -205,6 +209,7 @@ export interface Candidate {
     };
     signedPdfUrl?: string;
     signedHrPoliciesPdfUrl?: string;
+    hrPoliciesSignedAt?: string;
     signedLetterOfIntentPdfUrl?: string;
     letterOfIntentSigningDate?: string;
     agreementAccepted?: boolean;

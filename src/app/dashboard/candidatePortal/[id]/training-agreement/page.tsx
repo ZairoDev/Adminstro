@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { SignaturePad } from "../../components/signature-pad";
 import { SignaturePreviewModal } from "../../components/signature-preview-modal";
 import axios from "@/util/axios";
+import { PdfFrame } from "@/components/pdf-frame";
 
 interface Candidate {
   _id: string;
@@ -27,6 +28,7 @@ interface Candidate {
     trainingDate?: string; // Training start date (YYYY-MM-DD format)
     role: string;
     salary?: string | number;
+    internDuration?: string;
   };
   trainingAgreementDetails?: {
     signingLink: string;
@@ -344,25 +346,38 @@ export default function TrainingAgreementPage() {
     }
   };
 
-  // Auto-generate unsigned PDF when component loads (if not already signed)
+  // Load the agreement and HR policies once the candidate record is ready.
+  // The ready flag is set only after the timer fires, so a cancelled first pass can run again.
+  const previousPacket = Boolean(
+    candidate?.trainingAgreementDetails?.signingLink ||
+    candidate?.trainingAgreementDetails?.signedPdfUrl ||
+    candidate?.trainingAgreementDetails?.signedLetterOfIntentPdfUrl
+  );
+
   useEffect(() => {
-    if (!loading && candidate && !pdfGeneratedRef.current) {
-      // If signed PDF exists, open it automatically
+    if (loading || !candidate || previousPacket) return;
+    if (candidate.status !== "selected" && candidate.status !== "onboarding") return;
+    router.replace(`/dashboard/candidatePortal/${candidateId}/offer-letter`);
+  }, [loading, candidate, previousPacket, router, candidateId]);
+
+  useEffect(() => {
+    if (loading || !candidate || !previousPacket || pdfGeneratedRef.current) return;
+    if (!candidate.name || !candidate.position) return;
+    const timer = setTimeout(() => {
+      pdfGeneratedRef.current = true;
       if (candidate.trainingAgreementDetails?.signedPdfUrl) {
         setSignedPdfUrl(candidate.trainingAgreementDetails.signedPdfUrl);
         setShowPdfPreview(true);
-        pdfGeneratedRef.current = true;
-      } 
-      // Otherwise, generate unsigned PDF
-      else if (!unsignedPdfUrl && !generatingPdf && !signedPdfUrl && candidate.name && candidate.position) {
-        pdfGeneratedRef.current = true;
-        // Auto-generate PDF after a short delay to ensure all data is loaded
-        const timer = setTimeout(() => {
-          generateUnsignedPdf();
-        }, 1500);
-        return () => clearTimeout(timer);
+      } else {
+        generateUnsignedPdf();
       }
-    }
+      if (candidate.trainingAgreementDetails?.signedHrPoliciesPdfUrl) {
+        setHrPoliciesPdfUrl(candidate.trainingAgreementDetails.signedHrPoliciesPdfUrl);
+      } else {
+        generateHrPoliciesPdf();
+      }
+    }, 300);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, candidate]);
 
@@ -808,7 +823,11 @@ export default function TrainingAgreementPage() {
     return <LoadingSkeleton />;
   }
 
-  if (!candidate || candidate.status !== "selected") {
+  if (!loading && candidate && !previousPacket && (candidate.status === "selected" || candidate.status === "onboarding")) {
+    return <LoadingSkeleton />;
+  }
+
+  if (!candidate || (candidate.status !== "selected" && candidate.status !== "onboarding")) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-8">
         <div className="max-w-4xl mx-auto">
@@ -818,7 +837,7 @@ export default function TrainingAgreementPage() {
               Access Denied
             </p>
             <p className="text-muted-foreground">
-              Only candidates selected for training can access this page
+              This page opens after you are selected.
             </p>
           </Card>
         </div>
@@ -1013,7 +1032,7 @@ export default function TrainingAgreementPage() {
               {/* CRITICAL: Always prioritize signed PDF over unsigned PDF */}
               {(signedPdfUrl || unsignedPdfUrl) && !generatingPdf && (
                 <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-                  <iframe
+                  <PdfFrame
                     src={signedPdfUrl || unsignedPdfUrl || ""}
                     className="w-full h-[500px] border-0"
                     title={signedPdfUrl ? "Signed PDF Preview" : "PDF Preview"}
@@ -1101,7 +1120,7 @@ export default function TrainingAgreementPage() {
 
               {hrPoliciesPdfUrl && !generatingHrPoliciesPdf && (
                 <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-                  <iframe
+                  <PdfFrame
                     src={hrPoliciesPdfUrl}
                     className="w-full h-[500px] border-0"
                     title="HR Policies PDF Preview"
@@ -1189,7 +1208,7 @@ export default function TrainingAgreementPage() {
 
               {letterOfIntentPdfUrl && !generatingLetterOfIntentPdf && (
                 <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-                  <iframe
+                  <PdfFrame
                     src={letterOfIntentPdfUrl}
                     className="w-full h-[500px] border-0"
                     title="Letter of Intent PDF Preview"
@@ -1218,10 +1237,22 @@ export default function TrainingAgreementPage() {
             </div>
             <div className="prose prose-sm max-w-none text-foreground space-y-4">
               <p className="text-sm leading-relaxed">
-                <strong>Training Duration & Structure:</strong> Your training will be conducted in two phases. Phase 1 (Initial Training Period) is 4 to 5 working days, unpaid, to provide you with required knowledge. Phase 2 (Paid Training & Assessment Period) is 7 working days, paid training (Stipend/Salary as applicable), during which your performance, conduct, learning ability, and stability will be closely evaluated.
+                <strong>Training Duration & Structure:</strong>{" "}
+                {candidate?.selectionDetails?.trainingPeriod
+                  ? `Your initial training period is ${candidate.selectionDetails.trainingPeriod}.`
+                  : "Your initial training period is 4 to 5 working days."}{" "}
+                {candidate?.selectionDetails?.duration
+                  ? `Training hours are ${candidate.selectionDetails.duration}.`
+                  : ""}{" "}
+                {candidate?.selectionDetails?.internDuration
+                  ? `The internship lasts ${candidate.selectionDetails.internDuration}.`
+                  : "After the initial period, paid training continues while your performance, conduct, learning ability, and stability are evaluated."}{" "}
+                {candidate?.selectionDetails?.salary
+                  ? `The stipend on this offer is Rs. ${Number(candidate.selectionDetails.salary).toLocaleString("en-IN")} per month.`
+                  : "Stipend or salary applies as written on your offer."}
               </p>
               <p className="text-sm leading-relaxed">
-                <strong>Conditions of Continuation:</strong> Successful completion of both phases is mandatory for further employment. The company reserves full rights to discontinue your training or not offer permanent employment if performance standards are not met. Salary and appointment confirmation details will be shared only after successful evaluation.
+                <strong>Conditions of Continuation:</strong> Completing the training described on your offer is required before any further employment decision. The company may stop training or decline a permanent offer if performance standards are not met. Salary and appointment confirmation details will be shared only after successful evaluation.
               </p>
               <p className="text-sm leading-relaxed">
                 <strong>General Terms:</strong> You are required to maintain professional behavior, punctuality, and adhere to all company policies. Any unauthorized absence may result in immediate termination of training. Confidentiality of company information must be strictly maintained.
@@ -1340,7 +1371,7 @@ export default function TrainingAgreementPage() {
                     Upload Signature
                   </label>
 
-                  <label className="flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
+                  <label className="relative flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
                     <div className="flex items-center gap-2 text-foreground">
                       {signature ? (
                         <>
@@ -1366,7 +1397,7 @@ export default function TrainingAgreementPage() {
                       type="file"
                       accept=".jpg,.jpeg,.png,.pdf"
                       onChange={handleSignatureUpload}
-                      className="hidden"
+                      className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                       disabled={uploadingSignature}
                       required={!signature}
                     />
@@ -1496,7 +1527,7 @@ export default function TrainingAgreementPage() {
             <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
               {/* CRITICAL: Always prioritize signed PDF - once signed, never show unsigned */}
               {(signedPdfUrl || unsignedPdfUrl) && (
-                <iframe
+                <PdfFrame
                   src={signedPdfUrl || unsignedPdfUrl || ""}
                   className="w-full h-[70vh] border-0"
                   title={signedPdfUrl ? "Signed Training Agreement Document" : "Training Agreement Document Preview"}
@@ -1556,7 +1587,7 @@ export default function TrainingAgreementPage() {
             </DialogHeader>
             <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
               {hrPoliciesPdfUrl && (
-                <iframe
+                <PdfFrame
                   src={hrPoliciesPdfUrl}
                   className="w-full h-[70vh] border-0"
                   title="HR Policies Document Preview"
@@ -1610,7 +1641,7 @@ export default function TrainingAgreementPage() {
             </DialogHeader>
             <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
               {letterOfIntentPdfUrl && (
-                <iframe
+                <PdfFrame
                   src={letterOfIntentPdfUrl}
                   className="w-full h-[70vh] border-0"
                   title="Letter of Intent Document Preview"

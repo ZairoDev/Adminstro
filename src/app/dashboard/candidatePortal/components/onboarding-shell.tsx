@@ -3,6 +3,7 @@
 import type React from "react";
 import { AlertCircle, CheckCircle2, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PdfFrame } from "@/components/pdf-frame";
 
 export function OnboardingPageShell({
   children,
@@ -328,7 +329,7 @@ export function OnboardingPdfPreview({
           Open
         </a>
       </div>
-      <iframe
+      <PdfFrame
         src={url}
         title={title}
         className="hidden h-72 w-full border-0 bg-background sm:block"

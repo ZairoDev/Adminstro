@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { PdfFrame } from "@/components/pdf-frame";
 import {
   Dialog,
   DialogContent,
@@ -234,7 +235,7 @@ export function DocumentVerification({
               )}
               <div className="border rounded-lg overflow-hidden bg-muted/50">
                 {url?.toLowerCase().includes(".pdf") ? (
-                  <iframe
+                  <PdfFrame
                     src={`${url}#toolbar=0`}
                     className="w-full h-[65vh] border-0"
                     title={`${label} ${idx + 1}`}

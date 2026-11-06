@@ -1,6 +1,7 @@
 
 import { sendEmail } from "@/components/candidateEmail";
 import { cancelCandidateInterviews } from "@/lib/interviews/publishInterview";
+import { hasSignedSelectedDocuments } from "@/lib/people/lifecycle";
 import type { CandidateEmailStatus, SelectionDetails } from "@/lib/email/types";
 import Candidate from "@/models/candidate";
 import { connectDb } from "@/util/db";
@@ -12,8 +13,9 @@ const selectionDetailsSchema = z
     positionType: z.string(),
     duration: z.string().optional(),
     internDuration: z.string().optional(),
-    trainingPeriod: z.string(),
+    trainingPeriod: z.string().optional(),
     trainingDate: z.string().optional(),
+    workingHours: z.string().optional(),
     role: z.string(),
     salary: z.union([z.string(), z.number()]).optional(),
   })
@@ -49,6 +51,8 @@ function toEmailSelectionDetails(
     internDuration: details.internDuration,
     trainingPeriod: details.trainingPeriod,
     trainingDate: details.trainingDate,
+    workingHours: details.workingHours,
+    salary: details.salary,
     role: details.role,
   };
 }
@@ -174,13 +178,26 @@ export async function POST(
       };
     }
 
-    // If selected for training, set training agreement signing link and date
-    let trainingAgreementLink: string | undefined;
+    let appointmentLetterLink: string | undefined;
     if (status === "selected") {
-      trainingAgreementLink = `${process.env.APP_URL ?? "http://localhost:3000"}/dashboard/candidatePortal/${id}/training-agreement`;
-      updateData["trainingAgreementDetails.signingLink"] = trainingAgreementLink;
-      // Set the date when candidate was selected for training (only if not already set)
+      appointmentLetterLink = `${process.env.APP_URL ?? "http://localhost:3000"}/dashboard/candidatePortal/${id}/offer-letter`;
+      if (selectionDetails) {
+        updateData.selectionDetails = {
+          ...selectionDetails,
+          offerLetterSigningLink: appointmentLetterLink,
+        };
+      }
       updateData.selectedForTrainingAt = new Date();
+    }
+
+    if (status === "onboarding" && !hasSignedSelectedDocuments(existing)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "The offer letter and HR policies must be signed before onboarding",
+        },
+        { status: 400 }
+      );
     }
 
     // If onboarding step, set onboarding link in candidate onboardingDetails and date
@@ -227,7 +244,7 @@ export async function POST(
           shortlistRoles:
             status === "shortlisted" ? shortlistDetails?.suitableRoles : undefined,
           onboardingLink: status === "onboarding" ? ( candidate.onboardingDetails?.onboardingLink || "") as string | undefined : undefined,
-          trainingAgreementLink: trainingAgreementLink || (status === "selected" ? candidate.trainingAgreementDetails?.signingLink || "" : undefined) as string | undefined,
+          appointmentLetterLink: appointmentLetterLink || (status === "selected" ? candidate.selectionDetails?.offerLetterSigningLink || "" : undefined) as string | undefined,
         });
         console.log(`✅ Email sent successfully to ${candidate.email} for status: ${emailStatus}`);
       } catch (emailError: unknown) {

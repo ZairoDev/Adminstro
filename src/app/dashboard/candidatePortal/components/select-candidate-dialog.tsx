@@ -5,7 +5,7 @@ import type React from "react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Check, X, AlertTriangle } from "lucide-react";
+import { Check, X } from "lucide-react";
 
 interface SelectCandidateDialogProps {
   open: boolean;
@@ -18,19 +18,13 @@ interface SelectCandidateDialogProps {
 
 export interface SelectionData {
   positionType: "fulltime" | "intern";
-  trainingDate: string;
-  trainingPeriod: string;
+  dateOfJoining: string;
   role: string;
-  salary?: number;
-  duration?: string; // Daily training time (e.g., "12:00 pm to 4:00 pm")
-  internDuration?: string; // Internship length (e.g., "3 months")
+  annualCtc: number;
+  workingHours: string;
 }
 
-const TRAINING_TIME_PRESETS = [
-  "12:00 pm to 4:00 pm",
-  "4:00 pm to 8:00 pm",
-  "Full Day",
-] as const;
+const DEFAULT_WORKING_HOURS = "11:00 AM to 8:00 PM";
 
 export function SelectCandidateDialog({
   open,
@@ -45,12 +39,10 @@ export function SelectCandidateDialog({
       ? candidateEmploymentType
       : "fulltime"
   );
-  const [trainingDate, setTrainingDate] = useState("");
-  const [trainingPeriod, setTrainingPeriod] = useState("5 days");
+  const [dateOfJoining, setDateOfJoining] = useState("");
   const [role, setRole] = useState("");
-  const [salary, setSalary] = useState("");
-  const [duration, setDuration] = useState("");
-  const [internDuration, setInternDuration] = useState("");
+  const [annualCtc, setAnnualCtc] = useState("");
+  const [workingHours, setWorkingHours] = useState(DEFAULT_WORKING_HOURS);
 
   useEffect(() => {
     if (open) {
@@ -67,41 +59,30 @@ export function SelectCandidateDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!trainingDate.trim() || !trainingPeriod.trim() || !role.trim() || !duration.trim()) {
-      alert("Please fill in all fields including training time");
+    if (!dateOfJoining.trim() || !role.trim() || !workingHours.trim()) {
+      alert("Please fill in designation, date of joining, and working hours");
       return;
     }
 
-    if (positionType === "intern" && !internDuration.trim()) {
-      alert("Please enter intern duration (e.g., 3 months, 6 months)");
-      return;
-    }
-
-    // Validate salary if provided (required here as part of selection)
-    const parsedSalary = salary === "" ? NaN : Number(salary);
-    if (Number.isNaN(parsedSalary) || parsedSalary < 0) {
-      alert("Please enter a valid non-negative salary");
+    const parsedCtc = annualCtc === "" ? NaN : Number(annualCtc);
+    if (Number.isNaN(parsedCtc) || parsedCtc < 0) {
+      alert("Please enter a valid annual CTC");
       return;
     }
 
     await onSubmit({
       positionType,
-      trainingDate,
-      trainingPeriod,
+      dateOfJoining,
       role,
-      salary: Number.isNaN(parsedSalary) ? undefined : parsedSalary,
-      duration,
-      ...(positionType === "intern" ? { internDuration: internDuration.trim() } : {}),
+      annualCtc: parsedCtc,
+      workingHours: workingHours.trim(),
     });
 
-    // Reset form
     setPositionType("fulltime");
-    setTrainingDate("");
-    setTrainingPeriod("5 days");
+    setDateOfJoining("");
     setRole("");
-    setSalary("");
-    setDuration("");
-    setInternDuration("");
+    setAnnualCtc("");
+    setWorkingHours(DEFAULT_WORKING_HOURS);
   };
 
   if (!open) return null;
@@ -122,100 +103,10 @@ export function SelectCandidateDialog({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Safety Check Warning */}
-          {/* {candidatePosition && role && role.trim() !== "" && (
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <h4 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-1">
-                    Role Mismatch Warning
-                  </h4>
-                  <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
-                    <p>
-                      <span className="font-medium">Candidate's Current Role:</span>{" "}
-                      <span className="font-semibold">{candidatePosition}</span>
-                    </p>
-                    <p>
-                      <span className="font-medium">Selected Role for Training:</span>{" "}
-                      <span className="font-semibold">{role}</span>
-                    </p>
-                    {candidatePosition.toLowerCase() !== role.toLowerCase() && (
-                      <p className="mt-2 flex items-start gap-1.5 font-medium">
-                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                        <span>
-                          The candidate&apos;s current role ({candidatePosition}) does not match the selected role for training ({role}). Please verify this is intentional.
-                        </span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )} */}
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Position Type Selection */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Position Type
-              </label>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPositionType("fulltime")}
-                  className={`flex-1 py-2 px-3 rounded border transition ${
-                    positionType === "fulltime"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-muted text-muted-foreground hover:border-primary"
-                  }`}
-                >
-                  Full Time
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPositionType("intern")}
-                  className={`flex-1 py-2 px-3 rounded border transition ${
-                    positionType === "intern"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-muted text-muted-foreground hover:border-primary"
-                  }`}
-                >
-                  Intern
-                </button>
-              </div>
-            </div>
-
-            {/* Training Date */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Training Start Date
-              </label>
-              <input
-                type="date"
-                value={trainingDate}
-                onChange={(e) => setTrainingDate(e.target.value)}
-                className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground focus:border-primary focus:outline-none"
-              />
-            </div>
-
-            {/* Training Period */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Training Period
-              </label>
-              <input
-                type="text"
-                placeholder="e.g., 2 weeks, 1 month"
-                value={trainingPeriod}
-                onChange={(e) => setTrainingPeriod(e.target.value)}
-                className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Job title
+                Designation
               </label>
               <select
                 value={role}
@@ -227,88 +118,52 @@ export function SelectCandidateDialog({
                 {role ? <option value={role}>{role}</option> : null}
               </select>
               <p className="text-xs text-muted-foreground mt-1">
-                This is the job title from the application. It is not a login role.
+                This is the job title from the application.
               </p>
             </div>
 
-            {/* Salary Input */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Salary
+                Date of joining
+              </label>
+              <input
+                type="date"
+                value={dateOfJoining}
+                onChange={(e) => setDateOfJoining(e.target.value)}
+                className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground focus:border-primary focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Working hours
+              </label>
+              <input
+                type="text"
+                placeholder="11:00 AM to 8:00 PM"
+                value={workingHours}
+                onChange={(e) => setWorkingHours(e.target.value)}
+                className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Annual CTC
               </label>
               <input
                 type="number"
                 min="0"
-                step="0.01"
-                placeholder="Enter salary"
-                value={salary}
-                onChange={(e) => setSalary(e.target.value)}
+                step="1"
+                placeholder="156000"
+                value={annualCtc}
+                onChange={(e) => setAnnualCtc(e.target.value)}
                 className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Yearly cost to the company, in rupees.
+              </p>
             </div>
-
-            {/* Training time — presets or manual */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Training Time
-              </label>
-              <div className="flex flex-wrap gap-3 mb-2">
-                {TRAINING_TIME_PRESETS.map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    onClick={() => setDuration(preset)}
-                    aria-pressed={duration === preset}
-                    className={`flex-1 min-w-[140px] min-h-11 py-2 px-3 rounded border cursor-pointer transition-colors duration-200 ${
-                      duration === preset
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-muted text-muted-foreground hover:border-primary"
-                    }`}
-                  >
-                    {preset}
-                  </button>
-                ))}
-              </div>
-              <input
-                type="text"
-                placeholder="Or enter time manually (e.g., 10:00 am to 2:00 pm)"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none"
-              />
-            </div>
-
-            {/* Intern duration — only for interns */}
-            {positionType === "intern" && (
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Intern Duration
-                </label>
-                <div className="flex flex-wrap gap-3 mb-2">
-                  {["1 month", "3 months", "6 months"].map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => setInternDuration(preset)}
-                      className={`py-2 px-3 rounded border transition ${
-                        internDuration === preset
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-muted text-muted-foreground hover:border-primary"
-                      }`}
-                    >
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  placeholder="Or enter intern duration manually (e.g., 2 months)"
-                  value={internDuration}
-                  onChange={(e) => setInternDuration(e.target.value)}
-                  className="w-full px-3 py-2 border border-muted rounded bg-background text-foreground placeholder-muted-foreground focus:border-primary focus:outline-none"
-                />
-              </div>
-            )}
           </div>
 
           {/* Action Buttons */}

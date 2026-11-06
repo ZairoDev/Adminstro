@@ -126,7 +126,8 @@ interface SelectionDetails {
   duration?: string;
   internDuration?: string;
   trainingPeriod?: string;
-  trainingDate?: string; // Training start date (YYYY-MM-DD format)
+  trainingDate?: string;
+  workingHours?: string;
   role?: string;
   salary?: string;
 }
@@ -701,12 +702,14 @@ export function OnboardingDetailsView({
                 <h3 className="text-sm font-semibold">Role Details</h3>
               </div>
               <div className="space-y-0">
-                <InfoRow label="Role" value={selectionDetails.role} />
+                <InfoRow label="Designation" value={selectionDetails.role} />
+                <InfoRow label="Date of joining" value={selectionDetails.trainingDate} />
+                <InfoRow label="Working hours" value={selectionDetails.workingHours} />
+                <InfoRow label="Annual CTC" value={selectionDetails.salary} />
                 <InfoRow label="Position Type" value={selectionDetails.positionType} />
                 <InfoRow label="Training Period" value={selectionDetails.trainingPeriod} />
                 <InfoRow label="Training Time" value={selectionDetails.duration} />
                 <InfoRow label="Intern Duration" value={selectionDetails.internDuration} />
-                <InfoRow label="Salary" value={selectionDetails.salary} />
               </div>
             </Card>
           )}
@@ -796,10 +799,10 @@ export function OnboardingDetailsView({
                   label="Years of Experience" 
                   value={onboardingDetails.yearsOfExperience} 
                 />
-                {onboardingDetails.companies && onboardingDetails.companies.length > 0 && (
+                {onboardingDetails.companies?.some((company) => company.companyName?.trim()) && (
                   <div className="mt-3 pt-3 border-t">
                     <p className="text-xs font-medium text-muted-foreground mb-2">Companies:</p>
-                    {onboardingDetails.companies.map((company, index) => (
+                    {onboardingDetails.companies.filter((company) => company.companyName?.trim()).map((company, index) => (
                       <div key={index} className="mb-3 last:mb-0 p-2 bg-muted/30 rounded text-xs">
                         <p className="font-medium">{company.companyName || `Company ${index + 1}`}</p>
                         {company.yearsInCompany && <p className="text-muted-foreground">Years in Company: {company.yearsInCompany}</p>}

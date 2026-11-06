@@ -104,6 +104,8 @@ export type CandidateLite = {
     salary?: string;
     role?: string;
     positionType?: "fulltime" | "intern";
+    trainingDate?: string;
+    workingHours?: string;
   };
 };
 

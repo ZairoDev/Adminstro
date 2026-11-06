@@ -10,6 +10,7 @@ import {
   getCandidateStatusLabel,
   getStatusColor,
 } from "../constants";
+import { formatAnnualCtc, formatJoiningDate } from "../utils/time-utils";
 
 interface CandidateHeaderProps {
   candidate: Candidate;
@@ -75,10 +76,17 @@ function stageSummary(candidate: Candidate): string {
         ? `Shortlisted for ${roles.join(", ")}.`
         : "Shortlisted.";
     }
-    case "selected":
-      return candidate.selectionDetails?.role
-        ? `Selected for training as ${candidate.selectionDetails.role}.`
-        : "Selected for training.";
+    case "selected": {
+      const details = candidate.selectionDetails;
+      if (!details) return "Selected.";
+      const parts = [
+        details.role,
+        details.trainingDate ? `joining ${formatJoiningDate(details.trainingDate)}` : null,
+        details.workingHours,
+        details.salary ? formatAnnualCtc(details.salary) : null,
+      ].filter(Boolean);
+      return parts.length ? `${parts.join(". ")}.` : "Selected.";
+    }
     case "onboarding":
       return candidate.onboardingDetails?.onboardingComplete
         ? "Onboarding is complete."
@@ -180,27 +188,27 @@ export function CandidateHeader({
 
           <div className="flex flex-wrap items-center gap-2">
             {trailing}
-            <a href={candidate.resumeUrl} download target="_blank" rel="noopener noreferrer">
-              <Button variant="outline" className="h-8 gap-1.5 bg-white px-2.5 text-sm dark:bg-[#2c2c2e]">
+            <Button asChild variant="outline" className="h-8 gap-1.5 bg-white px-2.5 text-sm dark:bg-[#2c2c2e]">
+              <a href={candidate.resumeUrl} download target="_blank" rel="noopener noreferrer">
                 <Download className="h-4 w-4" aria-hidden />
                 Resume
-              </Button>
-            </a>
+              </a>
+            </Button>
             {candidate.linkedin ? (
-              <a href={candidate.linkedin} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" className="h-8 gap-1.5 bg-white px-2.5 text-sm dark:bg-[#2c2c2e]">
+              <Button asChild variant="outline" className="h-8 gap-1.5 bg-white px-2.5 text-sm dark:bg-[#2c2c2e]">
+                <a href={candidate.linkedin} target="_blank" rel="noopener noreferrer">
                   <Linkedin className="h-4 w-4" aria-hidden />
                   LinkedIn
-                </Button>
-              </a>
+                </a>
+              </Button>
             ) : null}
             {candidate.portfolio ? (
-              <a href={candidate.portfolio} target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" className="h-8 gap-1.5 bg-white px-2.5 text-sm dark:bg-[#2c2c2e]">
+              <Button asChild variant="outline" className="h-8 gap-1.5 bg-white px-2.5 text-sm dark:bg-[#2c2c2e]">
+                <a href={candidate.portfolio} target="_blank" rel="noopener noreferrer">
                   <Globe className="h-4 w-4" aria-hidden />
                   Portfolio
-                </Button>
-              </a>
+                </a>
+              </Button>
             ) : null}
           </div>
         </div>

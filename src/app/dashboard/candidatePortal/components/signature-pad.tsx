@@ -1,131 +1,132 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useRef, useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { RotateCcw, Check } from "lucide-react"
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { RotateCcw, Check } from "lucide-react";
 
 interface SignaturePadProps {
-  onSignatureCapture: (signatureUrl: string) => void
-  onCancel?: () => void
-  existingSignature?: string
+  onSignatureCapture: (signatureUrl: string) => void;
+  onCancel?: () => void;
+  existingSignature?: string;
 }
 
-export function SignaturePad({ onSignatureCapture, onCancel, existingSignature }: SignaturePadProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [isDrawing, setIsDrawing] = useState(false)
-  const [isEmpty, setIsEmpty] = useState(true)
+const PAD_HEIGHT = 300;
+
+export function SignaturePad({ onSignatureCapture }: SignaturePadProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingRef = useRef(false);
+  const sizedRef = useRef(false);
+  const [isEmpty, setIsEmpty] = useState(true);
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const canvas = canvasRef.current;
+    const parent = canvas?.parentElement;
+    if (!canvas || !parent) return;
 
-    // Set canvas size
-    const rect = canvas.parentElement?.getBoundingClientRect()
-    if (rect) {
-      canvas.width = rect.width
-      canvas.height = 300
-    }
+    const prepare = () => {
+      const rect = parent.getBoundingClientRect();
+      if (rect.width < 40 || sizedRef.current) return;
+      sizedRef.current = true;
+      const width = rect.width;
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(width * ratio);
+      canvas.height = Math.floor(PAD_HEIGHT * ratio);
+      canvas.style.width = "100%";
+      canvas.style.height = `${PAD_HEIGHT}px`;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, width, PAD_HEIGHT);
+      context.strokeStyle = "#111111";
+      context.lineWidth = 2;
+      context.lineCap = "round";
+      context.lineJoin = "round";
+    };
 
-    // Set canvas background to white
-    const ctx = canvas.getContext("2d")
-    if (ctx) {
-      ctx.fillStyle = "white"
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.strokeStyle = "#000"
-      ctx.lineWidth = 2
-      ctx.lineCap = "round"
-      ctx.lineJoin = "round"
-    }
-  }, [])
+    prepare();
+    const observer = new ResizeObserver(() => {
+      prepare();
+    });
+    observer.observe(parent);
 
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    const pointFrom = (event: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      };
+    };
 
-    setIsDrawing(true)
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
+    const start = (event: PointerEvent) => {
+      if (event.button !== 0 && event.pointerType === "mouse") return;
+      canvas.setPointerCapture(event.pointerId);
+      drawingRef.current = true;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      const point = pointFrom(event);
+      context.beginPath();
+      context.moveTo(point.x, point.y);
+    };
 
-    const rect = canvas.getBoundingClientRect()
-    let x: number, y: number
+    const move = (event: PointerEvent) => {
+      if (!drawingRef.current) return;
+      event.preventDefault();
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      const point = pointFrom(event);
+      context.lineTo(point.x, point.y);
+      context.stroke();
+      setIsEmpty(false);
+    };
 
-    if ("touches" in e) {
-      x = e.touches[0].clientX - rect.left
-      y = e.touches[0].clientY - rect.top
-    } else {
-      x = e.clientX - rect.left
-      y = e.clientY - rect.top
-    }
+    const stop = (event: PointerEvent) => {
+      drawingRef.current = false;
+      if (canvas.hasPointerCapture(event.pointerId)) {
+        canvas.releasePointerCapture(event.pointerId);
+      }
+    };
 
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-  }
+    canvas.addEventListener("pointerdown", start);
+    canvas.addEventListener("pointermove", move, { passive: false });
+    canvas.addEventListener("pointerup", stop);
+    canvas.addEventListener("pointercancel", stop);
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return
-
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    const rect = canvas.getBoundingClientRect()
-    let x: number, y: number
-
-    if ("touches" in e) {
-      x = e.touches[0].clientX - rect.left
-      y = e.touches[0].clientY - rect.top
-    } else {
-      x = e.clientX - rect.left
-      y = e.clientY - rect.top
-    }
-
-    ctx.lineTo(x, y)
-    ctx.stroke()
-    setIsEmpty(false)
-  }
-
-  const stopDrawing = () => {
-    setIsDrawing(false)
-  }
+    return () => {
+      observer.disconnect();
+      canvas.removeEventListener("pointerdown", start);
+      canvas.removeEventListener("pointermove", move);
+      canvas.removeEventListener("pointerup", stop);
+      canvas.removeEventListener("pointercancel", stop);
+    };
+  }, []);
 
   const clearCanvas = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    ctx.fillStyle = "white"
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    setIsEmpty(true)
-  }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    const ratio = window.devicePixelRatio || 1;
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width / ratio, canvas.height / ratio);
+    context.strokeStyle = "#111111";
+    context.lineWidth = 2;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    setIsEmpty(true);
+  };
 
   const handleCapture = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const signatureUrl = canvas.toDataURL("image/png")
-    onSignatureCapture(signatureUrl)
-  }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    onSignatureCapture(canvas.toDataURL("image/png"));
+  };
 
   return (
     <div className="space-y-3">
-      <div className="border-2 border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-white">
-        <canvas
-          ref={canvasRef}
-          onMouseDown={startDrawing}
-          onMouseMove={draw}
-          onMouseUp={stopDrawing}
-          onMouseLeave={stopDrawing}
-          onTouchStart={startDrawing}
-          onTouchMove={draw}
-          onTouchEnd={stopDrawing}
-          className="w-full cursor-crosshair touch-none"
-        />
+      <div className="overflow-hidden rounded-lg border-2 border-gray-300 bg-white dark:border-gray-600">
+        <canvas ref={canvasRef} className="w-full cursor-crosshair touch-none" />
       </div>
       <div className="flex gap-2">
         <Button type="button" variant="outline" onClick={clearCanvas} className="flex-1 gap-2 bg-transparent">
@@ -143,5 +144,5 @@ export function SignaturePad({ onSignatureCapture, onCancel, existingSignature }
         </Button>
       </div>
     </div>
-  )
+  );
 }

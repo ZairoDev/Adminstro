@@ -76,6 +76,7 @@ import { ShortlistCandidateDialog, ShortlistData } from "../components/shortlist
 import { OnboardingDetailsView } from "../components/onboarding-details-view";
 import { InterviewRemarksDialog } from "../components/interview-remarks-dialog";
 import { formatDateToLocalString, isDateBeforeToday } from "@/lib/utils";
+import { PdfFrame } from "@/components/pdf-frame";
 import {
   InterviewerSelect,
   type InterviewerOption,
@@ -91,7 +92,7 @@ import {
 import { useCandidate } from "./hooks/useCandidate";
 import { useCandidateActions } from "./hooks/useCandidateActions";
 import { useCandidatePermissions } from "./hooks/useCandidatePermissions";
-import { convertTo24Hour, formatSalary } from "./utils/time-utils";
+import { convertTo24Hour, formatAnnualCtc, formatJoiningDate } from "./utils/time-utils";
 import {
   getCandidateOfficeCity,
   getCandidateOfficePostingLocation,
@@ -185,6 +186,9 @@ export default function CandidateDetailPage() {
   const [interviewOfficeId, setInterviewOfficeId] = useState<string>("");
   const [interviewerEmployeeId, setInterviewerEmployeeId] = useState("");
   const [schedulingInterview, setSchedulingInterview] = useState(false);
+  const [cancelInterviewOpen, setCancelInterviewOpen] = useState(false);
+  const [cancellingInterview, setCancellingInterview] = useState(false);
+  const [calendarConfigured, setCalendarConfigured] = useState<boolean | null>(null);
 
   // Second Round Interview states
   const [scheduleSecondRoundDialogOpen, setScheduleSecondRoundDialogOpen] = useState(false);
@@ -225,6 +229,14 @@ export default function CandidateDetailPage() {
       }
     };
     void loadInterviewers();
+    void fetch("/api/integrations/google-calendar")
+      .then((response) => response.json())
+      .then((result: { configured?: boolean }) => {
+        if (!cancelled) setCalendarConfigured(result.configured === true);
+      })
+      .catch(() => {
+        if (!cancelled) setCalendarConfigured(null);
+      });
     return () => {
       cancelled = true;
     };
@@ -244,8 +256,8 @@ export default function CandidateDetailPage() {
   const [officeOptions, setOfficeOptions] = useState<
     { _id: string; name: string; city: string }[]
   >([]);
-  const [unsignedTrainingAgreementUrl, setUnsignedTrainingAgreementUrl] = useState<string | null>(null);
-  const [generatingUnsignedPdf, setGeneratingUnsignedPdf] = useState(false);
+  const [unsignedTrainingAgreementUrl] = useState<string | null>(null);
+  const [generatingUnsignedPdf] = useState(false);
   const [showSignedPdfDialog, setShowSignedPdfDialog] = useState(false);
   const [showUnsignedPdfDialog, setShowUnsignedPdfDialog] = useState(false);
   const [onboardingAgreementExpanded, setOnboardingAgreementExpanded] = useState(false);
@@ -287,42 +299,6 @@ export default function CandidateDetailPage() {
   const [uploadingDocuments, setUploadingDocuments] = useState(false);
   const [additionalDocumentsExpanded, setAdditionalDocumentsExpanded] = useState(false);
   const { uploadFiles } = useBunnyUpload();
-
-  const generateUnsignedTrainingAgreement = async () => {
-    if (!candidate || !candidate.name || !candidate.position) return;
-    
-    setGeneratingUnsignedPdf(true);
-    try {
-      // Use ISO date string format for proper parsing
-      const agreementDate = new Date().toISOString();
-      const agreementPayload = {
-        candidateName: candidate.name,
-        position: candidate.position,
-        date: agreementDate,
-          candidateId: candidate._id,
-        // No signature for unsigned PDF
-      };
-
-      const pdfResponse = await axios.post(
-        "/api/candidates/trainingAgreement",
-        agreementPayload,
-        {
-          responseType: "arraybuffer",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-
-      const pdfBlob = new Blob([pdfResponse.data], {
-        type: "application/pdf",
-      });
-      const url = URL.createObjectURL(pdfBlob);
-      setUnsignedTrainingAgreementUrl(url);
-    } catch (error: any) {
-      console.error("Error generating unsigned training agreement PDF:", error);
-    } finally {
-      setGeneratingUnsignedPdf(false);
-    }
-  };
 
   const generateUnsignedHrPolicies = async () => {
     if (!candidate || !candidate.name || !candidate.position) return;
@@ -521,13 +497,6 @@ export default function CandidateDetailPage() {
     }
   };
 
-  // Generate unsigned PDF when candidate is loaded and status is selected
-  useEffect(() => {
-    if (candidate && candidate.status === "selected" && candidate.name && candidate.position && !unsignedTrainingAgreementUrl && !generatingUnsignedPdf) {
-      generateUnsignedTrainingAgreement();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candidate]);
 
   // Generate unsigned onboarding PDF if candidate is in onboarding or has completed onboarding
   useEffect(() => {
@@ -1009,8 +978,63 @@ export default function CandidateDetailPage() {
     }
   };
 
+  const assignedOfficeId = (): string => {
+    if (!candidate) return "";
+    if (
+      typeof candidate.officeAddressId === "object" &&
+      candidate.officeAddressId?._id
+    ) {
+      return candidate.officeAddressId._id;
+    }
+    return typeof candidate.officeAddressId === "string"
+      ? candidate.officeAddressId
+      : "";
+  };
+
+  const openScheduleDialog = () => {
+    setScheduleInterviewDialogOpen(true);
+    setInterviewDate(undefined);
+    setInterviewHour("4");
+    setInterviewMinute("00");
+    setInterviewAmPm("PM");
+    setInterviewNotes("");
+    setInterviewMode("physical");
+    setInterviewOfficeId(assignedOfficeId());
+  };
+
+  const handleCancelInterview = async () => {
+    if (!candidate) return;
+    setCancellingInterview(true);
+    try {
+      const response = await fetch(
+        `/api/candidates/${candidate._id}/cancel-interview`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ round: "first" }),
+        }
+      );
+      const result = await response.json();
+      if (!result.success) {
+        toast.error(result.error || "Failed to cancel interview");
+        return;
+      }
+      toast.success("Interview cancelled");
+      setCancelInterviewOpen(false);
+      await refreshCandidate();
+    } catch (cancelError) {
+      console.error("Error cancelling interview:", cancelError);
+      toast.error("Failed to cancel interview");
+    } finally {
+      setCancellingInterview(false);
+    }
+  };
+
   const openSecondRoundDialog = () => {
-    // Check if second round can be scheduled
+    if (!candidate?.interviewDetails?.scheduledDate) {
+      toast.error("Schedule the first interview before a second round");
+      return;
+    }
     if (!canScheduleSecondRound()) {
       toast.error("Second round interview is already scheduled");
       return;
@@ -1019,15 +1043,19 @@ export default function CandidateDetailPage() {
   };
 
   const confirmSecondRound = () => {
-    // Double-check if second round can be scheduled
+    if (!candidate?.interviewDetails?.scheduledDate) {
+      toast.error("Schedule the first interview before a second round");
+      setShowSecondRoundConfirmation(false);
+      return;
+    }
     if (!canScheduleSecondRound()) {
       toast.error("Second round interview is already scheduled");
       setShowSecondRoundConfirmation(false);
       return;
     }
     setShowSecondRoundConfirmation(false);
-    setSecondRoundInterviewMode("");
-    setSecondRoundOfficeId("");
+    setSecondRoundInterviewMode("physical");
+    setSecondRoundOfficeId(assignedOfficeId());
     setScheduleSecondRoundDialogOpen(true);
   };
 
@@ -1043,7 +1071,7 @@ export default function CandidateDetailPage() {
         return "Shortlist this candidate";
       
       case "select":
-        if (candidate.status === "selected") return "Candidate is already selected for training";
+        if (candidate.status === "selected") return "Candidate is already selected";
         if (candidate.status === "rejected") return "Cannot select a rejected candidate";
         if (candidate.status === "onboarding") return "Candidate is already in onboarding";
         if (candidate.status === "interview" && !hasInterviewRemarks()) return "Interview remarks must be completed before selecting";
@@ -1071,6 +1099,7 @@ export default function CandidateDetailPage() {
       case "onboarding":
         if (candidate.status === "onboarding") return candidate.onboardingDetails?.onboardingComplete ? "Onboarding completed" : "Onboarding in progress";
         if (candidate.status !== "selected") return "Can only start onboarding for selected candidates";
+        if (!canStartOnboarding()) return "The offer letter and HR policies must be signed first";
         return "Send onboarding link to candidate";
       
       case "employee":
@@ -1503,38 +1532,47 @@ export default function CandidateDetailPage() {
               <TooltipProvider>
                 <div className="flex flex-wrap gap-2 [&>div]:w-fit">
                   {/* Schedule Interview Button */}
+                  {candidate.interviewDetails?.scheduledDate ? (
+                    <>
+                      <Button
+                        onClick={openScheduleDialog}
+                        disabled={actionLoading}
+                        variant="outline"
+                        size="sm"
+                        className="h-9 justify-start px-3 text-sm font-medium"
+                      >
+                        <Calendar className="mr-1.5 h-4 w-4" aria-hidden />
+                        Reschedule
+                      </Button>
+                      <Button
+                        onClick={() => setCancelInterviewOpen(true)}
+                        disabled={actionLoading || cancellingInterview}
+                        variant="outline"
+                        size="sm"
+                        className="h-9 justify-start px-3 text-sm font-medium"
+                      >
+                        Cancel interview
+                      </Button>
+                    </>
+                  ) : (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div>
                         <Button
-                          onClick={(e) => {
-                            if (!canScheduleInterview()) {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              toast.error("Interview is already scheduled");
-                              return;
-                            }
-                            setScheduleInterviewDialogOpen(true);
-                            setInterviewDate(undefined);
-                            setInterviewHour("4");
-                            setInterviewMinute("00");
-                            setInterviewAmPm("PM");
-                            setInterviewNotes("");
-                            setInterviewMode("");
-                            setInterviewOfficeId("");
-                          }}
+                          onClick={openScheduleDialog}
                           disabled={actionLoading || !canScheduleInterview()}
                           variant={nextAction === "interview" ? "default" : "outline"}
                           size="sm"
                           className="h-9 justify-start px-3 text-sm font-medium"
                         >
                           <Calendar className="mr-1.5 h-4 w-4" aria-hidden />
-                          {canScheduleInterview() ? "Schedule Interview" : "Interview Scheduled"}
+                          Schedule Interview
                         </Button>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent><p>{candidate.status === "interview" ? "Interview already scheduled" : "Schedule interview"}</p></TooltipContent>
+                    <TooltipContent><p>Schedule interview</p></TooltipContent>
                   </Tooltip>
+                  )}
 
                   {/* Interview Remarks Button */}
                   {/* Show remarks button if any interview (first or second round) is scheduled */}
@@ -1598,7 +1636,15 @@ export default function CandidateDetailPage() {
                         </Button>
                       </div>
                     </TooltipTrigger>
-                    <TooltipContent><p>{candidate.secondRoundInterviewDetails?.scheduledDate ? "Second round already scheduled" : "Schedule second round interview"}</p></TooltipContent>
+                    <TooltipContent>
+                      <p>
+                        {candidate.secondRoundInterviewDetails?.scheduledDate
+                          ? "Second round already scheduled"
+                          : candidate.interviewDetails?.scheduledDate
+                            ? "Schedule second round interview"
+                            : "Schedule the first interview before a second round"}
+                      </p>
+                    </TooltipContent>
                   </Tooltip>
 
                   {/* Shortlist Button */}
@@ -1619,7 +1665,7 @@ export default function CandidateDetailPage() {
                     <TooltipContent><p>{getButtonTooltip("shortlist")}</p></TooltipContent>
                   </Tooltip>
 
-                  {/* Select for Training Button */}
+                  {/* Select button */}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div>
@@ -1630,7 +1676,7 @@ export default function CandidateDetailPage() {
                           size="sm"
                           className="h-9 justify-start px-3 text-sm font-medium"
                         >
-                          {candidate.status === "selected" ? "Selected for Training" : "Select for Training"}
+                          {candidate.status === "selected" ? "Selected" : "Select"}
                         </Button>
                       </div>
                     </TooltipTrigger>
@@ -1749,7 +1795,7 @@ export default function CandidateDetailPage() {
                               }
                               return `Offer letter will be enabled in ${daysRemaining} day${daysRemaining !== 1 ? "s" : ""}`;
                             }
-                            return "Send offer letter to candidate via email";
+                            return "Send the offer letter to the candidate";
                           })()}
                         </p>
                       </TooltipContent>
@@ -1828,8 +1874,8 @@ export default function CandidateDetailPage() {
             </Card>
 
 
-            {/* Training Agreement */}
-            {(candidate.status === "selected" || candidate.status === "onboarding") && (
+            {/* Training Agreement — kept for people who already signed the previous packet */}
+            {(candidate.status === "selected" || candidate.status === "onboarding") && candidate.trainingAgreementDetails?.signedPdfUrl && (
               <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
                 <button
                   aria-expanded={trainingAgreementExpanded}
@@ -1924,7 +1970,7 @@ export default function CandidateDetailPage() {
                       </div>
                     )}
                     
-                    {/* Unsigned PDF Preview */}
+                    {!candidate.trainingAgreementDetails?.signedPdfUrl && (
                     <div className="flex-1 space-y-2">
                       <p className="text-sm font-medium text-foreground">Unsigned</p>
                       {generatingUnsignedPdf ? (
@@ -1950,6 +1996,7 @@ export default function CandidateDetailPage() {
                         </div>
                       )}
                     </div>
+                    )}
                   </div>
                 )}
                 {!trainingAgreementExpanded && (
@@ -2055,8 +2102,96 @@ export default function CandidateDetailPage() {
               </Card>
             )}
 
-            {/* Letter of Intent */}
             {(candidate.status === "selected" || candidate.status === "onboarding") && (
+              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
+                <button
+                  aria-expanded={offerLetterExpanded}
+                  onClick={() => setOfferLetterExpanded(!offerLetterExpanded)}
+                  type="button"
+                  className="flex min-h-9 w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]"
+                >
+                  <h3 className="text-sm font-semibold text-[#636366] dark:text-[#aeaeb2]">
+                    Offer Letter
+                  </h3>
+                  {offerLetterExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {offerLetterExpanded && (
+                  <div className="flex items-start gap-3 mt-3">
+                    {candidate.selectionDetails?.signedOfferLetterPdfUrl && (
+                      <div className="flex-1 space-y-2">
+                        <p className="text-sm font-medium text-foreground">Signed</p>
+                        <button type="button" onClick={() => setShowSignedOfferLetterPdfDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
+                          <div className="absolute inset-0 flex items-center justify-center bg-green-50 dark:bg-green-950/20">
+                            <div className="text-center p-2">
+                              <FileText className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-1" />
+                              <p className="text-sm font-semibold text-green-700 dark:text-green-300">Signed</p>
+                            </div>
+                          </div>
+                        </button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const a = document.createElement("a");
+                            a.href = candidate.selectionDetails!.signedOfferLetterPdfUrl!;
+                            a.download = `Offer-Letter-${candidate._id}-Signed.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                          }}
+                          className="w-full gap-1.5 h-9 text-sm"
+                        >
+                          <Download className="w-3 h-3" />
+                          Download
+                        </Button>
+                      </div>
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <p className="text-sm font-medium text-foreground">Unsigned</p>
+                      {generatingUnsignedOfferLetterPdf ? (
+                        <div className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                          <div className="text-center">
+                            <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-1" />
+                            <p className="text-sm text-[#636366] dark:text-[#aeaeb2]">Loading</p>
+                          </div>
+                        </div>
+                      ) : unsignedOfferLetterUrl ? (
+                        <button type="button" onClick={() => setShowUnsignedOfferLetterPdfDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
+                          <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20">
+                            <div className="text-center p-2">
+                              <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
+                              <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">Preview</p>
+                            </div>
+                          </div>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={generateUnsignedOfferLetter}
+                          disabled={generatingUnsignedOfferLetterPdf}
+                          className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-primary transition-colors disabled:cursor-wait"
+                        >
+                          <p className="text-sm text-[#636366] dark:text-[#aeaeb2] text-center px-2">Click to generate</p>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {!offerLetterExpanded && (
+                  <div className="mt-2 flex items-center gap-2 text-sm text-[#636366] dark:text-[#aeaeb2]">
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>
+                      {candidate.selectionDetails?.signedOfferLetterPdfUrl
+                        ? "Signed Offer Letter available - Click to view"
+                        : "Click to preview Offer Letter documents"}
+                    </span>
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* Letter of Intent — kept for people who already signed the previous packet */}
+            {(candidate.status === "selected" || candidate.status === "onboarding") && candidate.trainingAgreementDetails?.signedLetterOfIntentPdfUrl && (
               <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
                 <button
                   aria-expanded={letterOfIntentExpanded}
@@ -2304,7 +2439,7 @@ export default function CandidateDetailPage() {
                 {resumeExpanded && (
                   <>
                     <div className="mt-3 overflow-hidden rounded-md border bg-muted">
-                      <iframe
+                      <PdfFrame
                         src={`${candidate.resumeUrl}#toolbar=0`}
                         className="h-[420px] w-full border-0 sm:h-[560px] lg:h-[640px]"
                         title="Resume Preview"
@@ -2328,37 +2463,32 @@ export default function CandidateDetailPage() {
             {/* Selection Details - Show when candidate is selected or in onboarding */}
             {(candidate.status === "selected" || candidate.status === "onboarding") && candidate.selectionDetails && (
               <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
-                <p className="text-sm font-medium text-[#636366] dark:text-[#aeaeb2]">The offer</p>
-                <h2 className="mt-1 text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+                <p className="text-sm font-medium text-[#636366] dark:text-[#aeaeb2]">Appointment</p>
+                <dl className="mt-3 grid gap-3 sm:grid-cols-2">
                   {[
-                    candidate.selectionDetails.role,
-                    candidate.selectionDetails.positionType
-                      ? formatEmploymentType(candidate.selectionDetails.positionType)
-                      : null,
+                    ["Designation", candidate.selectionDetails.role],
+                    [
+                      "Date of joining",
+                      candidate.selectionDetails.trainingDate
+                        ? formatJoiningDate(candidate.selectionDetails.trainingDate)
+                        : null,
+                    ],
+                    ["Working hours", candidate.selectionDetails.workingHours],
+                    [
+                      "Annual CTC",
+                      candidate.selectionDetails.salary
+                        ? formatAnnualCtc(candidate.selectionDetails.salary)
+                        : null,
+                    ],
                   ]
-                    .filter(Boolean)
-                    .join(", ")}
-                </h2>
-                {candidate.selectionDetails.salary ? (
-                  <p className="mt-2 text-lg font-semibold tabular-nums tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
-                    {formatSalary(candidate.selectionDetails.salary)}
-                  </p>
-                ) : null}
-                <p className="mt-2 max-w-prose text-sm leading-6 text-[#3a3a3c] dark:text-[#d1d1d6]">
-                  {[
-                    candidate.selectionDetails.duration
-                      ? `Training runs ${candidate.selectionDetails.duration}.`
-                      : null,
-                    candidate.selectionDetails.trainingPeriod
-                      ? `The training period is ${candidate.selectionDetails.trainingPeriod}.`
-                      : null,
-                    candidate.selectionDetails.internDuration
-                      ? `The internship lasts ${candidate.selectionDetails.internDuration}.`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                </p>
+                    .filter((entry): entry is [string, string] => Boolean(entry[1]))
+                    .map(([label, value]) => (
+                      <div key={label}>
+                        <dt className="text-sm text-[#636366] dark:text-[#aeaeb2]">{label}</dt>
+                        <dd className="mt-0.5 text-sm font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">{value}</dd>
+                      </div>
+                    ))}
+                </dl>
               </Card>
             )}
 
@@ -2425,98 +2555,6 @@ export default function CandidateDetailPage() {
             )}
             </div>
 
-            {/* Offer Letter */}
-            {candidate.status === "onboarding" && (
-              <Card className="rounded-xl border-black/10 bg-white p-4 shadow-none sm:p-5 dark:border-white/10 dark:bg-[#1c1c1e]">
-                <button
-                  aria-expanded={offerLetterExpanded}
-                  onClick={() => setOfferLetterExpanded(!offerLetterExpanded)}
-                  type="button"
-                  className="flex min-h-9 w-full items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]"
-                >
-                  <h3 className="text-sm font-semibold text-[#636366] dark:text-[#aeaeb2]">
-                    Offer Letter
-                  </h3>
-                  {offerLetterExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-                {offerLetterExpanded && (
-                  <div className="flex items-start gap-3 mt-3">
-                    {/* Signed PDF Preview */}
-                    {candidate.selectionDetails?.signedOfferLetterPdfUrl && (
-                      <div className="flex-1 space-y-2">
-                        <p className="text-sm font-medium text-foreground">Signed</p>
-                        <button type="button" onClick={() => setShowSignedOfferLetterPdfDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-green-500 dark:border-green-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
-                          <div className="absolute inset-0 flex items-center justify-center bg-green-50 dark:bg-green-950/20">
-                            <div className="text-center p-2">
-                              <FileText className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-1" />
-                              <p className="text-sm font-semibold text-green-700 dark:text-green-300">Signed</p>
-                            </div>
-                          </div>
-                        </button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const a = document.createElement("a");
-                            a.href = candidate.selectionDetails!.signedOfferLetterPdfUrl!;
-                            a.download = `Offer-Letter-${candidate._id}-Signed.pdf`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                          }}
-                          className="w-full gap-1.5 h-9 text-sm"
-                        >
-                          <Download className="w-3 h-3" />
-                          Download
-                        </Button>
-                      </div>
-                    )}
-                    
-                    {/* Unsigned PDF Preview */}
-                    <div className="flex-1 space-y-2">
-                      <p className="text-sm font-medium text-foreground">Unsigned</p>
-                      {generatingUnsignedOfferLetterPdf ? (
-                        <div className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
-                          <div className="text-center">
-                            <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                            <p className="text-sm text-[#636366] dark:text-[#aeaeb2]">Loading</p>
-                          </div>
-                        </div>
-                      ) : unsignedOfferLetterUrl ? (
-                        <button type="button" onClick={() => setShowUnsignedOfferLetterPdfDialog(true)} className="relative w-32 h-32 bg-muted rounded-lg border-2 border-blue-500 dark:border-blue-400 overflow-hidden cursor-pointer hover:opacity-90 transition-opacity group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1d1d1f] focus-visible:ring-offset-2 dark:focus-visible:ring-[#f5f5f7]">
-                          <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20">
-                            <div className="text-center p-2">
-                              <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                              <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">Preview</p>
-                            </div>
-                          </div>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={generateUnsignedOfferLetter}
-                          disabled={generatingUnsignedOfferLetterPdf}
-                          className="w-32 h-32 bg-muted rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-primary transition-colors disabled:cursor-wait"
-                        >
-                          <p className="text-sm text-[#636366] dark:text-[#aeaeb2] text-center px-2">Click to generate</p>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {!offerLetterExpanded && (
-                  <div className="mt-2 flex items-center gap-2 text-sm text-[#636366] dark:text-[#aeaeb2]">
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>
-                      {candidate.selectionDetails?.signedOfferLetterPdfUrl 
-                        ? "Signed Offer Letter available - Click to view" 
-                        : "Click to preview Offer Letter documents"}
-                    </span>
-                  </div>
-                )}
-              </Card>
-            )}
-
             {/* Onboarding Details */}
             {(candidate.status === "onboarding" || candidate.onboardingDetails?.onboardingComplete) && (
               <OnboardingDetailsView
@@ -2542,7 +2580,7 @@ export default function CandidateDetailPage() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 flex-1 min-h-0">
-                    <iframe
+                    <PdfFrame
                       src={`${candidate.trainingAgreementDetails.signedPdfUrl}#toolbar=1&navpanes=1&scrollbar=1`}
                       className="w-full h-full min-h-[75vh] border-0"
                       title="Signed Training Agreement"
@@ -2587,7 +2625,7 @@ export default function CandidateDetailPage() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-                    <iframe
+                    <PdfFrame
                       src={unsignedTrainingAgreementUrl}
                       className="w-full h-[70vh] border-0"
                       title="Unsigned Training Agreement Preview"
@@ -2617,7 +2655,7 @@ export default function CandidateDetailPage() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 flex-1 min-h-0">
-                    <iframe
+                    <PdfFrame
                       src={`${candidate.onboardingDetails.signedPdfUrl}#toolbar=1&navpanes=1&scrollbar=1`}
                       className="w-full h-full min-h-[75vh] border-0"
                       title="Signed Onboarding Agreement"
@@ -2662,7 +2700,7 @@ export default function CandidateDetailPage() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-                    <iframe
+                    <PdfFrame
                       src={unsignedOnboardingAgreementUrl}
                       className="w-full h-[70vh] border-0"
                       title="Unsigned Onboarding Agreement Preview"
@@ -2692,7 +2730,7 @@ export default function CandidateDetailPage() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 flex-1 min-h-0">
-                    <iframe
+                    <PdfFrame
                       src={`${candidate.trainingAgreementDetails.signedHrPoliciesPdfUrl}#toolbar=1&navpanes=1&scrollbar=1`}
                       className="w-full h-full min-h-[75vh] border-0"
                       title="Signed HR Policies"
@@ -2737,7 +2775,7 @@ export default function CandidateDetailPage() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-                    <iframe
+                    <PdfFrame
                       src={unsignedHrPoliciesUrl}
                       className="w-full h-[70vh] border-0"
                       title="Unsigned HR Policies Preview"
@@ -2767,7 +2805,7 @@ export default function CandidateDetailPage() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 flex-1 min-h-0">
-                    <iframe
+                    <PdfFrame
                       src={`${candidate.trainingAgreementDetails.signedLetterOfIntentPdfUrl}#toolbar=1&navpanes=1&scrollbar=1`}
                       className="w-full h-full min-h-[75vh] border-0"
                       title="Signed Letter of Intent"
@@ -2812,7 +2850,7 @@ export default function CandidateDetailPage() {
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-                    <iframe
+                    <PdfFrame
                       src={unsignedLetterOfIntentUrl || undefined}
                       className="w-full h-[70vh] border-0"
                       title="Unsigned Letter of Intent Preview"
@@ -2838,11 +2876,11 @@ export default function CandidateDetailPage() {
                   <DialogHeader>
                     <DialogTitle className="text-foreground">Signed Offer Letter</DialogTitle>
                     <DialogDescription className="text-muted-foreground">
-                      View and download the signed offer letter document
+                      View and download the signed offer letter
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 flex-1 min-h-0">
-                    <iframe
+                    <PdfFrame
                       src={`${candidate.selectionDetails.signedOfferLetterPdfUrl}#toolbar=1&navpanes=1&scrollbar=1`}
                       className="w-full h-full min-h-[75vh] border-0"
                       title="Signed Offer Letter"
@@ -2881,16 +2919,16 @@ export default function CandidateDetailPage() {
               <Dialog open={showUnsignedOfferLetterPdfDialog} onOpenChange={setShowUnsignedOfferLetterPdfDialog}>
                 <DialogContent className="max-w-5xl max-h-[90vh] bg-white dark:bg-gray-800">
                   <DialogHeader>
-                    <DialogTitle className="text-foreground">Unsigned Offer Letter Preview</DialogTitle>
+                    <DialogTitle className="text-foreground">Offer Letter Preview</DialogTitle>
                     <DialogDescription className="text-muted-foreground">
-                      Preview of the unsigned offer letter document
+                      Preview of the unsigned offer letter
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-                    <iframe
+                    <PdfFrame
                       src={unsignedOfferLetterUrl || undefined}
                       className="w-full h-[70vh] border-0"
-                      title="Unsigned Offer Letter Preview"
+                      title="Offer Letter Preview"
                     />
                   </div>
                   <DialogFooter>
@@ -2947,10 +2985,18 @@ export default function CandidateDetailPage() {
                 <div className="space-y-4 mt-3">
                   {/* Upload Button */}
                   <div className="flex items-center gap-2">
+                    <label
+                      htmlFor="additional-document-upload"
+                      className={`relative flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
+                        uploadingDocuments
+                          ? "opacity-50 cursor-not-allowed"
+                          : "hover:bg-accent border-border"
+                      }`}
+                    >
                     <input
                       type="file"
                       id="additional-document-upload"
-                      className="hidden"
+                      className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                       multiple
                       accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp"
                       onChange={async (e) => {
@@ -3007,14 +3053,6 @@ export default function CandidateDetailPage() {
                       }}
                       disabled={uploadingDocuments}
                     />
-                    <label
-                      htmlFor="additional-document-upload"
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${
-                        uploadingDocuments
-                          ? "opacity-50 cursor-not-allowed"
-                          : "hover:bg-accent border-border"
-                      }`}
-                    >
                       {uploadingDocuments ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -3168,6 +3206,8 @@ export default function CandidateDetailPage() {
             salary: candidate.selectionDetails.salary,
             role: candidate.selectionDetails.role,
             positionType: candidate.selectionDetails.positionType,
+            trainingDate: candidate.selectionDetails.trainingDate,
+            workingHours: candidate.selectionDetails.workingHours,
           } : undefined,
         }}
         onCreated={async () => {
@@ -3230,7 +3270,7 @@ export default function CandidateDetailPage() {
           <DialogHeader>
             <DialogTitle>Schedule Second Round Interview</DialogTitle>
             <DialogDescription>
-              Are you sure you want to schedule a second round interview? This can be done even if the first interview hasn&apos;t been scheduled yet.
+              Schedule a second round only after the first interview is on the calendar.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -3392,6 +3432,25 @@ export default function CandidateDetailPage() {
                 rows={3}
               />
             </div>
+            {calendarConfigured === false ? (
+              <p className="text-sm text-muted-foreground">
+                Google Calendar is not configured. The interview will be saved, and no calendar event will be created.
+              </p>
+            ) : null}
+            {!interviewerEmployeeId || !interviewMode || !interviewDate || (interviewMode === "physical" && !interviewOfficeId) ? (
+              <p className="text-sm text-muted-foreground">
+                Choose{" "}
+                {[
+                  !interviewerEmployeeId ? "an interviewer" : null,
+                  !interviewMode ? "Physical or Virtual" : null,
+                  interviewMode === "physical" && !interviewOfficeId ? "an office" : null,
+                  !interviewDate ? "a date" : null,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}{" "}
+                before scheduling.
+              </p>
+            ) : null}
           </div>
           <DialogFooter>
             <Button
@@ -3411,7 +3470,34 @@ export default function CandidateDetailPage() {
                 (interviewMode === "physical" && !interviewOfficeId)
               }
             >
-              {schedulingInterview ? "Scheduling..." : "Schedule Interview"}
+              {schedulingInterview
+                ? "Scheduling..."
+                : candidate?.interviewDetails?.scheduledDate
+                  ? "Save new time"
+                  : "Schedule Interview"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={cancelInterviewOpen} onOpenChange={setCancelInterviewOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>Cancel interview</DialogTitle>
+            <DialogDescription>
+              Cancel {candidate?.name}&apos;s interview. The date, interviewer, and calendar notice are cleared. Remarks stay on the record.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCancelInterviewOpen(false)}
+              disabled={cancellingInterview}
+            >
+              Keep interview
+            </Button>
+            <Button onClick={handleCancelInterview} disabled={cancellingInterview}>
+              {cancellingInterview ? "Cancelling..." : "Cancel interview"}
             </Button>
           </DialogFooter>
         </DialogContent>

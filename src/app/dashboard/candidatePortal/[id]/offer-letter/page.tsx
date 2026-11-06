@@ -4,7 +4,7 @@ import type React from "react";
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { ArrowLeft, Check, AlertCircle, Loader2, FileText, Eye, Download, Upload } from "lucide-react";
+import { ArrowLeft, Check, AlertCircle, Loader2, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { SignaturePad } from "../../components/signature-pad";
 import { SignaturePreviewModal } from "../../components/signature-preview-modal";
 import axios from "@/util/axios";
-import { PdfFrame } from "@/components/pdf-frame";
 import { parseDashboardPath } from "@/features/people/navigation";
 
 interface Candidate {
@@ -112,10 +111,8 @@ export default function OfferLetterPage() {
   const [unsignedPdfUrl, setUnsignedPdfUrl] = useState<string | null>(null);
   const [signedPdfUrl, setSignedPdfUrl] = useState<string | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
-  const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [hrPoliciesPdfUrl, setHrPoliciesPdfUrl] = useState<string | null>(null);
   const pdfGeneratedRef = useRef(false);
-  const pdfAutoOpenedRef = useRef(false);
 
   useEffect(() => {
     const fetchCandidate = async () => {
@@ -166,7 +163,6 @@ export default function OfferLetterPage() {
       });
       if (candidate.selectionDetails?.signedOfferLetterPdfUrl) {
         setSignedPdfUrl(candidate.selectionDetails.signedOfferLetterPdfUrl);
-        setShowPdfPreview(true);
       }
       return;
     }
@@ -283,7 +279,6 @@ export default function OfferLetterPage() {
     if (candidate.selectionDetails?.signedOfferLetterPdfUrl) {
       setSignedPdfUrl(candidate.selectionDetails.signedOfferLetterPdfUrl);
       setUnsignedPdfUrl(null);
-      setShowPdfPreview(true);
       pdfGeneratedRef.current = true;
       return;
     }
@@ -295,17 +290,6 @@ export default function OfferLetterPage() {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, candidate]);
-
-  // Auto-open PDF preview dialog when PDF is generated (only once)
-  useEffect(() => {
-    if ((unsignedPdfUrl || signedPdfUrl) && !showPdfPreview && !loading && !pdfAutoOpenedRef.current) {
-      const timer = setTimeout(() => {
-        setShowPdfPreview(true);
-        pdfAutoOpenedRef.current = true;
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [unsignedPdfUrl, signedPdfUrl, loading]);
 
   const handleSignatureCapture = (signatureUrl: string) => {
     setPreviewSignature(signatureUrl);
@@ -435,7 +419,7 @@ export default function OfferLetterPage() {
       return;
     }
     if (!documentsReviewed) {
-      setError("Open the offer letter and the HR policies before signing.");
+      setError("Please wait until the offer letter and the HR policies are ready to download.");
       return;
     }
     setError(null);
@@ -500,16 +484,7 @@ export default function OfferLetterPage() {
       // CRITICAL: Use blob URL immediately for preview, then replace with CDN URL after upload
       const signedUrl = URL.createObjectURL(pdfBlob);
       setSignedPdfUrl(signedUrl);
-      setUnsignedPdfUrl(null); // Clear unsigned PDF when signed PDF exists
-      setShowPdfPreview(true); // Open preview dialog to show signed PDF
-
-      // Download signed PDF for user
-      const a = document.createElement("a");
-      a.href = signedUrl;
-      a.download = `Offer-Letter-${candidateId}-Signed.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      setUnsignedPdfUrl(null);
 
       // Upload signed PDF to BunnyCDN
       const pdfFile = new File(
@@ -582,9 +557,6 @@ export default function OfferLetterPage() {
         // Use CDN URL from database (more reliable than blob URL)
         setSignedPdfUrl(updatedCandidate.selectionDetails.signedOfferLetterPdfUrl);
         setUnsignedPdfUrl(null);
-        // Ensure preview dialog stays open to show signed PDF
-        setShowPdfPreview(true);
-        console.log("✅ Updated signed PDF URL from database:", updatedCandidate.selectionDetails.signedOfferLetterPdfUrl);
       }
 
       // Refresh candidate data from database to ensure we have latest state
@@ -606,10 +578,7 @@ export default function OfferLetterPage() {
             // CRITICAL: Always load signed PDF from database if available
             if (refreshedCandidate.selectionDetails?.signedOfferLetterPdfUrl) {
               setSignedPdfUrl(refreshedCandidate.selectionDetails.signedOfferLetterPdfUrl);
-              setUnsignedPdfUrl(null); // Clear unsigned PDF
-              // Keep preview dialog open to show signed PDF
-              setShowPdfPreview(true);
-              console.log("✅ Loaded signed Offer Letter PDF from database after refresh:", refreshedCandidate.selectionDetails.signedOfferLetterPdfUrl);
+              setUnsignedPdfUrl(null);
             }
           }
         } catch (refreshErr) {
@@ -763,126 +732,81 @@ export default function OfferLetterPage() {
             </div>
           </Card>
 
-          {/* PDF Preview Section */}
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-full bg-teal-600 dark:bg-teal-500 text-white flex items-center justify-center text-sm font-semibold">
                 2
               </div>
               <h2 className="text-lg font-semibold text-foreground">
-                Offer Letter Document Preview
+                Documents
               </h2>
-              {signedPdfUrl && (
+              {signedPdfUrl && hrPoliciesPdfUrl && (
                 <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-800">
                   Signed
                 </Badge>
               )}
             </div>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                {signedPdfUrl 
-                  ? "Your signed offer letter. This is the final signed version with your signature embedded."
-                  : "Preview and download the unsigned offer letter before signing. The document contains blank signature placeholders where signatures can be made."}
-              </p>
-              
-              {generatingPdf && (
-                <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50">
-                  <div className="text-center">
-                    <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Generating PDF preview...</p>
-                  </div>
-                </div>
-              )}
-
-              {!generatingPdf && !unsignedPdfUrl && !signedPdfUrl && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={generateUnsignedPdf}
-                  className="w-full dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Generate PDF Preview
-                </Button>
-              )}
-
-              {(signedPdfUrl || unsignedPdfUrl) && !generatingPdf && (
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      const url = signedPdfUrl || unsignedPdfUrl;
-                      if (!url) return;
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = signedPdfUrl
-                        ? `Offer-Letter-${candidateId}-Signed.pdf`
-                        : `Offer-Letter-${candidateId}-Unsigned.pdf`;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                    }}
-                    className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Download {signedPdfUrl ? "Signed PDF" : "PDF"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowPdfPreview(true)}
-                    className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    View Full Screen
-                  </Button>
-                </div>
-              )}
-              
-              {(signedPdfUrl || unsignedPdfUrl) && !generatingPdf && (
-                <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-                  {/* CRITICAL: Always prioritize signed PDF - once signed, never show unsigned */}
-                  <PdfFrame
-                    src={signedPdfUrl || unsignedPdfUrl || ""}
-                    className="w-full h-[500px] border-0"
-                    title={signedPdfUrl ? "Signed PDF Preview" : "PDF Preview"}
-                  />
-                  {signedPdfUrl && (
-                    <div className="p-2 bg-green-50 dark:bg-green-950/40 border-t border-green-200 dark:border-green-800">
-                      <p className="text-xs text-green-700 dark:text-green-400 flex items-center gap-1">
-                        <Check className="w-3 h-3" />
-                        This is the final signed document with your signature embedded.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-              
-              {!generatingPdf && !unsignedPdfUrl && !signedPdfUrl && (
-                <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50">
-                  <div className="text-center">
-                    <FileText className="w-8 h-8 text-gray-400 dark:text-gray-500 mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">PDF preview will appear here</p>
-                  </div>
-                </div>
-              )}
+            <p className="text-sm text-muted-foreground mb-4">
+              Download both documents and read them before you sign.
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={generatingPdf || !(signedPdfUrl || unsignedPdfUrl)}
+                onClick={() => {
+                  const url = signedPdfUrl || unsignedPdfUrl;
+                  if (!url) return;
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = signedPdfUrl
+                    ? `Offer-Letter-${candidateId}-Signed.pdf`
+                    : `Offer-Letter-${candidateId}.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }}
+                className="flex-1 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+              >
+                {generatingPdf && !signedPdfUrl && !unsignedPdfUrl ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Download {signedPdfUrl ? "signed " : ""}offer letter
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!hrPoliciesPdfUrl}
+                onClick={() => {
+                  if (!hrPoliciesPdfUrl) return;
+                  const a = document.createElement("a");
+                  a.href = hrPoliciesPdfUrl;
+                  a.download = documentsSigned
+                    ? `HR-Policies-${candidateId}-Signed.pdf`
+                    : `HR-Policies-${candidateId}.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }}
+                className="flex-1 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+              >
+                {generatingPdf && !hrPoliciesPdfUrl ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Download {documentsSigned ? "signed " : ""}HR policies
+              </Button>
             </div>
           </Card>
 
-          {hrPoliciesPdfUrl ? (
-            <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold text-foreground mb-2">HR Policies</h2>
-              <p className="text-sm text-muted-foreground mb-4">
-                The same signature applies to the HR policies.
-              </p>
-              <PdfFrame
-                src={hrPoliciesPdfUrl}
-                className="w-full h-[420px] border-0"
-                title="HR Policies"
-              />
-            </Card>
-          ) : null}
+          {!documentsSigned && !success && (
+            <p className="text-sm font-medium leading-6 text-red-600 dark:text-red-400">
+              Please read the Offer Letter and the HR Policies in full before you sign. By providing your signature, you confirm that you have read both documents and that this signature applies to the Offer Letter and the HR Policies.
+            </p>
+          )}
 
           {/* Digital Signature */}
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
@@ -1040,7 +964,7 @@ export default function OfferLetterPage() {
             </p>
           ) : !documentsReviewed ? (
             <p className="text-sm text-amber-700 dark:text-amber-400">
-              Open the offer letter and the HR policies before you can sign.
+              The offer letter and the HR policies are being prepared for download.
             </p>
           ) : null}
 
@@ -1128,81 +1052,6 @@ export default function OfferLetterPage() {
           </DialogContent>
         </Dialog>
 
-        {/* PDF Preview Dialog */}
-        <Dialog 
-          open={showPdfPreview} 
-          onOpenChange={(open) => {
-            setShowPdfPreview(open);
-            if (!open) {
-              pdfAutoOpenedRef.current = false;
-            }
-          }}
-        >
-          <DialogContent className="max-w-5xl max-h-[90vh] bg-white dark:bg-gray-800">
-            <DialogHeader>
-              <DialogTitle className="text-foreground">
-                {signedPdfUrl ? "Signed Offer Letter" : "Offer Letter Preview"}
-              </DialogTitle>
-              <DialogDescription className="text-muted-foreground">
-                {signedPdfUrl 
-                  ? "Your signed offer letter. This will be saved after submission."
-                  : "Preview of the unsigned offer letter. Please review before signing."}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="mt-4 border rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900">
-              {/* CRITICAL: Always prioritize signed PDF - once signed, never show unsigned */}
-              {(signedPdfUrl || unsignedPdfUrl) && (
-                <PdfFrame
-                  src={signedPdfUrl || unsignedPdfUrl || ""}
-                  className="w-full h-[70vh] border-0"
-                  title={signedPdfUrl ? "Signed Offer Letter" : "Offer Letter Preview"}
-                />
-              )}
-              {signedPdfUrl && (
-                <div className="p-2 bg-green-50 dark:bg-green-950/40 border-t border-green-200 dark:border-green-800">
-                  <p className="text-xs text-green-700 dark:text-green-400 flex items-center gap-1">
-                    <Check className="w-3 h-3" />
-                    This is the final signed document with your signature embedded.
-                  </p>
-                </div>
-              )}
-            </div>
-            <div className="flex justify-end gap-2 mt-4">
-              {(unsignedPdfUrl || signedPdfUrl) && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    const url = signedPdfUrl || unsignedPdfUrl;
-                    if (!url) return;
-                    const a = document.createElement("a");
-                    a.href = url;
-                    a.download = signedPdfUrl 
-                      ? `Offer-Letter-${candidateId}-Signed.pdf`
-                      : `Offer-Letter-${candidateId}-Unsigned.pdf`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                  }}
-                  className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Download PDF
-                </Button>
-              )}
-              <Button
-                type="button"
-                onClick={() => {
-                  setShowPdfPreview(false);
-                  pdfAutoOpenedRef.current = false;
-                }}
-                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
-              >
-                Close
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );

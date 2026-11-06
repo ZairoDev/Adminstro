@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import { CelebrationView } from "@/components/CelebrationView";
 import { CelebrationNotification } from "@/components/CelebrationNotification";
-import { PersonalReminderBanner } from "@/components/reminders/PersonalReminderBanner";
 import { TodaysEvents } from "@/util/getTodaysEvents";
 import { toast } from "sonner";
 import { Cake, PartyPopper } from "lucide-react";
@@ -177,8 +176,6 @@ const Dashboard = () => {
             onViewDetails={handleViewCelebrationDetails}
           />
         )}
-
-      <PersonalReminderBanner />
 
       <div
         className="mb-6 perspective-1000"

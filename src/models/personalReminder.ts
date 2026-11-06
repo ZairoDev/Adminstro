@@ -12,6 +12,9 @@ export interface IPersonalReminder extends Document {
   dismissedAt: Date | null;
   whatsappConversationId?: mongoose.Types.ObjectId | null;
   leadQueryId?: mongoose.Types.ObjectId | null;
+  source?: "manual" | "interview";
+  candidateId?: mongoose.Types.ObjectId | null;
+  interviewRound?: "first" | "second" | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -67,12 +70,35 @@ const personalReminderSchema = new Schema<IPersonalReminder>(
       default: null,
       index: true,
     },
+    source: {
+      type: String,
+      enum: ["manual", "interview"],
+      default: "manual",
+    },
+    candidateId: {
+      type: Schema.Types.ObjectId,
+      ref: "Candidate",
+      default: null,
+    },
+    interviewRound: {
+      type: String,
+      enum: ["first", "second"],
+      default: null,
+    },
   },
   { timestamps: true },
 );
 
 personalReminderSchema.index({ employeeId: 1, scheduledAt: 1 });
 personalReminderSchema.index({ status: 1, scheduledAt: 1, emailSentAt: 1 });
+personalReminderSchema.index(
+  { candidateId: 1, interviewRound: 1 },
+  { unique: true, partialFilterExpression: { source: "interview" } },
+);
+
+if (process.env.NODE_ENV !== "production" && mongoose.models.PersonalReminder) {
+  mongoose.deleteModel("PersonalReminder");
+}
 
 const PersonalReminder =
   mongoose.models.PersonalReminder ||

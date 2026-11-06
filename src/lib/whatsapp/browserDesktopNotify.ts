@@ -28,6 +28,7 @@ export type ShowDesktopNotificationInput = {
   body?: string;
   /** Dedup / replace: same tag updates single notification in many browsers. */
   tag?: string;
+  icon?: string;
   requireInteraction?: boolean;
 };
 
@@ -39,6 +40,7 @@ export function showDesktopNotification(input: ShowDesktopNotificationInput): No
     return new Notification(input.title, {
       body: input.body,
       tag: input.tag,
+      icon: input.icon,
       requireInteraction: input.requireInteraction ?? false,
       silent: false,
     });

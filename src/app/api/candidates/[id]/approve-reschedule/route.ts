@@ -133,6 +133,9 @@ export async function PATCH(
           position: updatedCandidate.position,
           interviewerName: details?.interviewerName || "",
           interviewerEmail: details?.interviewerEmail || "",
+          interviewerEmployeeId: details?.interviewerEmployeeId
+            ? String(details.interviewerEmployeeId)
+            : "",
           scheduledDate: rescheduleRequest.requestedDate as string,
           scheduledTime: requestedTime || "",
           interviewMode,

@@ -80,7 +80,9 @@ const config: Config = {
   			'border-beam': 'border-beam calc(var(--duration)*1s) infinite linear',
   			rainbow: 'rainbow var(--speed, 2s) infinite linear',
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'reminder-bell': 'reminder-bell 2.4s ease-in-out 0.45s infinite',
+  			'reminder-glow': 'reminder-glow 2.4s ease-in-out 0.45s infinite'
   		},
   		keyframes: {
   			'border-beam': {
@@ -110,6 +112,22 @@ const config: Config = {
   				},
   				to: {
   					height: '0'
+  				}
+  			},
+  			'reminder-bell': {
+  				'0%, 55%, 100%': { transform: 'rotate(0deg)' },
+  				'62%': { transform: 'rotate(18deg)' },
+  				'68%': { transform: 'rotate(-16deg)' },
+  				'74%': { transform: 'rotate(12deg)' },
+  				'80%': { transform: 'rotate(-8deg)' },
+  				'86%': { transform: 'rotate(0deg)' }
+  			},
+  			'reminder-glow': {
+  				'0%, 55%, 100%': {
+  					boxShadow: '0 8px 28px rgba(0,0,0,0.18), 0 0 0 0 rgba(220,38,38,0)'
+  				},
+  				'74%': {
+  					boxShadow: '0 8px 28px rgba(0,0,0,0.18), 0 0 0 4px rgba(220,38,38,0.28)'
   				}
   			}
   		},

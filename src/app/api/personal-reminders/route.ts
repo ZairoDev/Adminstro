@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import PersonalReminder from "@/models/personalReminder";
 import { connectDb } from "@/util/db";
 import { createPersonalReminderSchema } from "@/schemas/personalReminder.schema";
+import { ensureInterviewRemindersForEmployee } from "@/lib/interviews/syncInterviewReminder";
 import { getEmployeeIdFromRequest } from "./_auth";
 
 export async function GET(request: NextRequest) {
@@ -12,6 +13,7 @@ export async function GET(request: NextRequest) {
 
   try {
     await connectDb();
+    await ensureInterviewRemindersForEmployee(auth.employeeId);
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");

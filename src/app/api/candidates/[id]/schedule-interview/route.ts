@@ -194,6 +194,7 @@ export async function PATCH(
         position: updatedCandidate.position,
         interviewerName: interviewer.name,
         interviewerEmail: interviewer.email,
+        interviewerEmployeeId: interviewer.id,
         scheduledDate,
         scheduledTime,
         interviewMode,

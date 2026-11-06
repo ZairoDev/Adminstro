@@ -13,6 +13,10 @@ import {
   type InterviewMode,
   type InterviewRound,
 } from "@/lib/calendar/googleCalendar";
+import {
+  cancelInterviewReminder,
+  upsertInterviewReminder,
+} from "@/lib/interviews/syncInterviewReminder";
 import type { CandidateEmailStatus } from "@/lib/email/types";
 
 const HR_INBOX = JOB_APPLICATION_HR_INBOX;
@@ -25,6 +29,7 @@ export interface InterviewPartyNotice {
   position: string;
   interviewerName: string;
   interviewerEmail: string;
+  interviewerEmployeeId?: string | null;
   scheduledDate: string;
   scheduledTime: string;
   interviewMode: InterviewMode;
@@ -226,6 +231,27 @@ async function publishLiveInterview(
     console.error("Failed to store interview calendar result:", error);
   }
 
+  try {
+    const interviewerEmployeeId = notice.interviewerEmployeeId?.trim() ?? "";
+    if (interviewerEmployeeId) {
+      await upsertInterviewReminder({
+        employeeId: interviewerEmployeeId,
+        candidateId: notice.candidateId,
+        round: notice.round,
+        candidateName: notice.candidateName,
+        position: notice.position,
+        scheduledDate: notice.scheduledDate,
+        scheduledTime: notice.scheduledTime,
+        interviewMode: notice.interviewMode,
+        officeName: notice.officeName,
+        googleMeetLink: result.meetLink,
+        notes: notice.notes,
+      });
+    }
+  } catch (error: unknown) {
+    console.error("Failed to save interviewer reminder:", error);
+  }
+
   await deliverNotice(notice, kind, result.meetLink, result.addToCalendarLink);
 }
 
@@ -281,6 +307,12 @@ async function cancelRound(
   round: InterviewRound,
   details: StoredInterviewRound | null
 ): Promise<void> {
+  try {
+    await cancelInterviewReminder(candidateId, round);
+  } catch (error: unknown) {
+    console.error("Failed to cancel interviewer reminder:", error);
+  }
+
   if (!details?.scheduledDate) return;
 
   const scheduledDate = toInterviewDateKey(details.scheduledDate);

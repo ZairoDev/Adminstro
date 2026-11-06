@@ -21,7 +21,10 @@ import { useRouter } from "next/navigation";
 import { MonthlyTargetGate } from "@/components/monthly-target/MonthlyTargetGate";
 import { VisitOverdueProvider } from "@/components/visits/VisitOverdueContext";
 import { VisitStatusGate } from "@/components/visits/VisitStatusGate";
-import { PersonalReminderNavBell } from "@/components/reminders/PersonalReminderBanner";
+import {
+  PersonalReminderBanner,
+  PersonalReminderNavBell,
+} from "@/components/reminders/PersonalReminderBanner";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { CrmAgentChatDrawer } from "@/components/crm-agent/CrmAgentChatDrawer";
 
@@ -201,6 +204,7 @@ export default function DashboardLayout({
       <ScrollToTopButton />
       {token && !isHousingCollaborator && <CrmAgentChatDrawer />}
       {/* Global System Notification Toast - Visible on all pages (includes WhatsApp messages) */}
+      {token && !isHousingCollaborator && <PersonalReminderBanner />}
       {token && !isHousingCollaborator && <SystemNotificationToast />}
     </div>
     </VisitOverdueProvider>

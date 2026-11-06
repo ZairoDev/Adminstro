@@ -4,8 +4,11 @@ import Employees from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { sendPersonalReminderEmail } from "@/lib/email";
 import { lockEmployeesWithOverduePips } from "@/lib/employee/pipAutoLock";
-
-const DEFAULT_CRON = "*/5 * * * *";
+import {
+  PERSONAL_REMINDER_DEFAULT_CRON,
+  PERSONAL_REMINDER_EMAIL_LEAD_MS,
+  personalReminderEmailDueBefore,
+} from "@/util/personalReminderTiming";
 
 function formatScheduledAt(date: Date): string {
   return date.toLocaleString("en-GB", {
@@ -32,9 +35,11 @@ export async function processDuePersonalReminders(): Promise<void> {
   }
 
   const now = new Date();
+  // Send before the scheduled time so SMTP delay still lands near that time.
+  // The dashboard notification stays on scheduledAt and is independent of this send.
   const due = await PersonalReminder.find({
     status: "pending",
-    scheduledAt: { $lte: now },
+    scheduledAt: { $lte: personalReminderEmailDueBefore(now) },
     emailSentAt: null,
   })
     .limit(50)
@@ -99,7 +104,7 @@ export async function processDuePersonalReminders(): Promise<void> {
 }
 
 export const startPersonalReminderScheduler = () => {
-  const expression = process.env.PERSONAL_REMINDER_CRON ?? DEFAULT_CRON;
+  const expression = process.env.PERSONAL_REMINDER_CRON ?? PERSONAL_REMINDER_DEFAULT_CRON;
 
   cron.schedule(expression, async () => {
     try {
@@ -112,5 +117,7 @@ export const startPersonalReminderScheduler = () => {
   console.log(
     "[personal-reminder] Scheduler started | cron:",
     expression,
+    "| email lead minutes:",
+    PERSONAL_REMINDER_EMAIL_LEAD_MS / 60000,
   );
 };

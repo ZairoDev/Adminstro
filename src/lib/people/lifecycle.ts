@@ -65,7 +65,8 @@ export function canRejectFromOnboarding(c: MinimalCandidate): boolean {
   return c.status === "onboarding" && !c.employeeId && !c.exitedAt;
 }
 
-type SelectedDocumentCandidate = MinimalCandidate & {
+type SelectedDocumentCandidate = {
+  status: string;
   selectionDetails?: {
     signedOfferLetterPdfUrl?: string | null;
     offerLetterSigned?: boolean | null;

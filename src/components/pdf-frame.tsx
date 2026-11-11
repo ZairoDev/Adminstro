@@ -31,7 +31,8 @@ function isSafariBrowser(): boolean {
 }
 
 function loadPdfJs() {
-  return import("pdfjs-dist/build/pdf");
+  // Use package main entry — Next/webpack failed to resolve `pdfjs-dist/build/pdf`.
+  return import("pdfjs-dist");
 }
 
 export function PdfFrame({
@@ -164,8 +165,14 @@ function CanvasPdf({
       try {
         const pdfjs = await loadPdfJs();
         const bytes = new Uint8Array(await (await fetch(src)).arrayBuffer());
-        task = pdfjs.getDocument({ data: bytes, disableWorker: true });
-        const pdf = await task.promise;
+        // Local PdfLoadingTask is a minimal shim; pdfjs-dist types are wider.
+        // disableWorker is supported at runtime for Safari blob previews.
+        const loadingTask = pdfjs.getDocument({
+          data: bytes,
+          disableWorker: true,
+        } as Parameters<typeof pdfjs.getDocument>[0]) as unknown as PdfLoadingTask;
+        task = loadingTask;
+        const pdf = await loadingTask.promise;
         if (cancelled) {
           await pdf.destroy();
           return;

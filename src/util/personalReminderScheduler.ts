@@ -5,6 +5,7 @@ import { connectDb } from "@/util/db";
 import { sendPersonalReminderEmail } from "@/lib/email";
 import { lockEmployeesWithOverduePips } from "@/lib/employee/pipAutoLock";
 import {
+  INTERVIEW_REMINDER_EMAIL_LEAD_MS,
   PERSONAL_REMINDER_DEFAULT_CRON,
   PERSONAL_REMINDER_EMAIL_LEAD_MS,
   personalReminderEmailDueBefore,
@@ -36,11 +37,26 @@ export async function processDuePersonalReminders(): Promise<void> {
 
   const now = new Date();
   // Send before the scheduled time so SMTP delay still lands near that time.
+  // Interview emails leave earlier (15m); personal/manual stay at 5m.
   // The dashboard notification stays on scheduledAt and is independent of this send.
+  const personalDueBefore = personalReminderEmailDueBefore(
+    now,
+    PERSONAL_REMINDER_EMAIL_LEAD_MS,
+  );
+  const interviewDueBefore = personalReminderEmailDueBefore(
+    now,
+    INTERVIEW_REMINDER_EMAIL_LEAD_MS,
+  );
   const due = await PersonalReminder.find({
     status: "pending",
-    scheduledAt: { $lte: personalReminderEmailDueBefore(now) },
     emailSentAt: null,
+    $or: [
+      { source: "interview", scheduledAt: { $lte: interviewDueBefore } },
+      {
+        source: { $ne: "interview" },
+        scheduledAt: { $lte: personalDueBefore },
+      },
+    ],
   })
     .limit(50)
     .lean();
@@ -117,7 +133,9 @@ export const startPersonalReminderScheduler = () => {
   console.log(
     "[personal-reminder] Scheduler started | cron:",
     expression,
-    "| email lead minutes:",
+    "| personal email lead minutes:",
     PERSONAL_REMINDER_EMAIL_LEAD_MS / 60000,
+    "| interview email lead minutes:",
+    INTERVIEW_REMINDER_EMAIL_LEAD_MS / 60000,
   );
 };

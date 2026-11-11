@@ -1,8 +1,19 @@
-/** Hand the email to the mail server this long before the scheduled time. */
+/** Hand the email to the mail server this long before a personal reminder. */
 export const PERSONAL_REMINDER_EMAIL_LEAD_MS = 5 * 60 * 1000;
 
-/** One-minute cron so the 5-minute lead is hit within about a minute. */
+/** Interview reminders get a longer email head start. */
+export const INTERVIEW_REMINDER_EMAIL_LEAD_MS = 15 * 60 * 1000;
+
+/** One-minute cron so the email lead is hit within about a minute. */
 export const PERSONAL_REMINDER_DEFAULT_CRON = "* * * * *";
+
+export type PersonalReminderEmailSource = "manual" | "interview" | string | null | undefined;
+
+export function emailLeadMsForSource(source?: PersonalReminderEmailSource): number {
+  return source === "interview"
+    ? INTERVIEW_REMINDER_EMAIL_LEAD_MS
+    : PERSONAL_REMINDER_EMAIL_LEAD_MS;
+}
 
 export function personalReminderEmailDueBefore(
   now: Date,

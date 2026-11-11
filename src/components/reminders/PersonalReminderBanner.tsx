@@ -55,6 +55,8 @@ function markAnnounced(id: string) {
 
 let chimeEl: HTMLAudioElement | null = null;
 let chimeBlocked = false;
+/** True when a due reminder tried to chime before the browser allowed audio. */
+let pendingChime = false;
 
 function getChime() {
   if (!chimeEl) {
@@ -69,25 +71,35 @@ function playReminderChime() {
   const audio = getChime();
   audio.currentTime = 0;
   const attempt = audio.play();
-  if (!attempt) return;
+  if (!attempt) {
+    pendingChime = true;
+    return;
+  }
   void attempt.then(() => {
     chimeBlocked = false;
+    pendingChime = false;
   }).catch(() => {
+    // Chrome/Edge block autoplay until the tab gets a real click/key press.
     chimeBlocked = true;
+    pendingChime = true;
   });
 }
 
 function unlockReminderChime() {
   const audio = getChime();
-  if (chimeBlocked) {
+  if (pendingChime || chimeBlocked) {
     playReminderChime();
     return;
   }
+  // Prime autoplay permission with a silent play/pause on first user gesture.
   const attempt = audio.play();
   void attempt?.then(() => {
+    chimeBlocked = false;
     audio.pause();
     audio.currentTime = 0;
-  }).catch(() => {});
+  }).catch(() => {
+    chimeBlocked = true;
+  });
 }
 
 interface DueRemindersCache {
@@ -114,18 +126,24 @@ export function PersonalReminderBanner() {
   }, []);
 
   useEffect(() => {
-    if (!isDesktopNotificationSupported() || Notification.permission !== "default") return;
-    const ask = () => {
+    // Browsers require a user gesture before any chime can play. Unlock on the
+    // first click/key even when notification permission was already decided.
+    const unlock = () => {
       unlockReminderChime();
-      void requestDesktopNotificationPermission();
-      window.removeEventListener("pointerdown", ask);
-      window.removeEventListener("keydown", ask);
+      if (
+        isDesktopNotificationSupported() &&
+        Notification.permission === "default"
+      ) {
+        void requestDesktopNotificationPermission();
+      }
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
     };
-    window.addEventListener("pointerdown", ask);
-    window.addEventListener("keydown", ask);
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
     return () => {
-      window.removeEventListener("pointerdown", ask);
-      window.removeEventListener("keydown", ask);
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
     };
   }, []);
 
@@ -214,6 +232,7 @@ async function showReminderDesktopNotification(reminder: PersonalReminderItem) {
         }),
       ]);
       if (registration) {
+        // `actions` is valid for service-worker notifications; DOM typings omit it.
         await registration.showNotification(title, {
           body,
           tag,
@@ -226,7 +245,7 @@ async function showReminderDesktopNotification(reminder: PersonalReminderItem) {
             { action: "open", title: "View reminder" },
             { action: "dismiss", title: "Dismiss" },
           ],
-        });
+        } as NotificationOptions);
         return;
       }
     }

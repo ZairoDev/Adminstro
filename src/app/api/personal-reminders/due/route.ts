@@ -29,6 +29,16 @@ export async function GET(request: NextRequest) {
     // time arrives, without resurfacing older reminders that were already mailed.
     const sentSince = new Date(now.getTime() - 48 * 60 * 60 * 1000);
 
+    type DueReminderLean = {
+      _id: mongoose.Types.ObjectId;
+      scheduledAt: Date;
+      status?: string;
+      title?: string;
+      note?: string;
+      dismissedAt?: Date | null;
+      source?: string | null;
+    };
+
     const reminders = (
       await PersonalReminder.find({
         employeeId,
@@ -39,7 +49,7 @@ export async function GET(request: NextRequest) {
         ],
       })
         .sort({ scheduledAt: 1 })
-        .lean()
+        .lean<DueReminderLean[]>()
     ).filter((reminder) =>
       isPersonalReminderNotificationDue(new Date(reminder.scheduledAt), now),
     );
@@ -52,7 +62,7 @@ export async function GET(request: NextRequest) {
     })
       .sort({ scheduledAt: 1 })
       .select("scheduledAt")
-      .lean();
+      .lean<{ scheduledAt: Date } | null>();
 
     const overdue = reminders.filter(
       (r) => new Date(r.scheduledAt).getTime() < todayStart.getTime(),

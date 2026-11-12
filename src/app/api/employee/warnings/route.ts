@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
 // Send warning email and store in database
 export async function POST(request: NextRequest) {
   try {
-    await getDataFromToken(request);
+    const token = await getDataFromToken(request);
+    const senderId = token.id as string;
     await connectDb();
     const {
       employeeId,
@@ -59,15 +60,18 @@ export async function POST(request: NextRequest) {
         );
         emailSent = emailResult.success;
       } else {
-        const emailResult = await sendWarningEmail({
-          to: employee.email,
-          employeeName: employee.name,
-          warningType: warningType as WarningType,
-          department,
-          reportingManager,
-          date,
-          dateTime: date, // For combined warning
-        });
+        const emailResult = await sendWarningEmail(
+          {
+            to: employee.email,
+            employeeName: employee.name,
+            warningType: warningType as WarningType,
+            department,
+            reportingManager,
+            date,
+            dateTime: date, // For combined warning
+          },
+          senderId
+        );
         emailSent = emailResult.success;
       }
     }

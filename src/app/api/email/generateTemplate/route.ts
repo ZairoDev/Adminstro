@@ -7,9 +7,12 @@ import {
   getPIPCompletionEmailTemplate,
 } from "@/lib/email";
 import { WarningType, PIPLevel, AppreciationType } from "@/lib/email/types";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(request: NextRequest) {
   try {
+    const token = await getDataFromToken(request);
+    const senderId = token.id as string;
     const { type, payload } = await request.json();
 
     if (!type || !payload) {
@@ -19,8 +22,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch active HR employee for signature
-    const hrEmployee = await getActiveHREmployee();
+    // Signature name/title = logged-in sender (HR / SuperAdmin)
+    const hrEmployee = await getActiveHREmployee(senderId);
 
     let template;
 
@@ -93,10 +96,17 @@ export async function POST(request: NextRequest) {
       subject: template.subject,
       html: template.html,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string; message?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 }
+      );
+    }
     console.error("Template generation error:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to generate email template" },
+      { error: err?.message || "Failed to generate email template" },
       { status: 500 }
     );
   }

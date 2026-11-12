@@ -88,11 +88,12 @@ export async function sendCandidateEmail(
 
 // Send Warning Email
 export async function sendWarningEmail(
-  payload: WarningEmailPayload
+  payload: WarningEmailPayload,
+  senderId?: string | null
 ): Promise<EmailResponse> {
   try {
-    // Fetch active HR employee for signature
-    const hrEmployee = await getActiveHREmployee();
+    // Signature uses the logged-in sender when available
+    const hrEmployee = await getActiveHREmployee(senderId);
     const { subject, html } = getWarningEmailTemplate(payload, hrEmployee);
     const transporter = await createTransporterHR();
 

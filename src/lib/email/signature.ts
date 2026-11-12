@@ -8,21 +8,11 @@ export interface EmailSignatureConfig {
   logoUrl?: string;
 }
 
-// Get logo URL - use environment variable or default to hosted/public URL
+// Get logo URL - env override, else CDN asset used in signatures
 const getLogoUrl = (): string => {
-  // Use environment variable for logo URL, or construct from base URL
-  const logoUrl = process.env.NEXT_PUBLIC_LOGO_URL;
-  if (logoUrl) return logoUrl;
-  
-  // Try to construct from base URL
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || process.env.VERCEL_URL;
-  if (baseUrl) {
-    const protocol = baseUrl.startsWith("http") ? "" : "https://";
-    return `${protocol}${baseUrl}/zairo1.png`;
-  }
-  
-  // Fallback to a default domain (update this with your actual domain)
-  return "https://zairointernational.com/zairo1.png";
+  const envLogoUrl = process.env.NEXT_PUBLIC_LOGO_URL;
+  if (envLogoUrl) return envLogoUrl;
+  return "https://vacationsaga.b-cdn.net/zairo1.png";
 };
 
 export const getEmailSignature = (config?: EmailSignatureConfig): string => {
@@ -30,7 +20,7 @@ export const getEmailSignature = (config?: EmailSignatureConfig): string => {
     name = "Zairo International",
     title = "HR Manager",
     website = "zairointernational.com",
-    email = "hr.zairointernational@gmail.com",
+    email = "hr@zairointl.com",
     phone = "+919519803665",
     logoUrl,
   } = config || {};
@@ -43,16 +33,25 @@ export const getEmailSignature = (config?: EmailSignatureConfig): string => {
       : website;
 
   const logo = logoUrl || getLogoUrl();
+  // Email clients often ignore CSS-only image sizing and show the PNG at
+  // full native size. HTML width/height attributes are required.
+  const logoSize = 72;
 
   return `
-    <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid #e5e7eb;">
-      <table style="width: 100%; border-collapse: collapse; max-width: 600px;">
+    <div data-zairo-signature="1" style="margin-top: 32px; padding-top: 20px; border-top: 1px solid #e5e7eb; max-width: 600px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 600px; border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt;">
         <tr>
-          <td style="width: 120px; vertical-align: top; padding-right: 20px;">
-            <img src="https://vacationsaga.b-cdn.net/zairo1.png" alt="  airo International" style="width: 100px; height: auto; display: block; backgrou nd-color: #fff;" />
-          </td>   
-          <td style="vertical-align: top; padding-left: 20px;">
-            <table style="width: 100%; border-collapse: collapse;">
+          <td width="${logoSize}" valign="top" style="width: ${logoSize}px; max-width: ${logoSize}px; vertical-align: top; padding: 0 16px 0 0;">
+            <img
+              src="${logo}"
+              alt="Zairo International"
+              width="${logoSize}"
+              height="${logoSize}"
+              style="width: ${logoSize}px; max-width: ${logoSize}px; height: auto; display: block; border: 0; outline: none; text-decoration: none; background-color: #ffffff;"
+            />
+          </td>
+          <td valign="top" style="vertical-align: top; padding: 0;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: collapse;">
               <tr>
                 <td style="padding: 0;">
                   <p style="margin: 0; font-size: 16px; font-weight: 700; color: #1f2937; font-family: 'Segoe UI', Arial, sans-serif;">
@@ -69,24 +68,24 @@ export const getEmailSignature = (config?: EmailSignatureConfig): string => {
               </tr>
               <tr>
                 <td style="padding: 12px 0 0 0;">
-                  <p style="margin: 0; font-size: 13px; color: #374151; font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6;">
-                    <strong style="color: #1f2937;">Website:</strong> 
+                  <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #374151; font-family: 'Segoe UI', Arial, sans-serif;">
+                    <strong style="color: #1f2937;">Website:</strong>
                     <span style="color: #1f2937;">${websiteDisplay}</span>
                   </p>
                 </td>
               </tr>
               <tr>
                 <td style="padding: 4px 0 0 0;">
-                  <p style="margin: 0; font-size: 13px; color: #374151; font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6;">
-                    <strong style="color: #1f2937;">Email:</strong> 
+                  <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #374151; font-family: 'Segoe UI', Arial, sans-serif;">
+                    <strong style="color: #1f2937;">Email:</strong>
                     <a href="mailto:${email}" style="color: #2563eb; text-decoration: underline;">${email}</a>
                   </p>
                 </td>
               </tr>
               <tr>
                 <td style="padding: 4px 0 0 0;">
-                  <p style="margin: 0; font-size: 13px; color: #374151; font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6;">
-                    <strong style="color: #1f2937;">Phone:</strong> 
+                  <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #374151; font-family: 'Segoe UI', Arial, sans-serif;">
+                    <strong style="color: #1f2937;">Phone:</strong>
                     <a href="tel:${phone}" style="color: #1f2937; text-decoration: none;">${phone}</a>
                   </p>
                 </td>

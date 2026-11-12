@@ -563,6 +563,30 @@
   -webkit-backface-visibility: hidden;
 }
 
+/* 3D extruded digits for not-found page */
+.not-found-digit {
+  transform-style: preserve-3d;
+  position: relative;
+  display: inline-block;
+}
+
+.not-found-digit__face,
+.not-found-digit__extrude {
+  font-variant-numeric: tabular-nums;
+  transform-style: preserve-3d;
+}
+
+.not-found-digit__extrude {
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .not-found-digit {
+    transform: none !important;
+  }
+}
+
 /* WhatsApp Web specific styles */
 @layer utilities {
   /* Smooth scrolling */

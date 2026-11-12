@@ -42,6 +42,15 @@ interface EmailPreviewDialogProps {
   recipientEmail: string;
 }
 
+/** Signature root — prefer stable marker; keep legacy style selectors as fallback. */
+function findSignatureEl(root: ParentNode): Element | null {
+  return (
+    root.querySelector("[data-zairo-signature='1']") ||
+    root.querySelector('div[style*="margin-top: 32px"]') ||
+    root.querySelector('div[style*="margin-top: 40px"]')
+  );
+}
+
 export function EmailPreviewDialog({
   open,
   onOpenChange,
@@ -86,29 +95,20 @@ export function EmailPreviewDialog({
       const contentDiv = doc.querySelector('div[style*="padding:35px"], div[style*="padding: 35px"]');
       
       if (contentDiv) {
-        // Find signature div (has margin-top: 40px and border-top)
-        const signatureDiv = contentDiv.querySelector('div[style*="margin-top: 40px"]');
-        
-        // Get the full content HTML
+        // Keep signature out of TipTap — otherwise tables flatten to plain
+        // text and reconstruct can show name/contact twice (text + logo block).
+        const signatureDiv = findSignatureEl(contentDiv);
         let contentHtml = contentDiv.innerHTML;
-        
-        // Extract signature if it exists
-        let signatureHtml = '';
+        let signatureHtml = "";
+
         if (signatureDiv) {
-          const sigParent = signatureDiv.closest('div');
-          if (sigParent) {
-            signatureHtml = sigParent.outerHTML;
-            // Remove signature from content for editing
-            contentHtml = contentHtml.replace(sigParent.outerHTML, '').trim();
-          }
+          signatureHtml = signatureDiv.outerHTML;
+          contentHtml = contentHtml.replace(signatureDiv.outerHTML, "").trim();
         }
-        
-        // Store signature in a data attribute for later use
-        if (signatureHtml) {
-          (editor as any).signatureHtml = signatureHtml;
-        }
-        
-        // Set editable content in editor (without signature)
+
+        (editor as any).signatureHtml = signatureHtml;
+
+        // Editable body only (signature reattached on preview/send)
         editor.commands.setContent(contentHtml || "", false);
         setEditedHtml(contentHtml);
       } else {
@@ -137,25 +137,19 @@ export function EmailPreviewDialog({
       
       if (!contentDiv) return originalHtml;
       
-      // Get signature from stored data or extract from original
-      let signatureHtml = (editor as any).signatureHtml || '';
-      
+      let signatureHtml = (editor as any).signatureHtml || "";
+
       if (!signatureHtml) {
-        // Extract signature from original if not stored
-        const signatureDiv = contentDiv.querySelector('div[style*="margin-top: 40px"]');
+        const signatureDiv = findSignatureEl(contentDiv);
         if (signatureDiv) {
-          const sigParent = signatureDiv.closest('div');
-          if (sigParent) {
-            signatureHtml = sigParent.outerHTML;
-          }
+          signatureHtml = signatureDiv.outerHTML;
         }
       }
-      
-      // Reconstruct content: edited content + signature
+
+      // Body from editor + one signature block (never leave signature inside TipTap)
       let newContent = editedContent.trim();
       if (signatureHtml) {
-        // Add signature with proper spacing
-        newContent += '\n\n            ' + signatureHtml;
+        newContent += "\n\n            " + signatureHtml;
       }
       
       // Update content div with new content
@@ -177,21 +171,23 @@ export function EmailPreviewDialog({
     }
   };
 
+  const hasEmailWrapper = (html: string) =>
+    html.includes("max-width:600px") || html.includes("max-width: 600px");
+
   const handleSend = async () => {
     let fullHtml = reconstructFullHtml();
-    
-    // Validate that we have a proper HTML structure
-    if (!fullHtml || fullHtml.length < 200 || !fullHtml.includes('max-width:600px')) {
-      console.warn('Reconstruction may have failed, using original HTML');
+
+    // Accept both "max-width:600px" and "max-width: 600px" so send matches preview.
+    if (!fullHtml || fullHtml.length < 200 || !hasEmailWrapper(fullHtml)) {
+      console.warn("Reconstruction may have failed, using original HTML");
       fullHtml = originalHtml;
     }
-    
-    // Ensure we're sending proper HTML (not plain text)
-    if (!fullHtml.includes('<div') && !fullHtml.includes('<html')) {
-      console.warn('HTML structure missing, using original');
+
+    if (!fullHtml.includes("<div") && !fullHtml.includes("<html")) {
+      console.warn("HTML structure missing, using original");
       fullHtml = originalHtml;
     }
-    
+
     await onSend(subject, fullHtml);
   };
 

@@ -665,15 +665,27 @@ export default function PersonDetailPage() {
     }
   };
 
+  const employeeDepartment = employee?.department?.trim() || "";
+
   const resetWarningForm = () => {
     setNewWarning({
       warningType: "",
-      department: "",
+      department: employeeDepartment,
       reportingManager: "",
       date: "",
       notes: "",
       sendEmail: true,
     });
+  };
+
+  const handleWarningDialogOpenChange = (open: boolean) => {
+    if (open) {
+      setNewWarning((prev) => ({
+        ...prev,
+        department: employeeDepartment || prev.department,
+      }));
+    }
+    setWarningDialogOpen(open);
   };
 
   const handleSendWarning = async () => {
@@ -1742,7 +1754,7 @@ export default function PersonDetailPage() {
                   </div>
                   <Button
                     className="gap-2 bg-orange-500 hover:bg-orange-600"
-                    onClick={() => setWarningDialogOpen(true)}
+                    onClick={() => handleWarningDialogOpenChange(true)}
                   >
                     <Plus className="h-4 w-4" />
                     Send Warning
@@ -2422,7 +2434,7 @@ export default function PersonDetailPage() {
       {phase === "active" && linkedEmployeeId && (
         <>
           {/* Warning Dialog */}
-          <Dialog open={warningDialogOpen} onOpenChange={setWarningDialogOpen}>
+          <Dialog open={warningDialogOpen} onOpenChange={handleWarningDialogOpenChange}>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">

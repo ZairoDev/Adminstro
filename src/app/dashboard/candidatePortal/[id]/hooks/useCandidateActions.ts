@@ -13,7 +13,10 @@ export function useCandidateActions(
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSelectCandidate = async (data: SelectionData) => {
+  const handleSelectCandidate = async (
+    data: SelectionData,
+    customEmail?: { subject: string; html: string }
+  ) => {
     setActionLoading(true);
     setError(null);
     try {
@@ -28,6 +31,10 @@ export function useCandidateActions(
             salary: data.annualCtc,
             workingHours: data.workingHours,
           },
+          ...(customEmail && {
+            customEmailSubject: customEmail.subject,
+            customEmailHtml: customEmail.html,
+          }),
         }
       );
 
@@ -51,7 +58,10 @@ export function useCandidateActions(
     }
   };
 
-  const handleShortlistCandidate = async (data: ShortlistData) => {
+  const handleShortlistCandidate = async (
+    data: ShortlistData,
+    customEmail?: { subject: string; html: string }
+  ) => {
     setActionLoading(true);
     setError(null);
     try {
@@ -63,6 +73,10 @@ export function useCandidateActions(
             suitableRoles: data.suitableRoles,
             notes: data.notes,
           },
+          ...(customEmail && {
+            customEmailSubject: customEmail.subject,
+            customEmailHtml: customEmail.html,
+          }),
         }
       );
 
@@ -86,7 +100,10 @@ export function useCandidateActions(
     }
   };
 
-  const handleRejectCandidate = async (data: RejectionData) => {
+  const handleRejectCandidate = async (
+    data: RejectionData,
+    customEmail?: { subject: string; html: string }
+  ) => {
     setActionLoading(true);
     setError(null);
     try {
@@ -97,6 +114,10 @@ export function useCandidateActions(
           rejectionDetails: {
             reason: data.reason,
           },
+          ...(customEmail && {
+            customEmailSubject: customEmail.subject,
+            customEmailHtml: customEmail.html,
+          }),
         }
       );
 
@@ -120,7 +141,10 @@ export function useCandidateActions(
     }
   };
 
-  const handleRejectFromOnboarding = async (data: RejectionData) => {
+  const handleRejectFromOnboarding = async (
+    data: RejectionData,
+    customEmail?: { subject: string; html: string }
+  ) => {
     setActionLoading(true);
     setError(null);
     try {
@@ -132,6 +156,10 @@ export function useCandidateActions(
             reason: data.reason,
           },
           isOnboardingRejection: true,
+          ...(customEmail && {
+            customEmailSubject: customEmail.subject,
+            customEmailHtml: customEmail.html,
+          }),
         }
       );
 
@@ -162,7 +190,10 @@ export function useCandidateActions(
     }
   };
 
-  const handleDiscontinueTraining = async (data: RejectionData) => {
+  const handleDiscontinueTraining = async (
+    data: RejectionData,
+    customEmail?: { subject: string; html: string }
+  ) => {
     setActionLoading(true);
     setError(null);
     try {
@@ -174,6 +205,10 @@ export function useCandidateActions(
             reason: data.reason,
           },
           isTrainingDiscontinuation: true,
+          ...(customEmail && {
+            customEmailSubject: customEmail.subject,
+            customEmailHtml: customEmail.html,
+          }),
         }
       );
 
@@ -197,14 +232,20 @@ export function useCandidateActions(
     }
   };
 
-  const handleOnboarding = async () => {
+  const handleOnboarding = async (
+    customEmail?: { subject: string; html: string }
+  ) => {
     setActionLoading(true);
     setError(null);
     try {
       const response = await axios.post(
         `/api/candidates/${candidateId}/action`,
         {
-          status: "onboarding"
+          status: "onboarding",
+          ...(customEmail && {
+            customEmailSubject: customEmail.subject,
+            customEmailHtml: customEmail.html,
+          }),
         }
       );
       const result = response.data;

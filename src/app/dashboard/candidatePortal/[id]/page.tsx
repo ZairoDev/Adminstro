@@ -66,6 +66,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
+import { useEmailPreviewFlow } from "@/hooks/useEmailPreviewFlow";
 
 import axios from "@/util/axios";
 import { SelectCandidateDialog, SelectionData } from "../components/select-candidate-dialog";
@@ -155,6 +156,7 @@ export default function CandidateDetailPage() {
     setCandidate(updatedCandidate);
   });
   const { canShortlist, canSelect, canReject, canRejectFromOnboarding, canDiscontinueTraining, canStartOnboarding, canCreateEmployee, canScheduleInterview, canScheduleSecondRound, hasInterviewRemarks, hasAnyInterviewScheduled, hasEmploymentType } = useCandidatePermissions(candidate);
+  const emailPreview = useEmailPreviewFlow();
   
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -517,42 +519,158 @@ export default function CandidateDetailPage() {
 
   // Wrapper functions to close dialogs after actions
   const handleSelectCandidateWrapper = async (data: SelectionData) => {
-    const result = await handleSelectCandidate(data);
-    if (result.success) {
-      setSelectDialogOpen(false);
+    if (!candidate?.email) {
+      toast.error("Candidate email is required");
+      return;
     }
+    setSelectDialogOpen(false);
+    await emailPreview.openPreview({
+      type: "candidate",
+      payload: {
+        to: candidate?.email,
+        candidateName: candidate?.name,
+        status: "selected",
+        position: candidate?.position,
+        companyName: "Zairo International",
+        selectionDetails: {
+          positionType: data.positionType,
+          duration: "",
+          trainingDate: data.dateOfJoining,
+          role: data.role,
+          salary: data.annualCtc,
+          workingHours: data.workingHours,
+        },
+      },
+      recipientEmail: candidate?.email || "",
+      onConfirm: async (subject, html) => {
+        const result = await handleSelectCandidate(data, { subject, html });
+        if (result.success) setSelectDialogOpen(false);
+        else throw new Error(result.error || "Failed");
+      },
+    });
   };
 
   const handleShortlistCandidateWrapper = async (data: ShortlistData) => {
-    const result = await handleShortlistCandidate(data);
-      if (result.success) {
-      setShortlistDialogOpen(false);
+    if (!candidate?.email) {
+      toast.error("Candidate email is required");
+      return;
     }
+    setShortlistDialogOpen(false);
+    await emailPreview.openPreview({
+      type: "candidate",
+      payload: {
+        to: candidate?.email,
+        candidateName: candidate?.name,
+        status: "shortlisted",
+        position: candidate?.position,
+        companyName: "Zairo International",
+        shortlistRoles: data.suitableRoles,
+      },
+      recipientEmail: candidate?.email || "",
+      onConfirm: async (subject, html) => {
+        const result = await handleShortlistCandidate(data, { subject, html });
+        if (result.success) setShortlistDialogOpen(false);
+        else throw new Error(result.error || "Failed");
+      },
+    });
   };
 
   const handleRejectCandidateWrapper = async (data: RejectionData) => {
-    const result = await handleRejectCandidate(data);
-    if (result.success) {
-      setRejectDialogOpen(false);
+    if (!candidate?.email) {
+      toast.error("Candidate email is required");
+      return;
     }
+    setRejectDialogOpen(false);
+    await emailPreview.openPreview({
+      type: "candidate",
+      payload: {
+        to: candidate?.email,
+        candidateName: candidate?.name,
+        status: "rejected",
+        position: candidate?.position,
+        companyName: "Zairo International",
+        rejectionReason: data.reason,
+      },
+      recipientEmail: candidate?.email || "",
+      onConfirm: async (subject, html) => {
+        const result = await handleRejectCandidate(data, { subject, html });
+        if (result.success) setRejectDialogOpen(false);
+        else throw new Error(result.error || "Failed");
+      },
+    });
   };
 
   const handleDiscontinueTrainingWrapper = async (data: RejectionData) => {
-    const result = await handleDiscontinueTraining(data);
-      if (result.success) {
-      setRejectAfterTrainingDialogOpen(false);
+    if (!candidate?.email) {
+      toast.error("Candidate email is required");
+      return;
     }
+    setRejectAfterTrainingDialogOpen(false);
+    await emailPreview.openPreview({
+      type: "candidate",
+      payload: {
+        to: candidate?.email,
+        candidateName: candidate?.name,
+        status: "trainingDiscontinued",
+        position: candidate?.position,
+        companyName: "Zairo International",
+        rejectionReason: data.reason,
+      },
+      recipientEmail: candidate?.email || "",
+      onConfirm: async (subject, html) => {
+        const result = await handleDiscontinueTraining(data, { subject, html });
+        if (result.success) setRejectAfterTrainingDialogOpen(false);
+        else throw new Error(result.error || "Failed");
+      },
+    });
   };
 
   const handleRejectFromOnboardingWrapper = async (data: RejectionData) => {
-    const result = await handleRejectFromOnboarding(data);
-    if (result.success) {
-      setRejectFromOnboardingDialogOpen(false);
+    if (!candidate?.email) {
+      toast.error("Candidate email is required");
+      return;
     }
+    setRejectFromOnboardingDialogOpen(false);
+    await emailPreview.openPreview({
+      type: "candidate",
+      payload: {
+        to: candidate?.email,
+        candidateName: candidate?.name,
+        status: "onboardingRejected",
+        position: candidate?.position,
+        companyName: "Zairo International",
+        rejectionReason: data.reason,
+      },
+      recipientEmail: candidate?.email || "",
+      onConfirm: async (subject, html) => {
+        const result = await handleRejectFromOnboarding(data, { subject, html });
+        if (result.success) setRejectFromOnboardingDialogOpen(false);
+        else throw new Error(result.error || "Failed");
+      },
+    });
   };
 
   const handleOnboardingWrapper = async () => {
-    await handleOnboarding();
+    if (!candidate?.email) {
+      toast.error("Candidate email is required");
+      return;
+    }
+    await emailPreview.openPreview({
+      type: "candidate",
+      payload: {
+        to: candidate?.email,
+        candidateName: candidate?.name,
+        status: "onboarding",
+        position: candidate?.position,
+        companyName: "Zairo International",
+        onboardingLink: `${window.location.origin}/dashboard/candidatePortal/${candidateId}/onboarding`,
+      },
+      recipientEmail: candidate?.email || "",
+      onConfirm: async (subject, html) => {
+        const result = await handleOnboarding({ subject, html });
+        if (!result.success) throw new Error(result.error || "Failed");
+      },
+    });
   };
 
   const saveEmploymentType = async (
@@ -694,26 +812,50 @@ export default function CandidateDetailPage() {
   // Handle request re-signature
   const handleRequestResignature = async () => {
     if (!candidate || !resignatureAgreementType) return;
+    if (!candidate.email) {
+      toast.error("Candidate email is required");
+      return;
+    }
+
+    const agreementPath =
+      resignatureAgreementType === "training" ? "training-agreement" : "onboarding";
+    const resignatureLinkPreview = `${window.location.origin}/dashboard/candidatePortal/${candidateId}/${agreementPath}?resignature=preview`;
 
     setRequestingResignature(true);
     try {
-      const response = await fetch(`/api/candidates/${candidate._id}/request-resignature`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const opened = await emailPreview.openPreview({
+        type: "resignature",
+        payload: {
+          candidateName: candidate.name,
           agreementType: resignatureAgreementType,
           reason: resignatureReason || null,
-        }),
-      });
+          resignatureLink: resignatureLinkPreview,
+        },
+        recipientEmail: candidate.email,
+        onConfirm: async (subject, html) => {
+          const response = await fetch(`/api/candidates/${candidate._id}/request-resignature`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              agreementType: resignatureAgreementType,
+              reason: resignatureReason || null,
+              customEmailSubject: subject,
+              customEmailHtml: html,
+            }),
+          });
 
-      const result = await response.json();
-      if (result.success) {
-        setResignatureLink(result.data.resignatureLink);
-        toast.success("Re-signature request sent to candidate");
-        await refreshCandidate();
-      } else {
-        toast.error(result.error || "Failed to request re-signature");
-      }
+          const result = await response.json();
+          if (result.success) {
+            setResignatureLink(result.data.resignatureLink);
+            toast.success("Re-signature request sent to candidate");
+            await refreshCandidate();
+          } else {
+            toast.error(result.error || "Failed to request re-signature");
+            throw new Error(result.error || "Failed to request re-signature");
+          }
+        },
+      });
+      if (!opened) return;
     } catch (error) {
       console.error("Error requesting re-signature:", error);
       toast.error("Failed to request re-signature");
@@ -808,6 +950,10 @@ export default function CandidateDetailPage() {
       toast.error("Please select an interviewer");
       return;
     }
+    if (!candidate.email) {
+      toast.error("Candidate email is required");
+      return;
+    }
 
     setSchedulingInterview(true);
     setError(null);
@@ -816,42 +962,74 @@ export default function CandidateDetailPage() {
       // This ensures the selected calendar date is preserved exactly as chosen
       const dateString = formatDateToLocalString(interviewDate);
       const time24Hour = convertTo24Hour(interviewHour, interviewMinute, interviewAmPm);
+      const selectedOffice = officeOptions.find((o) => o._id === interviewOfficeId);
+      const interviewerName =
+        interviewers.find((i) => i.id === interviewerEmployeeId)?.name || "Interviewer";
+      const emailStatus = candidate.interviewDetails?.scheduledDate
+        ? "interviewRescheduled"
+        : "interview";
 
-      const response = await fetch(
-        `/api/candidates/${candidate._id}/schedule-interview`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+      const opened = await emailPreview.openPreview({
+        type: "candidate",
+        payload: {
+          to: candidate.email,
+          candidateName: candidate.name,
+          status: emailStatus,
+          position: candidate.position,
+          companyName: "Zairo International",
+          interviewDetails: {
             scheduledDate: dateString,
             scheduledTime: time24Hour,
             interviewMode,
-            officeAddressId:
-              interviewMode === "physical" ? interviewOfficeId : undefined,
-            notes: interviewNotes || undefined,
-            interviewerEmployeeId,
-          }),
-        }
-      );
+            officeName: selectedOffice?.name,
+            officeAddress:
+              "Office address will be shared by HR before your visit.",
+            interviewerName,
+          },
+        },
+        recipientEmail: candidate.email,
+        onConfirm: async (subject, html) => {
+          const response = await fetch(
+            `/api/candidates/${candidate._id}/schedule-interview`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                scheduledDate: dateString,
+                scheduledTime: time24Hour,
+                interviewMode,
+                officeAddressId:
+                  interviewMode === "physical" ? interviewOfficeId : undefined,
+                notes: interviewNotes || undefined,
+                interviewerEmployeeId,
+                customEmailSubject: subject,
+                customEmailHtml: html,
+              }),
+            }
+          );
 
-      const result = await response.json();
-      if (result.success) {
-        toast.success("Interview scheduled successfully");
-        setScheduleInterviewDialogOpen(false);
-        setInterviewDate(undefined);
-        setInterviewHour("4");
-        setInterviewMinute("00");
-        setInterviewAmPm("PM");
-        setInterviewNotes("");
-        setInterviewMode("");
-        setInterviewOfficeId("");
-        setInterviewerEmployeeId("");
-        // Refresh candidate data
-        await refreshCandidate();
-      } else {
-        setError(result.error || "Failed to schedule interview");
-        toast.error(result.error || "Failed to schedule interview");
-      }
+          const result = await response.json();
+          if (result.success) {
+            toast.success("Interview scheduled successfully");
+            setScheduleInterviewDialogOpen(false);
+            setInterviewDate(undefined);
+            setInterviewHour("4");
+            setInterviewMinute("00");
+            setInterviewAmPm("PM");
+            setInterviewNotes("");
+            setInterviewMode("");
+            setInterviewOfficeId("");
+            setInterviewerEmployeeId("");
+            // Refresh candidate data
+            await refreshCandidate();
+          } else {
+            setError(result.error || "Failed to schedule interview");
+            toast.error(result.error || "Failed to schedule interview");
+            throw new Error(result.error || "Failed to schedule interview");
+          }
+        },
+      });
+      if (!opened) return;
     } catch (error) {
       console.error("Error scheduling interview:", error);
       setError("Failed to schedule interview");
@@ -878,6 +1056,10 @@ export default function CandidateDetailPage() {
       toast.error("Please select an interviewer");
       return;
     }
+    if (!candidate.email) {
+      toast.error("Candidate email is required");
+      return;
+    }
 
     // Final check before scheduling
     if (!canScheduleSecondRound()) {
@@ -891,44 +1073,77 @@ export default function CandidateDetailPage() {
     try {
       const dateString = formatDateToLocalString(secondRoundDate);
       const time24Hour = convertTo24Hour(secondRoundHour, secondRoundMinute, secondRoundAmPm);
+      const selectedOffice = officeOptions.find((o) => o._id === secondRoundOfficeId);
+      const interviewerName =
+        interviewers.find((i) => i.id === secondRoundInterviewerEmployeeId)?.name ||
+        "Interviewer";
+      const emailStatus = candidate.secondRoundInterviewDetails?.scheduledDate
+        ? "secondRoundInterviewRescheduled"
+        : "secondRoundInterview";
 
-      const response = await fetch(
-        `/api/candidates/${candidate._id}/schedule-second-round`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+      const opened = await emailPreview.openPreview({
+        type: "candidate",
+        payload: {
+          to: candidate.email,
+          candidateName: candidate.name,
+          status: emailStatus,
+          position: candidate.position,
+          companyName: "Zairo International",
+          interviewDetails: {
             scheduledDate: dateString,
             scheduledTime: time24Hour,
             interviewMode: secondRoundInterviewMode,
-            officeAddressId:
-              secondRoundInterviewMode === "physical"
-                ? secondRoundOfficeId
-                : undefined,
-            notes: secondRoundNotes || undefined,
-            interviewerEmployeeId: secondRoundInterviewerEmployeeId,
-          }),
-        }
-      );
+            officeName: selectedOffice?.name,
+            officeAddress:
+              "Office address will be shared by HR before your visit.",
+            interviewerName,
+          },
+        },
+        recipientEmail: candidate.email,
+        onConfirm: async (subject, html) => {
+          const response = await fetch(
+            `/api/candidates/${candidate._id}/schedule-second-round`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                scheduledDate: dateString,
+                scheduledTime: time24Hour,
+                interviewMode: secondRoundInterviewMode,
+                officeAddressId:
+                  secondRoundInterviewMode === "physical"
+                    ? secondRoundOfficeId
+                    : undefined,
+                notes: secondRoundNotes || undefined,
+                interviewerEmployeeId: secondRoundInterviewerEmployeeId,
+                customEmailSubject: subject,
+                customEmailHtml: html,
+              }),
+            }
+          );
 
-      const result = await response.json();
-      if (result.success) {
-        toast.success("Second round interview scheduled successfully");
-        setScheduleSecondRoundDialogOpen(false);
-        setSecondRoundDate(undefined);
-        setSecondRoundHour("4");
-        setSecondRoundMinute("00");
-        setSecondRoundAmPm("PM");
-        setSecondRoundNotes("");
-        setSecondRoundInterviewMode("");
-        setSecondRoundOfficeId("");
-        setSecondRoundInterviewerEmployeeId("");
-        setShowSecondRoundConfirmation(false);
-        await refreshCandidate();
-      } else {
-        setError(result.error || "Failed to schedule second round interview");
-        toast.error(result.error || "Failed to schedule second round interview");
-      }
+          const result = await response.json();
+          if (result.success) {
+            toast.success("Second round interview scheduled successfully");
+            setScheduleSecondRoundDialogOpen(false);
+            setSecondRoundDate(undefined);
+            setSecondRoundHour("4");
+            setSecondRoundMinute("00");
+            setSecondRoundAmPm("PM");
+            setSecondRoundNotes("");
+            setSecondRoundInterviewMode("");
+            setSecondRoundOfficeId("");
+            setSecondRoundInterviewerEmployeeId("");
+            setShowSecondRoundConfirmation(false);
+            await refreshCandidate();
+          } else {
+            setError(result.error || "Failed to schedule second round interview");
+            toast.error(result.error || "Failed to schedule second round interview");
+            throw new Error(result.error || "Failed to schedule second round interview");
+          }
+        },
+      });
+      if (!opened) return;
     } catch (error) {
       console.error("Error scheduling second round interview:", error);
       setError("Failed to schedule second round interview");
@@ -940,35 +1155,93 @@ export default function CandidateDetailPage() {
 
   const handleRescheduleRequest = async (action: "approve" | "reject", interviewType: "first" | "second") => {
     if (!candidate) return;
+    if (!candidate.email) {
+      toast.error("Candidate email is required");
+      return;
+    }
+
+    const details =
+      interviewType === "first"
+        ? candidate.interviewDetails
+        : candidate.secondRoundInterviewDetails;
+    const rescheduleRequest = details?.rescheduleRequest;
+
+    const emailStatus =
+      action === "approve"
+        ? interviewType === "first"
+          ? "interviewRescheduled"
+          : "secondRoundInterviewRescheduled"
+        : interviewType === "first"
+          ? "interviewRescheduleRejected"
+          : "secondRoundInterviewRescheduleRejected";
+
+    const interviewDetailsPayload =
+      action === "approve"
+        ? {
+            scheduledDate: rescheduleRequest?.requestedDate || "",
+            scheduledTime: rescheduleRequest?.requestedTime || "",
+            interviewMode: details?.interviewMode || undefined,
+            officeName: details?.officeName || undefined,
+            officeAddress:
+              "Office address will be shared by HR before your visit.",
+            interviewerName: details?.interviewerName || "Interviewer",
+          }
+        : {
+            scheduledDate: details?.scheduledDate || "",
+            scheduledTime: details?.scheduledTime || "",
+            interviewMode: details?.interviewMode || undefined,
+            officeName: details?.officeName || undefined,
+            officeAddress:
+              "Office address will be shared by HR before your visit.",
+            interviewerName: details?.interviewerName || "Interviewer",
+          };
 
     // rescheduleLoading state is declared at component top level
     setRescheduleLoading(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/candidates/${candidate._id}/approve-reschedule`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action,
-            interviewType,
-          }),
-        }
-      );
+      const opened = await emailPreview.openPreview({
+        type: "candidate",
+        payload: {
+          to: candidate.email,
+          candidateName: candidate.name,
+          status: emailStatus,
+          position: candidate.position,
+          companyName: "Zairo International",
+          interviewDetails: interviewDetailsPayload,
+        },
+        recipientEmail: candidate.email,
+        onConfirm: async (subject, html) => {
+          const response = await fetch(
+            `/api/candidates/${candidate._id}/approve-reschedule`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action,
+                interviewType,
+                customEmailSubject: subject,
+                customEmailHtml: html,
+              }),
+            }
+          );
 
-      const result = await response.json();
-      if (result.success) {
-        toast.success(
-          action === "approve"
-            ? "Reschedule request approved successfully"
-            : "Reschedule request rejected"
-        );
-        await refreshCandidate();
-      } else {
-        setError(result.error || `Failed to ${action} reschedule request`);
-        toast.error(result.error || `Failed to ${action} reschedule request`);
-      }
+          const result = await response.json();
+          if (result.success) {
+            toast.success(
+              action === "approve"
+                ? "Reschedule request approved successfully"
+                : "Reschedule request rejected"
+            );
+            await refreshCandidate();
+          } else {
+            setError(result.error || `Failed to ${action} reschedule request`);
+            toast.error(result.error || `Failed to ${action} reschedule request`);
+            throw new Error(result.error || `Failed to ${action} reschedule request`);
+          }
+        },
+      });
+      if (!opened) return;
     } catch (error) {
       console.error(`Error ${action}ing reschedule request:`, error);
       setError(`Failed to ${action} reschedule request`);
@@ -1004,24 +1277,55 @@ export default function CandidateDetailPage() {
 
   const handleCancelInterview = async () => {
     if (!candidate) return;
+    if (!candidate.email) {
+      toast.error("Candidate email is required");
+      return;
+    }
+    const details = candidate.interviewDetails;
     setCancellingInterview(true);
     try {
-      const response = await fetch(
-        `/api/candidates/${candidate._id}/cancel-interview`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ round: "first" }),
-        }
-      );
-      const result = await response.json();
-      if (!result.success) {
-        toast.error(result.error || "Failed to cancel interview");
-        return;
-      }
-      toast.success("Interview cancelled");
-      setCancelInterviewOpen(false);
-      await refreshCandidate();
+      const opened = await emailPreview.openPreview({
+        type: "interviewCancelled",
+        payload: {
+          round: "first",
+          candidateName: candidate.name,
+          position: candidate.position,
+          interviewerName: details?.interviewerName || "Interviewer",
+          interviewerEmail: details?.interviewerEmail || "",
+          scheduledDate: details?.scheduledDate || "",
+          scheduledTime: details?.scheduledTime || "",
+          interviewMode: details?.interviewMode === "virtual" ? "virtual" : "physical",
+          officeName: details?.officeName,
+          officeAddress:
+            "Office address will be shared by HR before your visit.",
+          notes: details?.notes,
+          companyName: "Zairo International",
+        },
+        recipientEmail: candidate.email,
+        onConfirm: async (subject, html) => {
+          const response = await fetch(
+            `/api/candidates/${candidate._id}/cancel-interview`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                round: "first",
+                customEmailSubject: subject,
+                customEmailHtml: html,
+              }),
+            }
+          );
+          const result = await response.json();
+          if (!result.success) {
+            toast.error(result.error || "Failed to cancel interview");
+            throw new Error(result.error || "Failed to cancel interview");
+          }
+          toast.success("Interview cancelled");
+          setCancelInterviewOpen(false);
+          await refreshCandidate();
+        },
+      });
+      if (!opened) return;
     } catch (cancelError) {
       console.error("Error cancelling interview:", cancelError);
       toast.error("Failed to cancel interview");
@@ -1739,17 +2043,42 @@ export default function CandidateDetailPage() {
                           <Button
                             onClick={async () => {
                               if (!candidate) return;
+                              if (!candidate.email) {
+                                toast.error("Candidate email is required");
+                                return;
+                              }
                               setSendingOfferLetter(true);
                               try {
-                                const response = await axios.post(
-                                  `/api/candidates/${candidateId}/send-offer-letter`
-                                );
-                                if (response.data.success) {
-                                  toast.success("Offer letter sent successfully");
-                                  refreshCandidate();
-                                } else {
-                                  throw new Error(response.data.error || "Failed to send offer letter");
-                                }
+                                const opened = await emailPreview.openPreview({
+                                  type: "offerLetter",
+                                  payload: {
+                                    candidateName: candidate.name,
+                                    role:
+                                      candidate.selectionDetails?.role ||
+                                      candidate.position,
+                                    signingLink: `${window.location.origin}/dashboard/candidatePortal/${candidateId}/offer-letter`,
+                                    companyName: "Zairo International",
+                                  },
+                                  recipientEmail: candidate.email,
+                                  onConfirm: async (subject, html) => {
+                                    const response = await axios.post(
+                                      `/api/candidates/${candidateId}/send-offer-letter`,
+                                      {
+                                        customEmailSubject: subject,
+                                        customEmailHtml: html,
+                                      }
+                                    );
+                                    if (response.data.success) {
+                                      toast.success("Offer letter sent successfully");
+                                      refreshCandidate();
+                                    } else {
+                                      throw new Error(
+                                        response.data.error || "Failed to send offer letter"
+                                      );
+                                    }
+                                  },
+                                });
+                                if (!opened) return;
                               } catch (error: any) {
                                 console.error("Error sending offer letter:", error);
                                 toast.error(
@@ -2564,6 +2893,8 @@ export default function CandidateDetailPage() {
                   salary: candidate.selectionDetails.salary?.toString()
                 } : undefined}
                 candidateId={candidate._id}
+                candidateName={candidate.name}
+                candidateEmail={candidate.email}
                 canVerify={canVerify}
                 onUpdate={refreshCandidate}
               />
@@ -3827,6 +4158,7 @@ export default function CandidateDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {emailPreview.previewDialog}
     </div>
   );
 }

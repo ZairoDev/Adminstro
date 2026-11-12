@@ -25,6 +25,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { InterviewRemarksDialog } from "@/app/dashboard/candidatePortal/components/interview-remarks-dialog";
 import { RejectCandidateDialog } from "@/app/dashboard/candidatePortal/components/reject-candidate-dialog";
+import { useEmailPreviewFlow } from "@/hooks/useEmailPreviewFlow";
 import type {
   AssignedInterview,
   InterviewAttendance,
@@ -106,6 +107,7 @@ export default function MyInterviewsPage() {
   const [shortlisting, setShortlisting] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<AssignedInterview | null>(null);
   const [rejecting, setRejecting] = useState(false);
+  const emailPreview = useEmailPreviewFlow();
 
   const load = useCallback(async (nextRange: InterviewRange) => {
     setLoading(true);
@@ -168,15 +170,46 @@ export default function MyInterviewsPage() {
 
   const rejectInterview = async (reason: string) => {
     if (!rejectTarget) return;
+    const target = rejectTarget;
+    if (!target.email) {
+      toast.error("Candidate email is required");
+      return;
+    }
     setRejecting(true);
     try {
-      await axios.patch(`/api/my-interviews/${rejectTarget.candidateId}`, {
-        action: "reject",
-        reason,
+      const opened = await emailPreview.openPreview({
+        type: "candidate",
+        payload: {
+          to: target.email,
+          candidateName: target.candidateName,
+          status: "rejected",
+          position: target.position,
+          companyName: "Zairo International",
+          rejectionReason: reason,
+        },
+        recipientEmail: target.email,
+        onConfirm: async (subject, html) => {
+          try {
+            await axios.patch(`/api/my-interviews/${target.candidateId}`, {
+              action: "reject",
+              reason,
+              customEmailSubject: subject,
+              customEmailHtml: html,
+            });
+            toast.success(`${target.candidateName} rejected`);
+            setRejectTarget(null);
+            await load(range);
+          } catch (error: unknown) {
+            const message =
+              axios.isAxiosError(error) && typeof error.response?.data?.error === "string"
+                ? error.response.data.error
+                : "Could not reject this interview";
+            toast.error(message);
+            throw error;
+          }
+        },
       });
-      toast.success(`${rejectTarget.candidateName} rejected`);
-      setRejectTarget(null);
-      await load(range);
+      if (!opened) return;
     } catch (error: unknown) {
       const message =
         axios.isAxiosError(error) && typeof error.response?.data?.error === "string"
@@ -195,17 +228,48 @@ export default function MyInterviewsPage() {
       setNotesError("Ending notes are required");
       return;
     }
+    const target = notesTarget;
+    if (!target.email) {
+      toast.error("Candidate email is required");
+      return;
+    }
     setShortlisting(true);
     setNotesError("");
     try {
-      await axios.patch(`/api/my-interviews/${notesTarget.candidateId}`, {
-        action: "shortlist",
-        endingNotes: notes,
+      const opened = await emailPreview.openPreview({
+        type: "candidate",
+        payload: {
+          to: target.email,
+          candidateName: target.candidateName,
+          status: "shortlisted",
+          position: target.position,
+          companyName: "Zairo International",
+          ...(target.position ? { shortlistRoles: [target.position] } : {}),
+        },
+        recipientEmail: target.email,
+        onConfirm: async (subject, html) => {
+          try {
+            await axios.patch(`/api/my-interviews/${target.candidateId}`, {
+              action: "shortlist",
+              endingNotes: notes,
+              customEmailSubject: subject,
+              customEmailHtml: html,
+            });
+            toast.success(`${target.candidateName} shortlisted`);
+            setNotesTarget(null);
+            setEndingNotes("");
+            await load(range);
+          } catch (error: unknown) {
+            const message =
+              axios.isAxiosError(error) && typeof error.response?.data?.error === "string"
+                ? error.response.data.error
+                : "Could not shortlist this interview";
+            toast.error(message);
+            throw error;
+          }
+        },
       });
-      toast.success(`${notesTarget.candidateName} shortlisted`);
-      setNotesTarget(null);
-      setEndingNotes("");
-      await load(range);
+      if (!opened) return;
     } catch (error: unknown) {
       const message =
         axios.isAxiosError(error) && typeof error.response?.data?.error === "string"
@@ -609,6 +673,7 @@ export default function MyInterviewsPage() {
         }
         submitButtonText="Reject"
       />
+      {emailPreview.previewDialog}
     </div>
   );
 }

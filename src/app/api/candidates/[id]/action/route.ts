@@ -1,8 +1,10 @@
 
 import { sendEmail } from "@/components/candidateEmail";
+import { sendCustomEmail } from "@/lib/email";
 import { cancelCandidateInterviews } from "@/lib/interviews/publishInterview";
 import { hasSignedSelectedDocuments } from "@/lib/people/lifecycle";
 import type { CandidateEmailStatus, SelectionDetails } from "@/lib/email/types";
+import { DEFAULT_COMPANY_NAME } from "@/lib/email/transporter";
 import Candidate from "@/models/candidate";
 import { connectDb } from "@/util/db";
 import { NextRequest, NextResponse } from "next/server";
@@ -39,6 +41,8 @@ const actionBodySchema = z.object({
     .optional(),
   isTrainingDiscontinuation: z.boolean().optional(),
   isOnboardingRejection: z.boolean().optional(),
+  customEmailSubject: z.string().trim().min(1).optional(),
+  customEmailHtml: z.string().trim().min(1).optional(),
 });
 
 function toEmailSelectionDetails(
@@ -80,6 +84,8 @@ export async function POST(
       rejectionDetails,
       isTrainingDiscontinuation,
       isOnboardingRejection,
+      customEmailSubject,
+      customEmailHtml,
     } = parsedBody.data;
 
     const existing = await Candidate.findById(id);
@@ -231,21 +237,29 @@ export async function POST(
           : status;
       
       try {
-        await sendEmail({
-          to: candidate.email,
-          candidateName: candidate.name,
-          status: emailStatus,
-          position: candidate.position,
-          companyName: process.env.COMPANY_NAME || "Zairo International",
-          selectionDetails:
-            status === "selected" ? toEmailSelectionDetails(selectionDetails) : undefined,
-          rejectionReason:
-            status === "rejected" ? rejectionDetails?.reason : undefined,
-          shortlistRoles:
-            status === "shortlisted" ? shortlistDetails?.suitableRoles : undefined,
-          onboardingLink: status === "onboarding" ? ( candidate.onboardingDetails?.onboardingLink || "") as string | undefined : undefined,
-          appointmentLetterLink: appointmentLetterLink || (status === "selected" ? candidate.selectionDetails?.offerLetterSigningLink || "" : undefined) as string | undefined,
-        });
+        if (customEmailSubject && customEmailHtml) {
+          await sendCustomEmail(
+            candidate.email,
+            { subject: customEmailSubject, html: customEmailHtml },
+            process.env.COMPANY_NAME || DEFAULT_COMPANY_NAME,
+          );
+        } else {
+          await sendEmail({
+            to: candidate.email,
+            candidateName: candidate.name,
+            status: emailStatus,
+            position: candidate.position,
+            companyName: process.env.COMPANY_NAME || "Zairo International",
+            selectionDetails:
+              status === "selected" ? toEmailSelectionDetails(selectionDetails) : undefined,
+            rejectionReason:
+              status === "rejected" ? rejectionDetails?.reason : undefined,
+            shortlistRoles:
+              status === "shortlisted" ? shortlistDetails?.suitableRoles : undefined,
+            onboardingLink: status === "onboarding" ? ( candidate.onboardingDetails?.onboardingLink || "") as string | undefined : undefined,
+            appointmentLetterLink: appointmentLetterLink || (status === "selected" ? candidate.selectionDetails?.offerLetterSigningLink || "" : undefined) as string | undefined,
+          });
+        }
         console.log(`✅ Email sent successfully to ${candidate.email} for status: ${emailStatus}`);
       } catch (emailError: unknown) {
         // Log email error but don't fail the entire operation

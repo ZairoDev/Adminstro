@@ -50,6 +50,14 @@ export {
   getHrNewApplicationTemplate,
 } from "./templates/jobApplication";
 export type { JobApplicationEmailDetails } from "./templates/jobApplication";
+export { getOfferLetterEmailTemplate } from "./templates/offerLetter";
+export type { OfferLetterEmailPayload } from "./templates/offerLetter";
+export { getResignatureEmailTemplate } from "./templates/resignature";
+export type { ResignatureEmailPayload } from "./templates/resignature";
+export { getReuploadEmailTemplate } from "./templates/reupload";
+export type { ReuploadEmailPayload } from "./templates/reupload";
+export { getInterviewAssignmentTemplate } from "./templates/interviewAssignment";
+export { getEmployeeSignedDocumentsPreviewTemplate } from "./employeeSignedDocumentsPreview";
 
 // Legacy export for backward compatibility with existing code
 export type EmailPayload = CandidateEmailPayload;
@@ -312,6 +320,8 @@ export interface EmployeeSignedDocumentsEmailPayload {
   selectionDetails?: SelectionDetails | null;
   documents: SignedDocumentSource[];
   companyName?: string;
+  customSubject?: string;
+  customHtml?: string;
 }
 
 async function fetchUrlAsBuffer(url: string): Promise<Buffer | null> {
@@ -433,15 +443,19 @@ export async function sendEmployeeSignedDocumentsEmail(
     return { success: false, error: "No signed documents available to attach" };
   }
 
-  const hrEmployee = await getActiveHREmployee();
-  const template = getEmployeeSignedDocumentsTemplate(
-    payload.employeeName,
-    payload.position || payload.selectionDetails?.role || "",
-    payload.selectionDetails,
-    attachments.map((item) => item.filename),
-    companyName,
-    hrEmployee,
-  );
+  const customSubject = payload.customSubject?.trim();
+  const customHtml = payload.customHtml?.trim();
+  const template: EmailTemplate =
+    customSubject && customHtml
+      ? { subject: customSubject, html: customHtml }
+      : getEmployeeSignedDocumentsTemplate(
+          payload.employeeName,
+          payload.position || payload.selectionDetails?.role || "",
+          payload.selectionDetails,
+          attachments.map((item) => item.filename),
+          companyName,
+          await getActiveHREmployee(),
+        );
 
   return sendCustomEmail(payload.to, template, companyName, attachments);
 }

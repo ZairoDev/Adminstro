@@ -3,7 +3,7 @@ import { connectDb } from "@/util/db";
 import Candidate from "@/models/candidate";
 import { createTransporterHR } from "@/lib/email/transporter";
 import { getActiveHREmployee } from "@/lib/email/getHREmployee";
-import { getEmailSignature } from "@/lib/email/signature";
+import { getOfferLetterEmailTemplate } from "@/lib/email/templates/offerLetter";
 import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(
@@ -14,6 +14,20 @@ export async function POST(
     await getDataFromToken(request);
     const { id } = await params;
     await connectDb();
+
+    let customEmailSubject: string | undefined;
+    let customEmailHtml: string | undefined;
+    try {
+      const body = await request.json();
+      if (body && typeof body === "object") {
+        if (typeof body.customEmailSubject === "string" && body.customEmailSubject.trim()) {
+          customEmailSubject = body.customEmailSubject.trim();
+        }
+        if (typeof body.customEmailHtml === "string" && body.customEmailHtml.trim()) {
+          customEmailHtml = body.customEmailHtml.trim();
+        }
+      }
+    } catch {}
 
     // Fetch candidate
     const candidate = await Candidate.findById(id);
@@ -38,64 +52,31 @@ export async function POST(
     // Validate email configuration
     const transporter = await createTransporterHR();
     const hrEmployee = await getActiveHREmployee();
-    const emailSignature = await getEmailSignature(hrEmployee);
+    const template = getOfferLetterEmailTemplate(
+      {
+        candidateName: candidate.name,
+        role: candidate.selectionDetails?.role || candidate.position,
+        signingLink: offerLetterSigningLink,
+        companyName: process.env.COMPANY_NAME || "Zairo International",
+      },
+      hrEmployee,
+    );
 
-    // Prepare email HTML with signing link
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Offer Letter</title>
-      </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="margin: 0; font-size: 24px;">Offer Letter</h1>
-        </div>
-        
-        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0;">
-          <p>Dear ${candidate.name},</p>
-          
-          <p>We are pleased to offer you the position of <strong>${candidate.selectionDetails?.role || candidate.position}</strong> at Zairo International Private Limited.</p>
-          
-          <p>
-            <strong>Next step:</strong> Please review and sign your offer letter and the HR policies.
-          </p>
-    
-          <div style="text-align: center; margin: 20px 0;">
-            <a href="${offerLetterSigningLink}" 
-               style="display: inline-block; background: #2563eb; color: #ffffff; padding: 16px 40px; 
-                      border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
-              Sign Offer Letter
-            </a>
-          </div>
-    
-          <p style="font-size: 13px; color: #444; margin: 18px 0 6px 0;">
-            If you are unable to access the button above, please copy and paste the following link into your browser:
-          </p>
-          <p style="font-size: 13px; color: #2563eb; word-break: break-all; margin: 0;">
-            ${offerLetterSigningLink}
-          </p>
-          
-          <p>We look forward to welcoming you to our team!</p>
-          
-          <p style="margin-top: 30px;">Best regards,<br/>
-          <strong>HR Team</strong><br/>
-          Zairo International Private Limited</p>
-          
-          ${emailSignature}
-        </div>
-      </body>
-      </html>
-    `;
+    const subject =
+      customEmailSubject && customEmailHtml
+        ? customEmailSubject
+        : template.subject;
+    const html =
+      customEmailSubject && customEmailHtml
+        ? customEmailHtml
+        : template.html;
 
     // Send email with signing link
     await transporter.sendMail({
       from: `"Zairo International HR" <${transporter.fromEmail}>`,
       to: candidate.email,
-      subject: `Offer Letter - ${candidate.name}`,
-      html: emailHtml,
+      subject,
+      html,
     });
 
     // Update candidate record with signing link

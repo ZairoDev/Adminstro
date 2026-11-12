@@ -3,6 +3,7 @@ import Employee from "@/models/employee";
 import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { sendEmail } from "@/components/candidateEmail";
+import { sendCustomEmail } from "@/lib/email";
 import { finalizeRescheduledInterview } from "@/lib/interviews/publishInterview";
 import { type NextRequest, NextResponse } from "next/server";
 import { parseLocalDateString, normalizeToLocalMidnight, getTodayLocalMidnight } from "@/lib/utils";
@@ -39,6 +40,12 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
     const { action, interviewType } = body; // action: "approve" or "reject"
+    const customEmailSubject =
+      typeof body.customEmailSubject === "string" ? body.customEmailSubject : "";
+    const customEmailHtml =
+      typeof body.customEmailHtml === "string" ? body.customEmailHtml : "";
+    const hasCustomEmail =
+      customEmailSubject.trim().length > 0 && customEmailHtml.trim().length > 0;
 
     if (!action || (action !== "approve" && action !== "reject")) {
       return NextResponse.json(
@@ -151,6 +158,14 @@ export async function PATCH(
             typeof details?.googleEventId === "string" ? details.googleEventId : null,
           existingMeetLink:
             typeof details?.googleMeetLink === "string" ? details.googleMeetLink : null,
+          ...(hasCustomEmail
+            ? {
+                customCandidateEmail: {
+                  subject: customEmailSubject,
+                  html: customEmailHtml,
+                },
+              }
+            : {}),
         });
         // console.log(`✅ Reschedule confirmation email sent successfully to ${updatedCandidate.email}`);
       } catch (emailError: any) {
@@ -201,20 +216,29 @@ export async function PATCH(
               : String(currentScheduledDate))
           : "";
 
-        await sendEmail({
-          to: updatedCandidate.email,
-          candidateName: updatedCandidate.name,
-          status: interviewType === "first" ? "interviewRescheduleRejected" : "secondRoundInterviewRescheduleRejected",
-          position: updatedCandidate.position,
-          companyName: process.env.COMPANY_NAME || "Zairo International",
-          interviewDetails: {
-            scheduledDate: scheduledDateStr,
-            scheduledTime: currentScheduledTime || "",
-            officeAddress: (await resolveOfficeAddressForEmail(id)).address,
-            googleMapsLink: "https://www.google.com/maps/place/Zairo+International+Private+Limited/@26.4774594,80.294648,19.7z/data=!4m14!1m7!3m6!1s0x399c393b0d80423f:0x5a0054d06432272d!2sZairo+International+Private+Limited!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg!3m5!1s0x399c393b0d80423f:0x5a0054d06432272d!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D",
-          },
-        });
-        
+        const companyName = process.env.COMPANY_NAME || "Zairo International";
+        if (hasCustomEmail) {
+          await sendCustomEmail(
+            updatedCandidate.email,
+            { subject: customEmailSubject, html: customEmailHtml },
+            companyName
+          );
+        } else {
+          await sendEmail({
+            to: updatedCandidate.email,
+            candidateName: updatedCandidate.name,
+            status: interviewType === "first" ? "interviewRescheduleRejected" : "secondRoundInterviewRescheduleRejected",
+            position: updatedCandidate.position,
+            companyName,
+            interviewDetails: {
+              scheduledDate: scheduledDateStr,
+              scheduledTime: currentScheduledTime || "",
+              officeAddress: (await resolveOfficeAddressForEmail(id)).address,
+              googleMapsLink: "https://www.google.com/maps/place/Zairo+International+Private+Limited/@26.4774594,80.294648,19.7z/data=!4m14!1m7!3m6!1s0x399c393b0d80423f:0x5a0054d06432272d!2sZairo+International+Private+Limited!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg!3m5!1s0x399c393b0d80423f:0x5a0054d06432272d!8m2!3d26.477824!4d80.2947677!16s%2Fg%2F11w8pj2ggg?entry=ttu&g_ep=EgoyMDI1MTIwOS4wIKXMDSoASAFQAw%3D%3D",
+            },
+          });
+        }
+
       } catch (emailError: any) {
         console.error(`❌ Failed to send reschedule rejection email to ${updatedCandidate.email}:`, emailError);
         // Continue even if email fails

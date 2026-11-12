@@ -40,6 +40,8 @@ export interface InterviewPartyNotice {
   rescheduleLink?: string | null;
   existingEventId?: string | null;
   existingMeetLink?: string | null;
+  /** When set (from preview/edit), replaces the default candidate email body. */
+  customCandidateEmail?: { subject: string; html: string } | null;
 }
 
 interface StoredInterviewRound {
@@ -120,7 +122,16 @@ async function deliverNotice(
     companyName: companyName(),
   } satisfies Omit<InterviewAssignmentEmailInput, "audience" | "coversHrDuty">;
 
-  if (kind !== "cancelled") {
+  if (notice.customCandidateEmail?.subject && notice.customCandidateEmail?.html) {
+    await sendCustomEmail(
+      notice.candidateEmail,
+      {
+        subject: notice.customCandidateEmail.subject,
+        html: notice.customCandidateEmail.html,
+      },
+      companyName()
+    );
+  } else if (kind !== "cancelled") {
     await sendEmail({
       to: notice.candidateEmail,
       candidateName: notice.candidateName,
@@ -273,14 +284,15 @@ export async function cancelInterviewRound(
     interviewDetails?: unknown;
     secondRoundInterviewDetails?: unknown;
   },
-  round: InterviewRound
+  round: InterviewRound,
+  customCandidateEmail?: { subject: string; html: string } | null
 ): Promise<void> {
   const candidateId = String(candidate._id);
   const details =
     round === "first"
       ? readRound(candidate.interviewDetails)
       : readRound(candidate.secondRoundInterviewDetails);
-  await cancelRound(candidate, candidateId, round, details);
+  await cancelRound(candidate, candidateId, round, details, customCandidateEmail);
 }
 
 export async function cancelCandidateInterviews(candidate: {
@@ -305,7 +317,8 @@ async function cancelRound(
   candidate: { name: string; email: string; position: string },
   candidateId: string,
   round: InterviewRound,
-  details: StoredInterviewRound | null
+  details: StoredInterviewRound | null,
+  customCandidateEmail?: { subject: string; html: string } | null
 ): Promise<void> {
   try {
     await cancelInterviewReminder(candidateId, round);
@@ -354,6 +367,7 @@ async function cancelRound(
       officeName: details.officeName,
       notes: details.notes,
       existingEventId: details.googleEventId,
+      customCandidateEmail,
     },
     "cancelled",
     null,

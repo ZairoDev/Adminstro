@@ -19,8 +19,22 @@ export async function POST(
   try {
     await getDataFromToken(request);
     const { id } = await params;
-    const body = (await request.json()) as { round?: string };
+    const body = (await request.json()) as {
+      round?: string;
+      customEmailSubject?: string;
+      customEmailHtml?: string;
+    };
     const round: InterviewRound = body.round === "second" ? "second" : "first";
+    const customSubject =
+      typeof body.customEmailSubject === "string"
+        ? body.customEmailSubject.trim()
+        : "";
+    const customHtml =
+      typeof body.customEmailHtml === "string" ? body.customEmailHtml.trim() : "";
+    const customCandidateEmail =
+      customSubject && customHtml
+        ? { subject: customSubject, html: customHtml }
+        : null;
 
     const candidate = await Candidate.findById(id);
     if (!candidate) {
@@ -42,7 +56,7 @@ export async function POST(
     }
 
     try {
-      await cancelInterviewRound(candidate, round);
+      await cancelInterviewRound(candidate, round, customCandidateEmail);
     } catch (noticeError: unknown) {
       console.error("Interview cancellation notice failed:", noticeError);
     }

@@ -45,6 +45,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { JobIdentitySelects } from "@/components/departments/job-identity-selects";
+import { useEmailPreviewFlow } from "@/hooks/useEmailPreviewFlow";
 
 // --- Types ---
 export type CandidateLite = {
@@ -136,6 +137,7 @@ const NewUser: React.FC<NewUserProps> = ({
     mode ?? (candidateId || candidateProp ? "candidate" : "standalone");
 
   const { uploadFiles } = useBunnyUpload();
+  const emailPreview = useEmailPreviewFlow();
 
   const [profilePic, setProfilepic] = useState("");
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -510,18 +512,25 @@ const NewUser: React.FC<NewUserProps> = ({
       }
     }
 
+    const linkedId =
+      candidateProp?._id || candidateId || linkedCandidateId || null;
     const userData = {
       ...cleanedData,
       dateOfBirth: dateOfBirth instanceof Date ? dateOfBirth : cleanedData.dateOfBirth,
       dateOfJoining: dateOfJoining instanceof Date ? dateOfJoining : cleanedData.dateOfJoining,
       profilePic,
-      candidateId: candidateProp?._id || candidateId || linkedCandidateId || null,
+      candidateId: linkedId,
     };
 
     console.log("Final userData:", userData);
 
-    try {
-      const res = await axios.post("/api/user/createnewEmployee", userData);
+    const finishCreate = async (
+      payload: typeof userData & {
+        customEmailSubject?: string;
+        customEmailHtml?: string;
+      }
+    ) => {
+      const res = await axios.post("/api/user/createnewEmployee", payload);
       console.log("Creation response:", res);
       toast({ description: "Employee created successfully" });
       onCreated?.({
@@ -531,6 +540,69 @@ const NewUser: React.FC<NewUserProps> = ({
       reset();
       setProfilepic("");
       setPreviewImage(null);
+    };
+
+    try {
+      if (linkedId) {
+        const employeeName = cleanedData.name || prefillFrom?.name || "employee";
+        const safeName = employeeName
+          .replace(/[^a-zA-Z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+        const sd = prefillFrom?.selectionDetails;
+        const position =
+          sd?.role ||
+          cleanedData.jobTitle ||
+          prefillFrom?.position ||
+          "";
+        const selectionDetails = sd
+          ? {
+              positionType: sd.positionType || "",
+              duration: "",
+              internDuration: undefined as string | undefined,
+              trainingPeriod: "",
+              trainingDate: sd.trainingDate || undefined,
+              role: sd.role || prefillFrom?.position || "",
+            }
+          : null;
+        const attachedNames = [
+          `Appointment-Letter-${safeName}.pdf`,
+          `Pre-Employment-Training-Agreement-${safeName}.pdf`,
+          `HR-Policies-${safeName}.pdf`,
+          `Letter-of-Intent-${safeName}.pdf`,
+          `ZIPL-Service-Agreement-${safeName}.pdf`,
+        ];
+        const recipientEmail =
+          cleanedData.email || prefillFrom?.email || "";
+        if (!recipientEmail) {
+          toast({
+            variant: "destructive",
+            description: "Employee email is required.",
+          });
+          return;
+        }
+
+        const opened = await emailPreview.openPreview({
+          type: "employeeSignedDocuments",
+          payload: {
+            employeeName,
+            position,
+            selectionDetails,
+            attachedNames,
+            companyName: "Zairo International",
+          },
+          recipientEmail,
+          onConfirm: async (subject, html) => {
+            await finishCreate({
+              ...userData,
+              customEmailSubject: subject,
+              customEmailHtml: html,
+            });
+          },
+        });
+        if (!opened) return;
+      } else {
+        await finishCreate(userData);
+      }
     } catch (error: any) {
       console.error("Submission error:", error);
       toast({
@@ -1245,6 +1317,7 @@ const NewUser: React.FC<NewUserProps> = ({
           </div>
         </div>
       </div>
+      {emailPreview.previewDialog}
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import { sendEmail } from "@/components/candidateEmail";
+import { sendCustomEmail } from "@/lib/email";
 import {
   canViewAssignedInterviews,
   isAssignedInterviewer,
@@ -20,10 +21,14 @@ const bodySchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("reject"),
     reason: z.string().trim().min(1).max(500),
+    customEmailSubject: z.string().trim().min(1).optional(),
+    customEmailHtml: z.string().trim().min(1).optional(),
   }),
   z.object({
     action: z.literal("shortlist"),
     endingNotes: z.string().trim().min(1, "Ending notes are required").max(1000),
+    customEmailSubject: z.string().trim().min(1).optional(),
+    customEmailHtml: z.string().trim().min(1).optional(),
   }),
 ]);
 
@@ -121,14 +126,25 @@ export async function PATCH(
       await candidate.save();
 
       try {
-        await sendEmail({
-          to: candidate.email,
-          candidateName: candidate.name,
-          status: "shortlisted",
-          position: candidate.position,
-          companyName: process.env.COMPANY_NAME || "Zairo International",
-          shortlistRoles: position ? [position] : undefined,
-        });
+        if (parsedBody.data.customEmailSubject && parsedBody.data.customEmailHtml) {
+          await sendCustomEmail(
+            candidate.email,
+            {
+              subject: parsedBody.data.customEmailSubject,
+              html: parsedBody.data.customEmailHtml,
+            },
+            process.env.COMPANY_NAME || "Zairo International",
+          );
+        } else {
+          await sendEmail({
+            to: candidate.email,
+            candidateName: candidate.name,
+            status: "shortlisted",
+            position: candidate.position,
+            companyName: process.env.COMPANY_NAME || "Zairo International",
+            shortlistRoles: position ? [position] : undefined,
+          });
+        }
       } catch (emailError: unknown) {
         console.error("Failed to send shortlist email:", emailError);
       }
@@ -154,14 +170,25 @@ export async function PATCH(
     await candidate.save();
 
     try {
-      await sendEmail({
-        to: candidate.email,
-        candidateName: candidate.name,
-        status: "rejected",
-        position: candidate.position,
-        companyName: process.env.COMPANY_NAME || "Zairo International",
-        rejectionReason: parsedBody.data.reason,
-      });
+      if (parsedBody.data.customEmailSubject && parsedBody.data.customEmailHtml) {
+        await sendCustomEmail(
+          candidate.email,
+          {
+            subject: parsedBody.data.customEmailSubject,
+            html: parsedBody.data.customEmailHtml,
+          },
+          process.env.COMPANY_NAME || "Zairo International",
+        );
+      } else {
+        await sendEmail({
+          to: candidate.email,
+          candidateName: candidate.name,
+          status: "rejected",
+          position: candidate.position,
+          companyName: process.env.COMPANY_NAME || "Zairo International",
+          rejectionReason: parsedBody.data.reason,
+        });
+      }
     } catch (emailError: unknown) {
       console.error("Failed to send interview rejection email:", emailError);
     }

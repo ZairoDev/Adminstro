@@ -40,7 +40,8 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const parsedBody = scheduleInterviewBodySchema.safeParse(await request.json());
+    const body = await request.json();
+    const parsedBody = scheduleInterviewBodySchema.safeParse(body);
     if (!parsedBody.success) {
       return NextResponse.json(
         {
@@ -52,6 +53,10 @@ export async function PATCH(
     }
     const { scheduledDate, scheduledTime, notes, interviewMode, officeAddressId } =
       parsedBody.data;
+    const customEmailSubject =
+      typeof body.customEmailSubject === "string" ? body.customEmailSubject : undefined;
+    const customEmailHtml =
+      typeof body.customEmailHtml === "string" ? body.customEmailHtml : undefined;
 
     const interviewerResult = await loadActiveInterviewer(
       parsedBody.data.interviewerEmployeeId
@@ -210,6 +215,14 @@ export async function PATCH(
         rescheduleLink,
         existingEventId,
         existingMeetLink,
+        ...(customEmailSubject && customEmailHtml
+          ? {
+              customCandidateEmail: {
+                subject: customEmailSubject,
+                html: customEmailHtml,
+              },
+            }
+          : {}),
       }).catch((emailError: unknown) => {
         console.error(
           `Failed to publish interview notice for ${updatedCandidate.email}:`,

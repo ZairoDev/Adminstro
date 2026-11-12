@@ -93,6 +93,7 @@ import {
   RejectCandidateDialog,
 } from "@/app/dashboard/candidatePortal/components/reject-candidate-dialog";
 import { useCandidateActions } from "@/app/dashboard/candidatePortal/[id]/hooks/useCandidateActions";
+import { useEmailPreviewFlow } from "@/hooks/useEmailPreviewFlow";
 import type { CandidateLite } from "@/app/dashboard/candidatePortal/components/new-user";
 import { SeparatePersonDialog } from "@/features/people/components/SeparatePersonDialog";
 import { LifecycleBadge } from "@/features/people/components/LifecycleBadge";
@@ -295,6 +296,7 @@ export default function PersonDetailPage() {
     useCandidateActions(candidateId, () => {
       void refreshCandidate();
     });
+  const emailPreview = useEmailPreviewFlow();
   const [exitOpen, setExitOpen] = useState(false);
   const [phoneRevealed, setPhoneRevealed] = useState(false);
 
@@ -1585,6 +1587,8 @@ export default function PersonDetailPage() {
                 onboardingDetails={person.onboardingDetails}
                 selectionDetails={person.selectionDetails}
                 candidateId={person._id}
+                candidateName={person.name}
+                candidateEmail={person.email}
                 canVerify={canVerify}
                 onUpdate={() => void refreshCandidate()}
               />
@@ -2386,17 +2390,38 @@ export default function PersonDetailPage() {
         open={rejectOnboardingOpen}
         onClose={() => setRejectOnboardingOpen(false)}
         onSubmit={async (data) => {
-          const result = await handleRejectFromOnboarding(data);
-          if (result.success) {
-            setRejectOnboardingOpen(false);
-            toast.success("Rejected from onboarding");
-          }
+          await emailPreview.openPreview({
+            type: "candidate",
+            payload: {
+              to: person.email,
+              candidateName: person.name,
+              status: "onboardingRejected",
+              position: person.position,
+              companyName: "Zairo International",
+              rejectionReason: data.reason,
+            },
+            recipientEmail: person.email || "",
+            onConfirm: async (subject, html) => {
+              const result = await handleRejectFromOnboarding(data, {
+                subject,
+                html,
+              });
+              if (result.success) {
+                setRejectOnboardingOpen(false);
+                toast.success("Rejected from onboarding");
+              } else {
+                throw new Error(result.error || "Failed");
+              }
+            },
+          });
         }}
         loading={rejectingOnboarding}
         title="Reject from onboarding"
         description="This person is in onboarding and is not employed. The rejection is categorised as rejected from onboarding."
         reasons={ONBOARDING_REJECTION_REASONS}
       />
+
+      {emailPreview.previewDialog}
 
       <CreateEmployeeDialog
         open={createEmployeeOpen}

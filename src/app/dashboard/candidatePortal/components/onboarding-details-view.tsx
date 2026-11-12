@@ -34,6 +34,7 @@ import { OnboardingDocumentDropzone } from "./onboarding-document-dropzone";
 import { useBunnyUpload } from "@/hooks/useBunnyUpload";
 import { toast } from "sonner";
 import { getOnboardingDocumentLabel } from "@/lib/people/onboarding-documents";
+import { useEmailPreviewFlow } from "@/hooks/useEmailPreviewFlow";
 import {
   Dialog,
   DialogContent,
@@ -136,6 +137,8 @@ interface OnboardingDetailsViewProps {
   onboardingDetails: OnboardingDetails | null | undefined;
   selectionDetails?: SelectionDetails;
   candidateId: string;
+  candidateName?: string;
+  candidateEmail?: string;
   canVerify: boolean;
   onUpdate?: () => void | Promise<void>;
 }
@@ -186,6 +189,8 @@ export function OnboardingDetailsView({
   onboardingDetails,
   selectionDetails,
   candidateId,
+  candidateName,
+  candidateEmail,
   canVerify,
   onUpdate,
 }: OnboardingDetailsViewProps) {
@@ -215,6 +220,7 @@ export function OnboardingDetailsView({
   const [editPassbookUrl, setEditPassbookUrl] = useState<string | null>(null);
   const [uploadingBankDoc, setUploadingBankDoc] = useState<string | null>(null);
   const { uploadFiles } = useBunnyUpload();
+  const emailPreview = useEmailPreviewFlow();
 
   useEffect(() => {
     if (onboardingDetails?.verifiedByHR?.notes) {
@@ -259,23 +265,61 @@ export function OnboardingDetailsView({
 
     setIsRequestingReupload(true);
     try {
-      const response = await fetch(`/api/candidates/${candidateId}/request-reupload`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          documentTypes: selectedDocuments,
-          reason: reuploadReason || null,
-        }),
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        setReuploadLink(result.data.reuploadLink);
-        toast.success("Re-upload request sent to candidate");
-        if (onUpdate) onUpdate();
-      } else {
-        throw new Error(result.error || "Failed to request re-upload");
+      let resolvedName = candidateName?.trim() || "";
+      let resolvedEmail = candidateEmail?.trim() || "";
+      if (!resolvedName || !resolvedEmail) {
+        const contactRes = await fetch(`/api/candidates/${candidateId}`);
+        const contactJson = await contactRes.json();
+        const contact = contactJson?.data;
+        resolvedName = resolvedName || contact?.name || "Candidate";
+        resolvedEmail = resolvedEmail || contact?.email || "";
       }
+      if (!resolvedEmail) {
+        toast.error("Candidate email is required");
+        return;
+      }
+
+      const documentLabels = selectedDocuments.map((doc) =>
+        getOnboardingDocumentLabel(doc)
+      );
+      const reuploadLinkPreview = `${window.location.origin}/dashboard/candidatePortal/${candidateId}/onboarding?reupload=preview`;
+
+      const opened = await emailPreview.openPreview({
+        type: "reupload",
+        payload: {
+          candidateName: resolvedName,
+          documentLabels,
+          reuploadLink: reuploadLinkPreview,
+          reason: reuploadReason || null,
+        },
+        recipientEmail: resolvedEmail,
+        onConfirm: async (subject, html) => {
+          const response = await fetch(
+            `/api/candidates/${candidateId}/request-reupload`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                documentTypes: selectedDocuments,
+                reason: reuploadReason || null,
+                customEmailSubject: subject,
+                customEmailHtml: html,
+              }),
+            }
+          );
+
+          const result = await response.json();
+          if (result.success) {
+            setReuploadLink(result.data.reuploadLink);
+            toast.success("Re-upload request sent to candidate");
+            if (onUpdate) onUpdate();
+          } else {
+            toast.error(result.error || "Failed to request re-upload");
+            throw new Error(result.error || "Failed to request re-upload");
+          }
+        },
+      });
+      if (!opened) return;
     } catch (error: unknown) {
       console.error("Error requesting re-upload:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to request re-upload";
@@ -1382,6 +1426,8 @@ export function OnboardingDetailsView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {emailPreview.previewDialog}
     </div>
   );
 }

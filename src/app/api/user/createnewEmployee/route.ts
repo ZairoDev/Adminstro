@@ -234,6 +234,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           const safeName = (createUser.name || candidate.name || "employee")
             .replace(/[^a-zA-Z0-9]+/g, "-")
             .replace(/^-|-$/g, "");
+          const customEmailSubject =
+            typeof reqBody.customEmailSubject === "string"
+              ? reqBody.customEmailSubject.trim()
+              : "";
+          const customEmailHtml =
+            typeof reqBody.customEmailHtml === "string"
+              ? reqBody.customEmailHtml.trim()
+              : "";
           const emailResult = await sendEmployeeSignedDocumentsEmail({
             to: recipient,
             employeeName: createUser.name || candidate.name,
@@ -261,6 +269,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
                 url: candidate.onboardingDetails?.signedPdfUrl,
               },
             ],
+            ...(customEmailSubject && customEmailHtml
+              ? {
+                  customSubject: customEmailSubject,
+                  customHtml: customEmailHtml,
+                }
+              : {}),
           });
           if (!emailResult.success) {
             console.error(

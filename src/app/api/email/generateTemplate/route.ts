@@ -5,8 +5,21 @@ import {
   getAppreciationEmailTemplate,
   getActiveHREmployee,
   getPIPCompletionEmailTemplate,
+  getCandidateEmailTemplate,
+  getSeparationEmailTemplate,
+  getOfferLetterEmailTemplate,
+  getResignatureEmailTemplate,
+  getReuploadEmailTemplate,
+  getInterviewAssignmentTemplate,
+  getEmployeeSignedDocumentsPreviewTemplate,
+  type SeparationType,
 } from "@/lib/email";
-import { WarningType, PIPLevel, AppreciationType } from "@/lib/email/types";
+import {
+  WarningType,
+  PIPLevel,
+  AppreciationType,
+  CandidateEmailStatus,
+} from "@/lib/email/types";
 import { getDataFromToken } from "@/util/getDataFromToken";
 
 export async function POST(request: NextRequest) {
@@ -84,6 +97,108 @@ export async function POST(request: NextRequest) {
         );
         break;
 
+      case "separation":
+        template = getSeparationEmailTemplate(
+          {
+            to: payload.to,
+            employeeName: payload.employeeName,
+            separationType: payload.separationType as SeparationType,
+            effectiveDate: payload.effectiveDate,
+            reason: payload.reason || "",
+            companyName: payload.companyName,
+          },
+          hrEmployee
+        );
+        break;
+
+      case "candidate":
+        template = getCandidateEmailTemplate(
+          {
+            to: payload.to,
+            candidateName: payload.candidateName,
+            status: payload.status as CandidateEmailStatus,
+            position: payload.position,
+            companyName: payload.companyName,
+            selectionDetails: payload.selectionDetails,
+            rejectionReason: payload.rejectionReason,
+            shortlistRoles: payload.shortlistRoles,
+            onboardingLink: payload.onboardingLink,
+            appointmentLetterLink: payload.appointmentLetterLink,
+            interviewDetails: payload.interviewDetails,
+          },
+          hrEmployee
+        );
+        break;
+
+      case "offerLetter":
+        template = getOfferLetterEmailTemplate(
+          {
+            candidateName: payload.candidateName,
+            role: payload.role,
+            signingLink: payload.signingLink,
+            companyName: payload.companyName,
+          },
+          hrEmployee
+        );
+        break;
+
+      case "resignature":
+        template = getResignatureEmailTemplate(
+          {
+            candidateName: payload.candidateName,
+            agreementType: payload.agreementType,
+            resignatureLink: payload.resignatureLink,
+            reason: payload.reason,
+          },
+          hrEmployee
+        );
+        break;
+
+      case "reupload":
+        template = getReuploadEmailTemplate(
+          {
+            candidateName: payload.candidateName,
+            documentLabels: payload.documentLabels || [],
+            reuploadLink: payload.reuploadLink,
+            reason: payload.reason,
+          },
+          hrEmployee
+        );
+        break;
+
+      case "employeeSignedDocuments":
+        template = getEmployeeSignedDocumentsPreviewTemplate(
+          {
+            employeeName: payload.employeeName,
+            position: payload.position || "",
+            selectionDetails: payload.selectionDetails,
+            attachedNames: payload.attachedNames || [],
+            companyName: payload.companyName,
+          },
+          hrEmployee
+        );
+        break;
+
+      case "interviewCancelled":
+        template = getInterviewAssignmentTemplate({
+          audience: "candidate",
+          kind: "cancelled",
+          round: payload.round === "second" ? "second" : "first",
+          candidateName: payload.candidateName,
+          position: payload.position,
+          interviewerName: payload.interviewerName || "Interviewer",
+          interviewerEmail: payload.interviewerEmail || "",
+          scheduledDate: payload.scheduledDate || "",
+          scheduledTime: payload.scheduledTime || "",
+          interviewMode: payload.interviewMode === "virtual" ? "virtual" : "physical",
+          officeName: payload.officeName,
+          officeAddress: payload.officeAddress,
+          googleMapsLink: payload.googleMapsLink,
+          notes: payload.notes,
+          companyName: payload.companyName || "Zairo International",
+        });
+        break;
+
       default:
         return NextResponse.json(
           { error: "Invalid email type" },
@@ -111,5 +226,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-

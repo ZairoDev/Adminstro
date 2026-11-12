@@ -96,6 +96,7 @@ import {
   type PeopleListTab,
 } from "@/features/people/navigation";
 import { RevealablePhone } from "@/features/people/components/RevealablePhone";
+import { useEmailPreviewFlow } from "@/hooks/useEmailPreviewFlow";
 
 export type { PeopleListTab };
 
@@ -612,6 +613,7 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
   const [draftCustomTo, setDraftCustomTo] = useState<Date | undefined>(undefined);
   const [revealedPhoneId, setRevealedPhoneId] = useState<string | null>(null);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const emailPreview = useEmailPreviewFlow();
 
   const search = listQuery.search;
   const page = listQuery.page;
@@ -854,37 +856,100 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
     action: "approve" | "reject",
     interviewType: "first" | "second"
   ) => {
+    const request = pendingRescheduleRequests.find(
+      (item) =>
+        item.candidateId === candidateId && item.interviewType === interviewType
+    );
+    const person = candidates.find((row) => row._id === candidateId);
+    const recipientEmail = person?.email?.trim() || "";
+    if (!recipientEmail) {
+      toast.error("Candidate email is required");
+      return;
+    }
+
+    const emailStatus =
+      action === "approve"
+        ? interviewType === "first"
+          ? "interviewRescheduled"
+          : "secondRoundInterviewRescheduled"
+        : interviewType === "first"
+          ? "interviewRescheduleRejected"
+          : "secondRoundInterviewRescheduleRejected";
+
+    const interviewDetailsPayload =
+      action === "approve"
+        ? {
+            scheduledDate: request?.requestedDate || "",
+            scheduledTime: request?.requestedTime || "",
+            officeAddress:
+              "Office address will be shared by HR before your visit.",
+            interviewerName: "Interviewer",
+          }
+        : {
+            scheduledDate: request?.currentDate || "",
+            scheduledTime: request?.currentTime || "",
+            officeAddress:
+              "Office address will be shared by HR before your visit.",
+            interviewerName: "Interviewer",
+          };
+
     setProcessingReschedule(candidateId);
     try {
-      const response = await fetch(
-        `/api/candidates/${candidateId}/approve-reschedule`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action,
-            interviewType,
-          }),
-        }
-      );
+      const opened = await emailPreview.openPreview({
+        type: "candidate",
+        payload: {
+          to: recipientEmail,
+          candidateName: request?.candidateName || person?.name || "",
+          status: emailStatus,
+          position: person?.position || "",
+          companyName: "Zairo International",
+          interviewDetails: interviewDetailsPayload,
+        },
+        recipientEmail,
+        onConfirm: async (subject, html) => {
+          const response = await fetch(
+            `/api/candidates/${candidateId}/approve-reschedule`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action,
+                interviewType,
+                customEmailSubject: subject,
+                customEmailHtml: html,
+              }),
+            }
+          );
 
-      const result = await response.json();
-      if (result.success) {
-        toast.success(
-          action === "approve"
-            ? "Reschedule request approved successfully"
-            : "Reschedule request rejected"
-        );
-        // Refresh candidates list and pending requests
-        await fetchPeople(search, page, selectedRole, experienceFilter, dateFilter, customDateFrom, customDateTo);
-        await fetchPendingRescheduleRequests();
-        // Close modal if no more pending requests
-        if (pendingRescheduleRequests.length <= 1) {
-          setRescheduleModalOpen(false);
-        }
-      } else {
-        toast.error(result.error || `Failed to ${action} reschedule request`);
-      }
+          const result = await response.json();
+          if (result.success) {
+            toast.success(
+              action === "approve"
+                ? "Reschedule request approved successfully"
+                : "Reschedule request rejected"
+            );
+            await fetchPeople(
+              search,
+              page,
+              selectedRole,
+              experienceFilter,
+              dateFilter,
+              customDateFrom,
+              customDateTo
+            );
+            await fetchPendingRescheduleRequests();
+            if (pendingRescheduleRequests.length <= 1) {
+              setRescheduleModalOpen(false);
+            }
+          } else {
+            toast.error(result.error || `Failed to ${action} reschedule request`);
+            throw new Error(
+              result.error || `Failed to ${action} reschedule request`
+            );
+          }
+        },
+      });
+      if (!opened) return;
     } catch (error) {
       console.error(`Error ${action}ing reschedule request:`, error);
       toast.error(`Failed to ${action} reschedule request`);
@@ -1788,6 +1853,8 @@ export function PeopleListShell({ tab }: PeopleListShellProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {emailPreview.previewDialog}
     </div>
   );
 }

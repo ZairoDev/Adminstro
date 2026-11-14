@@ -50,6 +50,22 @@ export const employeeSchema = z.object({
   jobPositionId: z.string().optional().default(""),
   department: z.string().optional().default(""),
   jobTitle: z.string().optional().default(""),
+  isTrainer: z.boolean().optional().default(false),
+  isReportingManager: z.boolean().optional().default(false),
+  reportingManagerId: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .default(null)
+    .transform((v) => (v && v.length > 0 ? v : null)),
+  trainerId: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .default(null)
+    .transform((v) => (v && v.length > 0 ? v : null)),
   assignedCountry: z.string().optional().default(""),
   rentalType: z
     .enum(["Short Term", "Long Term"])

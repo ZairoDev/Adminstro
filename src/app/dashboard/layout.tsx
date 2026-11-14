@@ -136,7 +136,7 @@ export default function DashboardLayout({
     <div className="flex">
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       <main
-        className={`p-2 w-full transition-all duration-300 ${
+        className={`p-2 w-full min-w-0 overflow-x-hidden transition-all duration-300 ${
           collapsed ? "ml-16" : "lg:ml-64"
         }`}
       >

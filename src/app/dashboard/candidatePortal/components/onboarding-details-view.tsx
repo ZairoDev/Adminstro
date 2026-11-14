@@ -131,6 +131,8 @@ interface SelectionDetails {
   workingHours?: string;
   role?: string;
   salary?: string;
+  trainerId?: string | null;
+  trainerName?: string | null;
 }
 
 interface OnboardingDetailsViewProps {
@@ -751,6 +753,15 @@ export function OnboardingDetailsView({
                 <InfoRow label="Working hours" value={selectionDetails.workingHours} />
                 <InfoRow label="Annual CTC" value={selectionDetails.salary} />
                 <InfoRow label="Position Type" value={selectionDetails.positionType} />
+                <InfoRow
+                  label="Trainer"
+                  value={
+                    selectionDetails.trainerName ||
+                    (selectionDetails.trainerId
+                      ? String(selectionDetails.trainerId)
+                      : undefined)
+                  }
+                />
                 <InfoRow label="Training Period" value={selectionDetails.trainingPeriod} />
                 <InfoRow label="Training Time" value={selectionDetails.duration} />
                 <InfoRow label="Intern Duration" value={selectionDetails.internDuration} />

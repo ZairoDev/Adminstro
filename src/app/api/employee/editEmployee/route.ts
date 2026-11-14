@@ -18,6 +18,7 @@ import {
 } from "@/modules/finance/services/salary.service";
 import { JobIdentityError, resolveJobIdentity } from "@/lib/departments/jobIdentity";
 import { missingFeaturedFields } from "@/lib/employee/featuredProfile";
+import { assertValidReportingManager } from "@/lib/employee/reportingManager";
 
 connectDb();
 
@@ -57,6 +58,8 @@ interface RequestBody {
   inactiveDate?: Date | string | null;
   password?: string;
   passwordExpiresAt?: Date;
+  /** null or "" clears; omit to leave unchanged */
+  reportingManagerId?: string | null;
 }
 
 export async function PUT(request: NextRequest): Promise<NextResponse> {
@@ -181,6 +184,22 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     if (updateFields.password) {
       updateData.password = updateFields.password;
       updateData.passwordExpiresAt = computePasswordExpiryDate();
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "reportingManagerId")) {
+      const raw = updateFields.reportingManagerId;
+      const nextManagerId =
+        raw === null || raw === undefined || String(raw).trim() === ""
+          ? null
+          : String(raw).trim();
+      const managerCheck = await assertValidReportingManager(_id, nextManagerId);
+      if (!managerCheck.ok) {
+        return NextResponse.json(
+          { error: managerCheck.message },
+          { status: managerCheck.status },
+        );
+      }
+      (updateData as RequestBody).reportingManagerId = nextManagerId;
     }
 
     const nextGross = parseGrossSalary(updateFields.salary);

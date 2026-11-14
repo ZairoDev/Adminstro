@@ -173,6 +173,13 @@ const CandidateSchema = new Schema(
       workingHours: { type: String, default: null },
       role: { type: String, default: null },
       salary: { type: String, default: null }, // Annual CTC
+      /** Optional onboarding trainer (employee marked isTrainer). Copied to employee on create. */
+      trainerId: {
+        type: Schema.Types.ObjectId,
+        ref: "Employees",
+        default: null,
+      },
+      trainerName: { type: String, default: null },
       offerLetterSent: { type: Boolean, default: false },
       offerLetterSentAt: { type: Date, default: null },
       offerLetterSigningLink: { type: String, default: null },

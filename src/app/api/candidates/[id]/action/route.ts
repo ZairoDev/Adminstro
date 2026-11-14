@@ -20,6 +20,8 @@ const selectionDetailsSchema = z
     workingHours: z.string().optional(),
     role: z.string(),
     salary: z.union([z.string(), z.number()]).optional(),
+    trainerId: z.string().trim().nullable().optional(),
+    trainerName: z.string().trim().nullable().optional(),
   })
   .passthrough();
 

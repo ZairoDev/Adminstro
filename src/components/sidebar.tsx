@@ -63,6 +63,7 @@ import {
   ScrollText,
   IndianRupee,
   MapPin,
+  Network,
 } from "lucide-react";
 
 import {
@@ -1816,6 +1817,11 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
               path: "/dashboard/my-attendance",
               label: "My Attendance",
               Icon: <CalendarCheck size={18} />,
+            },
+            {
+              path: "/dashboard/employee/org-hierarchy",
+              label: "Team hierarchy",
+              Icon: <Network size={18} />,
             },
             ...(canViewAssignedInterviews(role)
               ? [

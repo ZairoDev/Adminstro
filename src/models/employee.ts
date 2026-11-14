@@ -300,6 +300,30 @@ const employeeSchema = new Schema<IEmployee>(
       default: "",
       trim: true,
     },
+    /** Capability flag only — does not change login `role`. Set from Add-ons by HR/SuperAdmin. */
+    isTrainer: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    /** Capability flag only — does not change login `role`. Set from Add-ons by HR/SuperAdmin. */
+    isReportingManager: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    reportingManagerId: {
+      type: Schema.Types.ObjectId,
+      ref: "Employees",
+      default: null,
+      index: true,
+    },
+    trainerId: {
+      type: Schema.Types.ObjectId,
+      ref: "Employees",
+      default: null,
+      index: true,
+    },
     organization: {
       type: String,
       enum: [...ORGANIZATIONS],
@@ -656,7 +680,17 @@ employeeSchema.index({ role: 1, isActive: 1 });
 employeeSchema.index({ "officeDetails.assignedEmail": 1},{unique: true, sparse: true})
 employeeSchema.index({ "officeDetails.assignedNumber": 1}, {unique: true, sparse: true})
 
+// Next.js hot reload keeps the first compiled model. Drop it when new paths
+// are missing so populate/writes see the updated schema.
+const cachedEmployees = mongoose.models?.Employees as
+  | mongoose.Model<IEmployee>
+  | undefined;
+if (cachedEmployees && !cachedEmployees.schema.path("reportingManagerId")) {
+  delete mongoose.models.Employees;
+  delete mongoose.connection.models.Employees;
+}
+
 const Employees =
-  mongoose.models?.Employees ||
+  (mongoose.models?.Employees as mongoose.Model<IEmployee> | undefined) ||
   mongoose.model<IEmployee>("Employees", employeeSchema);
 export default Employees;

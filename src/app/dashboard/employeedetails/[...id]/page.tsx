@@ -1519,6 +1519,15 @@ export default function EmployeeProfilePage({ params }: PageProps) {
                       : ""
                   }
                 />
+                <InfoItem
+                  icon={UserCheck}
+                  label="Reporting Manager"
+                  value={
+                    (user as { reportingManager?: { name?: string } })
+                      ?.reportingManager?.name ||
+                    ""
+                  }
+                />
                 <InfoItem icon={AtSign} label="Alias" value={user?.alias} />
                 <InfoItem
                   icon={Building2}

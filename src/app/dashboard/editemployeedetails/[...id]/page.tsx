@@ -20,6 +20,10 @@ import "react-phone-number-input/style.css";
 import { Loader } from "lucide-react";
 import Heading from "@/components/Heading";
 import { JobIdentitySelects } from "@/components/departments/job-identity-selects";
+import {
+  EmployeeCapabilityTypeahead,
+  type CapabilityOption,
+} from "@/components/employee/EmployeeCapabilityTypeahead";
 
 interface PageProps {
   params: {
@@ -57,6 +61,8 @@ const AccountPage = ({ params }: PageProps) => {
   const [salary, setSalary] = useState("");
   const [empType, setEmpType] = useState("");
   const [duration, setDuration] = useState("");
+  const [reportingManager, setReportingManager] =
+    useState<CapabilityOption | null>(null);
   const [user, setUser] = useState<any>();
   const [selectCountry, setSelectCountry] = useState<String[]>([]);
   const [city, setCity] = useState<string[]>([]);
@@ -111,6 +117,26 @@ const AccountPage = ({ params }: PageProps) => {
         setSalary(response.data.data.salary || " ");
         setEmpType(response.data.data.empType || " ");
         setDuration(response.data.data.duration || " ");
+        const mgr = response.data.data.reportingManager;
+        if (mgr && (mgr._id || mgr.id)) {
+          setReportingManager({
+            id: String(mgr._id || mgr.id),
+            name: String(mgr.name || "").trim(),
+            email: String(mgr.email || "").trim(),
+            role: String(mgr.role || "").trim(),
+            jobTitle: String(mgr.jobTitle || "").trim(),
+            employeeCode: mgr.employeeCode ?? null,
+          });
+        } else if (response.data.data.reportingManagerId) {
+          setReportingManager({
+            id: String(response.data.data.reportingManagerId),
+            name: "Selected manager",
+            email: "",
+            role: "",
+          });
+        } else {
+          setReportingManager(null);
+        }
       }
     } catch (error: any) {
       toast({
@@ -176,6 +202,7 @@ const AccountPage = ({ params }: PageProps) => {
         salary,
         empType,
         duration,
+        reportingManagerId: reportingManager?.id ?? null,
       };
       const response = await axios.put(
         "/api/employee/editEmployee",
@@ -376,6 +403,17 @@ const AccountPage = ({ params }: PageProps) => {
               setJobPositionId("");
             }}
             onPositionChange={setJobPositionId}
+          />
+        </div>
+
+        <div className="mt-3">
+          <EmployeeCapabilityTypeahead
+            capability="reportingManager"
+            label="Reporting manager"
+            optional
+            value={reportingManager}
+            onChange={setReportingManager}
+            excludeId={userId}
           />
         </div>
 

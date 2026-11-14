@@ -45,6 +45,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { JobIdentitySelects } from "@/components/departments/job-identity-selects";
+import {
+  EmployeeCapabilityTypeahead,
+  type CapabilityOption,
+} from "@/components/employee/EmployeeCapabilityTypeahead";
 import { useEmailPreviewFlow } from "@/hooks/useEmailPreviewFlow";
 
 // --- Types ---
@@ -107,6 +111,7 @@ export type CandidateLite = {
     positionType?: "fulltime" | "intern";
     trainingDate?: string;
     workingHours?: string;
+    trainerId?: string | null;
   };
 };
 
@@ -146,6 +151,8 @@ const NewUser: React.FC<NewUserProps> = ({
   const [loading, setLoading] = useState(false);
   const [prefillLoading, setPrefillLoading] = useState(false);
   const [linkedCandidateId, setLinkedCandidateId] = useState("");
+  const [reportingManager, setReportingManager] =
+    useState<CapabilityOption | null>(null);
   const [linkedCandidate, setLinkedCandidate] = useState<CandidateLite | null>(
     null
   );
@@ -514,12 +521,19 @@ const NewUser: React.FC<NewUserProps> = ({
 
     const linkedId =
       candidateProp?._id || candidateId || linkedCandidateId || null;
+    const prefillTrainerId =
+      prefillFrom?.selectionDetails?.trainerId ||
+      linkedCandidate?.selectionDetails?.trainerId ||
+      candidateProp?.selectionDetails?.trainerId ||
+      null;
     const userData = {
       ...cleanedData,
       dateOfBirth: dateOfBirth instanceof Date ? dateOfBirth : cleanedData.dateOfBirth,
       dateOfJoining: dateOfJoining instanceof Date ? dateOfJoining : cleanedData.dateOfJoining,
       profilePic,
       candidateId: linkedId,
+      reportingManagerId: reportingManager?.id ?? null,
+      trainerId: prefillTrainerId,
     };
 
     console.log("Final userData:", userData);
@@ -983,6 +997,16 @@ const NewUser: React.FC<NewUserProps> = ({
                       setValue("jobPositionId", jobPositionId, { shouldValidate: true })
                     }
                   />
+
+                  <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                    <EmployeeCapabilityTypeahead
+                      capability="reportingManager"
+                      label="Reporting manager"
+                      optional
+                      value={reportingManager}
+                      onChange={setReportingManager}
+                    />
+                  </div>
 
                   <div className="space-y-2">
                     <Label>Employment Type *</Label>

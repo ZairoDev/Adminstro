@@ -110,6 +110,10 @@ export interface EmployeeInterface {
   isfeatured?: boolean;
   department?: string;
   jobTitle?: string;
+  isTrainer?: boolean;
+  isReportingManager?: boolean;
+  reportingManagerId?: string | null;
+  trainerId?: string | null;
   /** Public bio shown on the company site when the employee is featured. */
   description?: string;
   candidateId?: string | null;

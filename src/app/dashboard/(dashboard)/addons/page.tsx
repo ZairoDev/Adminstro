@@ -20,6 +20,7 @@ import AgentModal from "@/app/dashboard/agents/agent-modal";
 import BrokerModal from "@/app/dashboard/brokers/broker-modal";
 import RoleModal, { RoleRow } from "@/app/dashboard/roles/role-modal";
 import DepartmentCatalog from "./department-catalog";
+import HrCapabilitiesPanel from "./hr-capabilities-panel";
 import TargetModal from "../../target/target_model";
 import { TargetEditModal } from "../../target/target-edit-model";
 import { AreaModel } from "../../target/area-model";
@@ -475,6 +476,10 @@ const Addons = () => {
           ["SuperAdmin", "Admin", "HR", "HAdmin"].includes(token?.role ?? "") && (
             <DepartmentCatalog />
           )}
+
+        {mounted && (token?.role === "SuperAdmin" || token?.role === "HR") && (
+          <HrCapabilitiesPanel />
+        )}
       </div>
     </div>
   );

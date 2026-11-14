@@ -15,7 +15,12 @@ import {
   sendEmployeeSignedDocumentsEmail,
   type SelectionDetails,
 } from "@/lib/email";
+import mongoose from "mongoose";
 import { JobIdentityError, resolveJobIdentity } from "@/lib/departments/jobIdentity";
+import {
+  assertValidReportingManager,
+  assertValidTrainer,
+} from "@/lib/employee/reportingManager";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   await connectDb();
@@ -83,7 +88,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       password,
       profilePic,
       organization: requestedOrganization,
+      reportingManagerId,
+      trainerId,
     } = parsedBody;
+
+    const trainerCheck = await assertValidTrainer(trainerId ?? null);
+    if (!trainerCheck.ok) {
+      return NextResponse.json(
+        { success: false, message: trainerCheck.message },
+        { status: trainerCheck.status },
+      );
+    }
+    // Placeholder id — new employee not saved yet; still validates manager flag + no self-ref.
+    const pendingEmployeeId = new mongoose.Types.ObjectId().toString();
+    const managerCheck = await assertValidReportingManager(
+      pendingEmployeeId,
+      reportingManagerId ?? null,
+    );
+    if (!managerCheck.ok) {
+      return NextResponse.json(
+        { success: false, message: managerCheck.message },
+        { status: managerCheck.status },
+      );
+    }
 
     let jobIdentity;
     try {
@@ -173,6 +200,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       password,
       profilePic,
       organization,
+      trainerId: trainerId || null,
+      reportingManagerId: reportingManagerId || null,
       ...(jobIdentity
         ? {
             departmentId: String(jobIdentity.departmentId),

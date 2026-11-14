@@ -28,6 +28,8 @@
     "analyze:whatsapp-delivery": "tsx src/scripts/analyzeWhatsAppDeliveryStatus.ts",
     "backfill:employee-code": "tsx src/scripts/backfillEmployeeCode.ts",
     "backfill:employee-code:apply": "tsx src/scripts/backfillEmployeeCode.ts --apply",
+    "allocate:org-managers": "tsx src/scripts/allocateOrgHierarchyManagers.ts",
+    "allocate:org-managers:apply": "tsx src/scripts/allocateOrgHierarchyManagers.ts --apply",
     "backfill:departments": "tsx src/scripts/backfillDepartmentsFromRoles.ts",
     "db:sync-indexes": "tsx src/scripts/createIndexes.ts",
     "crm-agent:index": "tsx src/scripts/crm-agent/indexKnowledge.ts",

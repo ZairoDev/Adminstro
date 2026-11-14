@@ -536,6 +536,11 @@ export async function middleware(request: NextRequest) {
         return NextResponse.next();
       }
 
+      // Scoped team chart — any logged-in employee (API enforces company vs team vs peers).
+      if (path === "/dashboard/employee/org-hierarchy") {
+        return NextResponse.next();
+      }
+
       const isFinancePath =
         path === "/dashboard/finance" || path.startsWith("/dashboard/finance/");
       if (isFinancePath && role !== "SuperAdmin") {

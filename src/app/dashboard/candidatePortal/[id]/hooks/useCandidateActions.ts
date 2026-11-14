@@ -30,6 +30,12 @@ export function useCandidateActions(
             role: data.role,
             salary: data.annualCtc,
             workingHours: data.workingHours,
+            ...(data.trainerId
+              ? {
+                  trainerId: data.trainerId,
+                  trainerName: data.trainerName || null,
+                }
+              : {}),
           },
           ...(customEmail && {
             customEmailSubject: customEmail.subject,

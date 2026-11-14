@@ -6,6 +6,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Check, X } from "lucide-react";
+import {
+  EmployeeCapabilityTypeahead,
+  type CapabilityOption,
+} from "@/components/employee/EmployeeCapabilityTypeahead";
 
 interface SelectCandidateDialogProps {
   open: boolean;
@@ -22,6 +26,9 @@ export interface SelectionData {
   role: string;
   annualCtc: number;
   workingHours: string;
+  /** Optional — employee marked as Trainer in Add-ons */
+  trainerId?: string | null;
+  trainerName?: string | null;
 }
 
 const DEFAULT_WORKING_HOURS = "11:00 AM to 8:00 PM";
@@ -43,10 +50,12 @@ export function SelectCandidateDialog({
   const [role, setRole] = useState("");
   const [annualCtc, setAnnualCtc] = useState("");
   const [workingHours, setWorkingHours] = useState(DEFAULT_WORKING_HOURS);
+  const [trainer, setTrainer] = useState<CapabilityOption | null>(null);
 
   useEffect(() => {
     if (open) {
       setRole(candidatePosition?.trim() || "");
+      setTrainer(null);
     }
   }, [candidatePosition, open]);
 
@@ -76,6 +85,8 @@ export function SelectCandidateDialog({
       role,
       annualCtc: parsedCtc,
       workingHours: workingHours.trim(),
+      trainerId: trainer?.id ?? null,
+      trainerName: trainer?.name ?? null,
     });
 
     setPositionType("fulltime");
@@ -83,6 +94,7 @@ export function SelectCandidateDialog({
     setRole("");
     setAnnualCtc("");
     setWorkingHours(DEFAULT_WORKING_HOURS);
+    setTrainer(null);
   };
 
   if (!open) return null;
@@ -163,6 +175,16 @@ export function SelectCandidateDialog({
               <p className="text-xs text-muted-foreground mt-1">
                 Yearly cost to the company, in rupees.
               </p>
+            </div>
+
+            <div className="md:col-span-2">
+              <EmployeeCapabilityTypeahead
+                capability="trainer"
+                label="Trainer"
+                optional
+                value={trainer}
+                onChange={setTrainer}
+              />
             </div>
           </div>
 

@@ -3,6 +3,35 @@
 import { useState, useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
+
+/** Keep CTA button href + inline styles through TipTap edit/reconstruct. */
+const PreviewLink = Link.extend({
+  inclusive: false,
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      style: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("style"),
+        renderHTML: (attributes) =>
+          attributes.style ? { style: attributes.style } : {},
+      },
+      target: {
+        default: null,
+        parseHTML: (element) => element.getAttribute("target"),
+        renderHTML: (attributes) =>
+          attributes.target ? { target: attributes.target } : {},
+      },
+    };
+  },
+}).configure({
+  openOnClick: false,
+  autolink: false,
+  HTMLAttributes: {
+    rel: "noopener noreferrer",
+  },
+});
 import {
   Dialog,
   DialogContent,
@@ -67,7 +96,7 @@ export function EmailPreviewDialog({
 
   // Initialize Tiptap editor
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [StarterKit, PreviewLink],
     content: "",
     editorProps: {
       attributes: {
@@ -81,6 +110,9 @@ export function EmailPreviewDialog({
     },
   });
 
+  const contentDivSelector =
+    'div[style*="padding:35px"], div[style*="padding: 35px"], div[style*="padding:30px"], div[style*="padding: 30px"]';
+
   // Update editor content when dialog opens or initial values change
   useEffect(() => {
     if (open && editor && initialHtml) {
@@ -91,8 +123,8 @@ export function EmailPreviewDialog({
       const parser = new DOMParser();
       const doc = parser.parseFromString(initialHtml, 'text/html');
       
-      // Find the main content div (usually has padding:35px 30px)
-      const contentDiv = doc.querySelector('div[style*="padding:35px"], div[style*="padding: 35px"]');
+      // Find the main content div (warning-style 35px or legacy 30px)
+      const contentDiv = doc.querySelector(contentDivSelector);
       
       if (contentDiv) {
         // Keep signature out of TipTap — otherwise tables flatten to plain
@@ -132,8 +164,8 @@ export function EmailPreviewDialog({
       // Get edited content from Tiptap
       const editedContent = editor.getHTML();
       
-      // Find the main content div (padding:35px 30px)
-      const contentDiv = originalDoc.querySelector('div[style*="padding:35px"], div[style*="padding: 35px"]');
+      // Find the main content div (warning-style 35px or legacy 30px)
+      const contentDiv = originalDoc.querySelector(contentDivSelector);
       
       if (!contentDiv) return originalHtml;
       
@@ -174,6 +206,22 @@ export function EmailPreviewDialog({
   const hasEmailWrapper = (html: string) =>
     html.includes("max-width:600px") || html.includes("max-width: 600px");
 
+  /** Prefer original when reconstruct drops CTA hrefs that were in the template. */
+  const preserveCtaLinks = (candidateHtml: string): string => {
+    if (!originalHtml) return candidateHtml;
+    const originalHadCta =
+      /href=["'][^"']+["']/i.test(originalHtml) &&
+      /(Sign Offer Letter|Review and sign|Re-sign|Re-upload Documents)/i.test(
+        originalHtml,
+      );
+    const candidateHasCta = /href=["'][^"']+["']/i.test(candidateHtml);
+    if (originalHadCta && !candidateHasCta) {
+      console.warn("CTA link missing after edit reconstruct; using original HTML");
+      return originalHtml;
+    }
+    return candidateHtml;
+  };
+
   const handleSend = async () => {
     let fullHtml = reconstructFullHtml();
 
@@ -188,12 +236,14 @@ export function EmailPreviewDialog({
       fullHtml = originalHtml;
     }
 
+    fullHtml = preserveCtaLinks(fullHtml);
+
     await onSend(subject, fullHtml);
   };
 
   // Get full HTML for preview
   const getFullHtml = (): string => {
-    return reconstructFullHtml();
+    return preserveCtaLinks(reconstructFullHtml());
   };
 
   if (!editor) {

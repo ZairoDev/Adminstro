@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
 
     const propertyTypeResult = applyOwnerSheetPropertyTypeFilter({
       query: baseQuery,
-      rules: (ownerRuleDoc as { ownerPropertyTypeVisibilityRules?: null })?.ownerPropertyTypeVisibilityRules,
+      rules: ownerRuleDoc?.ownerPropertyTypeVisibilityRules,
       locations: effectiveLocationsForRules,
       propertyTypeFilter: filters?.propertyType,
     });

@@ -686,8 +686,7 @@ const cachedEmployees = mongoose.models?.Employees as
   | mongoose.Model<IEmployee>
   | undefined;
 if (cachedEmployees && !cachedEmployees.schema.path("reportingManagerId")) {
-  delete mongoose.models.Employees;
-  delete mongoose.connection.models.Employees;
+  mongoose.deleteModel("Employees");
 }
 
 const Employees =

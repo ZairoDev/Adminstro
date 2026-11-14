@@ -523,6 +523,9 @@ export default function CandidateDetailPage() {
       toast.error("Candidate email is required");
       return;
     }
+    // Same signing URL the action API stores/sends — without this the
+    // selected template falls back to "HR will share shortly" (no button).
+    const appointmentLetterLink = `${window.location.origin}/dashboard/candidatePortal/${candidateId}/offer-letter`;
     setSelectDialogOpen(false);
     await emailPreview.openPreview({
       type: "candidate",
@@ -530,8 +533,9 @@ export default function CandidateDetailPage() {
         to: candidate?.email,
         candidateName: candidate?.name,
         status: "selected",
-        position: candidate?.position,
+        position: candidate?.position || data.role,
         companyName: "Zairo International",
+        appointmentLetterLink,
         selectionDetails: {
           positionType: data.positionType,
           duration: "",

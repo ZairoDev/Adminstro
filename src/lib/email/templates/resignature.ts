@@ -1,8 +1,8 @@
 import { EmailTemplate } from "../types";
 import { getEmailSignature, EmailSignatureConfig } from "../signature";
 
-function escapeHtml(value: string): string {
-  return value
+function escapeHtml(value: string | null | undefined): string {
+  return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -16,6 +16,7 @@ export interface ResignatureEmailPayload {
   reason?: string | null;
 }
 
+/** Original request-resignature HTML style. */
 export function getResignatureEmailTemplate(
   payload: ResignatureEmailPayload,
   hrEmployee?: EmailSignatureConfig,
@@ -54,22 +55,22 @@ export function getResignatureEmailTemplate(
           ${reason}
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${link}"
-               style="display: inline-block; background: #2563eb; color: #ffffff; padding: 16px 40px;
-                      border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
+            <a href="${link}" style="background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
               Re-sign ${agreementName}
             </a>
           </div>
-
-          <p style="font-size: 13px; color: #444; margin: 18px 0 6px 0;">
-            If you are unable to access the button above, copy and paste this link into your browser:
-          </p>
-          <p style="font-size: 13px; color: #2563eb; word-break: break-all; margin: 0;">
-            ${link}
+          
+          <p style="font-size: 12px; color: #666; margin-top: 30px;">
+            <strong>Important:</strong> This link will expire in 7 days. If you have any questions, please contact HR.
           </p>
           
-          ${emailSignature}
+          <p style="font-size: 12px; color: #666;">
+            If the button doesn't work, copy and paste this link into your browser:<br>
+            <a href="${link}" style="color: #667eea; word-break: break-all;">${link}</a>
+          </p>
         </div>
+        
+        ${emailSignature}
       </body>
       </html>
     `,

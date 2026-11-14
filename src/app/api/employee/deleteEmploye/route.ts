@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
-    if (employee.role === "SuperAdmin") {
+    if (String(employee.role) === "SuperAdmin") {
       return NextResponse.json(
         { error: "You can not delete the superadmin" },
         { status: 403 }

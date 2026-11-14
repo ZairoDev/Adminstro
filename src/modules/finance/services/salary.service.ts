@@ -318,7 +318,7 @@ async function storeMissingStructures(documents: SalaryDocument[]): Promise<void
   });
 
   if (operations.length === 0) return;
-  await Employees.bulkWrite(operations);
+  await Employees.bulkWrite(operations as Parameters<typeof Employees.bulkWrite>[0]);
 }
 
 export function parseGrossSalary(value: unknown): number | null {

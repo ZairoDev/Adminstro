@@ -1,8 +1,8 @@
 import { EmailTemplate } from "../types";
 import { getEmailSignature, EmailSignatureConfig } from "../signature";
 
-function escapeHtml(value: string): string {
-  return value
+function escapeHtml(value: string | null | undefined): string {
+  return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -16,6 +16,7 @@ export interface ReuploadEmailPayload {
   reason?: string | null;
 }
 
+/** Original request-reupload HTML style. */
 export function getReuploadEmailTemplate(
   payload: ReuploadEmailPayload,
   hrEmployee?: EmailSignatureConfig,

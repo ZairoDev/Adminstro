@@ -1,8 +1,8 @@
 import { EmailTemplate } from "../types";
 import { getEmailSignature, EmailSignatureConfig } from "../signature";
 
-function escapeHtml(value: string): string {
-  return value
+function escapeHtml(value: string | null | undefined): string {
+  return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -16,6 +16,7 @@ export interface OfferLetterEmailPayload {
   companyName?: string;
 }
 
+/** Original send-offer-letter HTML style (unchanged wording/layout). */
 export function getOfferLetterEmailTemplate(
   payload: OfferLetterEmailPayload,
   hrEmployee?: EmailSignatureConfig,
@@ -23,7 +24,6 @@ export function getOfferLetterEmailTemplate(
   const name = escapeHtml(payload.candidateName);
   const role = escapeHtml(payload.role);
   const link = escapeHtml(payload.signingLink);
-  const company = escapeHtml(payload.companyName || "Zairo International");
   const emailSignature = getEmailSignature(hrEmployee);
 
   return {
@@ -44,7 +44,7 @@ export function getOfferLetterEmailTemplate(
         <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e0e0e0;">
           <p>Dear ${name},</p>
           
-          <p>We are pleased to offer you the position of <strong>${role}</strong> at ${company} Private Limited.</p>
+          <p>We are pleased to offer you the position of <strong>${role}</strong> at Zairo International Private Limited.</p>
           
           <p>
             <strong>Next step:</strong> Please review and sign your offer letter and the HR policies.
@@ -69,7 +69,7 @@ export function getOfferLetterEmailTemplate(
           
           <p style="margin-top: 30px;">Best regards,<br/>
           <strong>HR Team</strong><br/>
-          ${company} Private Limited</p>
+          Zairo International Private Limited</p>
           
           ${emailSignature}
         </div>

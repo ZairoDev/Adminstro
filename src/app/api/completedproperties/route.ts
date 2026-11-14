@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
     const employee = await Employees.findOne({ email });
 
     if (employee && employee.role === "Content") {
-      wordsCount = employee.extras.get("wordsCount") || 0;
+      wordsCount = Number(employee.get("extras.wordsCount")) || 0;
     }
 
     const regex = new RegExp(searchTerm, "i");

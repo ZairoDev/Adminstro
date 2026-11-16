@@ -46,6 +46,8 @@ interface Candidate {
     offerLetterSentAt?: string;
     offerLetterSigningLink?: string;
     signedOfferLetterPdfUrl?: string;
+    unsignedSalaryAnnexurePdfUrl?: string;
+    signedSalaryAnnexurePdfUrl?: string;
     offerLetterSigned?: boolean;
     signedDocumentsEmailSentAt?: string;
   };
@@ -57,6 +59,38 @@ interface Candidate {
 interface UploadedFile {
   url: string;
   name: string;
+}
+
+async function requestSalaryAnnexurePdf(options: {
+  candidateId: string;
+  signatureUrl?: string;
+  signingDate?: string;
+}): Promise<Blob> {
+  const response = await axios.post(
+    "/api/candidates/salaryAnnexure",
+    {
+      candidateId: options.candidateId,
+      candidateSignatureBase64: options.signatureUrl,
+      signingDate: options.signingDate,
+    },
+    {
+      responseType: "arraybuffer",
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+  const bytes = response.data as ArrayBuffer;
+  const header = new TextDecoder().decode(bytes.slice(0, 5));
+  if (header.startsWith("%PDF")) {
+    return new Blob([bytes], { type: "application/pdf" });
+  }
+  let message = "Failed to generate the salary annexure";
+  try {
+    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as { error?: string };
+    if (parsed.error) message = parsed.error;
+  } catch {
+    // The response was not a PDF or a JSON error.
+  }
+  throw new Error(message);
 }
 
 function base64ToFile(base64: string, filename: string): File {
@@ -72,9 +106,26 @@ function base64ToFile(base64: string, filename: string): File {
   return new File([u8arr], filename, { type: mime });
 }
 
+function BrandLockup() {
+  return (
+    <div className="relative h-11 w-36 overflow-hidden bg-white">
+      <img
+        src="/Zairo.png"
+        alt="Zairo International"
+        className="absolute left-1/2 top-1/2 h-[210px] w-[168px] max-w-none -translate-x-1/2 -translate-y-1/2 bg-white"
+      />
+    </div>
+  );
+}
+
 const LoadingSkeleton = () => (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
-    <div className="w-full max-w-4xl space-y-6">
+  <div className="min-h-dvh bg-[#F8FAFC] dark:bg-[#0B1220]">
+    <div className="border-b border-[#E4E5E7] bg-white dark:border-slate-800 dark:bg-slate-950">
+      <div className="mx-auto flex h-16 max-w-4xl items-center px-4 sm:px-6">
+        <BrandLockup />
+      </div>
+    </div>
+    <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8 sm:px-6">
       <div className="text-center space-y-4">
         <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg w-3/4 mx-auto animate-pulse" />
         <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-2/3 mx-auto animate-pulse" />
@@ -115,6 +166,7 @@ export default function OfferLetterPage() {
   const [signedPdfUrl, setSignedPdfUrl] = useState<string | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [hrPoliciesPdfUrl, setHrPoliciesPdfUrl] = useState<string | null>(null);
+  const [salaryAnnexurePdfUrl, setSalaryAnnexurePdfUrl] = useState<string | null>(null);
   const pdfGeneratedRef = useRef(false);
 
   useEffect(() => {
@@ -261,6 +313,28 @@ export default function OfferLetterPage() {
         setHrPoliciesPdfUrl(URL.createObjectURL(hrPdfBlob));
       } catch (hrError) {
         console.error("Error generating HR policies preview:", hrError);
+      }
+
+      const annexureBlob = await requestSalaryAnnexurePdf({ candidateId: candidate._id });
+      const annexureUrl = URL.createObjectURL(annexureBlob);
+      setSalaryAnnexurePdfUrl(annexureUrl);
+      try {
+        const annexureFile = new File(
+          [annexureBlob],
+          `Salary-Annexure-${candidateId}-Unsigned.pdf`,
+          { type: "application/pdf" },
+        );
+        const { imageUrls, error: uploadErr } = await uploadFiles(
+          [annexureFile],
+          "Documents/UnsignedPDFs",
+        );
+        if (!uploadErr && imageUrls?.length) {
+          await axios.patch(`/api/candidates/${candidateId}`, {
+            "selectionDetails.unsignedSalaryAnnexurePdfUrl": imageUrls[0],
+          });
+        }
+      } catch (uploadError) {
+        console.error("Error uploading unsigned salary annexure:", uploadError);
       }
     } catch (error: any) {
       console.error("Error generating unsigned PDF:", error);
@@ -413,7 +487,7 @@ export default function OfferLetterPage() {
     candidate?.selectionDetails?.signedOfferLetterPdfUrl &&
     candidate?.trainingAgreementDetails?.signedHrPoliciesPdfUrl
   );
-  const documentsReviewed = Boolean(unsignedPdfUrl && hrPoliciesPdfUrl);
+  const documentsReviewed = Boolean(unsignedPdfUrl && hrPoliciesPdfUrl && salaryAnnexurePdfUrl);
 
   const handleSubmitClick = (e: React.FormEvent) => {
     e.preventDefault();
@@ -422,7 +496,7 @@ export default function OfferLetterPage() {
       return;
     }
     if (!documentsReviewed) {
-      setError("Please wait until the offer letter and the HR policies are ready to download.");
+      setError("Please wait until the offer letter, salary annexure, and HR policies are ready.");
       return;
     }
     setError(null);
@@ -533,10 +607,30 @@ export default function OfferLetterPage() {
       }
       const signedHrPoliciesPdfUrl = hrUrls[0];
 
+      const annexureBlob = await requestSalaryAnnexurePdf({
+        candidateId: candidate._id,
+        signatureUrl: signature.url,
+        signingDate: new Date().toISOString(),
+      });
+      const annexureFile = new File(
+        [annexureBlob],
+        `Salary-Annexure-${candidateId}-Signed.pdf`,
+        { type: "application/pdf" },
+      );
+      const { imageUrls: annexureUrls, error: annexureUploadErr } = await uploadFiles(
+        [annexureFile],
+        "Documents/SignedPDFs",
+      );
+      if (annexureUploadErr || !annexureUrls?.length) {
+        throw new Error("Failed to upload the signed salary annexure");
+      }
+      const signedSalaryAnnexurePdfUrl = annexureUrls[0];
+
       const formData = new FormData();
       formData.append("signature", signature.url);
       formData.append("signedPdfUrl", signedPdfUrl);
       formData.append("signedHrPoliciesPdfUrl", signedHrPoliciesPdfUrl);
+      formData.append("signedSalaryAnnexurePdfUrl", signedSalaryAnnexurePdfUrl);
       formData.append("agreementAccepted", "true");
 
       const offerLetterRes = await axios.post(
@@ -619,8 +713,14 @@ export default function OfferLetterPage() {
 
   if (candidate && (success || documentsSigned)) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
-        <Card className="w-full max-w-lg p-8 text-center bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+      <div className="min-h-dvh bg-[#F8FAFC] dark:bg-[#0B1220]">
+        <div className="border-b border-[#E4E5E7] bg-white dark:border-slate-800 dark:bg-slate-950">
+          <div className="mx-auto flex h-16 max-w-lg items-center px-4">
+            <BrandLockup />
+          </div>
+        </div>
+        <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center p-4">
+        <Card className="w-full max-w-lg border-[#E4E5E7] bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-green-500">
             <Check className="h-8 w-8 text-white" />
           </div>
@@ -632,19 +732,20 @@ export default function OfferLetterPage() {
           </p>
           {confirmationSent ? (
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              A copy of the signed offer letter and HR policies has been sent to your email.
+              A copy of the signed offer letter, salary annexure, and HR policies has been sent to your email.
             </p>
           ) : null}
         </Card>
+        </div>
       </div>
     );
   }
 
   if (!candidate || (candidate.status !== "selected" && candidate.status !== "onboarding")) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-8">
-        <div className="max-w-4xl mx-auto">
-          <Card className="p-8 text-center bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+      <div className="min-h-dvh bg-[#F8FAFC] p-4 dark:bg-[#0B1220] sm:p-8">
+        <div className="mx-auto max-w-4xl">
+          <Card className="border-[#E4E5E7] bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <AlertCircle className="w-12 h-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
             <p className="text-lg font-semibold text-foreground mb-2">
               Access Denied
@@ -659,8 +760,16 @@ export default function OfferLetterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8 flex items-center justify-center">
-      <div className="w-full max-w-4xl">
+    <div className="min-h-dvh bg-[#F8FAFC] text-[#0F172A] dark:bg-[#0B1220] dark:text-slate-100">
+      <header className="border-b border-[#E4E5E7] bg-white dark:border-slate-800 dark:bg-slate-950">
+        <div className="mx-auto flex h-16 max-w-4xl items-center justify-between gap-4 px-4 sm:px-6">
+          <BrandLockup />
+          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-[#64748B]">
+            Offer documents
+          </p>
+        </div>
+      </header>
+      <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
         {hiringReturnTo ? (
           <div className="mb-4">
             <Button variant="ghost" size="sm" className="gap-1.5 h-8" asChild>
@@ -672,12 +781,12 @@ export default function OfferLetterPage() {
           </div>
         ) : null}
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 dark:from-blue-400 dark:to-blue-600 bg-clip-text text-transparent mb-3">
+        <div className="mb-8">
+          <h1 className="text-3xl font-semibold tracking-tight text-[#0F172A] dark:text-white sm:text-4xl">
             Offer Letter
           </h1>
-          <p className="text-lg text-muted-foreground">
-            Please review and sign your offer letter and the HR policies
+          <p className="mt-2 max-w-2xl text-base leading-7 text-[#475569] dark:text-slate-300">
+            Review your offer letter, salary annexure, and HR policies, then sign once. The same signature is applied to all three documents.
           </p>
         </div>
 
@@ -724,9 +833,9 @@ export default function OfferLetterPage() {
 
         <form onSubmit={handleSubmitClick} noValidate className="space-y-6">
           {/* Candidate Information */}
-          <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/10 dark:to-blue-800/10 border-blue-200 dark:border-blue-700 shadow-sm">
+          <Card className="border-[#E4E5E7] bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-blue-600 dark:bg-blue-400 text-white dark:text-gray-900 flex items-center justify-center text-sm font-semibold">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1E293B] text-sm font-semibold text-white">
                 1
               </div>
               <h2 className="text-lg font-semibold text-foreground">
@@ -763,7 +872,7 @@ export default function OfferLetterPage() {
 
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-teal-600 dark:bg-teal-500 text-white flex items-center justify-center text-sm font-semibold">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1E293B] text-sm font-semibold text-white">
                 2
               </div>
               <h2 className="text-lg font-semibold text-foreground">
@@ -776,9 +885,9 @@ export default function OfferLetterPage() {
               )}
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Download both documents and read them before you sign.
+              Download the documents and read them before you sign. The salary annexure is a separate PDF.
             </p>
-            <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Button
                 type="button"
                 variant="outline"
@@ -795,7 +904,7 @@ export default function OfferLetterPage() {
                   a.click();
                   document.body.removeChild(a);
                 }}
-                className="flex-1 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                className="h-11 border-[#E4E5E7] text-[#0F172A] hover:bg-[#F8FAFC] dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
               >
                 {generatingPdf && !signedPdfUrl && !unsignedPdfUrl ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -819,7 +928,7 @@ export default function OfferLetterPage() {
                   a.click();
                   document.body.removeChild(a);
                 }}
-                className="flex-1 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                className="h-11 border-[#E4E5E7] text-[#0F172A] hover:bg-[#F8FAFC] dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
               >
                 {generatingPdf && !hrPoliciesPdfUrl ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -828,19 +937,41 @@ export default function OfferLetterPage() {
                 )}
                 Download {documentsSigned ? "signed " : ""}HR policies
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={generatingPdf || !salaryAnnexurePdfUrl}
+                onClick={() => {
+                  if (!salaryAnnexurePdfUrl) return;
+                  const a = document.createElement("a");
+                  a.href = salaryAnnexurePdfUrl;
+                  a.download = `Salary-Annexure-${candidateId}.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }}
+                className="h-11 border-[#E4E5E7] text-[#0F172A] hover:bg-[#F8FAFC] dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
+              >
+                {generatingPdf && !salaryAnnexurePdfUrl ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
+                Download salary annexure
+              </Button>
             </div>
           </Card>
 
           {!documentsSigned && !success && (
             <p className="text-sm font-medium leading-6 text-red-600 dark:text-red-400">
-              Please read the Offer Letter and the HR Policies in full before you sign. By providing your signature, you confirm that you have read both documents and that this signature applies to the Offer Letter and the HR Policies.
+              Please read the offer letter, the salary annexure, and the HR policies in full before you sign. This signature applies to all three documents.
             </p>
           )}
 
           {/* Digital Signature */}
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-purple-600 dark:bg-purple-400 text-white dark:text-gray-900 flex items-center justify-center text-sm font-semibold">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1E293B] text-sm font-semibold text-white">
                 3
               </div>
               <h2 className="text-lg font-semibold text-foreground">
@@ -864,7 +995,7 @@ export default function OfferLetterPage() {
                 }}
                 className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
                   useDigitalSignature
-                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
+                    ? "border border-[#1E293B] bg-[#1E293B] text-white"
                     : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
                 }`}
               >
@@ -876,7 +1007,7 @@ export default function OfferLetterPage() {
                 onClick={() => setUseDigitalSignature(false)}
                 className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
                   !useDigitalSignature
-                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-700"
+                    ? "border border-[#1E293B] bg-[#1E293B] text-white"
                     : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
                 }`}
               >
@@ -910,7 +1041,7 @@ export default function OfferLetterPage() {
                     <Button
                       type="button"
                       onClick={() => setShowSignaturePad(true)}
-                      className="w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+                      className="h-11 w-full bg-[#1E293B] text-white hover:bg-[#0F172A] dark:bg-white dark:text-[#0F172A] dark:hover:bg-slate-200"
                     >
                       Start Drawing Signature
                     </Button>
@@ -993,7 +1124,7 @@ export default function OfferLetterPage() {
             </p>
           ) : !documentsReviewed ? (
             <p className="text-sm text-amber-700 dark:text-amber-400">
-              The offer letter and the HR policies are being prepared for download.
+              The offer letter, salary annexure, and HR policies are being prepared.
             </p>
           ) : null}
 
@@ -1009,7 +1140,7 @@ export default function OfferLetterPage() {
                 documentsSigned ||
                 !documentsReviewed
               }
-              className="flex-1 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+              className="h-11 flex-1 bg-[#1E293B] text-white hover:bg-[#0F172A] focus-visible:ring-[#1E293B] dark:bg-white dark:text-[#0F172A] dark:hover:bg-slate-200"
               size="lg"
             >
               {success ? (
@@ -1049,7 +1180,7 @@ export default function OfferLetterPage() {
             <DialogHeader>
               <DialogTitle className="text-foreground">Confirm Submission</DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                Sign the offer letter and the HR policies with this signature?
+                Sign the offer letter, the salary annexure, and the HR policies with this signature?
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2">
@@ -1066,7 +1197,7 @@ export default function OfferLetterPage() {
                 type="button"
                 onClick={handleConfirmSubmit}
                 disabled={submitting}
-                className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+                className="h-11 bg-[#1E293B] text-white hover:bg-[#0F172A] dark:bg-white dark:text-[#0F172A] dark:hover:bg-slate-200"
               >
                 {submitting ? (
                   <>

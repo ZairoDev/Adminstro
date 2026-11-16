@@ -51,6 +51,7 @@ import {
   missingRegisteredOfficeResponse,
   resolveRegisteredOfficeAddress,
 } from "@/lib/officeAddress/resolveRegisteredOfficeAddress";
+import { formatAppliedAppointment } from "@/lib/pdf/letterOfIntentIntern";
 import {
   renderInternOnboardingNda,
   type OnboardingPdfWriter,
@@ -72,6 +73,8 @@ type Payload = {
 
   // Appointment
   designation: string;
+  /** Department the candidate applied for. Used when the candidate record has none. */
+  department?: string;
   effectiveFrom: string;
   postingLocation: string;
   salaryINR: string;
@@ -183,6 +186,7 @@ export async function POST(req: NextRequest) {
     let candidateGender: string | null = null;
     let isIntern = resolveIsIntern(data.employmentType);
     let roleName: string | null = null;
+    let appliedDepartment = (data.department || "").trim();
     if (data.candidateId) {
       try {
         await connectDb();
@@ -195,12 +199,17 @@ export async function POST(req: NextRequest) {
             candidateGender = candidate.gender;
           }
 
+          // Position and department from the application, not a later selected title.
           const identity = await resolveLetterJobIdentity({
             position: candidate.position,
             department: candidate.department,
-            selectionDetails: candidate.selectionDetails,
           });
-          roleName = identity.jobTitle || null;
+          roleName = (candidate.position || identity.jobTitle || "").trim() || null;
+          appliedDepartment = (
+            candidate.department ||
+            identity.department ||
+            appliedDepartment
+          ).trim();
 
           isIntern = resolveIsIntern(
             data.employmentType,
@@ -863,6 +872,10 @@ export async function POST(req: NextRequest) {
     yPosition -= 15;
 
     const relationshipPrefix = candidateGender === "Female" ? "D/o" : "S/o";
+    const appointmentAs = formatAppliedAppointment(
+      roleName || data.designation || "",
+      appliedDepartment
+    );
 
     if (isIntern) {
       const internWriter: OnboardingPdfWriter = {
@@ -906,7 +919,8 @@ export async function POST(req: NextRequest) {
         relationshipPrefix,
         designation: data.designation || "",
         roleName,
-        position: data.designation || "",
+        position: roleName || data.designation || "",
+        department: appliedDepartment,
         formattedEffectiveFrom,
         jurisdictionCity: agreementCityResolved,
       });
@@ -991,9 +1005,7 @@ export async function POST(req: NextRequest) {
     yPosition -= lineHeight;
 
     drawWrappedText(
-      `1. You are being appointed as ${
-        data.designation || "___________"
-      } with effect from ${
+      `1. You are being appointed as ${appointmentAs} with effect from ${
         formattedEffectiveFrom
       } and shall be considered an 'Employee' of the Company.`,
       leftMargin + 5,

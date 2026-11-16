@@ -19,11 +19,12 @@ export async function POST(
     const signature = formData.get("signature") as string;
     const signedPdfUrl = formData.get("signedPdfUrl") as string;
     const signedHrPoliciesPdfUrl = formData.get("signedHrPoliciesPdfUrl") as string;
+    const signedSalaryAnnexurePdfUrl = formData.get("signedSalaryAnnexurePdfUrl") as string;
     const unsignedPdfUrl = formData.get("unsignedPdfUrl") as string | null;
 
-    if (!signature || !signedPdfUrl || !signedHrPoliciesPdfUrl) {
+    if (!signature || !signedPdfUrl || !signedHrPoliciesPdfUrl || !signedSalaryAnnexurePdfUrl) {
       return NextResponse.json(
-        { success: false, error: "The offer letter, HR policies, and a signature are required" },
+        { success: false, error: "The offer letter, salary annexure, HR policies, and a signature are required" },
         { status: 400 }
       );
     }
@@ -59,6 +60,7 @@ export async function POST(
       "selectionDetails.offerLetterSigned": true,
       "selectionDetails.offerLetterSignedAt": signedAt,
       "selectionDetails.offerLetterSignature": signature,
+      "selectionDetails.signedSalaryAnnexurePdfUrl": signedSalaryAnnexurePdfUrl,
       "trainingAgreementDetails.signedHrPoliciesPdfUrl": signedHrPoliciesPdfUrl,
       "trainingAgreementDetails.hrPoliciesSignedAt": signedAt,
       "trainingAgreementDetails.eSign.signatureImage": signature,
@@ -98,6 +100,7 @@ export async function POST(
         signedAt,
         offerLetterUrl: signedPdfUrl,
         hrPoliciesUrl: signedHrPoliciesPdfUrl,
+        salaryAnnexureUrl: signedSalaryAnnexurePdfUrl,
       });
       emailSent = emailResult.success;
       if (emailSent) {

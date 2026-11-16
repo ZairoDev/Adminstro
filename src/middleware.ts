@@ -426,6 +426,7 @@ const publicRoutes = [
   /^\/dashboard\/candidatePortal\/[^\/]+\/onboarding$/,
   /^\/dashboard\/candidatePortal\/[^\/]+\/training-agreement$/,
   /^\/dashboard\/candidatePortal\/[^\/]+\/offer-letter$/,
+  /^\/dashboard\/candidatePortal\/[^\/]+\/salary-annexure$/,
 ];
 
 export async function middleware(request: NextRequest) {

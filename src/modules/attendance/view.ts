@@ -123,9 +123,12 @@ export type PolicyView = {
   shiftEnd: string;
   graceMinutes: number;
   weeklyOffDays: number[];
+  alternateSaturdayOff: "none" | "cycle_a" | "cycle_b";
   halfDayLopFactor: number;
   lateCreatesLop: boolean;
   lateLopFactor: number;
+  lateGraceThresholdCount: number;
+  severeLateMinutes: number;
   cutoffTime: string;
   confirmed: boolean;
   confirmedAt: string | null;

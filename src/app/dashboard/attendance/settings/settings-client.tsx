@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   currentPayrollMonth,
+  daysInPayrollMonth,
   payrollMonthLabel,
 } from "@/modules/finance/salary-month";
+import { alternateSaturdayOffDates } from "@/modules/attendance/dates";
 import type {
   DepartmentOption,
   DepartmentShiftPositionView,
@@ -27,6 +29,27 @@ import {
 } from "../../finance/_components/finance-sheet-frame";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function formatDayMonth(dateKey: string): string {
+  const day = Number(dateKey.slice(-2));
+  const month = Number(dateKey.slice(5, 7));
+  const label = new Date(Date.UTC(2000, month - 1, 1)).toLocaleDateString("en-IN", {
+    month: "short",
+    timeZone: "UTC",
+  });
+  return `${day} ${label}`;
+}
+
+function alternateSaturdayPreview(pattern: "cycle_a" | "cycle_b", monthKey: string): string {
+  const days = daysInPayrollMonth({
+    year: Number(monthKey.slice(0, 4)),
+    month: Number(monthKey.slice(5, 7)),
+    key: monthKey,
+  });
+  const offs = alternateSaturdayOffDates(`${monthKey}-01`, `${monthKey}-${String(days).padStart(2, "0")}`, pattern);
+  if (offs.length === 0) return "no Saturdays off this month";
+  return `off ${offs.map(formatDayMonth).join(", ")}`;
+}
 
 type PolicyResponse = { policy: PolicyView; departments: DepartmentOption[] };
 
@@ -98,9 +121,12 @@ export default function AttendanceSettingsClient() {
         shiftEnd: policy.shiftEnd,
         graceMinutes: Number(policy.graceMinutes),
         weeklyOffDays: policy.weeklyOffDays,
+        alternateSaturdayOff: policy.alternateSaturdayOff,
         halfDayLopFactor: Number(policy.halfDayLopFactor),
         lateCreatesLop: policy.lateCreatesLop,
         lateLopFactor: Number(policy.lateLopFactor),
+        lateGraceThresholdCount: Number(policy.lateGraceThresholdCount),
+        severeLateMinutes: Number(policy.severeLateMinutes),
         cutoffTime: policy.cutoffTime,
         confirmed: policy.confirmed,
       });
@@ -265,39 +291,110 @@ export default function AttendanceSettingsClient() {
                   <Input type="number" min={0} max={1} step={0.1} value={policy.halfDayLopFactor} onChange={(event) => setPolicy({ ...policy, halfDayLopFactor: Number(event.target.value) })} className="h-10" />
                 </Field>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {WEEKDAYS.map((label, index) => {
-                  const active = policy.weeklyOffDays.includes(index);
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      aria-pressed={active}
-                      className={`h-9 rounded-md border px-3 text-sm ${active ? "border-foreground bg-muted" : "border-border"}`}
-                      onClick={() => {
-                        const weeklyOffDays = active
-                          ? policy.weeklyOffDays.filter((day) => day !== index)
-                          : [...policy.weeklyOffDays, index];
-                        setPolicy({ ...policy, weeklyOffDays });
-                      }}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Weekly offs</p>
+                <div className="flex flex-wrap gap-2">
+                  {WEEKDAYS.map((label, index) => {
+                    const active = policy.weeklyOffDays.includes(index);
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        aria-pressed={active}
+                        className={`h-9 rounded-md border px-3 text-sm ${active ? "border-foreground bg-muted" : "border-border"}`}
+                        onClick={() => {
+                          const weeklyOffDays = active
+                            ? policy.weeklyOffDays.filter((day) => day !== index)
+                            : [...policy.weeklyOffDays, index];
+                          setPolicy({ ...policy, weeklyOffDays });
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+              <Field label="Alternate Saturdays">
+                <select
+                  aria-label="Alternate Saturday off pattern"
+                  className="h-10 w-full max-w-md rounded-md border border-input bg-background px-3 text-sm"
+                  value={policy.alternateSaturdayOff}
+                  onChange={(event) =>
+                    setPolicy({
+                      ...policy,
+                      alternateSaturdayOff: event.target.value as PolicyView["alternateSaturdayOff"],
+                    })
+                  }
+                >
+                  <option value="none">None — only the weekly-off days above</option>
+                  <option value="cycle_a">
+                    Every other Saturday — cycle A ({alternateSaturdayPreview("cycle_a", month.key)})
+                  </option>
+                  <option value="cycle_b">
+                    Every other Saturday — cycle B ({alternateSaturdayPreview("cycle_b", month.key)})
+                  </option>
+                </select>
+              </Field>
+              {policy.alternateSaturdayOff !== "none" ? (
+                <p className="text-sm text-muted-foreground">
+                  Continues across months: one Saturday off, the next Saturday working, then off again.
+                  {policy.weeklyOffDays.includes(6)
+                    ? " Saturday is already a full weekly off, so this rule does not change anything."
+                    : ` This month: ${alternateSaturdayPreview(policy.alternateSaturdayOff, month.key)}. If the wrong Saturdays are off, switch to the other cycle.`}
+                </p>
+              ) : null}
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
                   checked={policy.lateCreatesLop}
                   onChange={(event) => setPolicy({ ...policy, lateCreatesLop: event.target.checked })}
                 />
-                Count late arrivals toward loss of pay
+                Apply late arrival loss-of-pay rules
               </label>
               {policy.lateCreatesLop ? (
-                <Field label="LOP per late day">
-                  <Input type="number" min={0} max={1} step={0.05} value={policy.lateLopFactor} onChange={(event) => setPolicy({ ...policy, lateLopFactor: Number(event.target.value) })} className="h-10 max-w-40" />
-                </Field>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Field label="Grace lates per month before LOP">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={policy.lateGraceThresholdCount}
+                      onChange={(event) =>
+                        setPolicy({ ...policy, lateGraceThresholdCount: Number(event.target.value) })
+                      }
+                      className="h-10"
+                    />
+                  </Field>
+                  <Field label="LOP when grace threshold is reached">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={policy.lateLopFactor}
+                      onChange={(event) => setPolicy({ ...policy, lateLopFactor: Number(event.target.value) })}
+                      className="h-10"
+                    />
+                  </Field>
+                  <Field label="Minutes after shift start for half day">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={480}
+                      value={policy.severeLateMinutes}
+                      onChange={(event) =>
+                        setPolicy({ ...policy, severeLateMinutes: Number(event.target.value) })
+                      }
+                      className="h-10"
+                    />
+                  </Field>
+                  <p className="text-sm text-muted-foreground md:col-span-3">
+                    Crossing grace {policy.lateGraceThresholdCount} times in a month adds {policy.lateLopFactor} LOP
+                    day. Arriving {policy.severeLateMinutes}+ minutes after shift start is a half day and deducts{" "}
+                    {policy.halfDayLopFactor} day each time.
+                  </p>
+                </div>
               ) : null}
               <label className="flex items-center gap-2 text-sm">
                 <input

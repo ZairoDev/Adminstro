@@ -51,6 +51,7 @@ import { PdfFrame } from "@/components/pdf-frame";
     city: string;
     country: string;
     position: string;
+    department?: string;
     status: string;
     employmentType?: "fulltime" | "intern" | null;
     officeLocation?: string | null;
@@ -1114,6 +1115,7 @@ export default function OnboardingPage() {
           fatherName: candidate.onboardingDetails?.personalDetails?.fatherName || personalDetails.fatherName || "",
           employeeAddress: candidate.address,
           designation: candidate.position,
+          department: candidate.department || "",
           effectiveFrom: new Date().toISOString(),
           postingLocation: (candidate.officeAddressId && typeof candidate.officeAddressId === "object" && (candidate.officeAddressId.formattedAddress || candidate.officeAddressId.city)) || candidate.officeLocation || candidate.city || "",
           salaryINR: candidate.selectionDetails?.salary 
@@ -1236,6 +1238,7 @@ export default function OnboardingPage() {
         employeeAddress: candidate.address,
 
         designation: candidate.position,
+        department: candidate.department || "",
         effectiveFrom: new Date().toISOString(),
         postingLocation: candidate.city,
         salaryINR: candidate.selectionDetails?.salary 
@@ -1532,6 +1535,7 @@ export default function OnboardingPage() {
         fatherName: fatherName,
         employeeAddress: candidate.address,
         designation: candidate.position,
+        department: candidate.department || "",
         effectiveFrom: new Date().toISOString(),
         postingLocation: candidate.city,
         salaryINR: candidate.selectionDetails?.salary 

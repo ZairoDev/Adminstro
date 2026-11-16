@@ -2,9 +2,9 @@ import {
   addAttendanceDays,
   cutoffInstant,
   istDateKey,
+  isWeeklyOffDay,
   loginMatchesDate,
   shiftWindow,
-  weekdayIndex,
 } from "@/modules/attendance/dates";
 import type {
   AnomalyFlag,
@@ -193,7 +193,11 @@ export function resolveAttendanceDay(input: ResolveDayInput): ResolveDayResult {
   const today = istDateKey(input.now);
   const employment = employmentState(input.attendanceDate, input.joiningDate, input.exitDate);
   const holiday = isHoliday(input.attendanceDate, input.departmentId, input.holidays);
-  const weeklyOff = input.shift.weeklyOffDays.includes(weekdayIndex(input.attendanceDate));
+  const weeklyOff = isWeeklyOffDay(
+    input.attendanceDate,
+    input.shift.weeklyOffDays,
+    input.policy.alternateSaturdayOff,
+  );
   const future = input.attendanceDate > today;
 
   if (employment === "after") {
@@ -236,11 +240,21 @@ export function resolveAttendanceDay(input: ResolveDayInput): ResolveDayResult {
     const late = lateArrival(input.firstLoginAt, window.start, input.policy.graceMinutes);
     if (outsideShift(input.firstLoginAt, window)) anomalyFlags.push("login_outside_shift");
     if (late.lateByMinutes >= SIGNIFICANT_LATE_MINUTES) anomalyFlags.push("significantly_late");
+    const minutesAfterStart = Math.max(
+      0,
+      Math.ceil((input.firstLoginAt.getTime() - window.start.getTime()) / 60_000),
+    );
+    const severeHalfDay =
+      input.policy.lateCreatesLop && minutesAfterStart >= input.policy.severeLateMinutes;
     return {
       ...base,
-      status: "present",
-      isLate: late.isLate,
-      lateByMinutes: late.lateByMinutes,
+      status: severeHalfDay ? "half_day" : "present",
+      isLate: late.isLate || severeHalfDay,
+      lateByMinutes: late.isLate
+        ? late.lateByMinutes
+        : severeHalfDay
+          ? Math.max(0, minutesAfterStart - input.policy.graceMinutes)
+          : 0,
       anomalyFlags,
       source: "login",
     };
@@ -283,11 +297,15 @@ export function emptySummary(): AttendanceSummary {
 
 export function summarizeAttendance(
   days: DayContribution[],
-  policy: Pick<AttendancePolicyRules, "halfDayLopFactor" | "lateCreatesLop" | "lateLopFactor">,
+  policy: Pick<
+    AttendancePolicyRules,
+    "halfDayLopFactor" | "lateCreatesLop" | "lateLopFactor" | "lateGraceThresholdCount"
+  >,
 ): AttendanceSummary {
   const summary = emptySummary();
   let lop = 0;
   let presentEquivalents = 0;
+  let graceLatePresentDays = 0;
 
   for (const day of days) {
     if (day.isLate && (day.status === "present" || day.status === "half_day")) {
@@ -312,7 +330,7 @@ export function summarizeAttendance(
         summary.scheduledWorkingDays += 1;
         summary.presentDays += 1;
         presentEquivalents += 1;
-        if (day.isLate && policy.lateCreatesLop) lop += policy.lateLopFactor;
+        if (day.isLate) graceLatePresentDays += 1;
         break;
       case "work_from_home":
         summary.scheduledWorkingDays += 1;
@@ -343,6 +361,13 @@ export function summarizeAttendance(
       default:
         break;
     }
+  }
+
+  if (
+    policy.lateCreatesLop &&
+    graceLatePresentDays >= policy.lateGraceThresholdCount
+  ) {
+    lop += policy.lateLopFactor;
   }
 
   summary.lopDays = roundLop(lop);

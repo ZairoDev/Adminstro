@@ -289,6 +289,7 @@ export default function CandidateDetailPage() {
   
   // Send Offer Letter state
   const [sendingOfferLetter, setSendingOfferLetter] = useState(false);
+  const [sendingSalaryAnnexure, setSendingSalaryAnnexure] = useState(false);
   
   // Offer Letter PDF states
   const [offerLetterExpanded, setOfferLetterExpanded] = useState(false);
@@ -461,6 +462,7 @@ export default function CandidateDetailPage() {
         fatherName: candidate.onboardingDetails?.personalDetails?.fatherName || "",
         employeeAddress: candidate.address || "",
         designation: candidate.position,
+        department: candidate.department || "",
         effectiveFrom: new Date().toISOString(),
         postingLocation: getCandidateOfficePostingLocation(candidate),
         salaryINR: candidate.selectionDetails?.salary 
@@ -2130,6 +2132,89 @@ export default function CandidateDetailPage() {
                             }
                             return "Send the offer letter to the candidate";
                           })()}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  {(candidate.status === "selected" ||
+                    candidate.status === "onboarding" ||
+                    Boolean(candidate.employeeId)) && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <Button
+                            onClick={async () => {
+                              if (!candidate?.email) {
+                                toast.error("An email address is required");
+                                return;
+                              }
+                              if (candidate.selectionDetails?.signedSalaryAnnexurePdfUrl) return;
+                              setSendingSalaryAnnexure(true);
+                              try {
+                                const opened = await emailPreview.openPreview({
+                                  type: "salaryAnnexure",
+                                  payload: {
+                                    candidateName: candidate.name,
+                                    role: candidate.selectionDetails?.role || candidate.position,
+                                    signingLink: `${window.location.origin}/dashboard/candidatePortal/${candidateId}/salary-annexure`,
+                                    companyName: "Zairo International",
+                                  },
+                                  recipientEmail: candidate.email,
+                                  onConfirm: async (subject, html) => {
+                                    const response = await axios.post(
+                                      `/api/candidates/${candidateId}/send-salary-annexure`,
+                                      { customEmailSubject: subject, customEmailHtml: html },
+                                    );
+                                    if (!response.data.success) {
+                                      throw new Error(response.data.error || "Failed to send the salary annexure");
+                                    }
+                                    toast.success("Salary annexure sent");
+                                    refreshCandidate();
+                                  },
+                                });
+                                if (!opened) return;
+                              } catch (error: unknown) {
+                                const message =
+                                  axios.isAxiosError(error) && typeof error.response?.data?.error === "string"
+                                    ? error.response.data.error
+                                    : error instanceof Error
+                                      ? error.message
+                                      : "Failed to send the salary annexure";
+                                toast.error(message);
+                              } finally {
+                                setSendingSalaryAnnexure(false);
+                              }
+                            }}
+                            disabled={
+                              sendingSalaryAnnexure ||
+                              Boolean(candidate.selectionDetails?.signedSalaryAnnexurePdfUrl)
+                            }
+                            variant="outline"
+                            size="sm"
+                            className="h-9 justify-start px-3 text-sm font-medium"
+                          >
+                            {sendingSalaryAnnexure ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <Send className="mr-2 h-4 w-4" />
+                                {candidate.selectionDetails?.signedSalaryAnnexurePdfUrl
+                                  ? "Salary Annexure Signed"
+                                  : "Send Salary Annexure"}
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {candidate.selectionDetails?.signedSalaryAnnexurePdfUrl
+                            ? "The salary annexure is already signed"
+                            : "Email a link to review and sign only the salary annexure"}
                         </p>
                       </TooltipContent>
                     </Tooltip>

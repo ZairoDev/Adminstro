@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { ATTENDANCE_STATUSES, LEAVE_PAYS } from "@/modules/attendance/types";
+import {
+  ALTERNATE_SATURDAY_OFF_PATTERNS,
+  ATTENDANCE_STATUSES,
+  LEAVE_PAYS,
+} from "@/modules/attendance/types";
 
 const monthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 const dateSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/);
@@ -49,9 +53,12 @@ export const policyUpdateSchema = z.object({
   shiftEnd: clockSchema,
   graceMinutes: z.number().int().min(0).max(180),
   weeklyOffDays: z.array(weekdaySchema).max(7),
+  alternateSaturdayOff: z.enum(ALTERNATE_SATURDAY_OFF_PATTERNS),
   halfDayLopFactor: z.number().min(0).max(1),
   lateCreatesLop: z.boolean(),
   lateLopFactor: z.number().min(0).max(1),
+  lateGraceThresholdCount: z.number().int().min(1).max(31),
+  severeLateMinutes: z.number().int().min(1).max(480),
   cutoffTime: clockSchema,
   confirmed: z.boolean(),
 });

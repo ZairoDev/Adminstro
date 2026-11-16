@@ -126,6 +126,8 @@ export interface Candidate {
     offerLetterSigningLink?: string;
     unsignedOfferLetterPdfUrl?: string;
     signedOfferLetterPdfUrl?: string;
+    signedSalaryAnnexurePdfUrl?: string;
+    salaryAnnexureSent?: boolean;
     offerLetterSigned?: boolean;
     offerLetterSignedAt?: string;
     signedDocumentsEmailSentAt?: string;

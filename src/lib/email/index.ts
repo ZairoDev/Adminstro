@@ -51,6 +51,7 @@ export {
 } from "./templates/jobApplication";
 export type { JobApplicationEmailDetails } from "./templates/jobApplication";
 export { getOfferLetterEmailTemplate } from "./templates/offerLetter";
+export { getSalaryAnnexureEmailTemplate } from "./templates/salaryAnnexure";
 export type { OfferLetterEmailPayload } from "./templates/offerLetter";
 export { getResignatureEmailTemplate } from "./templates/resignature";
 export type { ResignatureEmailPayload } from "./templates/resignature";
@@ -471,6 +472,7 @@ export interface SignedOfferPacketEmailPayload {
   signedAt?: Date;
   offerLetterUrl?: string | null;
   hrPoliciesUrl?: string | null;
+  salaryAnnexureUrl?: string | null;
   companyName?: string;
 }
 
@@ -497,6 +499,7 @@ export async function sendSignedOfferPacketEmail(
   const attachments: EmailAttachment[] = [];
   const sources = [
     { filename: "Offer-Letter-Signed.pdf", url: payload.offerLetterUrl },
+    { filename: "Salary-Annexure-Signed.pdf", url: payload.salaryAnnexureUrl },
     { filename: "HR-Policies-Signed.pdf", url: payload.hrPoliciesUrl },
   ];
 
@@ -529,12 +532,12 @@ export async function sendSignedOfferPacketEmail(
 
   const hrEmployee = await getActiveHREmployee();
   const template: EmailTemplate = {
-    subject: `Signed offer letter and HR policies - ${companyName}`,
+    subject: `Signed offer letter, salary annexure, and HR policies - ${companyName}`,
     html: `
       <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; color: #111; line-height: 1.6;">
         <p>Dear ${name},</p>
         <p>
-          Your offer letter and HR policies have been signed successfully. Copies of both documents are attached for your records.
+          Your offer letter, salary annexure, and HR policies have been signed successfully. A separate copy of each document is attached for your records.
         </p>
         <p>HR will update you on the further steps.</p>
         ${
@@ -567,6 +570,44 @@ export async function sendSignedOfferPacketEmail(
   const hrCopy = JOB_APPLICATION_HR_INBOX;
   const cc = payload.to.trim().toLowerCase() === hrCopy.toLowerCase() ? undefined : [hrCopy];
   return sendCustomEmail(payload.to, template, companyName, attachments, cc);
+}
+
+export async function sendSignedSalaryAnnexureEmail(payload: {
+  to: string;
+  candidateName: string;
+  signedPdfUrl: string;
+  companyName?: string;
+}): Promise<EmailResponse> {
+  const companyName = payload.companyName || DEFAULT_COMPANY_NAME;
+  const content = await fetchUrlAsBuffer(payload.signedPdfUrl);
+  if (!content) {
+    return { success: false, error: "The signed salary annexure could not be attached" };
+  }
+  const name = escapeLoginEmailHtml(payload.candidateName);
+  const company = escapeLoginEmailHtml(companyName);
+  const hrEmployee = await getActiveHREmployee();
+  const template: EmailTemplate = {
+    subject: `Signed salary annexure - ${companyName}`,
+    html: `
+      <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; color: #111; line-height: 1.6;">
+        <p>Dear ${name},</p>
+        <p>Your salary annexure has been signed. The signed copy is attached for your records.</p>
+        <p>Please keep this file.</p>
+        ${getEmailSignature(hrEmployee)}
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #555; margin: 0;">© ${new Date().getFullYear()} ${company}. All rights reserved.</p>
+      </div>
+    `,
+  };
+  const hrCopy = JOB_APPLICATION_HR_INBOX;
+  const cc = payload.to.trim().toLowerCase() === hrCopy.toLowerCase() ? undefined : [hrCopy];
+  return sendCustomEmail(
+    payload.to,
+    template,
+    companyName,
+    [{ filename: "Salary-Annexure-Signed.pdf", content, contentType: "application/pdf" }],
+    cc,
+  );
 }
 
 export interface PersonalReminderEmailPayload {

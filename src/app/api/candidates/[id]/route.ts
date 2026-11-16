@@ -135,6 +135,9 @@ export async function PATCH(
       "selectionDetails.offerLetterSigned",
       "selectionDetails.offerLetterSignedAt",
       "selectionDetails.offerLetterSignature",
+      "selectionDetails.signedSalaryAnnexurePdfUrl",
+      "selectionDetails.salaryAnnexureSignedAt",
+      "selectionDetails.salaryAnnexureSignature",
       "trainingAgreementDetails.hrPoliciesSignedAt",
       "trainingAgreementDetails.eSign",
       "trainingAgreementDetails.eSign.signatureImage",
@@ -168,6 +171,9 @@ export async function PATCH(
         "offerLetterSigned",
         "offerLetterSignedAt",
         "offerLetterSignature",
+        "signedSalaryAnnexurePdfUrl",
+        "salaryAnnexureSignedAt",
+        "salaryAnnexureSignature",
       ]);
       Object.keys(body.selectionDetails).forEach((key) => {
         if (!blockedSelectionKeys.has(key)) {

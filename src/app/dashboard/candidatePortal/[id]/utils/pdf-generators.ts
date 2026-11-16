@@ -155,6 +155,7 @@ export const generateUnsignedOnboardingAgreement = async (candidate: Candidate) 
       fatherName: candidate.onboardingDetails?.personalDetails?.fatherName || "",
       employeeAddress: candidate.address || "",
       designation: candidate.position,
+      department: candidate.department || "",
       effectiveFrom: new Date().toISOString(),
       postingLocation: getCandidateOfficePostingLocation(candidate),
       salaryINR: candidate.selectionDetails?.salary 

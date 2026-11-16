@@ -857,7 +857,7 @@ export async function POST(req: NextRequest) {
     yPosition -= paragraphSpacing;
     drawWrappedText("Compensation & Salary Terms", leftMargin, bodySize, true);
     yPosition -= paragraphSpacing * 2;
-    drawWrappedText(`Same as finalized earlier — ${formattedCTC} CTC, salary credit by ${paymentCycle} of every month, no deductions, revision discretionary,`, leftMargin, bodySize);
+    drawWrappedText(`The monthly and yearly salary breakup is set out in the separate Salary Annexure. Salary is credited by the ${paymentCycle} of every month. Any revision is at the Company's discretion.`, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 3;
 
     // ANNEXURE – B: Confidentiality & Non-Disclosure Agreement

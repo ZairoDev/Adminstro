@@ -85,6 +85,19 @@ export function buildInternAppointmentRole(
   return base || "Intern";
 }
 
+/** Appointment clause: the position and department the candidate applied for. */
+export function formatAppliedAppointment(
+  position: string,
+  department?: string | null
+): string {
+  const role =
+    position.replace(/\s*\(Intern\)\s*/gi, " ").replace(/\s+/g, " ").trim() ||
+    "___________";
+  const dept = (department || "").replace(/\s+department$/i, "").trim();
+  if (!dept) return role;
+  return `${role} in the ${dept} Department`;
+}
+
 export function buildInternTerms(duration: string): string[] {
   return [
     `This internship is for a fixed duration of ${duration}.`,

@@ -28,14 +28,31 @@ export const ANOMALY_FLAGS = [
 
 export type AnomalyFlag = (typeof ANOMALY_FLAGS)[number];
 
+/**
+ * Continuous every-other-Saturday offs (not 1st/3rd of the month).
+ * cycle_a and cycle_b are the two opposite calendars; flip if the wrong Saturdays are off.
+ * Full Saturday off still uses weeklyOffDays including 6.
+ */
+export const ALTERNATE_SATURDAY_OFF_PATTERNS = ["none", "cycle_a", "cycle_b"] as const;
+
+export type AlternateSaturdayOffPattern = (typeof ALTERNATE_SATURDAY_OFF_PATTERNS)[number];
+
 export type AttendancePolicyRules = {
   shiftStart: string;
   shiftEnd: string;
   graceMinutes: number;
   weeklyOffDays: number[];
+  /** When set, every other Saturday is a weekly off even if Saturday is not in weeklyOffDays. */
+  alternateSaturdayOff: AlternateSaturdayOffPattern;
   halfDayLopFactor: number;
+  /** When true: N grace-late days in a month add lateLopFactor LOP, and severe late becomes half day. */
   lateCreatesLop: boolean;
+  /** LOP days added once when grace-late count reaches lateGraceThresholdCount. */
   lateLopFactor: number;
+  /** Mild grace-late present days in a month before lateLopFactor applies. */
+  lateGraceThresholdCount: number;
+  /** Minutes after shift start that auto-mark the day as half day (when lateCreatesLop). */
+  severeLateMinutes: number;
   cutoffTime: string;
   confirmed: boolean;
 };
@@ -125,9 +142,12 @@ export const DEFAULT_ATTENDANCE_POLICY: AttendancePolicyRules & {
   shiftEnd: "18:30",
   graceMinutes: 15,
   weeklyOffDays: [0],
+  alternateSaturdayOff: "cycle_a",
   halfDayLopFactor: 0.5,
   lateCreatesLop: false,
-  lateLopFactor: 0,
+  lateLopFactor: 0.25,
+  lateGraceThresholdCount: 10,
+  severeLateMinutes: 30,
   cutoffTime: "18:30",
   confirmed: false,
 };

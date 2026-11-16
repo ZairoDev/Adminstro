@@ -8,6 +8,7 @@ import {
   getCandidateEmailTemplate,
   getSeparationEmailTemplate,
   getOfferLetterEmailTemplate,
+  getSalaryAnnexureEmailTemplate,
   getResignatureEmailTemplate,
   getReuploadEmailTemplate,
   getInterviewAssignmentTemplate,
@@ -139,6 +140,18 @@ export async function POST(request: NextRequest) {
             companyName: payload.companyName,
           },
           hrEmployee
+        );
+        break;
+
+      case "salaryAnnexure":
+        template = getSalaryAnnexureEmailTemplate(
+          {
+            candidateName: payload.candidateName,
+            role: payload.role,
+            signingLink: payload.signingLink,
+            companyName: payload.companyName,
+          },
+          hrEmployee,
         );
         break;
 

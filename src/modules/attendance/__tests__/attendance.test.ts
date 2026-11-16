@@ -19,7 +19,10 @@ import {
   earliestInstant,
   istDateKey,
   istDayBounds,
+  isAlternateSaturdayOff,
+  isWeeklyOffDay,
   loginMatchesDate,
+  saturdayCycleParity,
 } from "@/modules/attendance/dates";
 import { daysInPayrollMonth, parsePayrollMonth } from "@/modules/finance/salary-month";
 import {
@@ -146,6 +149,68 @@ describe("attendance day resolution", () => {
       input({ attendanceDate: "2026-11-01", now: afterCutoff }),
     );
     expect(resolved.persist && resolved.status).toBe("weekly_off");
+  });
+
+  it("marks every other Saturday off in a continuous cycle across months", () => {
+    // October → November 2026 Saturdays must keep alternating without resetting each month.
+    const saturdays = [
+      "2026-10-03",
+      "2026-10-10",
+      "2026-10-17",
+      "2026-10-24",
+      "2026-10-31",
+      "2026-11-07",
+      "2026-11-14",
+      "2026-11-21",
+      "2026-11-28",
+    ];
+    for (let index = 1; index < saturdays.length; index += 1) {
+      const previous = saturdays[index - 1];
+      const current = saturdays[index];
+      if (!previous || !current) continue;
+      expect(saturdayCycleParity(previous)).not.toBe(saturdayCycleParity(current));
+    }
+
+    expect(isAlternateSaturdayOff("2026-10-03", "cycle_a")).toBe(
+      saturdayCycleParity("2026-10-03") === 0,
+    );
+    expect(isAlternateSaturdayOff("2026-10-03", "cycle_b")).toBe(
+      saturdayCycleParity("2026-10-03") === 1,
+    );
+    expect(isWeeklyOffDay("2026-10-03", [0], "none")).toBe(false);
+
+    const offSaturday = saturdays.find((date) => isAlternateSaturdayOff(date, "cycle_a"));
+    const workSaturday = saturdays.find((date) => !isAlternateSaturdayOff(date, "cycle_a"));
+    expect(offSaturday).toBeTruthy();
+    expect(workSaturday).toBeTruthy();
+
+    const off = resolveAttendanceDay(
+      input({
+        attendanceDate: offSaturday!,
+        now: afterCutoff,
+        policy: { ...confirmed, alternateSaturdayOff: "cycle_a" },
+      }),
+    );
+    expect(off.persist && off.status).toBe("weekly_off");
+
+    const working = resolveAttendanceDay(
+      input({
+        attendanceDate: workSaturday!,
+        now: afterCutoff,
+        firstLoginAt: new Date(`${workSaturday}T04:30:00.000Z`),
+        policy: { ...confirmed, alternateSaturdayOff: "cycle_a" },
+      }),
+    );
+    expect(working.persist && working.status).toBe("present");
+
+    const flipped = resolveAttendanceDay(
+      input({
+        attendanceDate: workSaturday!,
+        now: afterCutoff,
+        policy: { ...confirmed, alternateSaturdayOff: "cycle_b" },
+      }),
+    );
+    expect(flipped.persist && flipped.status).toBe("weekly_off");
   });
 
   it("marks company and department holidays, and ignores another department", () => {
@@ -435,7 +500,13 @@ describe("monthly employee eligibility", () => {
 });
 
 describe("loss of pay", () => {
-  const policy = { halfDayLopFactor: 0.5, lateCreatesLop: false, lateLopFactor: 0 };
+  const afterCutoff = new Date("2026-10-30T19:00:00+05:30");
+  const policy = {
+    halfDayLopFactor: 0.5,
+    lateCreatesLop: false,
+    lateLopFactor: 0.25,
+    lateGraceThresholdCount: 10,
+  };
 
   it("calculates the illustrative month as 4 LOP days from the attendance records", () => {
     const days: DayContribution[] = [
@@ -482,12 +553,64 @@ describe("loss of pay", () => {
     expect(summary.attendancePercentage).toBe(58.3);
   });
 
-  it("adds configured late LOP only on full present days", () => {
-    const summary = summarizeAttendance(
-      [day("present", null, true), day("half_day", null, true)],
-      { halfDayLopFactor: 0.5, lateCreatesLop: true, lateLopFactor: 0.25 },
+  it("adds threshold LOP once when grace-late present days reach the monthly count", () => {
+    const nine = Array.from({ length: 9 }, () => day("present", null, true));
+    const under = summarizeAttendance([...nine, day("half_day", null, true)], {
+      halfDayLopFactor: 0.5,
+      lateCreatesLop: true,
+      lateLopFactor: 0.25,
+      lateGraceThresholdCount: 10,
+    });
+    expect(under.lopDays).toBe(0.5);
+
+    const ten = Array.from({ length: 10 }, () => day("present", null, true));
+    const atThreshold = summarizeAttendance([...ten, day("half_day", null, true)], {
+      halfDayLopFactor: 0.5,
+      lateCreatesLop: true,
+      lateLopFactor: 0.25,
+      lateGraceThresholdCount: 10,
+    });
+    expect(atThreshold.lopDays).toBe(0.75);
+    expect(atThreshold.lateArrivals).toBe(11);
+  });
+
+  it("marks login 30+ minutes after shift start as half day when late LOP rules are on", () => {
+    const login = new Date("2026-10-30T05:00:00.000Z"); // 10:30 IST
+    const resolved = resolveAttendanceDay(
+      input({
+        attendanceDate: "2026-10-30",
+        now: afterCutoff,
+        firstLoginAt: login,
+        policy: {
+          ...confirmed,
+          lateCreatesLop: true,
+          severeLateMinutes: 30,
+        },
+      }),
     );
-    expect(summary.lopDays).toBe(0.75);
+    expect(resolved.persist && resolved.status).toBe("half_day");
+    expect(resolved.persist && resolved.isLate).toBe(true);
+    expect(resolved.persist && resolved.lateByMinutes).toBe(15);
+  });
+
+  it("keeps a mild late arrival as present when under the half-hour threshold", () => {
+    // 10:20 IST = 5 min past 15-min grace, 20 min after shift start
+    const mild = new Date("2026-10-30T04:50:00.000Z");
+    const resolved = resolveAttendanceDay(
+      input({
+        attendanceDate: "2026-10-30",
+        now: afterCutoff,
+        firstLoginAt: mild,
+        policy: {
+          ...confirmed,
+          lateCreatesLop: true,
+          severeLateMinutes: 30,
+        },
+      }),
+    );
+    expect(resolved.persist && resolved.status).toBe("present");
+    expect(resolved.persist && resolved.isLate).toBe(true);
+    expect(resolved.persist && resolved.lateByMinutes).toBe(5);
   });
 
   it("returns zero percentage when there are no scheduled days", () => {

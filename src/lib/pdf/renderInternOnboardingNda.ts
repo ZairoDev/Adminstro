@@ -4,7 +4,7 @@
  */
 
 import {
-  buildInternAppointmentRole,
+  formatAppliedAppointment,
 } from "./letterOfIntentIntern";
 
 export interface InternNdaParams {
@@ -22,6 +22,7 @@ export interface InternNdaParams {
   designation: string;
   roleName: string | null;
   position: string;
+  department?: string | null;
   formattedEffectiveFrom: string;
   jurisdictionCity: string;
 }
@@ -78,7 +79,10 @@ export function renderInternOnboardingNda(
   w: OnboardingPdfWriter,
   p: InternNdaParams
 ): void {
-  const appointmentRole = buildInternAppointmentRole(p.roleName, p.position);
+  const appointmentRole = formatAppliedAppointment(
+    p.roleName || p.position || p.designation,
+    p.department
+  );
   const dayStr = String(p.day);
   const yearStr = String(p.year);
 

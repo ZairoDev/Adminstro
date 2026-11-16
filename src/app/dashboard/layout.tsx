@@ -39,6 +39,7 @@ export default function DashboardLayout({
   const isOnboarding = pathname?.includes("/onboarding");
   const isTrainingAgreement = pathname?.includes("/training-agreement");
   const isOfferLetter = pathname?.includes("/offer-letter");
+  const isSalaryAnnexure = pathname?.includes("/salary-annexure");
   const isHousingCollaborator = token?.role === "HCollaborator";
   
   // Hooks must be called unconditionally (before any early returns)
@@ -123,7 +124,7 @@ export default function DashboardLayout({
       </QueryProvider>
     );
   }
-  if(isOfferLetter) {
+  if(isOfferLetter || isSalaryAnnexure) {
     return (
       <QueryProvider>
         <main className="min-h-screen bg-background">{children}</main>

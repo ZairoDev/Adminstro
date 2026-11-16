@@ -51,6 +51,7 @@ import {
   type PayrollMonth,
 } from "@/modules/finance/salary-month";
 import { escapeRegex } from "@/modules/finance/escape-regex";
+import { normalizeAlternateSaturdayOff } from "@/modules/attendance/dates";
 import {
   DEFAULT_ATTENDANCE_POLICY,
   type AttendancePolicyRules,
@@ -128,9 +129,12 @@ type PolicyLean = {
   shiftEnd: string;
   graceMinutes: number;
   weeklyOffDays: number[];
+  alternateSaturdayOff?: AttendancePolicyRules["alternateSaturdayOff"];
   halfDayLopFactor: number;
   lateCreatesLop: boolean;
   lateLopFactor: number;
+  lateGraceThresholdCount?: number;
+  severeLateMinutes?: number;
   cutoffTime: string;
   confirmedAt?: Date | null;
 };
@@ -141,9 +145,15 @@ function toRules(policy: PolicyLean): AttendancePolicyRules {
     shiftEnd: policy.shiftEnd,
     graceMinutes: policy.graceMinutes,
     weeklyOffDays: policy.weeklyOffDays ?? [],
+    alternateSaturdayOff: normalizeAlternateSaturdayOff(
+      policy.alternateSaturdayOff ?? DEFAULT_ATTENDANCE_POLICY.alternateSaturdayOff,
+    ),
     halfDayLopFactor: policy.halfDayLopFactor,
     lateCreatesLop: policy.lateCreatesLop,
     lateLopFactor: policy.lateLopFactor,
+    lateGraceThresholdCount:
+      policy.lateGraceThresholdCount ?? DEFAULT_ATTENDANCE_POLICY.lateGraceThresholdCount,
+    severeLateMinutes: policy.severeLateMinutes ?? DEFAULT_ATTENDANCE_POLICY.severeLateMinutes,
     cutoffTime: policy.cutoffTime,
     confirmed: Boolean(policy.confirmedAt),
   };
@@ -359,9 +369,12 @@ export async function getOrCreatePolicy(): Promise<PolicyLean> {
       shiftEnd: DEFAULT_ATTENDANCE_POLICY.shiftEnd,
       graceMinutes: DEFAULT_ATTENDANCE_POLICY.graceMinutes,
       weeklyOffDays: DEFAULT_ATTENDANCE_POLICY.weeklyOffDays,
+      alternateSaturdayOff: DEFAULT_ATTENDANCE_POLICY.alternateSaturdayOff,
       halfDayLopFactor: DEFAULT_ATTENDANCE_POLICY.halfDayLopFactor,
       lateCreatesLop: DEFAULT_ATTENDANCE_POLICY.lateCreatesLop,
       lateLopFactor: DEFAULT_ATTENDANCE_POLICY.lateLopFactor,
+      lateGraceThresholdCount: DEFAULT_ATTENDANCE_POLICY.lateGraceThresholdCount,
+      severeLateMinutes: DEFAULT_ATTENDANCE_POLICY.severeLateMinutes,
       cutoffTime: DEFAULT_ATTENDANCE_POLICY.cutoffTime,
       confirmedAt: null,
       confirmedBy: null,
@@ -376,6 +389,7 @@ export async function getOrCreatePolicy(): Promise<PolicyLean> {
 }
 
 function toPolicyView(policy: PolicyLean): PolicyView {
+  const rules = toRules(policy);
   return {
     policyName: policy.policyName,
     timezone: policy.timezone,
@@ -383,9 +397,12 @@ function toPolicyView(policy: PolicyLean): PolicyView {
     shiftEnd: policy.shiftEnd,
     graceMinutes: policy.graceMinutes,
     weeklyOffDays: policy.weeklyOffDays ?? [],
+    alternateSaturdayOff: rules.alternateSaturdayOff,
     halfDayLopFactor: policy.halfDayLopFactor,
     lateCreatesLop: policy.lateCreatesLop,
     lateLopFactor: policy.lateLopFactor,
+    lateGraceThresholdCount: rules.lateGraceThresholdCount,
+    severeLateMinutes: rules.severeLateMinutes,
     cutoffTime: policy.cutoffTime,
     confirmed: Boolean(policy.confirmedAt),
     confirmedAt: policy.confirmedAt ? new Date(policy.confirmedAt).toISOString() : null,
@@ -1082,9 +1099,12 @@ export async function finalizeAttendanceMonth(monthValue: string, actor: Attenda
           shiftEnd: rules.shiftEnd,
           graceMinutes: rules.graceMinutes,
           weeklyOffDays: rules.weeklyOffDays,
+          alternateSaturdayOff: rules.alternateSaturdayOff,
           halfDayLopFactor: rules.halfDayLopFactor,
           lateCreatesLop: rules.lateCreatesLop,
           lateLopFactor: rules.lateLopFactor,
+          lateGraceThresholdCount: rules.lateGraceThresholdCount,
+          severeLateMinutes: rules.severeLateMinutes,
           cutoffTime: rules.cutoffTime,
           confirmed: rules.confirmed,
         },
@@ -1124,9 +1144,12 @@ export async function updateAttendancePolicy(
     shiftEnd: string;
     graceMinutes: number;
     weeklyOffDays: number[];
+    alternateSaturdayOff: AttendancePolicyRules["alternateSaturdayOff"];
     halfDayLopFactor: number;
     lateCreatesLop: boolean;
     lateLopFactor: number;
+    lateGraceThresholdCount: number;
+    severeLateMinutes: number;
     cutoffTime: string;
     confirmed: boolean;
   },
@@ -1141,9 +1164,12 @@ export async function updateAttendancePolicy(
   current.shiftEnd = input.shiftEnd;
   current.graceMinutes = input.graceMinutes;
   current.weeklyOffDays = weeklyOffDays;
+  current.alternateSaturdayOff = normalizeAlternateSaturdayOff(input.alternateSaturdayOff);
   current.halfDayLopFactor = input.halfDayLopFactor;
   current.lateCreatesLop = input.lateCreatesLop;
   current.lateLopFactor = input.lateLopFactor;
+  current.lateGraceThresholdCount = input.lateGraceThresholdCount;
+  current.severeLateMinutes = input.severeLateMinutes;
   current.cutoffTime = input.cutoffTime;
   if (input.confirmed && !current.confirmedAt) {
     current.confirmedAt = new Date();

@@ -56,6 +56,64 @@ export function weekdayIndex(dateKey: string): number {
   return ist.getUTCDay();
 }
 
+/** Known Saturday used to keep every-other-Saturday cycles stable across months. */
+const SATURDAY_EPOCH = "1970-01-03";
+
+/** 0 or 1 for which side of the continuous Saturday cycle this date falls on. */
+export function saturdayCycleParity(dateKey: string): 0 | 1 {
+  const epoch = new Date(`${SATURDAY_EPOCH}T00:00:00+05:30`).getTime();
+  const day = new Date(`${dateKey}T00:00:00+05:30`).getTime();
+  const days = Math.round((day - epoch) / (24 * 60 * 60 * 1000));
+  const weeks = Math.floor(days / 7);
+  return ((weeks % 2) + 2) % 2 as 0 | 1;
+}
+
+export function normalizeAlternateSaturdayOff(
+  value: string | null | undefined,
+): "none" | "cycle_a" | "cycle_b" {
+  if (value === "cycle_a" || value === "cycle_b" || value === "none") return value;
+  // Older month-based settings map onto the two continuous cycles.
+  if (value === "first_third") return "cycle_a";
+  if (value === "second_fourth") return "cycle_b";
+  return "none";
+}
+
+export function isAlternateSaturdayOff(
+  dateKey: string,
+  pattern: "none" | "cycle_a" | "cycle_b",
+): boolean {
+  if (pattern === "none") return false;
+  if (weekdayIndex(dateKey) !== 6) return false;
+  const parity = saturdayCycleParity(dateKey);
+  return pattern === "cycle_a" ? parity === 0 : parity === 1;
+}
+
+/** Lists Saturday date keys in [from, to] that are offs under the alternate cycle. */
+export function alternateSaturdayOffDates(
+  from: string,
+  to: string,
+  pattern: "none" | "cycle_a" | "cycle_b",
+): string[] {
+  if (pattern === "none") return [];
+  const dates: string[] = [];
+  let cursor = from;
+  while (cursor <= to) {
+    if (isAlternateSaturdayOff(cursor, pattern)) dates.push(cursor);
+    cursor = addAttendanceDays(cursor, 1);
+    if (dates.length > 62) break;
+  }
+  return dates;
+}
+
+export function isWeeklyOffDay(
+  dateKey: string,
+  weeklyOffDays: number[],
+  alternateSaturdayOff: "none" | "cycle_a" | "cycle_b" = "none",
+): boolean {
+  if (weeklyOffDays.includes(weekdayIndex(dateKey))) return true;
+  return isAlternateSaturdayOff(dateKey, alternateSaturdayOff);
+}
+
 export function parseClock(value: string): { hours: number; minutes: number } | null {
   const match = CLOCK.exec(value.trim());
   if (!match) return null;

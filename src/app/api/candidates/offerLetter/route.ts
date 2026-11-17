@@ -18,6 +18,7 @@ import {
 } from "@/lib/officeAddress/resolveRegisteredOfficeAddress";
 import { rupeesInWords } from "@/modules/finance/rupees-in-words";
 import { parseLocalDateString } from "@/lib/utils";
+import sharp from "sharp";
 
 type Payload = {
   letterDate: string; // ISO date string
@@ -59,6 +60,45 @@ function parseAnnualCtc(value: string | undefined): number | null {
   const numeric = Number(raw.replace(/[₹,\s]|rs\.?/gi, ""));
   if (!Number.isFinite(numeric) || numeric <= 0) return null;
   return numeric;
+}
+
+
+async function toBlackSignaturePng(bytes: Buffer): Promise<Buffer> {
+  const meta = await sharp(bytes).metadata();
+  const width = meta.width || 1;
+  const height = meta.height || 1;
+  // Drop bottom strip — many signature assets include baked-in underline rules
+  const cropH = Math.max(1, Math.floor(height * 0.88));
+
+  const { data, info } = await sharp(bytes)
+    .extract({ left: 0, top: 0, width, height: cropH })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const a = data[i + 3];
+    // Near-white -> transparent; ink -> pure black
+    if (a < 8 || (r > 245 && g > 245 && b > 245)) {
+      data[i] = 0;
+      data[i + 1] = 0;
+      data[i + 2] = 0;
+      data[i + 3] = 0;
+    } else {
+      data[i] = 0;
+      data[i + 1] = 0;
+      data[i + 2] = 0;
+    }
+  }
+
+  return sharp(data, {
+    raw: { width: info.width, height: info.height, channels: 4 },
+  })
+    .png()
+    .toBuffer();
 }
 
 async function getBase64FromPublic(relativePath: string) {
@@ -163,7 +203,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Defaults matching the original document
-    const companyName = "ZAIRO INTERNATIONAL P. LTD.";
+    const companyName = "Zairo International Private Limited";
     const companyCIN = "U93090UP2017PTC089137";
     if (!data.candidateId) {
       return NextResponse.json(
@@ -210,7 +250,7 @@ export async function POST(req: NextRequest) {
         const ankitaSigRes = await axios.get(data.ankitaSignatureBase64, {
           responseType: "arraybuffer",
         });
-        ankitaSignatureBytes = Buffer.from(ankitaSigRes.data);
+        ankitaSignatureBytes = await toBlackSignaturePng(Buffer.from(ankitaSigRes.data));
         ankitaSignatureBase64 = ankitaSignatureBytes.toString("base64");
       } catch (err) {
         console.error("Error fetching Ankita mam's signature:", err);
@@ -221,7 +261,7 @@ export async function POST(req: NextRequest) {
       // Automatically load Ankita mam's signature from public folder
       try {
         const filePath = path.join(process.cwd(), "public", "Ankita-mam.png");
-        ankitaSignatureBytes = await fs.readFile(filePath);
+        ankitaSignatureBytes = await toBlackSignaturePng(await fs.readFile(filePath));
         ankitaSignatureBase64 = ankitaSignatureBytes.toString("base64");
         console.log("✅ Loaded Ankita mam's signature from public folder");
       } catch (err) {
@@ -261,6 +301,10 @@ export async function POST(req: NextRequest) {
 
         }
         
+        if (candidateSignatureBase64) {
+          const black = await toBlackSignaturePng(Buffer.from(candidateSignatureBase64, "base64"));
+          candidateSignatureBase64 = black.toString("base64");
+        }
         console.log("✅ Candidate signature successfully processed for PDF embedding");
       } catch (err) {
         console.error("❌ Error processing candidate signature for PDF:", err);
@@ -277,20 +321,32 @@ export async function POST(req: NextRequest) {
     const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
     const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
-    // Layout constants matching original
+    // Layout — ui-ux-pro-max: readable measure, 8pt rhythm, type scale, hierarchy
     const pageWidth = 595.28; // A4 width in points
     const pageHeight = 841.89; // A4 height in points
-    const leftMargin = 32;
-    const rightMargin = 52;
-    const topMargin = 52;
-    const bottomMargin = 72;
-    const lineHeight = 11;
-    const paragraphSpacing = 7;
-    const titleSize = 9;
-    const bodySize = 7;
-    const sectionSize = 11;
-    const footerSize = 9;
+    const leftMargin = 54;
+    const rightMargin = 54;
+    const logoWidth = 140;
+    // Logo + brand/address block under it (footer text moved to header)
+    const headerBand = 140;
+    const footerBand = 56; // decorative red only — no text
+    const topMargin = headerBand + 14;
+    const bottomMargin = footerBand + 16;
+    const bodySize = 11;
+    const lineHeight = 17; // ~1.55× body (skill: 1.5–1.75)
+    const paragraphSpacing = 8; // 8pt spacing rhythm
+    const titleSize = 16;
+    const sectionSize = 12;
+    const labelSize = 10;
+    const footerSize = 8;
+    const continuationTopPad = 10;
     const textColor = rgb(0, 0, 0);
+    const secondaryColor = rgb(0.22, 0.22, 0.22); // secondary text ≥3:1
+    const accentColor = rgb(0.62, 0.08, 0.08); // brand red, slightly quieter for print
+    const sectionBodyIndent = 14;
+    const companyPhone = "+91 95198 03665";
+    const companyEmail = "hr@zairointl.com";
+    const companyWebsite = "www.zairointernational.com";
 
     // Date formatting moved to letter content section
 
@@ -316,23 +372,160 @@ export async function POST(req: NextRequest) {
     let totalPages = 5; // Appointment letter with annexures is typically 5+ pages (will be updated dynamically)
 
     // Helper function to add a new page
+    let companyLogoImg: Awaited<ReturnType<typeof pdfDoc.embedPng>> | null = null;
+
+    const contentTopY = () => pageHeight - topMargin - continuationTopPad;
+
     const addNewPage = () => {
       pageNumber++;
       currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
-      yPosition = pageHeight - topMargin;
-      totalPages = pdfDoc.getPageCount(); // Update total pages dynamically
-      addPageHeader();
+      yPosition = contentTopY();
+      totalPages = pdfDoc.getPageCount();
     };
 
-    // Helper function to add page header/footer
-    const addPageHeader = () => {
-      currentPage.drawText(`Page ${pageNumber} of ${totalPages}`, {
+    const ensureVerticalSpace = (needed: number) => {
+      if (yPosition - needed < bottomMargin) {
+        addNewPage();
+      }
+    };
+
+    const drawNumberedHeading = (num: string, title: string) => {
+      ensureVerticalSpace(lineHeight * 2 + paragraphSpacing);
+      const prefix = `${num}. `;
+      const prefixW = fontBold.widthOfTextAtSize(prefix, sectionSize);
+      currentPage.drawText(prefix, {
         x: leftMargin,
-        y: pageHeight - 50,
-        size: footerSize,
-        font: font,
+        y: yPosition - lineHeight,
+        size: sectionSize,
+        font: fontBold,
+        color: accentColor,
+      });
+      currentPage.drawText(title, {
+        x: leftMargin + prefixW,
+        y: yPosition - lineHeight,
+        size: sectionSize,
+        font: fontBold,
         color: textColor,
       });
+      yPosition -= lineHeight;
+    };
+
+    const drawCenteredTitle = (text: string, size: number = titleSize) => {
+      ensureVerticalSpace(lineHeight * 2);
+      const w = fontBold.widthOfTextAtSize(text, size);
+      const y = yPosition - lineHeight;
+      currentPage.drawText(text, {
+        x: (pageWidth - w) / 2,
+        y,
+        size,
+        font: fontBold,
+        color: textColor,
+      });
+      yPosition -= lineHeight;
+    };
+
+    const drawAnnexureLabel = (label: string, subtitle: string) => {
+      ensureVerticalSpace(lineHeight * 5 + paragraphSpacing * 3);
+      currentPage.drawText(label, {
+        x: leftMargin,
+        y: yPosition - lineHeight,
+        size: sectionSize,
+        font: fontBold,
+        color: accentColor,
+      });
+      yPosition -= lineHeight + paragraphSpacing / 2;
+      drawWrappedText(subtitle, leftMargin, bodySize, true);
+      yPosition -= paragraphSpacing;
+    };
+
+    const drawSectionBody = (text: string) => {
+      drawTextWithBoldRefs(text, leftMargin, bodySize, false, sectionBodyIndent);
+    };
+
+    /** Draw body text; bold any Annexure / Annexures cross-references. */
+    const drawTextWithBoldRefs = (
+      text: string,
+      x: number,
+      fontSize: number = bodySize,
+      boldAll: boolean = false,
+      indent: number = 0,
+    ) => {
+      if (boldAll) {
+        drawWrappedText(text, x, fontSize, true, indent);
+        return;
+      }
+      const parts = text.split(
+        /(Annexures?\s+[A-I]\s+to\s+[A-I]|Annexures?\s*[–-]?\s*[A-I](?:\s*,\s*[A-I])*(?:\s*,?\s*and\s*[A-I])?)/gi,
+      );
+      if (parts.length === 1) {
+        drawWrappedText(text, x, fontSize, false, indent);
+        return;
+      }
+      // Render as one flowing paragraph by rebuilding lines with mixed fonts
+      const maxWidth = pageWidth - leftMargin - rightMargin - indent;
+      type Seg = { text: string; bold: boolean };
+      const segs: Seg[] = [];
+      for (let i = 0; i < parts.length; i++) {
+        if (!parts[i]) continue;
+        segs.push({ text: parts[i], bold: i % 2 === 1 });
+      }
+      let lineSegs: Seg[] = [];
+      let lineWidth = 0;
+      const flushLine = (justifyLast = false) => {
+        void justifyLast;
+        let cx = x + indent;
+        const y = yPosition - lineHeight;
+        for (const s of lineSegs) {
+          const f = s.bold ? fontBold : font;
+          currentPage.drawText(s.text, {
+            x: cx,
+            y,
+            size: fontSize,
+            font: f,
+            color: textColor,
+          });
+          cx += f.widthOfTextAtSize(s.text, fontSize);
+        }
+        yPosition -= lineHeight;
+        lineSegs = [];
+        lineWidth = 0;
+      };
+      for (const seg of segs) {
+        const words = seg.text.split(/(\s+)/);
+        for (const word of words) {
+          if (!word) continue;
+          const f = seg.bold ? fontBold : font;
+          const w = f.widthOfTextAtSize(word, fontSize);
+          if (lineWidth + w > maxWidth && lineWidth > 0 && !/^\s+$/.test(word)) {
+            flushLine();
+          }
+          if (yPosition - lineHeight < bottomMargin) {
+            addNewPage();
+          }
+          lineSegs.push({ text: word, bold: seg.bold });
+          lineWidth += w;
+        }
+      }
+      if (lineSegs.length) flushLine();
+    };
+
+    const drawBulletedItem = (item: string) => {
+      const m = item.match(/^(\d+)\.\s*(.*)$/);
+      if (!m) {
+        drawWrappedText(item, leftMargin, bodySize, false, sectionBodyIndent);
+        return;
+      }
+      ensureVerticalSpace(lineHeight * 2);
+      const prefix = `${m[1]}. `;
+      const prefixW = fontBold.widthOfTextAtSize(prefix, bodySize);
+      currentPage.drawText(prefix, {
+        x: leftMargin + sectionBodyIndent,
+        y: yPosition - lineHeight,
+        size: bodySize,
+        font: fontBold,
+        color: accentColor,
+      });
+      drawWrappedText(m[2], leftMargin, bodySize, false, sectionBodyIndent + prefixW);
     };
 
     // Helper function to draw text with word wrapping
@@ -342,7 +535,8 @@ export async function POST(req: NextRequest) {
       fontSize: number = bodySize,
       boldFont: boolean = false,
       indent: number = 0,
-      justify: boolean = true
+      justify: boolean = false,
+      color = textColor,
     ): number => {
       const maxWidth = pageWidth - leftMargin - rightMargin - indent;
       const words = text.split(" ");
@@ -369,21 +563,37 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         const isLastLine = i === lines.length - 1;
+        const linesLeft = lines.length - i;
+        const spaceForLines = Math.floor((yPosition - bottomMargin) / lineHeight);
 
-        // Check if we need a new page
-        if (yPosition - lineHeight < bottomMargin) {
+        // Avoid 1-line orphans: if only 1 line fits and more remain, break first
+        if (
+          i > 0 &&
+          spaceForLines > 0 &&
+          spaceForLines < 2 &&
+          linesLeft > spaceForLines
+        ) {
+          addNewPage();
+        } else if (yPosition - lineHeight < bottomMargin) {
           addNewPage();
         }
 
         let renderX = x + indent;
 
-        // Justify text (except last line)
-        if (justify && !isLastLine && line.includes(" ")) {
-          const wordsInLine = line.split(" ");
-          const totalWordWidth = wordsInLine.reduce(
-            (acc, word) => acc + selectedFont.widthOfTextAtSize(word, fontSize),
-            0
-          );
+        // Justify text (except last line). Never crush words if line is already full.
+        const wordsInLine = line.split(" ").filter(Boolean);
+        const totalWordWidth = wordsInLine.reduce(
+          (acc, word) => acc + selectedFont.widthOfTextAtSize(word, fontSize),
+          0
+        );
+        const minSpace = selectedFont.widthOfTextAtSize(" ", fontSize);
+        const canJustify =
+          justify &&
+          !isLastLine &&
+          wordsInLine.length > 1 &&
+          totalWordWidth + minSpace * (wordsInLine.length - 1) <= maxWidth;
+
+        if (canJustify) {
           const totalSpaceWidth = maxWidth - totalWordWidth;
           const spaceWidth = totalSpaceWidth / (wordsInLine.length - 1);
 
@@ -394,7 +604,7 @@ export async function POST(req: NextRequest) {
               y: yPosition - lineHeight,
               size: fontSize,
               font: selectedFont,
-              color: textColor,
+              color,
             });
             currentX +=
               selectedFont.widthOfTextAtSize(wordsInLine[j], fontSize) +
@@ -406,7 +616,7 @@ export async function POST(req: NextRequest) {
             y: yPosition - lineHeight,
             size: fontSize,
             font: selectedFont,
-            color: textColor,
+            color,
           });
         }
 
@@ -457,127 +667,82 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Company info lines
-    const companyInfoLines = [
-      `${companyName}`,
-      `CIN: ${companyCIN}`,
-      `Registered Office: ${companyAddress}`,
-      "+91 95198 03665",
-      "zairointernationalpvtltd@gmail.com",
-    ];
-
-    // Embed and draw company logo at the top of the first page
-    let yForTitleStart = pageHeight - topMargin;
-
+    // Embed company logo once; drawn on every page in final chrome pass
     if (companyLogoBase64.trim() !== "") {
       try {
         const logoBytes = Buffer.from(companyLogoBase64, "base64");
-        let logoImg;
         try {
-          logoImg = await pdfDoc.embedPng(logoBytes);
+          companyLogoImg = await pdfDoc.embedPng(logoBytes);
         } catch {
-          logoImg = await pdfDoc.embedJpg(logoBytes);
+          companyLogoImg = await pdfDoc.embedJpg(logoBytes);
         }
-
-        const logoWidth = 140;
-        const logoHeight = ((logoImg.height / logoImg.width) * logoWidth) / 1.5;
-
-        currentPage.drawImage(logoImg, {
-          x: leftMargin,
-          y: pageHeight - topMargin - logoHeight,
-          width: logoWidth,
-          height: logoHeight,
-        });
-
-        const gapBelowLogo = 10;
-        yForTitleStart = pageHeight - topMargin - logoHeight - gapBelowLogo;
       } catch (err) {
-        console.error("Error drawing company logo:", err);
+        console.error("Error embedding company logo:", err);
       }
     }
 
-    if (yForTitleStart - titleSize < bottomMargin) {
-      currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
-      yForTitleStart = pageHeight - topMargin;
-    }
+    // First-page body starts below header band
+    yPosition = contentTopY();
 
-    const totalWidth = leftWidth + midWidth + rightWidth;
-    const startX = (pageWidth - totalWidth - 40) / 4;
-    const titleY = yForTitleStart;
-
-    // Draw title segments
-    currentPage.drawText(titleTextLeft, {
-      x: startX,
-      y: titleY,
-      size: titleSize,
-      font: fontBold,
-      color: rgb(0, 0, 0),
-    });
-    currentPage.drawText(titleTextMid, {
-      x: startX + leftWidth,
-      y: titleY,
-      size: titleSize,
-      font: fontBold,
-      color: rgb(1, 0, 0),
-    });
-    currentPage.drawText(titleTextRight, {
-      x: startX + leftWidth + midWidth,
-      y: titleY,
-      size: titleSize,
-      font: fontBold,
-      color: rgb(0, 0, 0),
-    });
-
-    yPosition = titleY - Math.round(titleSize * 2.2);
-
-    const infoFontSize = 10;
-    const infoLineGap = 12;
-
-    companyInfoLines.forEach((line) => {
-      currentPage.drawText(line, {
-        x: leftMargin,
-        y: yPosition,
-        size: infoFontSize,
-        font: font,
-        color: rgb(0, 0, 0),
-      });
-      yPosition -= infoLineGap;
-    });
-
-    // Add spacing before main content
-    yPosition -= 15;
-
-    // Title: OFFER LETTER
-    drawWrappedText("OFFER LETTER", leftMargin, titleSize, true);
-    yPosition -= paragraphSpacing * 2;
-
-    // Format date with validation
-    const letterDate = parseLetterDate(data.letterDate);
-    
+    // Format date (current / letter date)
+    const letterDate = parseLetterDate(data.letterDate || new Date().toISOString());
     const day = letterDate.getDate();
     const daySuffix = day === 1 || day === 21 || day === 31 ? "st" : day === 2 || day === 22 ? "nd" : day === 3 || day === 23 ? "rd" : "th";
     const monthName = letterDate.toLocaleString("en-US", { month: "long" });
     const year = letterDate.getFullYear();
     const formattedDate = `${day}${daySuffix} ${monthName} ${year}`;
 
-    // Date line
-    const dateLine = `Date: ${formattedDate}`;
-    drawWrappedText(dateLine, leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
+    // Date — top right (secondary hierarchy)
+    {
+      const dateLine = `Date: ${formattedDate}`;
+      const dateW = font.widthOfTextAtSize(dateLine, labelSize);
+      currentPage.drawText(dateLine, {
+        x: pageWidth - rightMargin - dateW,
+        y: yPosition - lineHeight,
+        size: labelSize,
+        font,
+        color: secondaryColor,
+      });
+      yPosition -= lineHeight + paragraphSpacing;
+    }
+
+    // STRICTLY CONFIDENTIAL — centered label, underlined
+    {
+      const conf = "STRICTLY CONFIDENTIAL";
+      const confSize = labelSize;
+      const confW = fontBold.widthOfTextAtSize(conf, confSize);
+      const confX = (pageWidth - confW) / 2;
+      const confY = yPosition - lineHeight;
+      currentPage.drawText(conf, {
+        x: confX,
+        y: confY,
+        size: confSize,
+        font: fontBold,
+        color: textColor,
+      });
+      currentPage.drawLine({
+        start: { x: confX, y: confY - 2 },
+        end: { x: confX + confW, y: confY - 2 },
+        thickness: 0.8,
+        color: textColor,
+      });
+      yPosition -= lineHeight + paragraphSpacing;
+    }
+
+    // Title: OFFER LETTER — centered hero (visual hierarchy)
+    drawCenteredTitle("OFFER LETTER", titleSize);
+    yPosition -= paragraphSpacing * 2;
 
     const employeeFullName = data.employeeFullName || data.employeeName || "______________";
-    const employeeFirstName = data.employeeName || employeeFullName.split(" ")[0] || "______________";
     const salutation =
       candidateGender === "Female" ? "Ms." : candidateGender === "Male" ? "Mr." : "";
+    // Standard letter: formal addressee once, then Dear + first name (not full name twice)
     const addressedName = `${salutation ? `${salutation} ` : ""}${employeeFullName}`;
     drawWrappedText(addressedName, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
-    // Subject line
-    drawWrappedText("Subject: Offer Letter", leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 2;
-
-    const dearLine = `Dear ${employeeFirstName},`;
+    const firstName = employeeFullName.trim().split(/\s+/)[0] || employeeFullName;
+    const dearLine = `Dear ${firstName},`;
     drawWrappedText(dearLine, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 2;
 
@@ -616,263 +781,94 @@ export async function POST(req: NextRequest) {
       : "______________";
 
     // Section 1: Date of Joining
-    drawWrappedText("1. Date of Joining", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
-    drawWrappedText(`Your date of joining shall be ${formattedJoiningDate}. This offer letter is issued post joining and confirms your employment with the Company.`, leftMargin, bodySize);
+    drawNumberedHeading("1", "Date of Joining");
+    yPosition -= paragraphSpacing / 2;
+    drawSectionBody(`Your date of joining shall be ${formattedJoiningDate}. This offer letter is issued post joining and confirms your employment with the Company.`);
     yPosition -= paragraphSpacing * 2;
 
     // Section 2: Place of Posting / Transfer
-    drawWrappedText("2. Place of Posting / Transfer", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
+    drawNumberedHeading("2", "Place of Posting / Transfer");
+    yPosition -= paragraphSpacing / 2;
     const postingLocation = resolvedPostingLocation || companyAddress;
-    drawWrappedText(`Your present place of work shall be ${postingLocation}. However, during the course of employment, you may be transferred or assigned to any location, project, or establishment of the Company in India or abroad at the sole discretion of the Management.`, leftMargin, bodySize);
+    drawSectionBody(`Your present place of work shall be ${postingLocation}. However, during the course of employment, you may be transferred or assigned to any location, project, or establishment of the Company in India or abroad at the sole discretion of the Management.`);
     yPosition -= paragraphSpacing * 2;
 
     // Section 3: Working Hours
-    drawWrappedText("3. Working Hours", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
+    drawNumberedHeading("3", "Working Hours");
+    yPosition -= paragraphSpacing / 2;
     const workingHours =
       data.workingHours?.trim() ||
       (data.workingHoursStart && data.workingHoursEnd
         ? `${data.workingHoursStart} to ${data.workingHoursEnd}`
         : "11:00 AM to 8:00 PM");
-    drawWrappedText(`Your normal working hours shall be from ${workingHours}, or as required based on business needs and Company policy.`, leftMargin, bodySize);
+    drawSectionBody(`Your normal working hours shall be from ${workingHours}, or as required based on business needs and Company policy.`);
     yPosition -= paragraphSpacing * 2;
 
     // Section 4: Compensation
-    drawWrappedText("4. Compensation", leftMargin, bodySize, true);
+    drawNumberedHeading("4", "Compensation");
+    yPosition -= paragraphSpacing / 2;
+    drawSectionBody(`Your Annual Total Employment Cost to the Company shall be ${formattedCTC} (${ctcInWords}).`);
     yPosition -= paragraphSpacing;
-    drawWrappedText(`Your Annual Total Employment Cost to the Company shall be ${formattedCTC} (${ctcInWords}).`, leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("Detailed compensation terms are provided in Annexure – A.", leftMargin, bodySize);
+    drawSectionBody("Detailed compensation terms are provided in Annexure – A.");
     yPosition -= paragraphSpacing * 2;
 
     // Section 5: Salary Payment Cycle
-    drawWrappedText("5. Salary Payment Cycle", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
+    drawNumberedHeading("5", "Salary Payment Cycle");
+    yPosition -= paragraphSpacing / 2;
     const paymentCycle = data.salaryPaymentCycle || "15th to 18th";
-    drawWrappedText(`Salary shall be processed monthly and credited on or before the ${paymentCycle} of every month, subject to attendance, performance, and policy compliance.`, leftMargin, bodySize);
+    drawSectionBody(`Salary shall be processed monthly and credited on or before the ${paymentCycle} of every month, subject to attendance, performance, and policy compliance.`);
     yPosition -= paragraphSpacing * 2;
 
     // Section 6: Probation & Confirmation
-    drawWrappedText("6. Probation & Confirmation", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
+    drawNumberedHeading("6", "Probation & Confirmation");
+    yPosition -= paragraphSpacing / 2;
     const probationPeriod = data.probationPeriod || "six (6) months";
-    drawWrappedText(`You shall be on probation for ${probationPeriod} from your date of joining. Terms relating to probation and confirmation are detailed in Annexure – E.`, leftMargin, bodySize);
+    drawSectionBody(`You shall be on probation for ${probationPeriod} from your date of joining. Terms relating to probation and confirmation are detailed in Annexure – E.`);
     yPosition -= paragraphSpacing * 2;
 
     // Section 7: Leave Policy
-    drawWrappedText("7. Leave Policy", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("Leave entitlement shall be governed strictly by the Company's HR Policy as detailed in Annexure – D.", leftMargin, bodySize);
+    drawNumberedHeading("7", "Leave Policy");
+    yPosition -= paragraphSpacing / 2;
+    drawSectionBody("Leave entitlement shall be governed strictly by the Company's HR Policy as detailed in Annexure – D.");
     yPosition -= paragraphSpacing * 2;
 
     // Section 8: Confidentiality & Conduct
-    drawWrappedText("8. Confidentiality & Conduct", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("You shall adhere to confidentiality, code of conduct, IT usage, and disciplinary policies as detailed in Annexure – B, C, and F.", leftMargin, bodySize);
+    drawNumberedHeading("8", "Confidentiality & Conduct");
+    yPosition -= paragraphSpacing / 2;
+    drawSectionBody("You shall adhere to confidentiality, code of conduct, IT usage, and disciplinary policies as detailed in Annexure – B, C, and F.");
     yPosition -= paragraphSpacing * 2;
 
     // Section 9: Termination & Exit
-    drawWrappedText("9. Termination & Exit", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("Exit formalities, notice period obligations, and full-and-final settlement shall be governed by Annexure – I.", leftMargin, bodySize);
+    drawNumberedHeading("9", "Termination & Exit");
+    yPosition -= paragraphSpacing / 2;
+    drawSectionBody("Exit formalities, notice period obligations, and full-and-final settlement shall be governed by Annexure – I.");
     yPosition -= paragraphSpacing * 2;
 
     // Closing statement
-    drawWrappedText("This Offer Letter along with Annexures A to I constitutes the complete and binding terms of employment.", leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 3;
-
-    // For Zairo International
-    drawWrappedText("For Zairo International Private Limited", leftMargin, bodySize);
+    drawTextWithBoldRefs(
+      "This Offer Letter along with Annexures A to I constitutes the complete and binding terms of employment.",
+      leftMargin,
+      bodySize,
+    );
     yPosition -= paragraphSpacing * 2;
 
-    // Authorized Signatory
-    drawWrappedText("Authorized Signatory", leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
-
-       // Add Ankita mam's signature (automatically loaded from public folder if not provided)
-       if (ankitaSignatureBytes) {
-        try {
-          let ankitaSigImg;
-          try {
-            ankitaSigImg = await pdfDoc.embedPng(ankitaSignatureBytes);
-          } catch {
-            try {
-              ankitaSigImg = await pdfDoc.embedJpg(ankitaSignatureBytes);
-            } catch (embedErr) {
-              console.error("Error embedding Ankita mam's signature (both PNG and JPG failed):", embedErr);
-              throw embedErr;
-            }
-          }
-          const sigW = 150;
-          const sigH = (ankitaSigImg.height / ankitaSigImg.width) * sigW;
-  
-          if (yPosition - sigH < bottomMargin) {
-            addNewPage();
-          }
-  
-          currentPage.drawImage(ankitaSigImg, {
-            x: leftMargin,
-            y: yPosition - sigH,
-            width: sigW,
-            height: sigH,
-          });
-          yPosition -= sigH + paragraphSpacing * 2;
-        } catch (err) {
-          console.error("Error embedding Ankita mam's signature:", err);
-          // Draw signature line instead
-          currentPage.drawLine({
-            start: { x: leftMargin, y: yPosition },
-            end: { x: leftMargin + 200, y: yPosition },
-            thickness: 0.5,
-            color: textColor,
-          });
-          yPosition -= paragraphSpacing * 2;
-        }
-      } else {
-        // Draw signature line if signature couldn't be loaded
-        currentPage.drawLine({
-          start: { x: leftMargin, y: yPosition },
-          end: { x: leftMargin + 200, y: yPosition },
-          thickness: 0.5,
-          color: textColor,
-        });
-        yPosition -= paragraphSpacing * 2;
-      }
-
-    // Name and Designation
-    drawWrappedText("Name: Ankita Nigam", leftMargin, bodySize);
-    yPosition -= lineHeight;
-    drawWrappedText("Designation: COO", leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 3;
-
- 
-
-    yPosition -= paragraphSpacing * 3;
-
-    // ACKNOWLEDGEMENT & ACCEPTANCE section
-    drawWrappedText("ACKNOWLEDGEMENT & ACCEPTANCE", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing * 2;
-
-    const acknowledgmentText = `I have read, understood, and accepted the terms of employment and all annexures attached.`;
-    drawWrappedText(acknowledgmentText, leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 2;
-
-    // Name line
-    drawWrappedText(`Name: ${employeeFullName}`, leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
-
-    // Signature label
-    
-    
-    // CRITICAL: Add candidate signature if provided, otherwise draw placeholder line
-    // This determines whether the final PDF is signed or unsigned
-    if (candidateSignatureBase64) {
-      try {
-        console.log("🔍 Processing candidate signature for Offer Letter...");
-        const candidateSigBytes = Buffer.from(candidateSignatureBase64, "base64");
-        let candidateSigImg;
-        try {
-          candidateSigImg = await pdfDoc.embedPng(candidateSigBytes);
-          console.log("✅ Candidate signature embedded as PNG");
-        } catch {
-          try {
-            candidateSigImg = await pdfDoc.embedJpg(candidateSigBytes);
-            console.log("✅ Candidate signature embedded as JPG");
-          } catch (embedErr) {
-            console.error("❌ Failed to embed candidate signature as PNG or JPG:", embedErr);
-            throw embedErr;
-          }
-        }
-        const sigW = 150;
-        const sigH = (candidateSigImg.height / candidateSigImg.width) * sigW;
-
-        if (yPosition - sigH < bottomMargin) {
-          addNewPage();
-        }
-
-        currentPage.drawImage(candidateSigImg, {
-          x: leftMargin,
-          y: yPosition - sigH,
-          width: sigW,
-          height: sigH,
-        });
-        yPosition -= sigH + paragraphSpacing;
-        console.log("✅ Candidate signature drawn in Offer Letter PDF");
-      } catch (err) {
-        console.error("❌ Error embedding candidate signature:", err);
-        // If embedding fails, draw signature line instead (fallback to unsigned)
-        currentPage.drawLine({
-          start: { x: leftMargin, y: yPosition },
-          end: { x: leftMargin + 200, y: yPosition },
-          thickness: 0.5,
-          color: rgb(0, 0, 0),
-        });
-        yPosition -= paragraphSpacing * 2;
-      }
-    } else {
-      // Draw signature placeholder line for unsigned PDF (preview only)
-      currentPage.drawLine({
-        start: { x: leftMargin, y: yPosition },
-        end: { x: leftMargin + 200, y: yPosition },
-        thickness: 0.5,
-        color: rgb(0, 0, 0),
-      });
-      yPosition -= paragraphSpacing * 2;
-      console.log("ℹ️ No signature provided - drew signature placeholder line for unsigned PDF");
-    }
-
-    drawWrappedText("Signature: ____________________", leftMargin, bodySize);
-    yPosition -= paragraphSpacing;
-    
-    // Date of Signing - use signingDate if provided, otherwise show placeholder
-    let signingDateText = "Date:";
-    if (data.signingDate) {
-      try {
-        const signingDate = new Date(data.signingDate);
-        const signDay = signingDate.getDate();
-        const signDaySuffix = signDay === 1 || signDay === 21 || signDay === 31 ? "st" 
-          : signDay === 2 || signDay === 22 ? "nd" 
-          : signDay === 3 || signDay === 23 ? "rd" 
-          : "th";
-        const signMonthName = signingDate.toLocaleString("en-US", { month: "long" });
-        const signYear = signingDate.getFullYear();
-        const formattedSigningDate = `${signDay}${signDaySuffix} ${signMonthName} ${signYear}`;
-        signingDateText = `Date: ${formattedSigningDate}`;
-      } catch (err) {
-        console.error("Error formatting signing date:", err);
-        signingDateText = "Date:";
-      }
-    }
-    drawWrappedText(signingDateText, leftMargin, bodySize);
-    yPosition -= paragraphSpacing * 3;
-
-    // Add new page for annexures
+    // Annexures always start on a fresh page (single signature block comes after all annexures)
     addNewPage();
-    yPosition -= paragraphSpacing;
 
     // ANNEXURE – A: Compensation & Salary Terms
-    drawWrappedText("ANNEXURE – A", leftMargin, bodySize, true);
+    drawAnnexureLabel("ANNEXURE – A", "Compensation & Salary Terms");
     yPosition -= paragraphSpacing;
-    drawWrappedText("Compensation & Salary Terms", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing * 2;
     drawWrappedText(`The monthly and yearly salary breakup is set out in the separate Salary Annexure. Salary is credited by the ${paymentCycle} of every month. Any revision is at the Company's discretion.`, leftMargin, bodySize);
     yPosition -= paragraphSpacing * 3;
 
     // ANNEXURE – B: Confidentiality & Non-Disclosure Agreement
-    drawWrappedText("ANNEXURE – B", leftMargin, bodySize, true);
+    drawAnnexureLabel("ANNEXURE – B", "Confidentiality & Non-Disclosure Agreement");
     yPosition -= paragraphSpacing;
-    drawWrappedText("Confidentiality & Non-Disclosure Agreement", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing * 2;
     drawWrappedText("Confidential data protection during & after employment, return of company data, breach consequences", leftMargin, bodySize);
     yPosition -= paragraphSpacing * 3;
 
     // ANNEXURE – C: Code of Conduct & Discipline Policy
-    drawWrappedText("ANNEXURE – C", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("Code of Conduct & Discipline Policy", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
+    drawAnnexureLabel("ANNEXURE – C", "Code of Conduct & Discipline Policy");
     const conductItems = [
       "1. Professional behaviour",
       "2. Harassment policy",
@@ -881,16 +877,12 @@ export async function POST(req: NextRequest) {
       "5. Disciplinary action"
     ];
     conductItems.forEach((item) => {
-      drawWrappedText(item, leftMargin, bodySize);
-      yPosition -= lineHeight;
+      drawBulletedItem(item);
     });
     yPosition -= paragraphSpacing * 2;
 
     // ANNEXURE – D: Leave & Attendance Policy
-    drawWrappedText("ANNEXURE – D", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("Leave & Attendance Policy", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
+    drawAnnexureLabel("ANNEXURE – D", "Leave & Attendance Policy");
     const leaveItems = [
       "1. Attendance compliance",
       "2. HR policy leave rules",
@@ -898,16 +890,12 @@ export async function POST(req: NextRequest) {
       "4. Abandonment after 3 days"
     ];
     leaveItems.forEach((item) => {
-      drawWrappedText(item, leftMargin, bodySize);
-      yPosition -= lineHeight;
+      drawBulletedItem(item);
     });
     yPosition -= paragraphSpacing * 2;
 
     // ANNEXURE – E: Probation & Confirmation Policy
-    drawWrappedText("ANNEXURE – E", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("Probation & Confirmation Policy", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
+    drawAnnexureLabel("ANNEXURE – E", "Probation & Confirmation Policy");
     const probationItems = [
       "1. The probation period shall be six (6) months from date of joining.",
       "2. Performance, conduct, attendance, and policy compliance shall be evaluated.",
@@ -916,16 +904,12 @@ export async function POST(req: NextRequest) {
       "5. Salary and leave during probation are governed by HR policy."
     ];
     probationItems.forEach((item) => {
-      drawWrappedText(item, leftMargin, bodySize);
-      yPosition -= lineHeight;
+      drawBulletedItem(item);
     });
     yPosition -= paragraphSpacing * 2;
 
     // ANNEXURE – F: IT, Data & Asset Usage Policy
-    drawWrappedText("ANNEXURE – F", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("IT, Data & Asset Usage Policy", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
+    drawAnnexureLabel("ANNEXURE – F", "IT, Data & Asset Usage Policy");
     const itItems = [
       "1. Company IT systems, email, data, and software are for official use only.",
       "2. Unauthorized access, sharing, or misuse of data is prohibited.",
@@ -933,31 +917,23 @@ export async function POST(req: NextRequest) {
       "4. Violation may result in disciplinary and legal action."
     ];
     itItems.forEach((item) => {
-      drawWrappedText(item, leftMargin, bodySize);
-      yPosition -= lineHeight;
+      drawBulletedItem(item);
     });
     yPosition -= paragraphSpacing * 2;
 
     // ANNEXURE – G: Non-Solicitation & Limited Non-Compete
-    drawWrappedText("ANNEXURE – G", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("Non-Solicitation & Limited Non-Compete", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
+    drawAnnexureLabel("ANNEXURE – G", "Non-Solicitation & Limited Non-Compete");
     const nonSolicitItems = [
       "1. Employees shall not solicit Company clients, vendors, or employees for personal or third-party benefit during employment and for a reasonable period post exit.",
       "2. This clause shall be interpreted in accordance with applicable Indian laws."
     ];
     nonSolicitItems.forEach((item) => {
-      drawWrappedText(item, leftMargin, bodySize);
-      yPosition -= lineHeight;
+      drawBulletedItem(item);
     });
     yPosition -= paragraphSpacing * 2;
 
     // ANNEXURE – H: Performance Targets / KRA Policy
-    drawWrappedText("ANNEXURE – H", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("Performance Targets / KRA Policy", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
+    drawAnnexureLabel("ANNEXURE – H", "Performance Targets / KRA Policy");
     const performanceItems = [
       "1. Performance targets shall be assigned periodically.",
       "2. Evaluation shall be based on defined KRAs.",
@@ -965,16 +941,12 @@ export async function POST(req: NextRequest) {
       "4. Failure to meet targets may impact confirmation or continuation."
     ];
     performanceItems.forEach((item) => {
-      drawWrappedText(item, leftMargin, bodySize);
-      yPosition -= lineHeight;
+      drawBulletedItem(item);
     });
     yPosition -= paragraphSpacing * 2;
 
     // ANNEXURE – I: Exit & Full-and-Final Settlement Policy
-    drawWrappedText("ANNEXURE – I", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
-    drawWrappedText("Exit & Full-and-Final Settlement Policy", leftMargin, bodySize, true);
-    yPosition -= paragraphSpacing;
+    drawAnnexureLabel("ANNEXURE – I", "Exit & Full-and-Final Settlement Policy");
     const exitItems = [
       "1. Employees must serve an applicable notice period or salary in lieu.",
       "2. Handover and clearance are mandatory.",
@@ -983,269 +955,281 @@ export async function POST(req: NextRequest) {
       "5. Performance deduction may occur in case of low performance i.e. 30 percent"
     ];
     exitItems.forEach((item) => {
-      drawWrappedText(item, leftMargin, bodySize);
-      yPosition -= lineHeight;
+      drawBulletedItem(item);
     });
     yPosition -= paragraphSpacing * 3;
 
-    // Signature section for annexures
-    drawWrappedText("For Zairo International Private Limited", leftMargin, bodySize);
+    // Single signature block — after main terms + all annexures
+    ensureVerticalSpace(lineHeight * 14 + 140);
+    drawCenteredTitle("ACKNOWLEDGEMENT & ACCEPTANCE", sectionSize);
+    yPosition -= paragraphSpacing * 2;
+    drawWrappedText(
+      "I have read, understood, and accepted the terms of employment and all annexures attached.",
+      leftMargin,
+      bodySize,
+    );
+    yPosition -= paragraphSpacing * 3;
+
+    drawWrappedText("For Zairo International Private Limited", leftMargin, bodySize, true);
     yPosition -= paragraphSpacing * 2;
 
-    // CRITICAL: Save starting Y position for side-by-side signature alignment
-    const sigW = 150; // Signature width (same for both)
-    
-    // Check if we need a new page before drawing signatures
-    if (yPosition - sigW - (lineHeight * 6) < bottomMargin) {
-      addNewPage();
-      yPosition = pageHeight - topMargin;
-    }
+    const sigW = 150;
+    const sigBandH = 56;
+    const colGap = 36;
+    const colWidth = (pageWidth - leftMargin - rightMargin - colGap) / 2;
+    const leftColX = leftMargin;
+    const rightColX = leftMargin + colWidth + colGap;
 
-    // ========== LEFT SIDE: Company Signatory Section ==========
-    const companyLabelY = yPosition;
+    const labelY = yPosition;
+    const sigBottomY = labelY - paragraphSpacing - sigBandH;
+    const nameY = sigBottomY - paragraphSpacing;
+    const designationY = nameY - lineHeight;
+    const dateY = designationY - lineHeight;
+
+    // LEFT: company — bold labels/values, no Name:/Designation: text, no underlines
     currentPage.drawText("Authorized Signatory", {
-      x: leftMargin,
-      y: companyLabelY,
+      x: leftColX,
+      y: labelY,
       size: bodySize,
-      font,
+      font: fontBold,
       color: textColor,
     });
-    const companySigTopY = companyLabelY - paragraphSpacing;
-    
-    // Add Ankita mam's signature (automatically loaded from public folder if not provided)
-    let companySigH = 0;
+
     if (ankitaSignatureBytes) {
       try {
         let ankitaSigImg;
         try {
           ankitaSigImg = await pdfDoc.embedPng(ankitaSignatureBytes);
         } catch {
-          try {
-            ankitaSigImg = await pdfDoc.embedJpg(ankitaSignatureBytes);
-          } catch (embedErr) {
-            console.error("Error embedding Ankita mam's signature (both PNG and JPG failed):", embedErr);
-            throw embedErr;
-          }
+          ankitaSigImg = await pdfDoc.embedJpg(ankitaSignatureBytes);
         }
-        companySigH = (ankitaSigImg.height / ankitaSigImg.width) * sigW;
-
+        let companySigH = (ankitaSigImg.height / ankitaSigImg.width) * sigW;
+        if (companySigH > sigBandH) companySigH = sigBandH;
         currentPage.drawImage(ankitaSigImg, {
-          x: leftMargin,
-          y: companySigTopY - companySigH,
+          x: leftColX,
+          y: sigBottomY,
           width: sigW,
           height: companySigH,
         });
       } catch (err) {
         console.error("Error embedding Ankita mam's signature:", err);
-        // Draw signature line instead
-        currentPage.drawLine({
-          start: { x: leftMargin, y: companySigTopY },
-          end: { x: leftMargin + sigW, y: companySigTopY },
-          thickness: 0.5,
-          color: textColor,
-        });
-        companySigH = paragraphSpacing;
-      }
-    } else {
-      // Draw signature line if signature couldn't be loaded
-      currentPage.drawLine({
-        start: { x: leftMargin, y: companySigTopY },
-        end: { x: leftMargin + sigW, y: companySigTopY },
-        thickness: 0.5,
-        color: textColor,
-      });
-      companySigH = paragraphSpacing;
-    }
-    
-    const companySigBottomY = companySigTopY - companySigH;
-    const companyNameY = companySigBottomY - paragraphSpacing;
-    
-    currentPage.drawText("Name: Ankita Nigam", {
-      x: leftMargin,
-      y: companyNameY,
-      size: bodySize,
-      font,
-      color: textColor,
-    });
-    const companyDesignationY = companyNameY - lineHeight;
-    currentPage.drawText("Designation: Chief Operating Officer (COO)", {
-      x: leftMargin,
-      y: companyDesignationY,
-      size: bodySize,
-      font,
-      color: textColor,
-    });
-    
-    // CRITICAL: Display formatted signing date for company signature
-    let companySigningDateText = "Date:";
-    if (data.signingDate) {
-      try {
-        const signingDate = new Date(data.signingDate);
-        const signDay = signingDate.getDate();
-        const signDaySuffix = signDay === 1 || signDay === 21 || signDay === 31 ? "st" 
-          : signDay === 2 || signDay === 22 ? "nd" 
-          : signDay === 3 || signDay === 23 ? "rd" 
-          : "th";
-        const signMonthName = signingDate.toLocaleString("en-US", { month: "long" });
-        const signYear = signingDate.getFullYear();
-        const formattedSigningDate = `${signDay}${signDaySuffix} ${signMonthName} ${signYear}`;
-        companySigningDateText = `Date: ${formattedSigningDate}`;
-      } catch (err) {
-        console.error("Error formatting company signing date:", err);
-        companySigningDateText = "Date:";
       }
     }
-    const companyDateY = companyDesignationY - lineHeight;
-    currentPage.drawText(companySigningDateText, {
-      x: leftMargin,
-      y: companyDateY,
+
+    currentPage.drawText("Ankita Nigam", {
+      x: leftColX,
+      y: nameY,
+      size: bodySize,
+      font: fontBold,
+      color: textColor,
+    });
+    currentPage.drawText("Chief Operating Officer (COO)", {
+      x: leftColX,
+      y: designationY,
+      size: bodySize,
+      font: fontBold,
+      color: textColor,
+    });
+    currentPage.drawText(formattedDate, {
+      x: leftColX,
+      y: dateY,
       size: bodySize,
       font,
       color: textColor,
     });
 
-    // ========== RIGHT SIDE: Employee Signature Section (aligned with company signature) ==========
-    // Calculate right-aligned positions
-    const rightAlignedX = pageWidth - rightMargin - sigW;
-    
-    // Draw "Authorized Signatory" label on right side (aligned with left side label)
-    const employeeLabelText = "Candidate's Signature";
-    const employeeLabelWidth = font.widthOfTextAtSize(employeeLabelText, bodySize);
-    const employeeLabelX = pageWidth - rightMargin - employeeLabelWidth;
-    currentPage.drawText(employeeLabelText, {
-      x: employeeLabelX,
-      y: companyLabelY,
+    // RIGHT: Accepted Signature + gap + name + auto date
+    currentPage.drawText("Accepted Signature", {
+      x: rightColX,
+      y: labelY,
       size: bodySize,
-      font,
+      font: fontBold,
       color: textColor,
     });
-    
-    const employeeSigTopY = companySigTopY; // Same Y position as company signature
-    
-    // Draw employee signature image (aligned with company signature)
-    let employeeSigH = 0;
+
     if (candidateSignatureBase64) {
       try {
-        console.log("🔍 Drawing employee signature aligned with company signature...");
         const candidateSigBytes = Buffer.from(candidateSignatureBase64, "base64");
         let candidateSigImg;
         try {
           candidateSigImg = await pdfDoc.embedPng(candidateSigBytes);
         } catch {
-          try {
-            candidateSigImg = await pdfDoc.embedJpg(candidateSigBytes);
-          } catch (embedErr) {
-            console.error("❌ Failed to embed candidate signature:", embedErr);
-            throw embedErr;
-          }
+          candidateSigImg = await pdfDoc.embedJpg(candidateSigBytes);
         }
-        employeeSigH = (candidateSigImg.height / candidateSigImg.width) * sigW;
-
-        // Draw signature image right-aligned, at same Y position as company signature
+        let employeeSigH = (candidateSigImg.height / candidateSigImg.width) * sigW;
+        if (employeeSigH > sigBandH) employeeSigH = sigBandH;
         currentPage.drawImage(candidateSigImg, {
-          x: rightAlignedX,
-          y: employeeSigTopY - employeeSigH,
+          x: rightColX,
+          y: sigBottomY,
           width: sigW,
           height: employeeSigH,
         });
-        console.log("✅ Employee signature drawn aligned with company signature");
       } catch (err) {
         console.error("❌ Error embedding employee signature:", err);
-        // If embedding fails, draw signature line instead (right-aligned)
-        currentPage.drawLine({
-          start: { x: rightAlignedX, y: employeeSigTopY },
-          end: { x: rightAlignedX + sigW, y: employeeSigTopY },
-          thickness: 0.5,
-          color: rgb(0, 0, 0),
-        });
-        employeeSigH = paragraphSpacing;
       }
-    } else {
-      // Draw signature placeholder line for unsigned PDF (right-aligned)
-      currentPage.drawLine({
-        start: { x: rightAlignedX, y: employeeSigTopY },
-        end: { x: rightAlignedX + sigW, y: employeeSigTopY },
-        thickness: 0.5,
-        color: rgb(0, 0, 0),
-      });
-      employeeSigH = paragraphSpacing;
     }
-    
-    // Draw employee name right-aligned (aligned with company name)
-    const nameText = `Name: ${employeeFullName}`;
-    const nameWidth = font.widthOfTextAtSize(nameText, bodySize);
-    const nameX = pageWidth - rightMargin - nameWidth;
-    currentPage.drawText(nameText, {
-      x: nameX,
-      y: companyNameY,
+
+    // Candidate: name then date directly under it (no empty designation row gap)
+    const candidateNameY = nameY;
+    const candidateDateY = nameY - lineHeight;
+    currentPage.drawText(employeeFullName, {
+      x: rightColX,
+      y: candidateNameY,
       size: bodySize,
-      font,
+      font: fontBold,
       color: textColor,
     });
-    
-    // CRITICAL: Display formatted signing date (right-aligned, aligned with company date)
-    let signingDateTextSecond = "Date:";
-    if (data.signingDate) {
-      try {
-        const signingDate = new Date(data.signingDate);
-        const signDay = signingDate.getDate();
-        const signDaySuffix = signDay === 1 || signDay === 21 || signDay === 31 ? "st" 
-          : signDay === 2 || signDay === 22 ? "nd" 
-          : signDay === 3 || signDay === 23 ? "rd" 
-          : "th";
-        const signMonthName = signingDate.toLocaleString("en-US", { month: "long" });
-        const signYear = signingDate.getFullYear();
-        const formattedSigningDate = `${signDay}${signDaySuffix} ${signMonthName} ${signYear}`;
-        signingDateTextSecond = `Date: ${formattedSigningDate}`;
-      } catch (err) {
-        console.error("Error formatting signing date:", err);
-        signingDateTextSecond = "Date:";
-      }
-    }
-    // Right-align the date text (aligned with company date)
-    const dateTextWidth = font.widthOfTextAtSize(signingDateTextSecond, bodySize);
-    const dateX = pageWidth - rightMargin - dateTextWidth;
-    currentPage.drawText(signingDateTextSecond, {
-      x: dateX,
-      y: companyDateY,
+    currentPage.drawText(formattedDate, {
+      x: rightColX,
+      y: candidateDateY,
       size: bodySize,
       font,
       color: textColor,
     });
 
-    // Update yPosition to the bottom of signature sections
-    yPosition = companyDateY - lineHeight - paragraphSpacing * 2;
+    yPosition = Math.min(dateY, candidateDateY) - lineHeight - paragraphSpacing * 2;
 
-    // ---- Add footer logo to all pages ----
-    if (footerLogo) {
-      const footerW = pageWidth; // full page width
-      const footerH = ((footerLogo.height / footerLogo.width) * footerW) / 1.2;
+    // ---- Chrome: logo + brand/address under logo (header only); red corners stay ----
+    const drawHeaderBrand = (page: PDFPage, startY: number) => {
+      const brandSize = 10;
+      const metaSize = footerSize;
+      const maxW = pageWidth - leftMargin - rightMargin - 120; // clear pink header accent
+      let y = startY;
 
-      const allPages = pdfDoc.getPages();
-
-      allPages.forEach((page: PDFPage) => {
-        page.drawImage(footerLogo, {
-          x: 0, // start at very left
-          y: bottomMargin - footerH - 10, // exact bottom placement
-          width: footerW,
-          height: footerH,
-        });
+      const left = "Zairo ";
+      const mid = "International ";
+      const right = "Private Limited";
+      const leftW = fontBold.widthOfTextAtSize(left, brandSize);
+      const midW = fontBold.widthOfTextAtSize(mid, brandSize);
+      page.drawText(left, {
+        x: leftMargin,
+        y,
+        size: brandSize,
+        font: fontBold,
+        color: textColor,
       });
-    }
+      page.drawText(mid, {
+        x: leftMargin + leftW,
+        y,
+        size: brandSize,
+        font: fontBold,
+        color: accentColor,
+      });
+      page.drawText(right, {
+        x: leftMargin + leftW + midW,
+        y,
+        size: brandSize,
+        font: fontBold,
+        color: textColor,
+      });
+      y -= 11;
 
-    if (headerLogo) {
-      const headerW = 140; // adjust as needed
-      const headerH = (headerLogo.height / headerLogo.width) * headerW;
+      // Keep India on the address (DB usually has it; append if missing).
+      // CIN on its own line so address + India are not truncated by wrap.
+      const addressWithIndia = /,\s*India\s*$/i.test(companyAddress.trim())
+        ? companyAddress.trim()
+        : `${companyAddress.trim().replace(/,\s*$/, "")}, India`;
 
-      const allPages = pdfDoc.getPages();
+      page.drawText(`CIN: ${companyCIN}`, {
+        x: leftMargin,
+        y,
+        size: metaSize,
+        font,
+        color: secondaryColor,
+      });
+      y -= 10;
 
-      allPages.forEach((page: PDFPage) => {
-        page.drawImage(headerLogo, {
-          x: pageWidth - headerW, // RIGHT aligned
-          y: pageHeight - headerH, // TOP aligned
-          width: headerW,
-          height: headerH,
+      const words = addressWithIndia.split(" ");
+      let line = "";
+      const wrapped: string[] = [];
+      for (const w of words) {
+        const test = line ? `${line} ${w}` : w;
+        if (font.widthOfTextAtSize(test, metaSize) > maxW && line) {
+          wrapped.push(line);
+          line = w;
+        } else {
+          line = test;
+        }
+      }
+      if (line) wrapped.push(line);
+      for (const wl of wrapped.slice(0, 3)) {
+        page.drawText(wl, {
+          x: leftMargin,
+          y,
+          size: metaSize,
+          font,
+          color: secondaryColor,
         });
+        y -= 10;
+      }
+
+      const contactLine = `${companyWebsite}  |  ${companyEmail}  |  ${companyPhone}`;
+      if (font.widthOfTextAtSize(contactLine, metaSize) > maxW) {
+        page.drawText(companyWebsite, {
+          x: leftMargin,
+          y,
+          size: metaSize,
+          font,
+          color: secondaryColor,
+        });
+        y -= 10;
+        page.drawText(`${companyEmail}  |  ${companyPhone}`, {
+          x: leftMargin,
+          y,
+          size: metaSize,
+          font,
+          color: secondaryColor,
+        });
+      } else {
+        page.drawText(contactLine, {
+          x: leftMargin,
+          y,
+          size: metaSize,
+          font,
+          color: secondaryColor,
+        });
+      }
+    };
+
+    {
+      const allPages = pdfDoc.getPages();
+      allPages.forEach((page: PDFPage) => {
+        if (headerLogo) {
+          const headerW = 140;
+          const headerH = (headerLogo.height / headerLogo.width) * headerW;
+          page.drawImage(headerLogo, {
+            x: pageWidth - headerW,
+            y: pageHeight - headerH,
+            width: headerW,
+            height: headerH,
+          });
+        }
+        if (footerLogo) {
+          const footerW = pageWidth;
+          const footerH = ((footerLogo.height / footerLogo.width) * footerW) / 1.2;
+          page.drawImage(footerLogo, {
+            x: 0,
+            y: 0,
+            width: footerW,
+            height: footerH,
+          });
+        }
+
+        let brandStartY = pageHeight - 72;
+        if (companyLogoImg) {
+          const logoHeight =
+            ((companyLogoImg.height / companyLogoImg.width) * logoWidth) / 1.5;
+          const logoY = pageHeight - 14 - logoHeight;
+          page.drawImage(companyLogoImg, {
+            x: leftMargin,
+            y: logoY,
+            width: logoWidth,
+            height: logoHeight,
+          });
+          brandStartY = logoY - 10;
+        }
+
+        drawHeaderBrand(page, brandStartY);
       });
     }
 

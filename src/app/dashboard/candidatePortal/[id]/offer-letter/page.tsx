@@ -119,6 +119,7 @@ function BrandLockup() {
 }
 
 const LoadingSkeleton = () => (
+
   <div className="min-h-dvh bg-[#F8FAFC] dark:bg-[#0B1220]">
     <div className="border-b border-[#E4E5E7] bg-white dark:border-slate-800 dark:bg-slate-950">
       <div className="mx-auto flex h-16 max-w-4xl items-center px-4 sm:px-6">
@@ -126,15 +127,16 @@ const LoadingSkeleton = () => (
       </div>
     </div>
     <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8 sm:px-6">
+
       <div className="text-center space-y-4">
-        <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg w-3/4 mx-auto animate-pulse" />
-        <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-2/3 mx-auto animate-pulse" />
+        <div className="h-10 bg-slate-200 dark:bg-gray-700 rounded-lg w-3/4 mx-auto animate-pulse" />
+        <div className="h-5 bg-slate-100 dark:bg-gray-800 rounded w-2/3 mx-auto animate-pulse" />
       </div>
-      <div className="space-y-3 p-6 bg-white dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700 animate-pulse">
-        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/4" />
+      <div className="space-y-3 p-6 bg-white dark:bg-gray-900 rounded-lg border border-slate-200 dark:border-gray-700 animate-pulse">
+        <div className="h-6 bg-slate-200 dark:bg-gray-700 rounded w-1/4" />
         <div className="space-y-2">
-          <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded w-full" />
-          <div className="h-4 bg-gray-100 dark:bg-gray-700 rounded w-full" />
+          <div className="h-4 bg-slate-100 dark:bg-gray-700 rounded w-full" />
+          <div className="h-4 bg-slate-100 dark:bg-gray-700 rounded w-full" />
         </div>
       </div>
     </div>
@@ -713,6 +715,7 @@ export default function OfferLetterPage() {
 
   if (candidate && (success || documentsSigned)) {
     return (
+
       <div className="min-h-dvh bg-[#F8FAFC] dark:bg-[#0B1220]">
         <div className="border-b border-[#E4E5E7] bg-white dark:border-slate-800 dark:bg-slate-950">
           <div className="mx-auto flex h-16 max-w-lg items-center px-4">
@@ -722,17 +725,20 @@ export default function OfferLetterPage() {
         <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center p-4">
         <Card className="w-full max-w-lg border-[#E4E5E7] bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-green-500">
+
             <Check className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-semibold text-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
             Documents signed successfully
           </h1>
-          <p className="mt-4 text-base leading-7 text-muted-foreground">
+          <p className="mt-4 text-base leading-relaxed text-slate-600 dark:text-slate-300">
             HR will update you on the further steps. You may close this tab.
           </p>
           {confirmationSent ? (
+
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               A copy of the signed offer letter, salary annexure, and HR policies has been sent to your email.
+
             </p>
           ) : null}
         </Card>
@@ -743,14 +749,16 @@ export default function OfferLetterPage() {
 
   if (!candidate || (candidate.status !== "selected" && candidate.status !== "onboarding")) {
     return (
+
       <div className="min-h-dvh bg-[#F8FAFC] p-4 dark:bg-[#0B1220] sm:p-8">
         <div className="mx-auto max-w-4xl">
           <Card className="border-[#E4E5E7] bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <AlertCircle className="w-12 h-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
             <p className="text-lg font-semibold text-foreground mb-2">
+
               Access Denied
             </p>
-            <p className="text-muted-foreground">
+            <p className="text-base leading-relaxed text-slate-600 dark:text-slate-300">
               This page opens after you are selected.
             </p>
           </Card>
@@ -760,6 +768,7 @@ export default function OfferLetterPage() {
   }
 
   return (
+
     <div className="min-h-dvh bg-[#F8FAFC] text-[#0F172A] dark:bg-[#0B1220] dark:text-slate-100">
       <header className="border-b border-[#E4E5E7] bg-white dark:border-slate-800 dark:bg-slate-950">
         <div className="mx-auto flex h-16 max-w-4xl items-center justify-between gap-4 px-4 sm:px-6">
@@ -770,48 +779,51 @@ export default function OfferLetterPage() {
         </div>
       </header>
       <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
+
         {hiringReturnTo ? (
           <div className="mb-4">
-            <Button variant="ghost" size="sm" className="gap-1.5 h-8" asChild>
+            <Button variant="ghost" size="sm" className="gap-1.5 h-9 text-slate-700 dark:text-slate-200" asChild>
               <Link href={hiringReturnTo}>
-                <ArrowLeft className="w-3.5 h-3.5" />
+                <ArrowLeft className="w-4 h-4" />
                 Back to hiring record
               </Link>
             </Button>
           </div>
         ) : null}
         {/* Header */}
+
         <div className="mb-8">
           <h1 className="text-3xl font-semibold tracking-tight text-[#0F172A] dark:text-white sm:text-4xl">
             Offer Letter
           </h1>
           <p className="mt-2 max-w-2xl text-base leading-7 text-[#475569] dark:text-slate-300">
             Review your offer letter, salary annexure, and HR policies, then sign once. The same signature is applied to all three documents.
+
           </p>
         </div>
 
         {/* Success Message */}
         {success && (
-          <Card className="mb-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40 border-2 border-green-400 dark:border-green-700 rounded-lg shadow-lg">
+          <Card className="mb-6 p-6 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-800 rounded-lg shadow-sm">
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 rounded-full bg-green-500 dark:bg-green-600 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-emerald-600 flex items-center justify-center">
                   <Check className="w-7 h-7 text-white" />
                 </div>
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-green-800 dark:text-green-300 mb-2">
+                <h3 className="text-xl font-semibold text-emerald-950 dark:text-emerald-200 mb-2">
                   Offer Letter Signed Successfully!
                 </h3>
-                <p className="text-base text-green-700 dark:text-green-400 mb-4">
+                <p className="text-base leading-relaxed text-emerald-900 dark:text-emerald-300 mb-4">
                   Your signature has been applied to the offer letter and the HR policies.
                 </p>
-                <div className="bg-white dark:bg-gray-800/50 p-4 rounded-lg border border-green-200 dark:border-green-800">
-                  <p className="text-sm font-semibold text-green-800 dark:text-green-300 mb-2 flex items-center gap-2">
+                <div className="bg-white dark:bg-gray-900/60 p-4 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                  <p className="text-base font-semibold text-emerald-950 dark:text-emerald-200 mb-2 flex items-center gap-2">
                     <Download className="w-4 h-4" />
                     Important: Please Download Your Signed Document
                   </p>
-                  <p className="text-sm text-green-700 dark:text-green-400">
+                  <p className="text-base leading-relaxed text-emerald-900 dark:text-emerald-300">
                     Please download the signed document below for your records. This document contains your signature and is legally binding.
                   </p>
                 </div>
@@ -822,70 +834,76 @@ export default function OfferLetterPage() {
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded-lg flex items-start gap-3 shadow-sm">
-            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-700 dark:text-red-400 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-semibold text-red-800 dark:text-red-300">Error</p>
-              <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+              <p className="text-base font-semibold text-red-900 dark:text-red-200">Error</p>
+              <p className="text-base leading-relaxed text-red-800 dark:text-red-300">{error}</p>
             </div>
           </div>
         )}
 
         <form onSubmit={handleSubmitClick} noValidate className="space-y-6">
           {/* Candidate Information */}
+
           <Card className="border-[#E4E5E7] bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center gap-2 mb-4">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1E293B] text-sm font-semibold text-white">
+
                 1
               </div>
-              <h2 className="text-lg font-semibold text-foreground">
+              <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
                 Your Information
               </h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
                   Name
                 </p>
-                <p className="text-base font-semibold text-foreground">
+                <p className="text-base font-semibold text-slate-900 dark:text-slate-50">
                   {candidate.name}
                 </p>
               </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
                   Email
                 </p>
-                <p className="text-base font-semibold text-foreground">
+                <p className="text-base font-semibold text-slate-900 dark:text-slate-50 break-all">
                   {candidate.email}
                 </p>
               </div>
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
                   Position
                 </p>
-                <p className="text-base font-semibold text-foreground">
+                <p className="text-base font-semibold text-slate-900 dark:text-slate-50">
                   {candidate.selectionDetails?.role || candidate.position}
                 </p>
               </div>
             </div>
           </Card>
 
+
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1E293B] text-sm font-semibold text-white">
+
                 2
               </div>
-              <h2 className="text-lg font-semibold text-foreground">
+              <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
                 Documents
               </h2>
               {signedPdfUrl && hrPoliciesPdfUrl && (
-                <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-400 dark:border-green-800">
+                <Badge variant="outline" className="text-xs font-medium bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
                   Signed
                 </Badge>
               )}
             </div>
+
             <p className="text-sm text-muted-foreground mb-4">
               Download the documents and read them before you sign. The salary annexure is a separate PDF.
+
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <Button
@@ -904,7 +922,9 @@ export default function OfferLetterPage() {
                   a.click();
                   document.body.removeChild(a);
                 }}
+
                 className="h-11 border-[#E4E5E7] text-[#0F172A] hover:bg-[#F8FAFC] dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
+
               >
                 {generatingPdf && !signedPdfUrl && !unsignedPdfUrl ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -928,7 +948,9 @@ export default function OfferLetterPage() {
                   a.click();
                   document.body.removeChild(a);
                 }}
+
                 className="h-11 border-[#E4E5E7] text-[#0F172A] hover:bg-[#F8FAFC] dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
+
               >
                 {generatingPdf && !hrPoliciesPdfUrl ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -963,40 +985,46 @@ export default function OfferLetterPage() {
           </Card>
 
           {!documentsSigned && !success && (
+
             <p className="text-sm font-medium leading-6 text-red-600 dark:text-red-400">
               Please read the offer letter, the salary annexure, and the HR policies in full before you sign. This signature applies to all three documents.
+
             </p>
           )}
 
           {/* Digital Signature */}
+
           <Card className="p-6 shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2 mb-4">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1E293B] text-sm font-semibold text-white">
+
                 3
               </div>
-              <h2 className="text-lg font-semibold text-foreground">
+              <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-50">
                 E Signature
               </h2>
             </div>
             
-            <p className="text-sm text-muted-foreground mb-4">
+            <p className="text-base leading-relaxed text-slate-600 dark:text-slate-300 mb-4">
               {useDigitalSignature
                 ? "Draw your signature below."
                 : "Upload an image of your signature."}
             </p>
 
             {/* Signature Mode Switch */}
-            <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-4 mb-4">
+            <div className="flex gap-2 border-b border-slate-200 dark:border-gray-700 pb-4 mb-4">
               <button
                 type="button"
                 onClick={() => {
                   setUseDigitalSignature(true);
                   setShowSignaturePad(false);
                 }}
-                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                className={`min-h-11 px-4 py-2 rounded-md font-medium text-base transition-colors duration-200 ${
                   useDigitalSignature
+
                     ? "border border-[#1E293B] bg-[#1E293B] text-white"
                     : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
+
                 }`}
               >
                 Digital Signature
@@ -1005,10 +1033,12 @@ export default function OfferLetterPage() {
               <button
                 type="button"
                 onClick={() => setUseDigitalSignature(false)}
-                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+                className={`min-h-11 px-4 py-2 rounded-md font-medium text-base transition-colors duration-200 ${
                   !useDigitalSignature
+
                     ? "border border-[#1E293B] bg-[#1E293B] text-white"
                     : "text-muted-foreground hover:bg-gray-100 dark:hover:bg-gray-700"
+
                 }`}
               >
                 Upload Signature
@@ -1019,7 +1049,7 @@ export default function OfferLetterPage() {
               {useDigitalSignature ? (
                 !showSignaturePad ? (
                   signature ? (
-                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
+                    <div className="border border-dashed border-slate-300 dark:border-gray-600 rounded-lg p-4 bg-slate-50 dark:bg-gray-950/60">
                       <img
                         src={signature.url || "/placeholder.svg"}
                         alt="Digital signature preview"
@@ -1032,7 +1062,7 @@ export default function OfferLetterPage() {
                           setSignature(null);
                           setShowSignaturePad(true);
                         }}
-                        className="w-full mt-3 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                        className="w-full mt-3 h-11 text-base border-slate-300 text-slate-800 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-800"
                       >
                         Redraw Signature
                       </Button>
@@ -1041,7 +1071,9 @@ export default function OfferLetterPage() {
                     <Button
                       type="button"
                       onClick={() => setShowSignaturePad(true)}
+
                       className="h-11 w-full bg-[#1E293B] text-white hover:bg-[#0F172A] dark:bg-white dark:text-[#0F172A] dark:hover:bg-slate-200"
+
                     >
                       Start Drawing Signature
                     </Button>
@@ -1053,7 +1085,7 @@ export default function OfferLetterPage() {
                       type="button"
                       variant="outline"
                       onClick={cancelSignaturePad}
-                      className="w-full bg-transparent dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                      className="w-full h-11 text-base border-slate-300 text-slate-800 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-800"
                     >
                       Cancel
                     </Button>
@@ -1061,29 +1093,29 @@ export default function OfferLetterPage() {
                 )
               ) : (
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-foreground">
+                  <label className="block text-base font-medium text-slate-900 dark:text-slate-50">
                     Upload Signature
                   </label>
 
-                  <label className="relative flex items-center justify-center w-full px-4 py-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
-                    <div className="flex items-center gap-2 text-foreground">
+                  <label className="relative flex items-center justify-center w-full min-h-12 px-4 py-3 border border-dashed border-slate-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-gray-800 hover:border-slate-500 dark:hover:border-slate-400 transition-colors duration-200">
+                    <div className="flex items-center gap-2 text-slate-800 dark:text-slate-100">
                       {signature ? (
                         <>
-                          <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
-                          <span className="text-sm font-medium text-green-700 dark:text-green-400">
+                          <Check className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                          <span className="text-base font-medium text-emerald-800 dark:text-emerald-300">
                             {signature.name}
                           </span>
                         </>
                       ) : (
                         <>
                           <Upload className="w-4 h-4" />
-                          <span className="text-sm">
+                          <span className="text-base">
                             {uploadingSignature ? "Uploading..." : "Click to upload signature"}
                           </span>
                         </>
                       )}
                       {uploadingSignature && (
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400" />
+                        <Loader2 className="w-4 h-4 animate-spin text-slate-700 dark:text-slate-200" />
                       )}
                     </div>
 
@@ -1097,7 +1129,7 @@ export default function OfferLetterPage() {
                     />
                   </label>
                   {signature && (
-                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
+                    <div className="border border-dashed border-slate-300 dark:border-gray-600 rounded-lg p-4 bg-slate-50 dark:bg-gray-950/60">
                       <img
                         src={signature.url || "/placeholder.svg"}
                         alt="Uploaded signature preview"
@@ -1107,7 +1139,7 @@ export default function OfferLetterPage() {
                         type="button"
                         variant="outline"
                         onClick={() => setSignature(null)}
-                        className="w-full mt-3 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                        className="w-full mt-3 h-11 text-base border-slate-300 text-slate-800 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-800"
                       >
                         Remove Signature
                       </Button>
@@ -1119,12 +1151,14 @@ export default function OfferLetterPage() {
           </Card>
 
           {documentsSigned ? (
-            <p className="text-sm text-green-700 dark:text-green-400">
+            <p className="text-base leading-relaxed text-emerald-800 dark:text-emerald-300">
               The offer letter and HR policies are already signed.
             </p>
           ) : !documentsReviewed ? (
+
             <p className="text-sm text-amber-700 dark:text-amber-400">
               The offer letter, salary annexure, and HR policies are being prepared.
+
             </p>
           ) : null}
 
@@ -1140,7 +1174,9 @@ export default function OfferLetterPage() {
                 documentsSigned ||
                 !documentsReviewed
               }
+
               className="h-11 flex-1 bg-[#1E293B] text-white hover:bg-[#0F172A] focus-visible:ring-[#1E293B] dark:bg-white dark:text-[#0F172A] dark:hover:bg-slate-200"
+
               size="lg"
             >
               {success ? (
@@ -1176,11 +1212,13 @@ export default function OfferLetterPage() {
 
         {/* Confirmation Dialog */}
         <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-          <DialogContent className="bg-white dark:bg-gray-800">
+          <DialogContent className="bg-white dark:bg-gray-900">
             <DialogHeader>
+
               <DialogTitle className="text-foreground">Confirm Submission</DialogTitle>
               <DialogDescription className="text-muted-foreground">
                 Sign the offer letter, the salary annexure, and the HR policies with this signature?
+
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2">
@@ -1189,7 +1227,7 @@ export default function OfferLetterPage() {
                 variant="outline"
                 onClick={() => setShowConfirmDialog(false)}
                 disabled={submitting}
-                className="dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                className="h-11 text-base border-slate-300 text-slate-800 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-800"
               >
                 Cancel
               </Button>
@@ -1197,7 +1235,9 @@ export default function OfferLetterPage() {
                 type="button"
                 onClick={handleConfirmSubmit}
                 disabled={submitting}
+
                 className="h-11 bg-[#1E293B] text-white hover:bg-[#0F172A] dark:bg-white dark:text-[#0F172A] dark:hover:bg-slate-200"
+
               >
                 {submitting ? (
                   <>

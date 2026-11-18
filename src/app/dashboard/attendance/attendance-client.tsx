@@ -1,12 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { LogIn, LogOut } from "lucide-react";
 import axios from "@/util/axios";
 import Heading from "@/components/Heading";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AttendanceDeviceIcon } from "@/components/attendance/AttendanceDeviceIcon";
+import { AttendanceDayActionsList } from "@/components/attendance/AttendanceDayActionsList";
 import {
   Sheet,
   SheetContent,
@@ -396,7 +399,14 @@ export default function AttendanceClient() {
                             <TooltipContent>
                               <p className="font-medium">{day.date}</p>
                               <p>{day.label}</p>
-                              <p>Login {day.firstLoginLabel || "—"}</p>
+                              <p>
+                                Check-in {day.firstLoginLabel || "—"}
+                                {day.checkInDevice ? ` · ${day.checkInDevice}` : ""}
+                              </p>
+                              <p>
+                                Check-out {day.lastLogoutLabel || "—"}
+                                {day.checkOutDevice ? ` · ${day.checkOutDevice}` : ""}
+                              </p>
                               <p>Shift {day.shiftStartLabel && day.shiftEndLabel ? `${day.shiftStartLabel}–${day.shiftEndLabel}` : "—"}</p>
                               {day.isLate ? <p>Late by {day.lateByMinutes} min</p> : null}
                               <p>{day.sourceLabel || "No source"}</p>
@@ -520,13 +530,44 @@ function DaySheet({
               <Row label="Employee code" value={selected.employee.employeeCode || "—"} />
               <Row label="Department" value={selected.employee.department || "—"} />
               <Row label="Designation" value={selected.employee.designation || "—"} />
-              <Row label="First login" value={day.firstLoginLabel ? `${day.firstLoginLabel} IST` : "—"} />
+              <Row
+                label="Check-in"
+                value={
+                  day.firstLoginLabel ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <LogIn className="h-4 w-4 text-emerald-600" aria-hidden />
+                      <AttendanceDeviceIcon device={day.checkInDevice} />
+                      <span>{day.firstLoginLabel} IST</span>
+                    </span>
+                  ) : (
+                    "—"
+                  )
+                }
+              />
+              <Row
+                label="Check-out"
+                value={
+                  day.lastLogoutLabel ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <LogOut className="h-4 w-4 text-muted-foreground" aria-hidden />
+                      <AttendanceDeviceIcon device={day.checkOutDevice} />
+                      <span>{day.lastLogoutLabel} IST</span>
+                    </span>
+                  ) : (
+                    "—"
+                  )
+                }
+              />
               <Row label="Shift" value={day.shiftStartLabel ? `${day.shiftStartLabel}–${day.shiftEndLabel} IST` : "—"} />
               <Row label="Late" value={day.isLate ? `${day.lateByMinutes} min` : "No"} />
               <Row label="Source" value={day.sourceLabel || "—"} />
               <Row label="Correction" value={day.isManuallyAdjusted ? "Manual" : "Automatic"} />
               <Row label="Remarks" value={day.remarks || "—"} />
             </dl>
+            <div className="mt-4 space-y-2">
+              <p className="text-sm font-medium">Actions</p>
+              <AttendanceDayActionsList actions={day.actions} />
+            </div>
             {day.anomalyLabels.length > 0 ? (
               <ul className="mt-3 list-disc space-y-1 pl-4 text-sm text-muted-foreground">
                 {day.anomalyLabels.map((flag) => <li key={flag}>{flag}</li>)}
@@ -592,7 +633,7 @@ function DaySheet({
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex justify-between gap-4">
       <dt className="text-muted-foreground">{label}</dt>

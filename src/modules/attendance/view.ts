@@ -3,6 +3,13 @@ import type { AttendanceStatus, LeavePay } from "@/modules/attendance/types";
 
 export const ATTENDANCE_PAGE_SIZE = 50;
 
+export type AttendanceDayAction = {
+  kind: "login" | "logout";
+  at: string;
+  timeLabel: string;
+  device: "desktop" | "mobile" | "system" | null;
+};
+
 export type AttendanceDayCell = {
   date: string;
   recordId: string | null;
@@ -14,6 +21,15 @@ export type AttendanceDayCell = {
   leavePay: LeavePay | null;
   firstLoginAt: string | null;
   firstLoginLabel: string;
+  /** Check-out time (last logout of the day). */
+  lastLogoutAt: string | null;
+  lastLogoutLabel: string;
+  /** desktop | mobile | system — device for first check-in */
+  checkInDevice: "desktop" | "mobile" | "system" | null;
+  /** desktop | mobile | system — device for last check-out */
+  checkOutDevice: "desktop" | "mobile" | "system" | null;
+  /** Every login/logout that day (display only; does not change attendance rules). */
+  actions: AttendanceDayAction[];
   shiftStartLabel: string;
   shiftEndLabel: string;
   source: string;
@@ -86,6 +102,7 @@ export type EmployeeAttendancePayload = {
     employeeCode: string | null;
     name: string;
     email: string;
+    profilePic: string | null;
     department: string;
     designation: string;
     joiningDate: string | null;

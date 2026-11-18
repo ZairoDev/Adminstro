@@ -59,6 +59,8 @@ type LogLoginActivityOptions = {
   sessionId: string;
   headers: Headers;
   notes?: string;
+  /** Stored on deviceInfo as desktop | mobile | system */
+  deviceType?: "web" | "mobile" | "system";
 };
 
 /** Build a human-readable "City, Region, Country" string from geoip-lite output. */
@@ -86,9 +88,13 @@ export async function logEmployeeLoginActivity({
   sessionId,
   headers,
   notes = "Login through employee portal",
+  deviceType,
 }: LogLoginActivityOptions): Promise<void> {
   try {
     const { getClientIpFromHeaders } = await import("@/util/getClientIp");
+    const { getAttendanceDeviceFromHeaders } = await import(
+      "@/util/attendanceDevice"
+    );
 
     const ipAddress =
       getClientIpFromHeaders(headers) ||
@@ -96,6 +102,9 @@ export async function logEmployeeLoginActivity({
       headers.get("x-real-ip") ||
       "Unknown";
     const userAgent = headers.get("user-agent") || "";
+    // Attendance device = physical device (phone browser → mobile).
+    // Do not use getDeviceTypeFromHeaders here — that is web-vs-app session auth.
+    const resolvedDevice = getAttendanceDeviceFromHeaders(headers, deviceType);
 
     // Geo lookup is a best-effort enrichment ONLY. geoip-lite reads binary
     // data files that may be unavailable in a bundled server, so it must
@@ -124,6 +133,7 @@ export async function logEmployeeLoginActivity({
       ipAddress,
       location,
       userAgent,
+      deviceInfo: resolvedDevice,
       notes,
     });
 

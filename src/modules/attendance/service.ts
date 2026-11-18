@@ -33,15 +33,20 @@ import {
   compareDateKeys,
   cutoffInstant,
   datesInPayrollMonth,
-  earliestInstant as earliestLogin,
   formatAttendanceDate,
   formatLoginIst,
   isAttendanceDateKey,
   istDateKey,
   istDayBounds,
+  latestInstant,
   loginMatchesDate,
+  normalizeAlternateSaturdayOff,
   shiftWindow,
 } from "@/modules/attendance/dates";
+import {
+  toAttendanceDevice,
+  type AttendanceDevice,
+} from "@/util/attendanceDevice";
 import { AttendanceError, isDuplicateKeyError } from "@/modules/attendance/errors";
 import { ANOMALY_LABELS, SOURCE_LABELS, statusLabel, statusLetter } from "@/modules/attendance/presentation";
 import {
@@ -51,7 +56,6 @@ import {
   type PayrollMonth,
 } from "@/modules/finance/salary-month";
 import { escapeRegex } from "@/modules/finance/escape-regex";
-import { normalizeAlternateSaturdayOff } from "@/modules/attendance/dates";
 import {
   DEFAULT_ATTENDANCE_POLICY,
   type AttendancePolicyRules,
@@ -85,6 +89,7 @@ type EmployeeLean = {
   _id: mongoose.Types.ObjectId;
   name?: string;
   email?: string;
+  profilePic?: string | null;
   employeeCode?: string | null;
   department?: string;
   departmentId?: mongoose.Types.ObjectId | null;
@@ -105,6 +110,9 @@ type RecordLean = {
   lateByMinutes?: number;
   leavePay?: LeavePay | null;
   firstLoginAt?: Date | null;
+  lastLogoutAt?: Date | null;
+  checkInDevice?: AttendanceDevice | null;
+  checkOutDevice?: AttendanceDevice | null;
   shiftStartAt: Date;
   shiftEndAt: Date;
   source: "login" | "manual" | "system";
@@ -118,6 +126,23 @@ type LoginLean = {
   _id: mongoose.Types.ObjectId;
   employeeId: string;
   loginTime?: Date | null;
+  logoutTime?: Date | null;
+  deviceInfo?: string | null;
+  status?: string | null;
+  createdAt?: Date;
+};
+
+type SessionMoment = {
+  at: Date;
+  logoutAt: Date | null;
+  device: AttendanceDevice | null;
+  stillActive: boolean;
+};
+
+type LogoutLean = {
+  employeeId: string;
+  logoutTime?: Date | null;
+  deviceInfo?: string | null;
   createdAt?: Date;
 };
 
@@ -180,10 +205,97 @@ function loginMoment(row: LoginLean): Date | null {
   return null;
 }
 
+function logoutMoment(row: { logoutTime?: Date | null; createdAt?: Date }): Date | null {
+  if (row.logoutTime) return new Date(row.logoutTime);
+  return null;
+}
+
 function sameInstant(left: Date | null | undefined, right: Date | null): boolean {
   if (!left && !right) return true;
   if (!left || !right) return false;
   return new Date(left).getTime() === right.getTime();
+}
+
+function sameDevice(
+  left: AttendanceDevice | null | undefined,
+  right: AttendanceDevice | null,
+): boolean {
+  return (left ?? null) === right;
+}
+
+/**
+ * Check-in = earliest qualifying login.
+ * Check-out = latest logout among those sessions (or standalone day logouts).
+ * Past days with login but no logout → 23:59 IST + system device.
+ */
+function resolveCheckTimes(input: {
+  date: string;
+  now: Date;
+  sessions: SessionMoment[];
+  dayLogouts: { at: Date; device: AttendanceDevice | null }[];
+}): {
+  firstLoginAt: Date | null;
+  lastLogoutAt: Date | null;
+  checkInDevice: AttendanceDevice | null;
+  checkOutDevice: AttendanceDevice | null;
+} {
+  const { date, now, sessions, dayLogouts } = input;
+  if (sessions.length === 0) {
+    return {
+      firstLoginAt: null,
+      lastLogoutAt: null,
+      checkInDevice: null,
+      checkOutDevice: null,
+    };
+  }
+
+  const sorted = [...sessions].sort((a, b) => a.at.getTime() - b.at.getTime());
+  const first = sorted[0]!;
+  const firstLoginAt = first.at;
+  const checkInDevice = first.device;
+
+  const logoutCandidates: { at: Date; device: AttendanceDevice | null }[] = [];
+  for (const session of sessions) {
+    if (session.logoutAt) {
+      logoutCandidates.push({ at: session.logoutAt, device: session.device });
+    }
+  }
+  for (const logout of dayLogouts) {
+    logoutCandidates.push(logout);
+  }
+
+  let lastLogoutAt = latestInstant(logoutCandidates.map((row) => row.at));
+  let checkOutDevice: AttendanceDevice | null = null;
+  if (lastLogoutAt) {
+    const winner = logoutCandidates
+      .filter((row) => row.at.getTime() === lastLogoutAt!.getTime())
+      .at(-1);
+    checkOutDevice = winner?.device ?? null;
+  }
+
+  const today = istDateKey(now);
+  const stillActive = sessions.some((session) => session.stillActive && !session.logoutAt);
+
+  // Still logged in today → check-out not final yet.
+  if (stillActive && date === today) {
+    return {
+      firstLoginAt,
+      lastLogoutAt: null,
+      checkInDevice,
+      checkOutDevice: null,
+    };
+  }
+
+  // Past day with open session (missed auto-logout) → stamp 23:59 system.
+  if (stillActive && firstLoginAt && date < today) {
+    lastLogoutAt = clockOnDate(date, "23:59");
+    checkOutDevice = "system";
+  } else if (!lastLogoutAt && firstLoginAt && date < today) {
+    lastLogoutAt = clockOnDate(date, "23:59");
+    checkOutDevice = "system";
+  }
+
+  return { firstLoginAt, lastLogoutAt, checkInDevice, checkOutDevice };
 }
 
 function flagsEqual(left: string[] | undefined, right: string[]): boolean {
@@ -193,7 +305,7 @@ function flagsEqual(left: string[] | undefined, right: string[]): boolean {
 }
 
 const EMPLOYEE_FIELDS =
-  "name email employeeCode department departmentId jobTitle jobPositionId dateOfJoining inactiveDate isActive role";
+  "name email profilePic employeeCode department departmentId jobTitle jobPositionId dateOfJoining inactiveDate isActive role";
 
 function objectIdText(value: unknown): string | null {
   if (value == null) return null;
@@ -275,10 +387,12 @@ function orgIdsForEmployee(
 function employeeView(employee: EmployeeLean, today = istDateKey(new Date())) {
   const joiningDate = employee.dateOfJoining ? istDateKey(new Date(employee.dateOfJoining)) : null;
   const inactiveDate = employee.inactiveDate ? istDateKey(new Date(employee.inactiveDate)) : null;
+  const profilePic = employee.profilePic?.trim() || null;
   return {
     id: String(employee._id),
     name: employee.name?.trim() || "Unnamed employee",
     email: employee.email?.trim() || "",
+    profilePic,
     employeeCode: employee.employeeCode?.trim() || null,
     department: employee.department?.trim() || "",
     departmentId: objectIdText(employee.departmentId),
@@ -305,6 +419,11 @@ function emptyCell(date: string): AttendanceDayCell {
     leavePay: null,
     firstLoginAt: null,
     firstLoginLabel: "",
+    lastLogoutAt: null,
+    lastLogoutLabel: "",
+    checkInDevice: null,
+    checkOutDevice: null,
+    actions: [],
     shiftStartLabel: "",
     shiftEndLabel: "",
     source: "",
@@ -321,6 +440,12 @@ function cellFromRecord(date: string, record: RecordLean | undefined): Attendanc
   const isLate = Boolean(record.isLate);
   const status = record.status;
   const flags = record.anomalyFlags ?? [];
+  const checkInDevice = record.checkInDevice
+    ? toAttendanceDevice(record.checkInDevice)
+    : null;
+  const checkOutDevice = record.checkOutDevice
+    ? toAttendanceDevice(record.checkOutDevice)
+    : null;
   return {
     date,
     recordId: String(record._id),
@@ -332,6 +457,11 @@ function cellFromRecord(date: string, record: RecordLean | undefined): Attendanc
     leavePay: record.leavePay ?? null,
     firstLoginAt: record.firstLoginAt ? new Date(record.firstLoginAt).toISOString() : null,
     firstLoginLabel: record.firstLoginAt ? formatLoginIst(new Date(record.firstLoginAt)) : "",
+    lastLogoutAt: record.lastLogoutAt ? new Date(record.lastLogoutAt).toISOString() : null,
+    lastLogoutLabel: record.lastLogoutAt ? formatLoginIst(new Date(record.lastLogoutAt)) : "",
+    checkInDevice,
+    checkOutDevice,
+    actions: [],
     shiftStartLabel: record.shiftStartAt ? formatLoginIst(new Date(record.shiftStartAt)) : "",
     shiftEndLabel: record.shiftEndAt ? formatLoginIst(new Date(record.shiftEndAt)) : "",
     source: record.source,
@@ -341,6 +471,48 @@ function cellFromRecord(date: string, record: RecordLean | undefined): Attendanc
     anomalyLabels: flags.map((flag) => ANOMALY_LABELS[flag] ?? flag),
     remarks: record.remarks ?? "",
   };
+}
+
+type ActivityActionLean = {
+  activityType: "login" | "logout";
+  loginTime?: Date | null;
+  logoutTime?: Date | null;
+  deviceInfo?: string | null;
+  createdAt?: Date;
+};
+
+function actionMoment(row: ActivityActionLean): Date | null {
+  if (row.activityType === "login") {
+    if (row.loginTime) return new Date(row.loginTime);
+    if (row.createdAt) return new Date(row.createdAt);
+    return null;
+  }
+  return logoutMoment(row) ?? (row.createdAt ? new Date(row.createdAt) : null);
+}
+
+/** Display-only timeline. Does not feed attendance status rules. */
+function actionsByDate(
+  rows: ActivityActionLean[],
+): Map<string, AttendanceDayCell["actions"]> {
+  const byDate = new Map<string, AttendanceDayCell["actions"]>();
+  for (const row of rows) {
+    const at = actionMoment(row);
+    if (!at) continue;
+    const date = istDateKey(at);
+    const list = byDate.get(date) ?? [];
+    list.push({
+      kind: row.activityType,
+      at: at.toISOString(),
+      timeLabel: formatLoginIst(at),
+      device: row.deviceInfo ? toAttendanceDevice(row.deviceInfo) : null,
+    });
+    byDate.set(date, list);
+  }
+  for (const [date, list] of byDate) {
+    list.sort((a, b) => a.at.localeCompare(b.at));
+    byDate.set(date, list);
+  }
+  return byDate;
 }
 
 function summaryAsOfDate(month: PayrollMonth, now = new Date()): string {
@@ -445,7 +617,7 @@ export async function reconcileRange(from: string, to: string): Promise<{ writte
   const employeeIds = employees.map((employee) => String(employee._id));
   if (employeeIds.length === 0) return { written: 0, removed: 0 };
 
-  const [holidays, shifts, workShifts, logins, existing] = await Promise.all([
+  const [holidays, shifts, workShifts, logins, logouts, existing] = await Promise.all([
     CompanyHoliday.find({ date: { $gte: from, $lte: to } })
       .select("date departmentId")
       .lean<{ date: string; departmentId?: string | null }[]>(),
@@ -475,8 +647,23 @@ export async function reconcileRange(from: string, to: string): Promise<{ writte
         },
       ],
     })
-      .select("employeeId loginTime createdAt")
+      .select("employeeId loginTime logoutTime deviceInfo status createdAt")
       .lean<LoginLean[]>(),
+    EmployeeActivityLog.find({
+      employeeId: { $in: employeeIds },
+      activityType: "logout",
+      $or: [
+        { logoutTime: { $gte: rangeStart, $lt: rangeEnd } },
+        {
+          $and: [
+            { $or: [{ logoutTime: null }, { logoutTime: { $exists: false } }] },
+            { createdAt: { $gte: rangeStart, $lt: rangeEnd } },
+          ],
+        },
+      ],
+    })
+      .select("employeeId logoutTime deviceInfo createdAt")
+      .lean<LogoutLean[]>(),
     AttendanceRecord.find({
       employeeId: { $in: employeeIds },
       attendanceDate: { $gte: from, $lte: to },
@@ -499,13 +686,32 @@ export async function reconcileRange(from: string, to: string): Promise<{ writte
     });
     shiftsByEmployee.set(shift.employeeId, list);
   }
-  const loginsByEmployee = new Map<string, Date[]>();
+  const loginsByEmployee = new Map<string, SessionMoment[]>();
   for (const login of logins) {
     const at = loginMoment(login);
     if (!at) continue;
     const list = loginsByEmployee.get(login.employeeId) ?? [];
-    list.push(at);
+    list.push({
+      at,
+      logoutAt: logoutMoment(login),
+      device: login.deviceInfo ? toAttendanceDevice(login.deviceInfo) : null,
+      stillActive: login.status === "active",
+    });
     loginsByEmployee.set(login.employeeId, list);
+  }
+  const logoutsByEmployee = new Map<
+    string,
+    { at: Date; device: AttendanceDevice | null }[]
+  >();
+  for (const logout of logouts) {
+    const at = logoutMoment(logout) ?? (logout.createdAt ? new Date(logout.createdAt) : null);
+    if (!at) continue;
+    const list = logoutsByEmployee.get(logout.employeeId) ?? [];
+    list.push({
+      at,
+      device: logout.deviceInfo ? toAttendanceDevice(logout.deviceInfo) : null,
+    });
+    logoutsByEmployee.set(logout.employeeId, list);
   }
   const existingByKey = new Map<string, RecordLean>();
   for (const record of existing) {
@@ -537,9 +743,22 @@ export async function reconcileRange(from: string, to: string): Promise<{ writte
         positionShifts: workShifts.positionShifts,
       });
       const qualifying = employeeLogins.filter((login) =>
-        loginMatchesDate(login, date, shift.startTime, shift.endTime),
+        loginMatchesDate(login.at, date, shift.startTime, shift.endTime),
       );
-      const firstLoginAt = earliestLogin(qualifying);
+      const dayLogouts = (logoutsByEmployee.get(employeeId) ?? []).filter((logout) => {
+        const bounds = istDayBounds(date);
+        return (
+          logout.at.getTime() >= bounds.start.getTime() &&
+          logout.at.getTime() < bounds.end.getTime()
+        );
+      });
+      const checkTimes = resolveCheckTimes({
+        date,
+        now,
+        sessions: qualifying,
+        dayLogouts,
+      });
+      const firstLoginAt = checkTimes.firstLoginAt;
       const resolved = resolveAttendanceDay({
         attendanceDate: date,
         now,
@@ -565,6 +784,9 @@ export async function reconcileRange(from: string, to: string): Promise<{ writte
         lateByMinutes: resolved.lateByMinutes,
         leavePay: null,
         firstLoginAt: resolved.firstLoginAt,
+        lastLogoutAt: checkTimes.lastLogoutAt,
+        checkInDevice: checkTimes.checkInDevice,
+        checkOutDevice: checkTimes.checkOutDevice,
         shiftStartAt: resolved.shiftStartAt,
         shiftEndAt: resolved.shiftEndAt,
         source: resolved.source,
@@ -578,6 +800,9 @@ export async function reconcileRange(from: string, to: string): Promise<{ writte
         (current.lateByMinutes ?? 0) === next.lateByMinutes &&
         (current.leavePay ?? null) === null &&
         sameInstant(current.firstLoginAt, next.firstLoginAt) &&
+        sameInstant(current.lastLogoutAt, next.lastLogoutAt) &&
+        sameDevice(current.checkInDevice, next.checkInDevice) &&
+        sameDevice(current.checkOutDevice, next.checkOutDevice) &&
         sameInstant(current.shiftStartAt, next.shiftStartAt) &&
         sameInstant(current.shiftEndAt, next.shiftEndAt) &&
         current.source === next.source &&
@@ -632,6 +857,49 @@ export async function reconcileMonth(month: PayrollMonth): Promise<void> {
 export async function reconcileRecentAttendance(): Promise<void> {
   const today = istDateKey(new Date());
   await reconcileRange(addAttendanceDays(today, -1), today);
+  await backfillMissingCheckouts();
+}
+
+/**
+ * Past days with check-in but no check-out get 23:59 IST (system).
+ * Skips today and future dates.
+ */
+export async function backfillMissingCheckouts(
+  now: Date = new Date(),
+): Promise<number> {
+  const today = istDateKey(now);
+  // Cover open + previous payroll month without scanning all history every run.
+  const from = addAttendanceDays(today, -62);
+  const rows = await AttendanceRecord.find({
+    attendanceDate: { $gte: from, $lt: today },
+    firstLoginAt: { $ne: null },
+    $or: [{ lastLogoutAt: null }, { lastLogoutAt: { $exists: false } }],
+    isManuallyAdjusted: { $ne: true },
+  })
+    .select("_id attendanceDate")
+    .lean<{ _id: mongoose.Types.ObjectId; attendanceDate: string }[]>();
+
+  if (rows.length === 0) return 0;
+
+  const ops = rows.map((row) => ({
+    updateOne: {
+      filter: { _id: row._id },
+      update: {
+        $set: {
+          lastLogoutAt: clockOnDate(row.attendanceDate, "23:59"),
+          checkOutDevice: "system",
+        },
+      },
+    },
+  }));
+
+  let written = 0;
+  for (let index = 0; index < ops.length; index += 500) {
+    const chunk = ops.slice(index, index + 500);
+    const result = await AttendanceRecord.bulkWrite(chunk, { ordered: false });
+    written += result.modifiedCount ?? 0;
+  }
+  return written;
 }
 
 type MonthFilters = {
@@ -719,10 +987,65 @@ async function loadMonthRows(filters: Omit<MonthFilters, "card" | "page">): Prom
   const visibleEmployees = filters.department
     ? employed.filter((employee) => (employee.department?.trim() || "") === filters.department)
     : employed;
+  const visibleIds = visibleEmployees.map((employee) => String(employee._id));
+  const monthRangeStart = istDayBounds(from).start;
+  const monthRangeEnd = istDayBounds(to).end;
+  const activityRows =
+    visibleIds.length > 0
+      ? await EmployeeActivityLog.find({
+          employeeId: { $in: visibleIds },
+          activityType: { $in: ["login", "logout"] },
+          $or: [
+            { loginTime: { $gte: monthRangeStart, $lt: monthRangeEnd } },
+            { logoutTime: { $gte: monthRangeStart, $lt: monthRangeEnd } },
+            {
+              $and: [
+                {
+                  $or: [
+                    { loginTime: null },
+                    { loginTime: { $exists: false } },
+                    { logoutTime: null },
+                    { logoutTime: { $exists: false } },
+                  ],
+                },
+                { createdAt: { $gte: monthRangeStart, $lt: monthRangeEnd } },
+              ],
+            },
+          ],
+        })
+          .select("employeeId activityType loginTime logoutTime deviceInfo createdAt")
+          .lean<(ActivityActionLean & { employeeId: string })[]>()
+      : [];
+  const actionsByEmployee = new Map<string, Map<string, AttendanceDayCell["actions"]>>();
+  for (const row of activityRows) {
+    const at = actionMoment(row);
+    if (!at) continue;
+    const date = istDateKey(at);
+    const byDate = actionsByEmployee.get(row.employeeId) ?? new Map();
+    const list = byDate.get(date) ?? [];
+    list.push({
+      kind: row.activityType,
+      at: at.toISOString(),
+      timeLabel: formatLoginIst(at),
+      device: row.deviceInfo ? toAttendanceDevice(row.deviceInfo) : null,
+    });
+    byDate.set(date, list);
+    actionsByEmployee.set(row.employeeId, byDate);
+  }
+  for (const byDate of actionsByEmployee.values()) {
+    for (const [date, list] of byDate) {
+      list.sort((a, b) => a.at.localeCompare(b.at));
+      byDate.set(date, list);
+    }
+  }
   const rows = visibleEmployees.map((employee) => {
     const profile = employeeView(employee);
     const days = byEmployee.get(profile.id) ?? new Map<string, RecordLean>();
-    const cells = dates.map((date) => cellFromRecord(date, days.get(date)));
+    const dayActions = actionsByEmployee.get(profile.id);
+    const cells = dates.map((date) => {
+      const cell = cellFromRecord(date, days.get(date));
+      return { ...cell, actions: dayActions?.get(date) ?? [] };
+    });
     const contributions: DayContribution[] = cells
       .filter((cell): cell is AttendanceDayCell & { status: AttendanceStatus } => cell.status !== null)
       .map((cell) => ({
@@ -873,12 +1196,16 @@ export async function getEmployeeAttendance(
   }
   const month = requireMonth(monthValue);
   await reconcileMonth(month);
+  await backfillMissingCheckouts();
   const employee = await employeeOrThrow(employeeId);
   const profile = employeeView(employee);
   const dates = datesInPayrollMonth(month);
   const from = dates[0] ?? `${month.key}-01`;
   const to = dates[dates.length - 1] ?? from;
-  const [records, audits, shifts, policy, period, workShifts] = await Promise.all([
+  const rangeStart = istDayBounds(from).start;
+  const rangeEnd = istDayBounds(to).end;
+  const [records, audits, shifts, policy, period, workShifts, activityRows] =
+    await Promise.all([
     AttendanceRecord.find({ employeeId, attendanceDate: { $gte: from, $lte: to } }).lean<RecordLean[]>(),
     AttendanceAuditLog.find({ employeeId, attendanceDate: { $gte: from, $lte: to } })
       .sort({ createdAt: -1 })
@@ -901,10 +1228,37 @@ export async function getEmployeeAttendance(
     getOrCreatePolicy(),
     AttendancePeriod.findOne({ monthKey: month.key }).select("status").lean<{ status?: "open" | "finalized" } | null>(),
     loadWorkShiftContext(),
+    EmployeeActivityLog.find({
+      employeeId,
+      activityType: { $in: ["login", "logout"] },
+      $or: [
+        { loginTime: { $gte: rangeStart, $lt: rangeEnd } },
+        { logoutTime: { $gte: rangeStart, $lt: rangeEnd } },
+        {
+          $and: [
+            {
+              $or: [
+                { loginTime: null },
+                { loginTime: { $exists: false } },
+                { logoutTime: null },
+                { logoutTime: { $exists: false } },
+              ],
+            },
+            { createdAt: { $gte: rangeStart, $lt: rangeEnd } },
+          ],
+        },
+      ],
+    })
+      .select("activityType loginTime logoutTime deviceInfo createdAt")
+      .lean<ActivityActionLean[]>(),
   ]);
   const byDate = new Map(records.map((record) => [record.attendanceDate, record]));
+  const dayActions = actionsByDate(activityRows);
   const rules = toRules(policy);
-  const cells = dates.map((date) => cellFromRecord(date, byDate.get(date)));
+  const cells = dates.map((date) => {
+    const cell = cellFromRecord(date, byDate.get(date));
+    return { ...cell, actions: dayActions.get(date) ?? [] };
+  });
   const contributions: DayContribution[] = cells
     .filter((cell): cell is AttendanceDayCell & { status: AttendanceStatus } => cell.status !== null)
     .map((cell) => ({ status: cell.status, leavePay: cell.leavePay, isLate: cell.isLate }));
@@ -942,6 +1296,7 @@ export async function getEmployeeAttendance(
       employeeCode: profile.employeeCode,
       name: profile.name,
       email: profile.email,
+      profilePic: profile.profilePic,
       department: profile.department,
       designation: profile.designation,
       joiningDate: profile.joiningDate,
@@ -1462,14 +1817,22 @@ export function attendanceCsv(rows: AttendanceEmployeeRow[], dates: string[]): s
     "Attendance %",
     "Corrected Days",
     ...dates,
-    "Login Times",
+    "Check-in / Check-out",
   ];
   const lines = [headers.map(csvCell).join(",")];
   for (const row of rows) {
     const corrected = row.days.filter((day) => day.isManuallyAdjusted).length;
     const logins = row.days
-      .filter((day) => day.firstLoginLabel)
-      .map((day) => `${day.date} ${day.firstLoginLabel}`)
+      .filter((day) => day.firstLoginLabel || day.lastLogoutLabel)
+      .map((day) => {
+        const inn = day.firstLoginLabel
+          ? `in ${day.firstLoginLabel}${day.checkInDevice ? ` (${day.checkInDevice})` : ""}`
+          : "in —";
+        const out = day.lastLogoutLabel
+          ? `out ${day.lastLogoutLabel}${day.checkOutDevice ? ` (${day.checkOutDevice})` : ""}`
+          : "out —";
+        return `${day.date} ${inn} / ${out}`;
+      })
       .join("; ");
     const values = [
       row.employeeCode ?? "",

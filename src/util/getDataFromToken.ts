@@ -177,11 +177,10 @@ export const getDataFromToken = async (request: NextRequest) => {
 
     let restoredSweptSlot = false;
     if (!slotMatches) {
-      // Sweeper-freed web slot: JWT is still valid (force-logout / PIP /
-      // password rotation already failed the *TokenValidAfter check above).
-      // Restore instead of kicking someone who checked email. A different
-      // live web session stays SESSION_INVALID. Explicit logout deleted the
-      // cookie, so it never reaches here.
+      // Sweeper-freed web slot: JWT is still valid (explicit logout / force-
+      // logout / PIP / password rotation already failed the *TokenValidAfter
+      // check above). Restore instead of kicking someone who checked email.
+      // A different live web session stays SESSION_INVALID.
       if (deviceType === "web" && sessionId) {
         const { restoreWebSessionIfSwept } = await import("@/util/webSession");
         const restoreResult = await restoreWebSessionIfSwept({

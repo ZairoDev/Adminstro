@@ -201,6 +201,11 @@ export function earliestInstant(values: Date[]): Date | null {
   return values.reduce((min, value) => (value.getTime() < min.getTime() ? value : min));
 }
 
+export function latestInstant(values: Date[]): Date | null {
+  if (values.length === 0) return null;
+  return values.reduce((max, value) => (value.getTime() > max.getTime() ? value : max));
+}
+
 export function attendanceRecordKey(employeeId: string, attendanceDate: string): string {
   return `${employeeId}:${attendanceDate}`;
 }

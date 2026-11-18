@@ -106,9 +106,10 @@ export type RestoreWebSessionResult = "restored" | "occupied" | "expired";
 /**
  * Put a still-valid web JWT back into a vacant slot.
  *
- * The sweeper frees slots without bumping `webTokenValidAfter`. Force-logout,
- * PIP lock, and password rotation DO bump it, so those tokens never reach here.
- * A different live web session is left alone (occupied) so we never steal it.
+ * The sweeper frees slots without bumping `webTokenValidAfter`. Explicit logout,
+ * force-logout, PIP lock, and password rotation DO bump it, so those tokens
+ * never reach here. A different live web session is left alone (occupied) so
+ * we never steal it.
  */
 export async function restoreWebSessionIfSwept(params: {
   employeeId: string;

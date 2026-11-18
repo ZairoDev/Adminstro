@@ -101,6 +101,7 @@ export async function forceLogoutEmployee(
       activityType: "logout",
       logoutTime,
       duration: 0,
+      deviceInfo: "system",
       notes: `Forced logout by ${actorName} (${actorRole}).${notes ? ` ${notes}` : ""}${rotateCredentials ? " Password changed." : " Credentials preserved."}`,
       sessionId: sessionId || null,
       status: "ended",

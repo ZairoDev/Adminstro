@@ -1,10 +1,11 @@
 import { Suspense } from "react";
-import EmployeeAttendanceClient from "../attendance/employee-attendance-client";
+import MyAttendanceClient from "./my-attendance-client";
+import { MyAttendanceSkeleton } from "./my-attendance-skeleton";
 
 export default function MyAttendancePage() {
   return (
-    <Suspense fallback={<div className="p-4 text-sm text-muted-foreground">Loading attendance…</div>}>
-      <EmployeeAttendanceClient selfService />
+    <Suspense fallback={<MyAttendanceSkeleton />}>
+      <MyAttendanceClient />
     </Suspense>
   );
 }

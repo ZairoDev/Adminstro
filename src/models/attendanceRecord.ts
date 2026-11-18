@@ -10,6 +10,20 @@ const attendanceRecordSchema = new Schema(
     lateByMinutes: { type: Number, default: 0 },
     leavePay: { type: String, enum: ["paid", "unpaid", null], default: null },
     firstLoginAt: { type: Date, default: null },
+    /** Last logout of the attendance day (check-out). */
+    lastLogoutAt: { type: Date, default: null },
+    /** Device used for first check-in: desktop | mobile | system */
+    checkInDevice: {
+      type: String,
+      enum: ["desktop", "mobile", "system"],
+      default: null,
+    },
+    /** Device used for last check-out: desktop | mobile | system */
+    checkOutDevice: {
+      type: String,
+      enum: ["desktop", "mobile", "system"],
+      default: null,
+    },
     sourceLoginId: { type: String, default: null },
     shiftStartAt: { type: Date, required: true },
     shiftEndAt: { type: Date, required: true },

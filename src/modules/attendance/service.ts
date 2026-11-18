@@ -887,7 +887,7 @@ export async function backfillMissingCheckouts(
       update: {
         $set: {
           lastLogoutAt: clockOnDate(row.attendanceDate, "23:59"),
-          checkOutDevice: "system",
+          checkOutDevice: "system" as AttendanceDevice,
         },
       },
     },

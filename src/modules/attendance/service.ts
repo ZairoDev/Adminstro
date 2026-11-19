@@ -19,6 +19,7 @@ import {
   correctionPermission,
   emptySummary,
   lateArrival,
+  leaveCategoryForStatus,
   leavePayForStatus,
   overlapsAttendanceMonth,
   resolveAttendanceDay,
@@ -56,11 +57,14 @@ import {
   type PayrollMonth,
 } from "@/modules/finance/salary-month";
 import { escapeRegex } from "@/modules/finance/escape-regex";
+import { ensureAccruals, syncManualLeaveConsumption } from "@/modules/attendance/leave/ledger";
 import {
   DEFAULT_ATTENDANCE_POLICY,
+  DEFAULT_LEAVE_POLICY,
   type AttendancePolicyRules,
   type AttendanceStatus,
   type DayContribution,
+  type LeaveCategory,
   type LeavePay,
   type ShiftAssignmentRange,
   type ShiftChoice,
@@ -85,7 +89,7 @@ import {
   type ShiftView,
 } from "@/modules/attendance/view";
 
-type EmployeeLean = {
+export type EmployeeLean = {
   _id: mongoose.Types.ObjectId;
   name?: string;
   email?: string;
@@ -101,7 +105,7 @@ type EmployeeLean = {
   role?: string;
 };
 
-type RecordLean = {
+export type RecordLean = {
   _id: mongoose.Types.ObjectId;
   employeeId: string;
   attendanceDate: string;
@@ -109,13 +113,15 @@ type RecordLean = {
   isLate?: boolean;
   lateByMinutes?: number;
   leavePay?: LeavePay | null;
+  leaveCategory?: LeaveCategory | null;
+  leaveRequestId?: string | null;
   firstLoginAt?: Date | null;
   lastLogoutAt?: Date | null;
   checkInDevice?: AttendanceDevice | null;
   checkOutDevice?: AttendanceDevice | null;
   shiftStartAt: Date;
   shiftEndAt: Date;
-  source: "login" | "manual" | "system";
+  source: "login" | "manual" | "system" | "leave";
   isManuallyAdjusted?: boolean;
   anomalyFlags?: string[];
   remarks?: string;
@@ -146,7 +152,7 @@ type LogoutLean = {
   createdAt?: Date;
 };
 
-type PolicyLean = {
+export type PolicyLean = {
   _id: mongoose.Types.ObjectId;
   policyName: string;
   timezone: string;
@@ -162,9 +168,16 @@ type PolicyLean = {
   severeLateMinutes?: number;
   cutoffTime: string;
   confirmedAt?: Date | null;
+  paidLeaveMonthlyAccrual?: number;
+  paidLeaveCarryForwardCap?: number;
+  paidLeaveMaxBalance?: number;
+  unplannedLeaveLopDays?: number;
+  plannedLeaveMinNoticeDays?: number;
+  unplannedBackdateDays?: number;
+  leaveAccrualStartMonth?: string;
 };
 
-function toRules(policy: PolicyLean): AttendancePolicyRules {
+export function toRules(policy: PolicyLean): AttendancePolicyRules {
   return {
     shiftStart: policy.shiftStart,
     shiftEnd: policy.shiftEnd,
@@ -181,14 +194,26 @@ function toRules(policy: PolicyLean): AttendancePolicyRules {
     severeLateMinutes: policy.severeLateMinutes ?? DEFAULT_ATTENDANCE_POLICY.severeLateMinutes,
     cutoffTime: policy.cutoffTime,
     confirmed: Boolean(policy.confirmedAt),
+    paidLeaveMonthlyAccrual:
+      policy.paidLeaveMonthlyAccrual ?? DEFAULT_LEAVE_POLICY.paidLeaveMonthlyAccrual,
+    paidLeaveCarryForwardCap:
+      policy.paidLeaveCarryForwardCap ?? DEFAULT_LEAVE_POLICY.paidLeaveCarryForwardCap,
+    paidLeaveMaxBalance: policy.paidLeaveMaxBalance ?? DEFAULT_LEAVE_POLICY.paidLeaveMaxBalance,
+    unplannedLeaveLopDays:
+      policy.unplannedLeaveLopDays ?? DEFAULT_LEAVE_POLICY.unplannedLeaveLopDays,
+    plannedLeaveMinNoticeDays:
+      policy.plannedLeaveMinNoticeDays ?? DEFAULT_LEAVE_POLICY.plannedLeaveMinNoticeDays,
+    unplannedBackdateDays:
+      policy.unplannedBackdateDays ?? DEFAULT_LEAVE_POLICY.unplannedBackdateDays,
+    leaveAccrualStartMonth: policy.leaveAccrualStartMonth ?? "",
   };
 }
 
-function monthOf(dateKey: string): string {
+export function monthOf(dateKey: string): string {
   return dateKey.slice(0, 7);
 }
 
-function enumerateDates(from: string, to: string): string[] {
+export function enumerateDates(from: string, to: string): string[] {
   const dates: string[] = [];
   let cursor = from;
   while (compareDateKeys(cursor, to) <= 0) {
@@ -313,14 +338,14 @@ function objectIdText(value: unknown): string | null {
   return /^[a-f\d]{24}$/i.test(text) ? text : null;
 }
 
-type WorkShiftContext = {
+export type WorkShiftContext = {
   departmentShifts: Map<string, ShiftChoice>;
   positionShifts: Map<string, ShiftChoice>;
   departmentIdByName: Map<string, string>;
   positionIdByDepartmentAndTitle: Map<string, string>;
 };
 
-async function loadWorkShiftContext(): Promise<WorkShiftContext> {
+export async function loadWorkShiftContext(): Promise<WorkShiftContext> {
   const [rules, departments, positions] = await Promise.all([
     AttendanceOrgShift.find()
       .select("departmentId jobPositionId startTime endTime weeklyOffDays")
@@ -365,7 +390,7 @@ async function loadWorkShiftContext(): Promise<WorkShiftContext> {
   return { departmentShifts, positionShifts, departmentIdByName, positionIdByDepartmentAndTitle };
 }
 
-function orgIdsForEmployee(
+export function orgIdsForEmployee(
   employee: {
     departmentId: string | null;
     jobPositionId: string | null;
@@ -384,7 +409,7 @@ function orgIdsForEmployee(
   });
 }
 
-function employeeView(employee: EmployeeLean, today = istDateKey(new Date())) {
+export function employeeView(employee: EmployeeLean, today = istDateKey(new Date())) {
   const joiningDate = employee.dateOfJoining ? istDateKey(new Date(employee.dateOfJoining)) : null;
   const inactiveDate = employee.inactiveDate ? istDateKey(new Date(employee.inactiveDate)) : null;
   const profilePic = employee.profilePic?.trim() || null;
@@ -417,6 +442,8 @@ function emptyCell(date: string): AttendanceDayCell {
     isLate: false,
     lateByMinutes: 0,
     leavePay: null,
+    leaveCategory: null,
+    leaveRequestId: null,
     firstLoginAt: null,
     firstLoginLabel: "",
     lastLogoutAt: null,
@@ -440,6 +467,7 @@ function cellFromRecord(date: string, record: RecordLean | undefined): Attendanc
   const isLate = Boolean(record.isLate);
   const status = record.status;
   const flags = record.anomalyFlags ?? [];
+  const leaveCategory = leaveCategoryForStatus(status, record.leaveCategory ?? null);
   const checkInDevice = record.checkInDevice
     ? toAttendanceDevice(record.checkInDevice)
     : null;
@@ -450,11 +478,13 @@ function cellFromRecord(date: string, record: RecordLean | undefined): Attendanc
     date,
     recordId: String(record._id),
     status,
-    letter: statusLetter(status, isLate),
-    label: statusLabel(status, isLate),
+    letter: statusLetter(status, isLate, leaveCategory),
+    label: statusLabel(status, isLate, leaveCategory),
     isLate,
     lateByMinutes: record.lateByMinutes ?? 0,
     leavePay: record.leavePay ?? null,
+    leaveCategory,
+    leaveRequestId: record.leaveRequestId ?? null,
     firstLoginAt: record.firstLoginAt ? new Date(record.firstLoginAt).toISOString() : null,
     firstLoginLabel: record.firstLoginAt ? formatLoginIst(new Date(record.firstLoginAt)) : "",
     lastLogoutAt: record.lastLogoutAt ? new Date(record.lastLogoutAt).toISOString() : null,
@@ -522,7 +552,7 @@ function summaryAsOfDate(month: PayrollMonth, now = new Date()): string {
   return dates[dates.length - 1] ?? today;
 }
 
-function requireMonth(value: string): PayrollMonth {
+export function requireMonth(value: string): PayrollMonth {
   const month = parsePayrollMonth(value);
   if (!month) throw new AttendanceError(400, "Invalid month");
   return month;
@@ -531,7 +561,7 @@ function requireMonth(value: string): PayrollMonth {
 export async function getOrCreatePolicy(): Promise<PolicyLean> {
   await connectDb();
   const existing = (await AttendancePolicy.findOne({ key: "default" }).lean()) as PolicyLean | null;
-  if (existing) return existing;
+  if (existing) return withLeaveAccrualStart(existing);
   try {
     const created = await AttendancePolicy.create({
       key: "default",
@@ -550,14 +580,36 @@ export async function getOrCreatePolicy(): Promise<PolicyLean> {
       cutoffTime: DEFAULT_ATTENDANCE_POLICY.cutoffTime,
       confirmedAt: null,
       confirmedBy: null,
+      paidLeaveMonthlyAccrual: DEFAULT_LEAVE_POLICY.paidLeaveMonthlyAccrual,
+      paidLeaveCarryForwardCap: DEFAULT_LEAVE_POLICY.paidLeaveCarryForwardCap,
+      paidLeaveMaxBalance: DEFAULT_LEAVE_POLICY.paidLeaveMaxBalance,
+      unplannedLeaveLopDays: DEFAULT_LEAVE_POLICY.unplannedLeaveLopDays,
+      plannedLeaveMinNoticeDays: DEFAULT_LEAVE_POLICY.plannedLeaveMinNoticeDays,
+      unplannedBackdateDays: DEFAULT_LEAVE_POLICY.unplannedBackdateDays,
+      leaveAccrualStartMonth: currentPayrollMonth().key,
     });
     return created.toObject() as PolicyLean;
   } catch (error) {
     if (!isDuplicateKeyError(error)) throw error;
     const raced = (await AttendancePolicy.findOne({ key: "default" }).lean()) as PolicyLean | null;
     if (!raced) throw error;
-    return raced;
+    return withLeaveAccrualStart(raced);
   }
+}
+
+/**
+ * Policies saved before paid leave existed have no accrual start month. The first read pins it
+ * to the current month so existing staff start earning from now and get no retroactive credit.
+ */
+async function withLeaveAccrualStart(policy: PolicyLean): Promise<PolicyLean> {
+  if (policy.leaveAccrualStartMonth) return policy;
+  const startMonth = currentPayrollMonth().key;
+  await AttendancePolicy.updateOne(
+    { _id: policy._id, $or: [{ leaveAccrualStartMonth: "" }, { leaveAccrualStartMonth: null }, { leaveAccrualStartMonth: { $exists: false } }] },
+    { $set: { leaveAccrualStartMonth: startMonth } },
+  );
+  const refreshed = (await AttendancePolicy.findById(policy._id).lean()) as PolicyLean | null;
+  return refreshed ?? { ...policy, leaveAccrualStartMonth: startMonth };
 }
 
 function toPolicyView(policy: PolicyLean): PolicyView {
@@ -578,6 +630,13 @@ function toPolicyView(policy: PolicyLean): PolicyView {
     cutoffTime: policy.cutoffTime,
     confirmed: Boolean(policy.confirmedAt),
     confirmedAt: policy.confirmedAt ? new Date(policy.confirmedAt).toISOString() : null,
+    paidLeaveMonthlyAccrual: rules.paidLeaveMonthlyAccrual,
+    paidLeaveCarryForwardCap: rules.paidLeaveCarryForwardCap,
+    paidLeaveMaxBalance: rules.paidLeaveMaxBalance,
+    unplannedLeaveLopDays: rules.unplannedLeaveLopDays,
+    plannedLeaveMinNoticeDays: rules.plannedLeaveMinNoticeDays,
+    unplannedBackdateDays: rules.unplannedBackdateDays,
+    leaveAccrualStartMonth: rules.leaveAccrualStartMonth,
   };
 }
 
@@ -729,7 +788,14 @@ export async function reconcileRange(from: string, to: string): Promise<{ writte
     for (const date of dates) {
       if (finalizedMonths.has(monthOf(date))) continue;
       const current = existingByKey.get(`${employeeId}:${date}`);
-      if (current && !canAutoUpdate({ isManuallyAdjusted: Boolean(current.isManuallyAdjusted), periodFinalized: false })) {
+      if (
+        current &&
+        !canAutoUpdate({
+          isManuallyAdjusted: Boolean(current.isManuallyAdjusted),
+          periodFinalized: false,
+          leaveRequestId: current.leaveRequestId ?? null,
+        })
+      ) {
         continue;
       }
       const org = orgIdsForEmployee(profile, workShifts);
@@ -813,7 +879,12 @@ export async function reconcileRange(from: string, to: string): Promise<{ writte
       }
       ops.push({
         updateOne: {
-          filter: { employeeId, attendanceDate: date, isManuallyAdjusted: { $ne: true } },
+          filter: {
+            employeeId,
+            attendanceDate: date,
+            isManuallyAdjusted: { $ne: true },
+            leaveRequestId: null,
+          },
           update: {
             $set: next,
             $setOnInsert: { employeeId, attendanceDate: date, isManuallyAdjusted: false, remarks: "" },
@@ -829,6 +900,7 @@ export async function reconcileRange(from: string, to: string): Promise<{ writte
     const deleted = await AttendanceRecord.deleteMany({
       _id: { $in: deleteIds },
       isManuallyAdjusted: { $ne: true },
+      leaveRequestId: null,
     });
     removed = deleted.deletedCount ?? 0;
   }
@@ -1051,6 +1123,7 @@ async function loadMonthRows(filters: Omit<MonthFilters, "card" | "page">): Prom
       .map((cell) => ({
         status: cell.status,
         leavePay: cell.leavePay,
+        leaveCategory: cell.leaveCategory,
         isLate: cell.isLate,
       }));
     return {
@@ -1172,7 +1245,7 @@ export async function getAttendanceSummary(monthValue: string): Promise<Attendan
   };
 }
 
-async function employeeOrThrow(employeeId: string): Promise<EmployeeLean> {
+export async function employeeOrThrow(employeeId: string): Promise<EmployeeLean> {
   await connectDb();
   if (!mongoose.Types.ObjectId.isValid(employeeId)) {
     throw new AttendanceError(400, "Invalid employee");
@@ -1261,7 +1334,12 @@ export async function getEmployeeAttendance(
   });
   const contributions: DayContribution[] = cells
     .filter((cell): cell is AttendanceDayCell & { status: AttendanceStatus } => cell.status !== null)
-    .map((cell) => ({ status: cell.status, leavePay: cell.leavePay, isLate: cell.isLate }));
+    .map((cell) => ({
+      status: cell.status,
+      leavePay: cell.leavePay,
+      leaveCategory: cell.leaveCategory,
+      isLate: cell.isLate,
+    }));
   const org = orgIdsForEmployee(profile, workShifts);
   const shiftLabels = new Set(
     dates.map((date) => {
@@ -1346,6 +1424,7 @@ export async function correctAttendanceRecord(
   input: {
     status: AttendanceStatus;
     leavePay?: LeavePay | null;
+    leaveCategory?: LeaveCategory | null;
     firstLoginTime?: string | null;
     remarks: string;
     reason: string;
@@ -1361,7 +1440,17 @@ export async function correctAttendanceRecord(
   await connectDb();
   const record = (await AttendanceRecord.findById(recordId).lean()) as RecordLean | null;
   if (!record) throw new AttendanceError(404, "Attendance record not found");
-  if (input.status === "on_leave" && input.leavePay !== "paid" && input.leavePay !== "unpaid") {
+  if (record.leaveRequestId) {
+    throw new AttendanceError(
+      409,
+      "This day comes from a leave request. Cancel or change the request from the leave page instead",
+    );
+  }
+  // An unplanned leave is always unpaid, so the pay choice is implied.
+  const requestedCategory = input.status === "on_leave" ? (input.leaveCategory ?? null) : null;
+  const requestedPay: LeavePay | null | undefined =
+    requestedCategory === "unplanned" ? "unpaid" : input.leavePay;
+  if (input.status === "on_leave" && requestedPay !== "paid" && requestedPay !== "unpaid") {
     throw new AttendanceError(400, "Choose whether this leave is paid or unpaid");
   }
   const period = await AttendancePeriod.findOne({ monthKey: monthOf(record.attendanceDate) })
@@ -1383,7 +1472,27 @@ export async function correctAttendanceRecord(
   if (typeof input.firstLoginTime === "string") {
     firstLoginAt = clockOnDate(record.attendanceDate, input.firstLoginTime);
   }
-  const leavePay = leavePayForStatus(input.status, input.leavePay ?? null);
+  const leavePay = leavePayForStatus(input.status, requestedPay ?? null);
+  const leaveCategory = leaveCategoryForStatus(input.status, requestedCategory);
+  // Paid planned leave spends the balance. Anything else gives a previously spent day back.
+  const employee = await employeeOrThrow(record.employeeId);
+  const joiningDate = employeeView(employee).joiningDate;
+  const leaveRules = toRules(policy);
+  if (leavePay === "paid" && leaveCategory === "planned") {
+    await ensureAccruals({
+      employeeId: record.employeeId,
+      joiningDate,
+      policy: leaveRules,
+      throughMonth: currentPayrollMonth().key,
+    });
+  }
+  await syncManualLeaveConsumption({
+    employeeId: record.employeeId,
+    attendanceRecordId: String(record._id),
+    attendanceDate: record.attendanceDate,
+    wantsPaid: leavePay === "paid" && leaveCategory === "planned",
+    actor: { id: actor.id, name: actor.name },
+  });
   let isLate = false;
   let lateByMinutes = 0;
   if (firstLoginAt && (input.status === "present" || input.status === "half_day")) {
@@ -1399,6 +1508,7 @@ export async function correctAttendanceRecord(
     isLate,
     lateByMinutes,
     leavePay,
+    leaveCategory,
     firstLoginAt,
     remarks: input.remarks,
     source: "manual" as const,
@@ -1507,6 +1617,12 @@ export async function updateAttendancePolicy(
     severeLateMinutes: number;
     cutoffTime: string;
     confirmed: boolean;
+    paidLeaveMonthlyAccrual: number;
+    paidLeaveCarryForwardCap: number;
+    paidLeaveMaxBalance: number;
+    unplannedLeaveLopDays: number;
+    plannedLeaveMinNoticeDays: number;
+    unplannedBackdateDays: number;
   },
   actor: AttendanceActor,
 ): Promise<PolicyView> {
@@ -1526,6 +1642,12 @@ export async function updateAttendancePolicy(
   current.lateGraceThresholdCount = input.lateGraceThresholdCount;
   current.severeLateMinutes = input.severeLateMinutes;
   current.cutoffTime = input.cutoffTime;
+  current.paidLeaveMonthlyAccrual = input.paidLeaveMonthlyAccrual;
+  current.paidLeaveCarryForwardCap = input.paidLeaveCarryForwardCap;
+  current.paidLeaveMaxBalance = input.paidLeaveMaxBalance;
+  current.unplannedLeaveLopDays = input.unplannedLeaveLopDays;
+  current.plannedLeaveMinNoticeDays = input.plannedLeaveMinNoticeDays;
+  current.unplannedBackdateDays = input.unplannedBackdateDays;
   if (input.confirmed && !current.confirmedAt) {
     current.confirmedAt = new Date();
     current.confirmedBy = actor.id;
@@ -1882,8 +2004,15 @@ export async function getEmployeeLop(employeeId: string, monthValue: string): Pr
   const to = dates[dates.length - 1] ?? from;
   const [records, policy, snapshot] = await Promise.all([
     AttendanceRecord.find({ employeeId, attendanceDate: { $gte: from, $lte: to } })
-      .select("status leavePay isLate")
-      .lean<{ status: AttendanceStatus; leavePay?: LeavePay | null; isLate?: boolean }[]>(),
+      .select("status leavePay leaveCategory isLate")
+      .lean<
+        {
+          status: AttendanceStatus;
+          leavePay?: LeavePay | null;
+          leaveCategory?: LeaveCategory | null;
+          isLate?: boolean;
+        }[]
+      >(),
     getOrCreatePolicy(),
     AttendancePayrollSnapshot.findOne({ employeeId, monthKey: month.key })
       .sort({ createdAt: -1 })
@@ -1893,12 +2022,16 @@ export async function getEmployeeLop(employeeId: string, monthValue: string): Pr
     records.map((record) => ({
       status: record.status,
       leavePay: record.leavePay ?? null,
+      leaveCategory: leaveCategoryForStatus(record.status, record.leaveCategory ?? null),
       isLate: Boolean(record.isLate),
     })),
     toRules(policy),
   );
   return {
     lossOfPayDays: summary.lopDays,
+    breakdown: summary.lopBreakdown,
+    paidLeaveDays: summary.paidLeaveDays,
+    unplannedLeaveDays: summary.unplannedLeaveDays,
     policyConfirmed: Boolean(policy.confirmedAt),
     periodStatus: period?.status === "finalized" ? "finalized" : "open",
     lastSlip: snapshot

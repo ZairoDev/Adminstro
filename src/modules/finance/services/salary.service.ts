@@ -15,6 +15,7 @@ import {
   daysInPayrollMonth,
   latestOpenPayrollMonth,
   lossOfPayDeduction,
+  maxLossOfPayDays,
   parsePayrollMonth,
   payrollMonthEnd,
   payrollMonthKeyFromDate,
@@ -434,10 +435,11 @@ export function readLossOfPayDays(value: string, daysInMonth: number): number {
     throw new EmployeeSalaryError(400, "Enter loss of pay days as a number");
   }
   const days = Number(trimmed);
-  if (days > daysInMonth) {
+  const ceiling = maxLossOfPayDays(daysInMonth);
+  if (days > ceiling) {
     throw new EmployeeSalaryError(
       400,
-      `Loss of pay days cannot be more than ${daysInMonth} in this month`,
+      `Loss of pay days cannot be more than ${ceiling} in a ${daysInMonth}-day month`,
     );
   }
   return days;

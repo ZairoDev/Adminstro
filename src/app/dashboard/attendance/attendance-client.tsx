@@ -62,6 +62,7 @@ const LETTER_CLASS: Record<string, string> = {
   A: "bg-red-100 text-red-950 dark:bg-red-950 dark:text-red-50",
   HD: "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-50",
   LV: "bg-sky-100 text-sky-950 dark:bg-sky-950 dark:text-sky-50",
+  UL: "bg-rose-100 text-rose-950 dark:bg-rose-950 dark:text-rose-50",
   H: "bg-muted text-muted-foreground",
   WO: "bg-muted text-muted-foreground",
   WF: "bg-teal-100 text-teal-950 dark:bg-teal-950 dark:text-teal-50",
@@ -190,6 +191,9 @@ export default function AttendanceClient() {
             subheading="First dashboard login of each IST day. Missing logins stay pending until the policy is confirmed."
           />
           <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm" className="h-10 cursor-pointer">
+              <Link href="/dashboard/attendance/leaves">Leave requests</Link>
+            </Button>
             {data?.canManagePolicy ? (
               <Button asChild variant="outline" size="sm" className="h-10 cursor-pointer">
                 <Link href="/dashboard/attendance/settings">Settings</Link>
@@ -326,7 +330,7 @@ export default function AttendanceClient() {
           ) : null}
         </div>
         <p className="text-xs text-muted-foreground">
-          P present, LT late, A absent, HD half day, LV leave, H holiday, WO weekly off, WF work from home, NJ not joined, PV pending.
+          P present, LT late, A absent, HD half day, LV planned leave, UL unplanned leave, H holiday, WO weekly off, WF work from home, NJ not joined, PV pending.
         </p>
       </div>
 
@@ -374,8 +378,13 @@ export default function AttendanceClient() {
                     <td className="border-b border-border px-2 py-2 text-right tabular-nums">{employee.summary.scheduledWorkingDays}</td>
                     <td className="border-b border-border px-2 py-2 text-right tabular-nums">{employee.summary.presentDays}</td>
                     <td className="border-b border-border px-2 py-2 text-right tabular-nums">{employee.summary.absentDays}</td>
-                    <td className="border-b border-border px-2 py-2 text-right tabular-nums" title={`${employee.summary.paidLeaveDays} paid, ${employee.summary.unpaidLeaveDays} unpaid`}>
-                      {employee.summary.paidLeaveDays + employee.summary.unpaidLeaveDays}
+                    <td
+                      className="border-b border-border px-2 py-2 text-right tabular-nums"
+                      title={`${employee.summary.paidLeaveDays} paid, ${employee.summary.unpaidLeaveDays} unpaid, ${employee.summary.unplannedLeaveDays} unplanned`}
+                    >
+                      {employee.summary.paidLeaveDays +
+                        employee.summary.unpaidLeaveDays +
+                        employee.summary.unplannedLeaveDays}
                     </td>
                     <td className="border-b border-border px-2 py-2 text-right tabular-nums">{employee.summary.lopDays}</td>
                     <td className="border-b border-border px-2 py-2 text-right tabular-nums">{employee.summary.attendancePercentage}</td>
@@ -468,7 +477,7 @@ function DaySheet({
 }) {
   const day = selected?.day;
   const [status, setStatus] = useState<AttendanceStatus>("present");
-  const [leavePay, setLeavePay] = useState<"paid" | "unpaid">("paid");
+  const [leaveKind, setLeaveKind] = useState<"paid" | "unpaid" | "unplanned">("paid");
   const [loginTime, setLoginTime] = useState("");
   const [clearLogin, setClearLogin] = useState(false);
   const [remarks, setRemarks] = useState("");
@@ -479,7 +488,9 @@ function DaySheet({
   useEffect(() => {
     if (!day?.status) return;
     setStatus(day.status);
-    setLeavePay(day.leavePay === "unpaid" ? "unpaid" : "paid");
+    setLeaveKind(
+      day.leaveCategory === "unplanned" ? "unplanned" : day.leavePay === "unpaid" ? "unpaid" : "paid",
+    );
     setLoginTime(day.firstLoginLabel);
     setClearLogin(false);
     setRemarks(day.remarks);
@@ -494,7 +505,8 @@ function DaySheet({
     try {
       await axios.patch(`/api/attendance/records/${day.recordId}`, {
         status,
-        leavePay: status === "on_leave" ? leavePay : null,
+        leavePay: status === "on_leave" ? (leaveKind === "paid" ? "paid" : "unpaid") : null,
+        leaveCategory: status === "on_leave" ? (leaveKind === "unplanned" ? "unplanned" : "planned") : null,
         firstLoginTime: clearLogin ? null : normalizeClock(loginTime),
         remarks,
         reason,
@@ -573,7 +585,12 @@ function DaySheet({
                 {day.anomalyLabels.map((flag) => <li key={flag}>{flag}</li>)}
               </ul>
             ) : null}
-            {canCorrect && day.recordId ? (
+            {day.leaveRequestId ? (
+              <p className="mt-6 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground">
+                This day comes from a leave request. To change it, cancel the request from the employee&apos;s attendance page or the leave requests page.
+              </p>
+            ) : null}
+            {canCorrect && day.recordId && !day.leaveRequestId ? (
               <form
                 className="mt-6 space-y-3"
                 onSubmit={(event) => {
@@ -593,15 +610,23 @@ function DaySheet({
                   ))}
                 </select>
                 {status === "on_leave" ? (
-                  <select
-                    aria-label="Leave pay"
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    value={leavePay}
-                    onChange={(event) => setLeavePay(event.target.value as "paid" | "unpaid")}
-                  >
-                    <option value="paid">Paid leave</option>
-                    <option value="unpaid">Unpaid leave</option>
-                  </select>
+                  <>
+                    <select
+                      aria-label="Leave kind"
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={leaveKind}
+                      onChange={(event) => setLeaveKind(event.target.value as "paid" | "unpaid" | "unplanned")}
+                    >
+                      <option value="paid">Planned leave, paid (uses balance)</option>
+                      <option value="unpaid">Planned leave, unpaid</option>
+                      <option value="unplanned">Unplanned leave (unpaid, extra loss of pay)</option>
+                    </select>
+                    {leaveKind === "unplanned" ? (
+                      <p className="text-sm text-muted-foreground">
+                        Marked as unplanned on purpose. This day adds the unplanned leave loss of pay set in the attendance settings.
+                      </p>
+                    ) : null}
+                  </>
                 ) : null}
                 <label className="block text-sm font-medium" htmlFor="attendance-login">First login (IST)</label>
                 <Input

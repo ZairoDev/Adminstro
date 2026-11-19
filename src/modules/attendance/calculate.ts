@@ -13,6 +13,7 @@ import type {
   AttendanceSummary,
   DayContribution,
   HolidayMark,
+  LeaveCategory,
   LeavePay,
   ResolveDayInput,
   ResolveDayResult,
@@ -20,6 +21,7 @@ import type {
   ShiftChoice,
   StoredAttendanceGuard,
 } from "@/modules/attendance/types";
+import { DEFAULT_LEAVE_POLICY } from "@/modules/attendance/types";
 
 const SIGNIFICANT_LATE_MINUTES = 180;
 
@@ -272,7 +274,7 @@ export function resolveAttendanceDay(input: ResolveDayInput): ResolveDayResult {
 }
 
 export function canAutoUpdate(record: StoredAttendanceGuard): boolean {
-  return !record.isManuallyAdjusted && !record.periodFinalized;
+  return !record.isManuallyAdjusted && !record.periodFinalized && !record.leaveRequestId;
 }
 
 export function emptySummary(): AttendanceSummary {
@@ -283,6 +285,7 @@ export function emptySummary(): AttendanceSummary {
     halfDays: 0,
     paidLeaveDays: 0,
     unpaidLeaveDays: 0,
+    unplannedLeaveDays: 0,
     holidays: 0,
     weeklyOffs: 0,
     lateArrivals: 0,
@@ -290,6 +293,7 @@ export function emptySummary(): AttendanceSummary {
     workFromHomeDays: 0,
     notJoinedDays: 0,
     lopDays: 0,
+    lopBreakdown: { absent: 0, halfDay: 0, plannedUnpaidLeave: 0, unplannedLeave: 0, late: 0 },
     presentEquivalents: 0,
     attendancePercentage: 0,
   };
@@ -300,9 +304,12 @@ export function summarizeAttendance(
   policy: Pick<
     AttendancePolicyRules,
     "halfDayLopFactor" | "lateCreatesLop" | "lateLopFactor" | "lateGraceThresholdCount"
-  >,
+  > &
+    Partial<Pick<AttendancePolicyRules, "unplannedLeaveLopDays">>,
 ): AttendanceSummary {
   const summary = emptySummary();
+  const unplannedLopDays =
+    policy.unplannedLeaveLopDays ?? DEFAULT_LEAVE_POLICY.unplannedLeaveLopDays;
   let lop = 0;
   let presentEquivalents = 0;
   let graceLatePresentDays = 0;
@@ -342,12 +349,18 @@ export function summarizeAttendance(
         summary.halfDays += 1;
         presentEquivalents += 0.5;
         lop += policy.halfDayLopFactor;
+        summary.lopBreakdown.halfDay += policy.halfDayLopFactor;
         break;
       case "on_leave":
         summary.scheduledWorkingDays += 1;
-        if (day.leavePay === "unpaid") {
+        if (day.leaveCategory === "unplanned") {
+          summary.unplannedLeaveDays += 1;
+          lop += unplannedLopDays;
+          summary.lopBreakdown.unplannedLeave += unplannedLopDays;
+        } else if (day.leavePay === "unpaid") {
           summary.unpaidLeaveDays += 1;
           lop += 1;
+          summary.lopBreakdown.plannedUnpaidLeave += 1;
         } else {
           summary.paidLeaveDays += 1;
           presentEquivalents += 1;
@@ -357,6 +370,7 @@ export function summarizeAttendance(
         summary.scheduledWorkingDays += 1;
         summary.absentDays += 1;
         lop += 1;
+        summary.lopBreakdown.absent += 1;
         break;
       default:
         break;
@@ -368,8 +382,16 @@ export function summarizeAttendance(
     graceLatePresentDays >= policy.lateGraceThresholdCount
   ) {
     lop += policy.lateLopFactor;
+    summary.lopBreakdown.late += policy.lateLopFactor;
   }
 
+  summary.lopBreakdown = {
+    absent: roundLop(summary.lopBreakdown.absent),
+    halfDay: roundLop(summary.lopBreakdown.halfDay),
+    plannedUnpaidLeave: roundLop(summary.lopBreakdown.plannedUnpaidLeave),
+    unplannedLeave: roundLop(summary.lopBreakdown.unplannedLeave),
+    late: roundLop(summary.lopBreakdown.late),
+  };
   summary.lopDays = roundLop(lop);
   summary.presentEquivalents = roundLop(presentEquivalents);
   summary.attendancePercentage =
@@ -404,6 +426,14 @@ export function correctionPermission(input: {
     return { allowed: true, requiresApproval: true };
   }
   return { allowed: true, requiresApproval: false };
+}
+
+export function leaveCategoryForStatus(
+  status: AttendanceStatus,
+  category: LeaveCategory | null,
+): LeaveCategory | null {
+  if (status !== "on_leave") return null;
+  return category ?? "planned";
 }
 
 export function leavePayForStatus(

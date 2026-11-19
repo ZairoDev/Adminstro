@@ -5,6 +5,7 @@ import {
   daysInPayrollMonth,
   latestOpenPayrollMonth,
   lossOfPayDeduction,
+  maxLossOfPayDays,
   parsePayrollMonth,
   payrollMonthEnd,
   payrollMonthLabel,
@@ -40,6 +41,14 @@ describe("payroll months", () => {
     expect(daysInPayrollMonth(october)).toBe(31);
     expect(lossOfPayDeduction(50000, 31, 0)).toBe(0);
     expect(lossOfPayDeduction(50000, 31, 2)).toBe(3225.81);
+  });
+
+  it("allows more loss of pay days than the month has, and caps the deduction at gross", () => {
+    expect(maxLossOfPayDays(31)).toBeGreaterThan(31);
+    // 20 unplanned days at 2 LOP each is 40 days in a 31-day month
+    expect(lossOfPayDeduction(50000, 31, 40)).toBe(50000);
+    // 3 unplanned days is 6 LOP days
+    expect(lossOfPayDeduction(31000, 31, 6)).toBe(6000);
   });
 });
 

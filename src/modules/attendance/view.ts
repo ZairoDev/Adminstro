@@ -1,5 +1,10 @@
-import type { AttendanceSummary } from "@/modules/attendance/types";
-import type { AttendanceStatus, LeavePay } from "@/modules/attendance/types";
+import type {
+  AttendanceStatus,
+  AttendanceSummary,
+  LeaveCategory,
+  LeavePay,
+  LopBreakdown,
+} from "@/modules/attendance/types";
 
 export const ATTENDANCE_PAGE_SIZE = 50;
 
@@ -19,6 +24,9 @@ export type AttendanceDayCell = {
   isLate: boolean;
   lateByMinutes: number;
   leavePay: LeavePay | null;
+  leaveCategory: LeaveCategory | null;
+  /** Set when the day came from an approved leave request. */
+  leaveRequestId: string | null;
   firstLoginAt: string | null;
   firstLoginLabel: string;
   /** Check-out time (last logout of the day). */
@@ -123,6 +131,9 @@ export type EmployeeAttendancePayload = {
 
 export type LopLookup = {
   lossOfPayDays: number;
+  breakdown: LopBreakdown;
+  paidLeaveDays: number;
+  unplannedLeaveDays: number;
   policyConfirmed: boolean;
   periodStatus: "open" | "finalized";
   lastSlip: {
@@ -149,6 +160,13 @@ export type PolicyView = {
   cutoffTime: string;
   confirmed: boolean;
   confirmedAt: string | null;
+  paidLeaveMonthlyAccrual: number;
+  paidLeaveCarryForwardCap: number;
+  paidLeaveMaxBalance: number;
+  unplannedLeaveLopDays: number;
+  plannedLeaveMinNoticeDays: number;
+  unplannedBackdateDays: number;
+  leaveAccrualStartMonth: string;
 };
 
 export type HolidayView = {

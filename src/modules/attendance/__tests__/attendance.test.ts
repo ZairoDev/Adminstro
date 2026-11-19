@@ -619,3 +619,85 @@ describe("loss of pay", () => {
     expect(summary.lopDays).toBe(0);
   });
 });
+
+describe("leave categories in loss of pay", () => {
+  const policy = {
+    halfDayLopFactor: 0.5,
+    lateCreatesLop: false,
+    lateLopFactor: 0.25,
+    lateGraceThresholdCount: 10,
+    unplannedLeaveLopDays: 2,
+  };
+
+  const leave = (
+    leaveCategory: "planned" | "unplanned" | null,
+    leavePay: "paid" | "unpaid",
+  ): DayContribution => ({ status: "on_leave", leavePay, leaveCategory, isLate: false });
+
+  it("charges 2 LOP days for each explicitly marked unplanned leave day", () => {
+    const summary = summarizeAttendance([leave("unplanned", "unpaid")], policy);
+    expect(summary.lopDays).toBe(2);
+    expect(summary.unplannedLeaveDays).toBe(1);
+    expect(summary.unpaidLeaveDays).toBe(0);
+    expect(summary.presentEquivalents).toBe(0);
+    expect(summary.lopBreakdown.unplannedLeave).toBe(2);
+  });
+
+  it("keeps a system-detected absence at 1 LOP day", () => {
+    const summary = summarizeAttendance([day("absent")], policy);
+    expect(summary.lopDays).toBe(1);
+    expect(summary.lopBreakdown.absent).toBe(1);
+  });
+
+  it("follows the configured unplanned factor", () => {
+    const summary = summarizeAttendance([leave("unplanned", "unpaid")], { ...policy, unplannedLeaveLopDays: 3 });
+    expect(summary.lopDays).toBe(3);
+  });
+
+  it("defaults to 2 LOP days when the policy has no unplanned factor", () => {
+    const { unplannedLeaveLopDays: _ignored, ...legacyPolicy } = policy;
+    expect(summarizeAttendance([leave("unplanned", "unpaid")], legacyPolicy).lopDays).toBe(2);
+  });
+
+  it("treats leave saved before categories existed as planned", () => {
+    const summary = summarizeAttendance([leave(null, "unpaid"), leave(null, "paid")], policy);
+    expect(summary.lopDays).toBe(1);
+    expect(summary.unpaidLeaveDays).toBe(1);
+    expect(summary.paidLeaveDays).toBe(1);
+    expect(summary.unplannedLeaveDays).toBe(0);
+  });
+
+  it("adds up planned paid, planned unpaid, unplanned, absent, and half-day LOP in one month", () => {
+    const summary = summarizeAttendance(
+      [
+        ...Array.from({ length: 18 }, () => day("present")),
+        leave("planned", "paid"),
+        leave("planned", "unpaid"),
+        leave("unplanned", "unpaid"),
+        leave("unplanned", "unpaid"),
+        day("absent"),
+        day("half_day"),
+      ],
+      policy,
+    );
+    expect(summary.paidLeaveDays).toBe(1);
+    expect(summary.unpaidLeaveDays).toBe(1);
+    expect(summary.unplannedLeaveDays).toBe(2);
+    // 1 planned unpaid + 4 unplanned + 1 absent + 0.5 half day
+    expect(summary.lopDays).toBe(6.5);
+    expect(summary.lopBreakdown).toEqual({
+      absent: 1,
+      halfDay: 0.5,
+      plannedUnpaidLeave: 1,
+      unplannedLeave: 4,
+      late: 0,
+    });
+    const parts = Object.values(summary.lopBreakdown).reduce((sum, value) => sum + value, 0);
+    expect(parts).toBe(summary.lopDays);
+  });
+
+  it("never lets reconcile rewrite a day that belongs to a leave request", () => {
+    expect(canAutoUpdate({ isManuallyAdjusted: false, periodFinalized: false, leaveRequestId: "abc" })).toBe(false);
+    expect(canAutoUpdate({ isManuallyAdjusted: false, periodFinalized: false, leaveRequestId: null })).toBe(true);
+  });
+});

@@ -1,10 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Dancing_Script, Libre_Baskerville } from "next/font/google";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import {
@@ -28,6 +26,7 @@ import {
   Plane,
   Settings2,
   Smartphone,
+  Sprout,
   Star,
   Timer,
   Umbrella,
@@ -36,6 +35,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Label, Pie, PieChart } from "recharts";
+import Heading from "@/components/Heading";
 import axios from "@/util/axios";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -82,17 +82,8 @@ import type {
 import { AttendanceCheckTime } from "@/components/attendance/AttendanceCheckTime";
 import { AttendanceDayActionsList } from "@/components/attendance/AttendanceDayActionsList";
 import { type AttendanceDevice } from "@/util/attendanceDevice";
+import LeavePanel from "../attendance/leave-panel";
 import { MyAttendanceSkeleton } from "./my-attendance-skeleton";
-
-const displaySerif = Libre_Baskerville({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-});
-
-const scriptFont = Dancing_Script({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-});
 
 const STATUS_STYLE: Record<
   string,
@@ -461,6 +452,18 @@ export default function MyAttendanceClient({
     }
   }, [apiPath, month.key]);
 
+  const refreshAttendance = useCallback(async () => {
+    try {
+      const response = await axios.get<{
+        success: boolean;
+        data: EmployeeAttendancePayload;
+      }>(apiPath, { params: { month: month.key } });
+      if (response.data.success) setData(response.data.data);
+    } catch {
+      // The leave panel reports its own errors. Keep the calendar as it is.
+    }
+  }, [apiPath, month.key]);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -668,26 +671,15 @@ export default function MyAttendanceClient({
   };
 
   return (
-    <div
-      className={cn(
-        "min-h-[calc(100vh-4rem)] space-y-5 rounded-2xl bg-[#FAF8F5] p-4 md:p-6",
-        bodyText,
-        "dark:bg-background",
-      )}
-    >
-      <header
-        className={cn(
-          "grid items-center gap-4",
-          viewingOther ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-3",
-        )}
-      >
-        <div className="max-w-xl space-y-1.5 justify-self-start text-left">
+    <div className={cn("space-y-4 p-4", bodyText)}>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           {viewingOther ? (
             <Button
               asChild
               variant="ghost"
               size="sm"
-              className="-ml-2 mb-1 h-8 cursor-pointer px-2 text-[#17615D] hover:bg-[#E5F1ED] dark:text-teal-300 dark:hover:bg-teal-950"
+              className="-ml-2 mb-1 h-10 cursor-pointer px-2"
             >
               <Link href={`/dashboard/attendance?month=${month.key}`}>
                 <ChevronLeft className="mr-1 h-4 w-4" />
@@ -695,49 +687,31 @@ export default function MyAttendanceClient({
               </Link>
             </Button>
           ) : null}
-          <h1
-            className={cn(
-              displaySerif.className,
-              "text-3xl tracking-tight sm:text-4xl",
-              headingText,
-            )}
-          >
-            {viewingOther ? "Employee attendance" : "My Attendance"}
-          </h1>
-          {!viewingOther ? (
-            <p className={cn("text-sm sm:text-base", mutedText)}>
-              Track your attendance, leaves and working days at a glance.
-            </p>
-          ) : null}
+          <Heading
+            heading={viewingOther ? "Employee attendance" : "My Attendance"}
+            subheading={
+              viewingOther
+                ? "Attendance, leave, and working days for this employee."
+                : "Track your attendance, leaves and working days at a glance."
+            }
+          />
         </div>
 
         {!viewingOther ? (
-          <>
-            <div className="flex justify-center justify-self-center">
-              <Image
-                src="/attendance/plant.jpg"
-                alt=""
-                width={160}
-                height={160}
-                className="h-28 w-28 object-contain opacity-90 sm:h-36 sm:w-36 dark:opacity-80"
-                aria-hidden
-              />
-            </div>
-
-            <div className="flex justify-end justify-self-end">
-              <p
-                className={cn(
-                  scriptFont.className,
-                  "origin-center -rotate-[12deg] text-right text-2xl leading-tight sm:text-3xl",
-                  accentTeal,
-                )}
-              >
-                Be Present,
-                <br />
-                Be Productive
-              </p>
-            </div>
-          </>
+          <div className="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2">
+            <span
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"
+              aria-hidden
+            >
+              <Sprout size={22} strokeWidth={1.75} />
+            </span>
+            <p className="text-sm font-medium leading-snug">
+              Be present
+              <span className="block font-normal text-muted-foreground">
+                Be productive
+              </span>
+            </p>
+          </div>
         ) : null}
       </header>
 
@@ -894,6 +868,17 @@ export default function MyAttendanceClient({
                 </div>
               );
             })}
+          </section>
+
+          <section className={cn(surfaceCard, "p-4 md:p-5")}>
+            <LeavePanel
+              employeeId={viewingOther ? employeeId : undefined}
+              selfService={!viewingOther}
+              canManage={viewingOther && data.canCorrect}
+              onChanged={() => {
+                void refreshAttendance();
+              }}
+            />
           </section>
 
           <section className={cn(surfaceCard, "overflow-hidden p-4 md:p-5")}>

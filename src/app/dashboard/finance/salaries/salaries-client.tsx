@@ -46,9 +46,12 @@ import {
   currentPayrollMonth,
   daysInPayrollMonth,
   latestOpenPayrollMonth,
+  maxLossOfPayDays,
   parsePayrollMonth,
   payrollMonthLabel,
 } from "@/modules/finance/salary-month";
+import { describeLopBreakdown } from "@/modules/attendance/presentation";
+import type { LopBreakdown } from "@/modules/attendance/types";
 
 type SalaryPayload = {
   employees: SalaryRow[];
@@ -191,8 +194,10 @@ export default function SalariesClient() {
       return;
     }
     const days = trimmed ? Number(trimmed) : 0;
-    if (days > monthDays) {
-      setLossOfPayError(`This month has ${monthDays} days.`);
+    if (days > maxLossOfPayDays(monthDays)) {
+      setLossOfPayError(
+        `Loss of pay cannot be more than ${maxLossOfPayDays(monthDays)} days in a ${monthDays}-day month.`,
+      );
       return;
     }
 
@@ -415,6 +420,8 @@ export default function SalariesClient() {
                                   success: boolean;
                                   data?: {
                                     lossOfPayDays: number;
+                                    breakdown: LopBreakdown;
+                                    paidLeaveDays: number;
                                     policyConfirmed: boolean;
                                     lastSlip: { lossOfPayDays: number; payrollStale: boolean } | null;
                                   };
@@ -430,6 +437,11 @@ export default function SalariesClient() {
                                       ? `Attendance calculated ${lop.lossOfPayDays} loss of pay days for this month.`
                                       : "The attendance policy is not confirmed, so missing logins are not loss of pay yet.",
                                   ];
+                                  const parts = describeLopBreakdown(lop.breakdown);
+                                  if (parts) notes.push(`Made up of ${parts}.`);
+                                  if (lop.paidLeaveDays > 0) {
+                                    notes.push(`${lop.paidLeaveDays} paid leave day(s) are not deducted.`);
+                                  }
                                   if (lop.lastSlip?.payrollStale) {
                                     notes.push(
                                       `The last slip used ${lop.lastSlip.lossOfPayDays} days, and attendance has changed since then.`,

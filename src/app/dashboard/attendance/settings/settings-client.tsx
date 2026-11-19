@@ -129,6 +129,12 @@ export default function AttendanceSettingsClient() {
         severeLateMinutes: Number(policy.severeLateMinutes),
         cutoffTime: policy.cutoffTime,
         confirmed: policy.confirmed,
+        paidLeaveMonthlyAccrual: Number(policy.paidLeaveMonthlyAccrual),
+        paidLeaveCarryForwardCap: Number(policy.paidLeaveCarryForwardCap),
+        paidLeaveMaxBalance: Number(policy.paidLeaveMaxBalance),
+        unplannedLeaveLopDays: Number(policy.unplannedLeaveLopDays),
+        plannedLeaveMinNoticeDays: Number(policy.plannedLeaveMinNoticeDays),
+        unplannedBackdateDays: Number(policy.unplannedBackdateDays),
       });
       setPolicy(response.data.data);
       setMessage(response.data.data.confirmed
@@ -396,6 +402,32 @@ export default function AttendanceSettingsClient() {
                   </p>
                 </div>
               ) : null}
+              <div className="space-y-3 border-t border-border pt-4">
+                <h3 className="text-sm font-semibold">Leave</h3>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Field label="Paid leave credited each month (days)">
+                    <Input type="number" min={0} max={31} step={0.5} value={policy.paidLeaveMonthlyAccrual} onChange={(event) => setPolicy({ ...policy, paidLeaveMonthlyAccrual: Number(event.target.value) })} className="h-10" />
+                  </Field>
+                  <Field label="Carry forward into a new year (max days)">
+                    <Input type="number" min={0} max={366} step={0.5} value={policy.paidLeaveCarryForwardCap} onChange={(event) => setPolicy({ ...policy, paidLeaveCarryForwardCap: Number(event.target.value) })} className="h-10" />
+                  </Field>
+                  <Field label="Highest paid leave balance (days)">
+                    <Input type="number" min={0} max={366} step={0.5} value={policy.paidLeaveMaxBalance} onChange={(event) => setPolicy({ ...policy, paidLeaveMaxBalance: Number(event.target.value) })} className="h-10" />
+                  </Field>
+                  <Field label="LOP days for each unplanned leave day">
+                    <Input type="number" min={0} max={10} step={0.5} value={policy.unplannedLeaveLopDays} onChange={(event) => setPolicy({ ...policy, unplannedLeaveLopDays: Number(event.target.value) })} className="h-10" />
+                  </Field>
+                  <Field label="Notice needed for planned leave (days)">
+                    <Input type="number" min={0} max={60} value={policy.plannedLeaveMinNoticeDays} onChange={(event) => setPolicy({ ...policy, plannedLeaveMinNoticeDays: Number(event.target.value) })} className="h-10" />
+                  </Field>
+                  <Field label="Days back an employee can mark unplanned leave">
+                    <Input type="number" min={0} max={60} value={policy.unplannedBackdateDays} onChange={(event) => setPolicy({ ...policy, unplannedBackdateDays: Number(event.target.value) })} className="h-10" />
+                  </Field>
+                </div>
+                <p className="max-w-3xl text-sm text-muted-foreground">
+                  Staff earn {policy.paidLeaveMonthlyAccrual} paid day(s) on the 1st of each month, shared out by joining date in the first month. Planned leave uses the balance first and any days beyond it are unpaid. An unplanned leave day is never paid and costs {policy.unplannedLeaveLopDays} LOP day(s). Paid leave started accruing in {policy.leaveAccrualStartMonth || "the current month"}.
+                </p>
+              </div>
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

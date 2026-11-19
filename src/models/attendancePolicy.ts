@@ -1,4 +1,5 @@
 import mongoose, { Schema, type InferSchemaType } from "mongoose";
+import { DEFAULT_LEAVE_POLICY } from "@/modules/attendance/types";
 
 const attendancePolicySchema = new Schema(
   {
@@ -21,6 +22,13 @@ const attendancePolicySchema = new Schema(
     lateGraceThresholdCount: { type: Number, required: true, default: 10 },
     severeLateMinutes: { type: Number, required: true, default: 30 },
     cutoffTime: { type: String, required: true },
+    paidLeaveMonthlyAccrual: { type: Number, default: DEFAULT_LEAVE_POLICY.paidLeaveMonthlyAccrual, min: 0 },
+    paidLeaveCarryForwardCap: { type: Number, default: DEFAULT_LEAVE_POLICY.paidLeaveCarryForwardCap, min: 0 },
+    paidLeaveMaxBalance: { type: Number, default: DEFAULT_LEAVE_POLICY.paidLeaveMaxBalance, min: 0 },
+    unplannedLeaveLopDays: { type: Number, default: DEFAULT_LEAVE_POLICY.unplannedLeaveLopDays, min: 0 },
+    plannedLeaveMinNoticeDays: { type: Number, default: DEFAULT_LEAVE_POLICY.plannedLeaveMinNoticeDays, min: 0 },
+    unplannedBackdateDays: { type: Number, default: DEFAULT_LEAVE_POLICY.unplannedBackdateDays, min: 0 },
+    leaveAccrualStartMonth: { type: String, default: "" },
     confirmedAt: { type: Date, default: null },
     confirmedBy: { type: String, default: null },
   },

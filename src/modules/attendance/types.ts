@@ -16,6 +16,11 @@ export const LEAVE_PAYS = ["paid", "unpaid"] as const;
 
 export type LeavePay = (typeof LEAVE_PAYS)[number];
 
+/** Planned leave is requested ahead of time. Unplanned leave is marked explicitly and carries extra LOP. */
+export const LEAVE_CATEGORIES = ["planned", "unplanned"] as const;
+
+export type LeaveCategory = (typeof LEAVE_CATEGORIES)[number];
+
 export const ANOMALY_FLAGS = [
   "missing_login",
   "duplicate_source_events",
@@ -55,6 +60,41 @@ export type AttendancePolicyRules = {
   severeLateMinutes: number;
   cutoffTime: string;
   confirmed: boolean;
+  /** Paid leave days credited on the 1st of every month. */
+  paidLeaveMonthlyAccrual: number;
+  /** Balance above this value is trimmed when the new calendar year starts. */
+  paidLeaveCarryForwardCap: number;
+  /** Accrual never pushes the balance above this value. */
+  paidLeaveMaxBalance: number;
+  /** LOP days charged for every explicitly marked unplanned leave day. */
+  unplannedLeaveLopDays: number;
+  /** Planned leave must start at least this many days from today (HR and admins are exempt). */
+  plannedLeaveMinNoticeDays: number;
+  /** How many days back an unplanned leave may start. */
+  unplannedBackdateDays: number;
+  /** First month (YYYY-MM) that earns paid leave. Stops retroactive credit for existing staff. */
+  leaveAccrualStartMonth: string;
+};
+
+export type LeavePolicyRules = Pick<
+  AttendancePolicyRules,
+  | "paidLeaveMonthlyAccrual"
+  | "paidLeaveCarryForwardCap"
+  | "paidLeaveMaxBalance"
+  | "unplannedLeaveLopDays"
+  | "plannedLeaveMinNoticeDays"
+  | "unplannedBackdateDays"
+  | "leaveAccrualStartMonth"
+>;
+
+export const DEFAULT_LEAVE_POLICY: LeavePolicyRules = {
+  paidLeaveMonthlyAccrual: 1.5,
+  paidLeaveCarryForwardCap: 12,
+  paidLeaveMaxBalance: 24,
+  unplannedLeaveLopDays: 2,
+  plannedLeaveMinNoticeDays: 1,
+  unplannedBackdateDays: 7,
+  leaveAccrualStartMonth: "",
 };
 
 export type ShiftChoice = {
@@ -106,6 +146,8 @@ export type ResolveDayResult =
 export type DayContribution = {
   status: AttendanceStatus;
   leavePay: LeavePay | null;
+  /** Leave rows saved before categories existed have no value and count as planned. */
+  leaveCategory?: LeaveCategory | null;
   isLate: boolean;
 };
 
@@ -115,7 +157,10 @@ export type AttendanceSummary = {
   absentDays: number;
   halfDays: number;
   paidLeaveDays: number;
+  /** Planned leave days that were not covered by the paid balance. */
   unpaidLeaveDays: number;
+  /** Explicitly marked unplanned leave days. */
+  unplannedLeaveDays: number;
   holidays: number;
   weeklyOffs: number;
   lateArrivals: number;
@@ -123,13 +168,25 @@ export type AttendanceSummary = {
   workFromHomeDays: number;
   notJoinedDays: number;
   lopDays: number;
+  lopBreakdown: LopBreakdown;
   presentEquivalents: number;
   attendancePercentage: number;
+};
+
+/** Where the month's LOP days come from. The parts add up to the total LOP days. */
+export type LopBreakdown = {
+  absent: number;
+  halfDay: number;
+  plannedUnpaidLeave: number;
+  unplannedLeave: number;
+  late: number;
 };
 
 export type StoredAttendanceGuard = {
   isManuallyAdjusted: boolean;
   periodFinalized: boolean;
+  /** Rows that belong to an approved leave request are never rewritten by reconcile. */
+  leaveRequestId?: string | null;
 };
 
 export const DEFAULT_ATTENDANCE_POLICY: AttendancePolicyRules & {
@@ -150,4 +207,5 @@ export const DEFAULT_ATTENDANCE_POLICY: AttendancePolicyRules & {
   severeLateMinutes: 30,
   cutoffTime: "18:30",
   confirmed: false,
+  ...DEFAULT_LEAVE_POLICY,
 };

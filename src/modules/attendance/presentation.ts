@@ -1,4 +1,4 @@
-import type { AttendanceStatus } from "@/modules/attendance/types";
+import type { AttendanceStatus, LeaveCategory, LopBreakdown } from "@/modules/attendance/types";
 
 export const STATUS_LABELS: Record<AttendanceStatus, string> = {
   present: "Present",
@@ -24,14 +24,39 @@ export const STATUS_LETTERS: Record<AttendanceStatus, string> = {
   pending_verification: "PV",
 };
 
-export function statusLabel(status: AttendanceStatus, isLate: boolean): string {
+export function statusLabel(
+  status: AttendanceStatus,
+  isLate: boolean,
+  leaveCategory: LeaveCategory | null = null,
+): string {
   if (isLate && status === "present") return "Late";
+  if (status === "on_leave" && leaveCategory === "unplanned") return "Unplanned leave";
   return STATUS_LABELS[status];
 }
 
-export function statusLetter(status: AttendanceStatus, isLate: boolean): string {
+export function statusLetter(
+  status: AttendanceStatus,
+  isLate: boolean,
+  leaveCategory: LeaveCategory | null = null,
+): string {
   if (isLate && status === "present") return "LT";
+  if (status === "on_leave" && leaveCategory === "unplanned") return "UL";
   return STATUS_LETTERS[status];
+}
+
+/** "1 absent, 4 unplanned leave" style summary of where LOP days come from. Empty when there is none. */
+export function describeLopBreakdown(breakdown: LopBreakdown): string {
+  const parts: [number, string][] = [
+    [breakdown.absent, "absent"],
+    [breakdown.halfDay, "half day"],
+    [breakdown.plannedUnpaidLeave, "unpaid planned leave"],
+    [breakdown.unplannedLeave, "unplanned leave"],
+    [breakdown.late, "late arrivals"],
+  ];
+  return parts
+    .filter(([days]) => days > 0)
+    .map(([days, label]) => `${days} ${label}`)
+    .join(", ");
 }
 
 export const ANOMALY_LABELS: Record<string, string> = {
@@ -47,5 +72,6 @@ export const ANOMALY_LABELS: Record<string, string> = {
 export const SOURCE_LABELS: Record<string, string> = {
   login: "Dashboard login",
   manual: "Manual correction",
+  leave: "Approved leave request",
   system: "Attendance rule",
 };

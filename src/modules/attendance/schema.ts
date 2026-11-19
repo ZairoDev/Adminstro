@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   ALTERNATE_SATURDAY_OFF_PATTERNS,
   ATTENDANCE_STATUSES,
+  LEAVE_CATEGORIES,
   LEAVE_PAYS,
 } from "@/modules/attendance/types";
 
@@ -42,6 +43,7 @@ export const periodSchema = z.object({
 export const correctionSchema = z.object({
   status: z.enum(ATTENDANCE_STATUSES),
   leavePay: z.enum(LEAVE_PAYS).nullable().optional(),
+  leaveCategory: z.enum(LEAVE_CATEGORIES).nullable().optional(),
   firstLoginTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).nullable().optional(),
   remarks: z.string().trim().max(500).optional().default(""),
   reason: z.string().trim().min(3).max(500),
@@ -61,6 +63,12 @@ export const policyUpdateSchema = z.object({
   severeLateMinutes: z.number().int().min(1).max(480),
   cutoffTime: clockSchema,
   confirmed: z.boolean(),
+  paidLeaveMonthlyAccrual: z.number().min(0).max(31),
+  paidLeaveCarryForwardCap: z.number().min(0).max(366),
+  paidLeaveMaxBalance: z.number().min(0).max(366),
+  unplannedLeaveLopDays: z.number().min(0).max(10),
+  plannedLeaveMinNoticeDays: z.number().int().min(0).max(60),
+  unplannedBackdateDays: z.number().int().min(0).max(60),
 });
 
 export const holidayCreateSchema = z.object({

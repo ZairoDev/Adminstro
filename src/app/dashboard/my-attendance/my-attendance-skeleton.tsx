@@ -14,8 +14,7 @@ export function MyAttendanceSkeleton({
   return (
     <div
       className={cn(
-        withHeader &&
-          "min-h-[calc(100vh-4rem)] space-y-5 rounded-2xl bg-[#FAF8F5] p-4 md:p-6 dark:bg-background",
+        withHeader && "space-y-4 p-4",
         !withHeader && "space-y-5",
         className,
       )}
@@ -27,17 +26,17 @@ export function MyAttendanceSkeleton({
       <span className="sr-only">Loading attendance</span>
 
       {withHeader ? (
-        <header className="grid grid-cols-1 items-center gap-4 sm:grid-cols-3">
-          <div className="max-w-xl space-y-2 justify-self-start">
-            <Skeleton className="h-10 w-52 sm:h-11 sm:w-64" />
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-2 border-l-4 border-primary pl-2">
+            <Skeleton className="h-6 w-44" />
             <Skeleton className="h-4 w-full max-w-md" />
           </div>
-          <div className="flex justify-center justify-self-center">
-            <Skeleton className="h-28 w-28 rounded-xl sm:h-36 sm:w-36" />
-          </div>
-          <div className="space-y-1.5 justify-self-end text-right">
-            <Skeleton className="ml-auto h-5 w-28" />
-            <Skeleton className="ml-auto h-5 w-32" />
+          <div className="flex items-center gap-3 rounded-md border border-border px-3 py-2">
+            <Skeleton className="h-11 w-11 rounded-md" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-3 w-24" />
+            </div>
           </div>
         </header>
       ) : null}

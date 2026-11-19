@@ -55,6 +55,16 @@ export function daysInPayrollMonth(month: PayrollMonth): number {
   return new Date(Date.UTC(month.year, month.month, 0)).getUTCDate();
 }
 
+/**
+ * Loss of pay days can exceed the days in a month: an unplanned leave day costs extra LOP days.
+ * This is the entry ceiling; the deduction itself is always capped at gross pay.
+ */
+export const MAX_LOSS_OF_PAY_MONTH_MULTIPLE = 10;
+
+export function maxLossOfPayDays(daysInMonth: number): number {
+  return daysInMonth * MAX_LOSS_OF_PAY_MONTH_MULTIPLE;
+}
+
 export function lossOfPayDeduction(
   gross: number,
   daysInMonth: number,

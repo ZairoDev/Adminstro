@@ -8,6 +8,7 @@ import "./globals.css";
 import SocketGlobalListener from "@/components/SocketGlobalListener";
 import { AuthHydrator } from "@/components/AuthHydrator";
 import SessionHeartbeat from "@/components/SessionHeartbeat";
+import { InternationalMensDayPopup } from "@/components/international-mens-day/InternationalMensDayPopup";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -35,6 +36,7 @@ export default function RootLayout({
             <AuthHydrator />
             <SocketGlobalListener />
             <SessionHeartbeat />
+            <InternationalMensDayPopup />
             {children}
           </ThemeProvider>
           <Toaster />

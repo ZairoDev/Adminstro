@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   ALTERNATE_SATURDAY_OFF_PATTERNS,
   ATTENDANCE_STATUSES,
-  LEAVE_CATEGORIES,
+  RECORD_LEAVE_CATEGORIES,
   LEAVE_PAYS,
 } from "@/modules/attendance/types";
 
@@ -43,7 +43,7 @@ export const periodSchema = z.object({
 export const correctionSchema = z.object({
   status: z.enum(ATTENDANCE_STATUSES),
   leavePay: z.enum(LEAVE_PAYS).nullable().optional(),
-  leaveCategory: z.enum(LEAVE_CATEGORIES).nullable().optional(),
+  leaveCategory: z.enum(RECORD_LEAVE_CATEGORIES).nullable().optional(),
   firstLoginTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).nullable().optional(),
   remarks: z.string().trim().max(500).optional().default(""),
   reason: z.string().trim().min(3).max(500),

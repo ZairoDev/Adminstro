@@ -13,8 +13,8 @@ import type {
   AttendanceSummary,
   DayContribution,
   HolidayMark,
-  LeaveCategory,
   LeavePay,
+  RecordLeaveCategory,
   ResolveDayInput,
   ResolveDayResult,
   ShiftAssignmentRange,
@@ -212,6 +212,7 @@ export function resolveAttendanceDay(input: ResolveDayInput): ResolveDayResult {
   const base = {
     persist: true as const,
     leavePay: null,
+    leaveCategory: null,
     firstLoginAt: input.firstLoginAt,
     isLate: false,
     lateByMinutes: 0,
@@ -263,11 +264,13 @@ export function resolveAttendanceDay(input: ResolveDayInput): ResolveDayResult {
   }
 
   const inProgress = input.now.getTime() < cutoff.getTime();
-  const markAbsent = input.policy.confirmed && !inProgress;
+  const markUnapproved = input.policy.confirmed && !inProgress;
   anomalyFlags.push("missing_login");
   return {
     ...base,
-    status: markAbsent ? "absent" : "pending_verification",
+    status: markUnapproved ? "on_leave" : "pending_verification",
+    leavePay: markUnapproved ? "unpaid" : null,
+    leaveCategory: markUnapproved ? "unapproved" : null,
     anomalyFlags,
     source: "system",
   };
@@ -353,6 +356,12 @@ export function summarizeAttendance(
         break;
       case "on_leave":
         summary.scheduledWorkingDays += 1;
+        if (day.leaveCategory === "unapproved") {
+          summary.absentDays += 1;
+          lop += 1;
+          summary.lopBreakdown.absent += 1;
+          break;
+        }
         if (day.leaveCategory === "unplanned") {
           summary.unplannedLeaveDays += 1;
           lop += unplannedLopDays;
@@ -412,7 +421,7 @@ export function correctionPermission(input: {
     return {
       allowed: false,
       requiresApproval: false,
-      message: "Future dates cannot be marked absent",
+      message: "Future dates cannot be marked as unapproved leave",
     };
   }
   if (input.periodFinalized && input.role !== "SuperAdmin") {
@@ -428,10 +437,19 @@ export function correctionPermission(input: {
   return { allowed: true, requiresApproval: false };
 }
 
+export function isUnapprovedLeaveDay(day: {
+  status: AttendanceStatus | null;
+  leaveCategory?: RecordLeaveCategory | null;
+}): boolean {
+  if (!day.status) return false;
+  return day.status === "absent" || (day.status === "on_leave" && day.leaveCategory === "unapproved");
+}
+
 export function leaveCategoryForStatus(
   status: AttendanceStatus,
-  category: LeaveCategory | null,
-): LeaveCategory | null {
+  category: RecordLeaveCategory | null,
+): RecordLeaveCategory | null {
+  if (status === "absent") return "unapproved";
   if (status !== "on_leave") return null;
   return category ?? "planned";
 }

@@ -118,14 +118,16 @@ describe("attendance day resolution", () => {
     }
   });
 
-  it("marks a completed working day without a login as absent only after the policy is confirmed", () => {
+  it("marks a completed working day without a login as unapproved leave only after the policy is confirmed", () => {
     const absent = resolveAttendanceDay(
       input({ attendanceDate: "2026-10-30", now: afterCutoff, policy: confirmed }),
     );
     const pending = resolveAttendanceDay(
       input({ attendanceDate: "2026-10-30", now: afterCutoff, policy: draft }),
     );
-    expect(absent.persist && absent.status).toBe("absent");
+    expect(absent.persist && absent.status).toBe("on_leave");
+    expect(absent.persist && absent.leaveCategory).toBe("unapproved");
+    expect(absent.persist && absent.leavePay).toBe("unpaid");
     expect(pending.persist && pending.status).toBe("pending_verification");
   });
 
@@ -258,7 +260,8 @@ describe("attendance day resolution", () => {
         exitDate: "2026-10-15",
       }),
     );
-    expect(lastDay.persist && lastDay.status).toBe("absent");
+    expect(lastDay.persist && lastDay.status).toBe("on_leave");
+    expect(lastDay.persist && lastDay.leaveCategory).toBe("unapproved");
     expect(after.persist).toBe(false);
   });
 
@@ -646,6 +649,19 @@ describe("leave categories in loss of pay", () => {
   it("keeps a system-detected absence at 1 LOP day", () => {
     const summary = summarizeAttendance([day("absent")], policy);
     expect(summary.lopDays).toBe(1);
+    expect(summary.absentDays).toBe(1);
+    expect(summary.lopBreakdown.absent).toBe(1);
+  });
+
+  it("treats a no-show stored as unapproved leave as 1 LOP day", () => {
+    const summary = summarizeAttendance(
+      [{ status: "on_leave", leavePay: "unpaid", leaveCategory: "unapproved", isLate: false }],
+      policy,
+    );
+    expect(summary.lopDays).toBe(1);
+    expect(summary.absentDays).toBe(1);
+    expect(summary.unpaidLeaveDays).toBe(0);
+    expect(summary.unplannedLeaveDays).toBe(0);
     expect(summary.lopBreakdown.absent).toBe(1);
   });
 

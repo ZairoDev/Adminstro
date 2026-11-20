@@ -1,7 +1,7 @@
 import type {
   AttendanceStatus,
   AttendanceSummary,
-  LeaveCategory,
+  RecordLeaveCategory,
   LeavePay,
   LopBreakdown,
 } from "@/modules/attendance/types";
@@ -24,7 +24,7 @@ export type AttendanceDayCell = {
   isLate: boolean;
   lateByMinutes: number;
   leavePay: LeavePay | null;
-  leaveCategory: LeaveCategory | null;
+  leaveCategory: RecordLeaveCategory | null;
   /** Set when the day came from an approved leave request. */
   leaveRequestId: string | null;
   firstLoginAt: string | null;
@@ -85,6 +85,8 @@ export type AttendanceMonthPayload = {
   policyConfirmed: boolean;
   periodStatus: "open" | "finalized";
   departments: string[];
+  /** company = HR/Admin/SuperAdmin. team = reporting manager, limited to their reports. */
+  scope: "company" | "team";
   canCorrect: boolean;
   canManagePolicy: boolean;
   cards: AttendanceCards;
@@ -104,6 +106,24 @@ export type AttendanceAuditView = {
   createdAt: string;
 };
 
+/** The rules a person needs in order to read their own month. */
+export type AttendanceGuide = {
+  /** Minutes after shift start that still count as on time. */
+  graceMinutes: number;
+  /** Present days that started after the grace window. */
+  graceDaysUsed: number;
+  /** How many of those late days are allowed before extra loss of pay. */
+  graceDaysAllowed: number;
+  /** When true, crossing the allowance adds loss of pay, and a very late arrival becomes a half day. */
+  graceCutsPay: boolean;
+  /** Minutes after shift start that mark a half day, when grace cuts pay. */
+  severeLateMinutes: number;
+  /** Loss of pay charged for each half day. */
+  halfDayLopFactor: number;
+  /** Loss of pay charged for each unplanned leave day. */
+  unplannedLeaveLopDays: number;
+};
+
 export type EmployeeAttendancePayload = {
   employee: {
     id: string;
@@ -121,6 +141,7 @@ export type EmployeeAttendancePayload = {
   dates: string[];
   days: AttendanceDayCell[];
   summary: AttendanceSummary;
+  guide: AttendanceGuide;
   shiftLabel: string;
   shiftChanges: boolean;
   policyConfirmed: boolean;

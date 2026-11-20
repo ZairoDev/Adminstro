@@ -12,7 +12,6 @@ import {
 import Link from "next/link";
 import axios from "@/util/axios";
 import { useAuthStore } from "@/AuthStore";
-import { InfinityLoader } from "@/components/Loaders";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -33,73 +32,18 @@ type HierarchyMode = "reporting" | "training";
 type OrgScope = "company" | "team" | "peers";
 type TrainerScope = "company" | "mine" | "cohort";
 
-const LEVEL_COLORS = [
-  "#4f46e5",
-  "#ca8a04",
-  "#0d9488",
-  "#059669",
-  "#2563eb",
-  "#dc2626",
-];
-
-const ROLE_COLORS: Record<string, string> = {
-  SuperAdmin: "#4f46e5",
-  Admin: "#6366f1",
-  HR: "#db2777",
-  HAdmin: "#c026d3",
-  Sales: "#ca8a04",
-  "Sales-TeamLead": "#d97706",
-  "sales-intern": "#eab308",
-  "Sales-Onboarding": "#f59e0b",
-  "Sales-Onboarding-Broker": "#fbbf24",
-  LeadGen: "#0d9488",
-  "LeadGen-TeamLead": "#14b8a6",
-  Advert: "#2563eb",
-  Content: "#0891b2",
-  Developer: "#7c3aed",
-  Guest: "#64748b",
-  Intern: "#94a3b8",
-  hSale: "#ea580c",
-};
-
-const ROLE_FALLBACK = [
-  "#4f46e5",
-  "#0d9488",
-  "#ca8a04",
-  "#db2777",
-  "#2563eb",
-  "#059669",
-  "#ea580c",
-  "#7c3aed",
-];
-
-const LINE = "#94a3b8";
-/** Fixed “You” marker — same for every logged-in viewer. */
-const YOU_ACCENT = "#64748b";
+const YOU = "#1d5fbf";
+const LINE = "#c8c8c8";
 /** Full gap parent → child. Fork sits at STEM/2 (classic T-junction). */
-const STEM = 44;
+const STEM = 36;
 const HALF = STEM / 2;
-const AVATAR_CHILD = 56;
-const PILL_W = 156;
-const NAME_FS = 14;
-const TITLE_FS = 12;
+const AVATAR = 40;
+const CARD_W = 148;
 /** Padding inside the dedicated graph box (each side). */
 const BOX_PAD_X = 16;
 const BOX_PAD_Y = 16;
 const VIEW_MIN_H = 420;
 const DRAG_THRESHOLD = 4;
-
-function levelColor(depth: number) {
-  return LEVEL_COLORS[Math.min(depth, LEVEL_COLORS.length - 1)];
-}
-
-function roleColor(role: string) {
-  const key = (role || "").trim();
-  if (key && ROLE_COLORS[key]) return ROLE_COLORS[key];
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) | 0;
-  return ROLE_FALLBACK[Math.abs(hash) % ROLE_FALLBACK.length];
-}
 
 function initials(name: string) {
   return name
@@ -110,45 +54,20 @@ function initials(name: string) {
     .join("");
 }
 
-function labelFor(node: OrgNode, currentUserId: string | null) {
-  if (currentUserId && node.id === currentUserId) return "You";
-  return node.name;
-}
-
-function Avatar({
-  node,
-  accent,
-  size,
-  className,
-}: {
-  node: OrgNode;
-  accent: string;
-  size: number;
-  className?: string;
-}) {
+function Avatar({ node, you }: { node: OrgNode; you: boolean }) {
   return (
     <div
       className={cn(
-        "rounded-full overflow-hidden bg-muted shadow-md shrink-0 border-[3px]",
-        className,
+        "shrink-0 overflow-hidden rounded-full bg-[#eef1f4] dark:bg-muted",
+        you ? "ring-2 ring-[#1d5fbf] ring-offset-2 ring-offset-white dark:ring-offset-card" : "ring-1 ring-[#e8e8e8] dark:ring-border",
       )}
-      style={{ width: size, height: size, borderColor: accent }}
+      style={{ width: AVATAR, height: AVATAR }}
     >
       {node.profilePic ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={node.profilePic}
-          alt={node.name}
-          className="h-full w-full object-cover"
-        />
+        <img src={node.profilePic} alt="" className="h-full w-full object-cover" />
       ) : (
-        <div
-          className="h-full w-full flex items-center justify-center font-semibold text-white"
-          style={{
-            backgroundColor: accent,
-            fontSize: Math.max(14, size * 0.28),
-          }}
-        >
+        <div className="flex h-full w-full items-center justify-center text-sm font-medium text-[#111] dark:text-foreground">
           {initials(node.name) || "?"}
         </div>
       )}
@@ -156,124 +75,55 @@ function Avatar({
   );
 }
 
-/**
- * Side: round capsule — avatar fused to pill on the right (no connector dots).
- * Stack: avatar above pill.
- */
 function PersonCard({
   node,
-  accent,
   currentUserId,
   showTrainerBadge,
 }: {
   node: OrgNode;
-  accent: string;
   currentUserId: string | null;
   showTrainerBadge?: boolean;
 }) {
   const title = node.jobTitle || node.role || "Employee";
-  const label = labelFor(node, currentUserId);
   const isYou = Boolean(currentUserId && node.id === currentUserId);
-  const tone = isYou ? YOU_ACCENT : accent;
   const trainerBadge = showTrainerBadge && node.isTrainer === true;
 
   return (
     <Link
       href={`/dashboard/employeedetails/${node.id}`}
-      className="org-person relative z-[2] flex flex-col items-center no-underline mx-auto"
-      style={{ width: PILL_W }}
+      className="org-person relative z-[2] mx-auto flex flex-col items-center rounded-lg border border-[#e8e8e8] bg-white px-3 py-3 text-center no-underline hover:border-[#bdbdbd] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d5fbf] dark:border-border dark:bg-card dark:hover:border-muted-foreground"
+      style={{ width: CARD_W }}
       title={`${node.name} · ${title}`}
     >
-      <Avatar
-        node={node}
-        accent={tone}
-        size={AVATAR_CHILD}
-        className="relative z-10"
-      />
-      <div
-        className="relative z-0 -mt-2.5 pt-3.5 pb-1.5 px-2 text-center text-white shadow-md box-border"
-        style={{
-          width: PILL_W,
-          borderRadius: 9999,
-          backgroundColor: tone,
-        }}
-      >
-        <p
-          className="font-semibold leading-tight truncate"
-          style={{ fontSize: NAME_FS }}
-        >
-          {label}
+      <Avatar node={node} you={isYou} />
+      <p className="mt-2 w-full truncate text-sm font-medium leading-tight text-[#111] dark:text-foreground">
+        {node.name}
+      </p>
+      <p className="mt-0.5 w-full truncate text-xs leading-tight text-[#5f6368] dark:text-muted-foreground">
+        {title}
+      </p>
+      {isYou ? (
+        <p className="mt-1 text-xs font-medium leading-tight" style={{ color: YOU }}>
+          You
         </p>
-        <p
-          className="opacity-90 leading-tight truncate mt-0.5"
-          style={{ fontSize: TITLE_FS }}
-        >
-          {title}
-        </p>
-        {trainerBadge ? (
-          <p className="text-[8px] font-medium tracking-wide uppercase opacity-90 mt-0.5 truncate">
-            Trainer
-          </p>
-        ) : null}
-      </div>
-    </Link>
-  );
-}
-
-/** Unassigned list — simple stack, no dots, color by role. */
-function UnassignedCard({
-  node,
-  currentUserId,
-  showTrainerBadge,
-}: {
-  node: OrgNode;
-  currentUserId: string | null;
-  showTrainerBadge?: boolean;
-}) {
-  const isYou = Boolean(currentUserId && node.id === currentUserId);
-  const accent = isYou ? YOU_ACCENT : roleColor(node.role);
-  const title = node.jobTitle || node.role || "Employee";
-  const label = labelFor(node, currentUserId);
-  const trainerBadge = showTrainerBadge && node.isTrainer === true;
-  return (
-    <Link
-      href={`/dashboard/employeedetails/${node.id}`}
-      className="flex flex-col items-center no-underline w-[150px]"
-    >
-      <Avatar node={node} accent={accent} size={52} />
-      <div
-        className="mt-2 w-full rounded-xl px-2.5 py-1.5 text-center text-white shadow-sm"
-        style={{ backgroundColor: accent }}
-      >
-        <p className="font-semibold text-xs leading-tight truncate" title={node.name}>
-          {label}
-        </p>
-        <p className="text-[10px] opacity-90 leading-tight truncate mt-0.5" title={title}>
-          {title}
-        </p>
-        {trainerBadge ? (
-          <p className="text-[9px] font-medium tracking-wide uppercase opacity-90 mt-0.5">
-            Trainer
-          </p>
-        ) : null}
-      </div>
+      ) : null}
+      {trainerBadge ? (
+        <p className="mt-1 text-xs leading-tight text-[#111] dark:text-foreground">Trainer</p>
+      ) : null}
     </Link>
   );
 }
 
 function OrgBranch({
   node,
-  depth,
   currentUserId,
   showTrainerBadge,
 }: {
   node: OrgNode;
-  depth: number;
   currentUserId: string | null;
   showTrainerBadge?: boolean;
 }) {
   const kids = node.children;
-  const accent = levelColor(depth);
   const hasKids = kids.length > 0;
 
   return (
@@ -281,7 +131,6 @@ function OrgBranch({
       <div className="org-card">
         <PersonCard
           node={node}
-          accent={accent}
           currentUserId={currentUserId}
           showTrainerBadge={showTrainerBadge}
         />
@@ -292,7 +141,6 @@ function OrgBranch({
             <OrgBranch
               key={child.id}
               node={child}
-              depth={depth + 1}
               currentUserId={currentUserId}
               showTrainerBadge={showTrainerBadge}
             />
@@ -487,24 +335,31 @@ function OrgTree({
 
   return (
     <div className="org-graph-shell relative w-full min-w-0">
-      <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
-        <p className="hidden sm:block text-[11px] text-muted-foreground bg-background/80 backdrop-blur px-2 py-1 rounded-md border">
-          Drag to pan
-        </p>
-        <Button
-          type="button"
-          size="sm"
-          variant={fitted ? "secondary" : "outline"}
-          className="shadow-sm bg-background"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (fitted) applyActualSize();
-            else applyFitToScreen();
-          }}
-        >
-          {fitted ? "Actual size" : "Fit to screen"}
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e8e8e8] px-4 py-3 dark:border-border">
+        <h2 className="min-w-0 truncate text-base font-medium text-[#111] dark:text-foreground">
+          {root.name}
+          <span className="font-normal text-[#5f6368] dark:text-muted-foreground">
+            {" "}
+            · {root.jobTitle || root.role || "Employee"}
+          </span>
+        </h2>
+        <div className="flex items-center gap-3">
+          <p className="hidden text-xs text-[#5f6368] sm:block dark:text-muted-foreground">Drag to move</p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="bg-white dark:bg-card"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (fitted) applyActualSize();
+              else applyFitToScreen();
+            }}
+          >
+            {fitted ? "Actual size" : "Fit to screen"}
+          </Button>
+        </div>
       </div>
       <div
         ref={viewportRef}
@@ -535,7 +390,6 @@ function OrgTree({
             <ul className="org-children is-root">
               <OrgBranch
                 node={root}
-                depth={0}
                 currentUserId={currentUserId}
                 showTrainerBadge={showTrainerBadge}
               />
@@ -546,18 +400,6 @@ function OrgTree({
     </div>
   );
 }
-
-const REPORTING_SCOPE_BLURB: Record<OrgScope, string> = {
-  company: "Full company reporting graph.",
-  team: "Managers above you, peer leads at your level (without their teams), and your own reports.",
-  peers: "Managers above you and teammates at your level.",
-};
-
-const TRAINING_SCOPE_BLURB: Record<TrainerScope, string> = {
-  company: "Full company trainer–trainee graph.",
-  mine: "Your trainees, plus your trainer above you if assigned.",
-  cohort: "Your trainer and fellow trainees under the same trainer.",
-};
 
 function normalizeTree(raw: unknown): OrgNode[] {
   if (!Array.isArray(raw)) return [];
@@ -658,7 +500,6 @@ export default function OrgHierarchyPage() {
 
   const isTraining = mode === "training" && canViewTraining;
   const tree = isTraining ? trainingTree : reportingTree;
-  const scope = isTraining ? trainingScope : reportingScope;
   const stats = isTraining ? trainingStats : reportingStats;
 
   const { chartRoots, unassigned } = useMemo(() => {
@@ -666,25 +507,6 @@ export default function OrgHierarchyPage() {
     const alone = tree.filter((n) => n.children.length === 0);
     return { chartRoots: withKids, unassigned: alone };
   }, [tree]);
-
-  const blurb = (() => {
-    if (isTraining) {
-      if (trainingScope === "cohort" && !viewerHasTrainer) {
-        return "No trainer is set on your profile yet.";
-      }
-      if (trainingScope === "mine" && !viewerHasTrainees) {
-        return "Nobody is assigned to you as trainees yet.";
-      }
-      return TRAINING_SCOPE_BLURB[trainingScope];
-    }
-    if (reportingScope === "peers" && !viewerHasReportingManager) {
-      return "No reporting manager is set on your profile yet.";
-    }
-    if (reportingScope === "team" && !viewerHasReports) {
-      return "You are marked as a reporting manager, but nobody reports to you yet.";
-    }
-    return REPORTING_SCOPE_BLURB[reportingScope];
-  })();
 
   const statsLine = (() => {
     if (isTraining) {
@@ -730,32 +552,27 @@ export default function OrgHierarchyPage() {
     return "No team tree to draw yet.";
   })();
 
-  const unassignedHeading = (() => {
-    if (
-      scope !== "company" &&
-      unassigned.length === 1 &&
-      chartRoots.length === 0
-    ) {
-      return "You";
-    }
-    return isTraining
-      ? `No trainer assigned yet (${unassigned.length})`
-      : `No reporting line yet (${unassigned.length})`;
-  })();
+  const unassignedHeading = isTraining
+    ? `No trainer assigned yet (${unassigned.length})`
+    : `No reporting line yet (${unassigned.length})`;
 
   return (
-    <div className="px-4 py-6 w-full min-w-0 max-w-[100vw] overflow-x-hidden">
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-4 max-w-6xl mx-auto">
-        <div>
-          <div className="h-0.5 w-8 bg-primary mb-2 rounded-full" />
-          <h1 className="text-2xl font-semibold tracking-tight">
-            <span className="text-muted-foreground font-medium">TEAM</span>{" "}
-            <span className="text-primary">HIERARCHY</span>
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">{blurb}</p>
+    <div className="min-w-0 overflow-x-hidden bg-[#f2f4f7] px-4 py-6 text-[#111] dark:bg-background dark:text-foreground md:px-6">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">Team hierarchy</h1>
+          {!loading && !error ? (
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-[#5f6368] dark:text-muted-foreground">
+              {statsLine}
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-[#5f6368] dark:text-muted-foreground">
+              Who reports to whom, and who trains whom.
+            </p>
+          )}
           {canViewTraining ? (
             <div
-              className="mt-3 inline-flex rounded-lg border bg-muted/40 p-0.5"
+              className="mt-3 inline-flex rounded-md border border-[#e8e8e8] bg-white p-0.5 dark:border-border dark:bg-card"
               role="tablist"
               aria-label="Hierarchy view"
             >
@@ -764,10 +581,10 @@ export default function OrgHierarchyPage() {
                 role="tab"
                 aria-selected={mode === "reporting"}
                 className={cn(
-                  "px-3 py-1.5 text-sm rounded-md transition-colors",
+                  "min-h-9 rounded px-3 text-sm",
                   mode === "reporting"
-                    ? "bg-background text-foreground shadow-sm font-medium"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-[#f2f4f7] font-medium text-[#111] dark:bg-muted dark:text-foreground"
+                    : "text-[#5f6368] hover:text-[#111] dark:text-muted-foreground",
                 )}
                 onClick={() => setMode("reporting")}
               >
@@ -778,10 +595,10 @@ export default function OrgHierarchyPage() {
                 role="tab"
                 aria-selected={mode === "training"}
                 className={cn(
-                  "px-3 py-1.5 text-sm rounded-md transition-colors",
+                  "min-h-9 rounded px-3 text-sm",
                   mode === "training"
-                    ? "bg-background text-foreground shadow-sm font-medium"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-[#f2f4f7] font-medium text-[#111] dark:bg-muted dark:text-foreground"
+                    : "text-[#5f6368] hover:text-[#111] dark:text-muted-foreground",
                 )}
                 onClick={() => setMode("training")}
               >
@@ -790,38 +607,45 @@ export default function OrgHierarchyPage() {
             </div>
           ) : null}
         </div>
-        <Button variant="outline" onClick={load} disabled={loading}>
+        <Button variant="outline" className="bg-white dark:bg-card" onClick={load} disabled={loading}>
           Refresh
         </Button>
       </div>
 
-      {!loading && !error ? (
-        <p className="text-sm text-muted-foreground mb-4 max-w-6xl mx-auto">
-          {statsLine}
-        </p>
-      ) : null}
-
       {loading ? (
-        <div className="flex justify-center py-16">
-          <InfinityLoader className="w-16 h-12" />
+        <div className="rounded-lg border border-[#e8e8e8] bg-white px-4 py-10 dark:border-border dark:bg-card" aria-busy="true">
+          <div className="mx-auto flex w-fit flex-col items-center gap-6">
+            <div className="h-[88px] w-[148px] rounded-lg bg-[#e6e8eb] dark:bg-muted" />
+            <div className="h-px w-40 bg-[#e6e8eb] dark:bg-muted" />
+            <div className="flex gap-4">
+              <div className="h-[88px] w-[148px] rounded-lg bg-[#e6e8eb] dark:bg-muted" />
+              <div className="h-[88px] w-[148px] rounded-lg bg-[#e6e8eb] dark:bg-muted" />
+              <div className="h-[88px] w-[148px] rounded-lg bg-[#e6e8eb] dark:bg-muted" />
+            </div>
+          </div>
         </div>
       ) : error ? (
-        <p className="text-destructive text-sm max-w-6xl mx-auto">{error}</p>
+        <div className="rounded-lg border border-[#e8e8e8] bg-white px-4 py-8 dark:border-border dark:bg-card">
+          <p className="text-sm text-[#111] dark:text-foreground">{error}</p>
+          <Button variant="outline" className="mt-3 bg-white dark:bg-card" onClick={load}>
+            Retry
+          </Button>
+        </div>
       ) : chartRoots.length === 0 && unassigned.length === 0 ? (
-        <p className="text-sm text-muted-foreground max-w-6xl mx-auto">
-          No active employees found.
-        </p>
+        <div className="rounded-lg border border-dashed border-[#d0d0d0] bg-white px-4 py-8 dark:border-border dark:bg-card">
+          <p className="text-sm text-[#5f6368] dark:text-muted-foreground">No active employees found.</p>
+        </div>
       ) : (
-        <div className="space-y-10 w-full min-w-0">
+        <div className="w-full min-w-0 space-y-4">
           {chartRoots.length === 0 ? (
-            <p className="text-sm text-muted-foreground max-w-6xl mx-auto">
-              {emptyChartMessage}
-            </p>
+            <div className="rounded-lg border border-dashed border-[#d0d0d0] bg-white px-4 py-8 dark:border-border dark:bg-card">
+              <p className="text-sm text-[#5f6368] dark:text-muted-foreground">{emptyChartMessage}</p>
+            </div>
           ) : (
             chartRoots.map((root) => (
               <div
                 key={`${isTraining ? "t" : "r"}-${root.id}`}
-                className="w-full min-w-0 rounded-xl border bg-background shadow-sm overflow-hidden"
+                className="w-full min-w-0 overflow-hidden rounded-lg border border-[#e8e8e8] bg-white dark:border-border dark:bg-card"
               >
                 <OrgTree
                   root={root}
@@ -833,13 +657,11 @@ export default function OrgHierarchyPage() {
           )}
 
           {unassigned.length > 0 ? (
-            <div className="w-full min-w-0 max-w-6xl mx-auto">
-              <h2 className="text-sm font-semibold mb-4 text-muted-foreground">
-                {unassignedHeading}
-              </h2>
-              <div className="flex flex-wrap gap-6 justify-start">
+            <section className="w-full min-w-0 rounded-lg border border-[#e8e8e8] bg-white px-4 py-4 dark:border-border dark:bg-card">
+              <h2 className="text-base font-medium text-[#111] dark:text-foreground">{unassignedHeading}</h2>
+              <div className="mt-4 flex flex-wrap gap-3">
                 {unassigned.map((node) => (
-                  <UnassignedCard
+                  <PersonCard
                     key={node.id}
                     node={node}
                     currentUserId={currentUserId}
@@ -847,7 +669,7 @@ export default function OrgHierarchyPage() {
                   />
                 ))}
               </div>
-            </div>
+            </section>
           ) : null}
         </div>
       )}
@@ -883,8 +705,8 @@ export default function OrgHierarchyPage() {
           left: 50%;
           height: ${HALF}px;
           width: 0;
-          border-left: 2px solid ${LINE};
-          transform: translateX(-1px);
+          border-left: 1px solid ${LINE};
+          transform: translateX(-0.5px);
           z-index: 0;
         }
 
@@ -921,8 +743,8 @@ export default function OrgHierarchyPage() {
           left: 50%;
           height: ${HALF}px;
           width: 0;
-          border-left: 2px solid ${LINE};
-          transform: translateX(-1px);
+          border-left: 1px solid ${LINE};
+          transform: translateX(-0.5px);
           z-index: 0;
         }
 
@@ -933,7 +755,7 @@ export default function OrgHierarchyPage() {
           left: 0;
           width: 100%;
           height: 0;
-          border-top: 2px solid ${LINE};
+          border-top: 1px solid ${LINE};
           z-index: 0;
         }
 
@@ -959,19 +781,6 @@ export default function OrgHierarchyPage() {
           height: ${STEM}px;
         }
 
-        .org-children:not(.is-root) > .org-li > .org-card::before {
-          content: "";
-          position: absolute;
-          top: -10px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 0;
-          height: 0;
-          border-left: 6px solid transparent;
-          border-right: 6px solid transparent;
-          border-top: 8px solid ${LINE};
-          z-index: 3;
-        }
       `}</style>
     </div>
   );

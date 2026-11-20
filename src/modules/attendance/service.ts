@@ -18,6 +18,7 @@ import {
   canAutoUpdate,
   correctionPermission,
   emptySummary,
+  isUnapprovedLeaveDay,
   lateArrival,
   leaveCategoryForStatus,
   leavePayForStatus,
@@ -64,8 +65,8 @@ import {
   type AttendancePolicyRules,
   type AttendanceStatus,
   type DayContribution,
-  type LeaveCategory,
   type LeavePay,
+  type RecordLeaveCategory,
   type ShiftAssignmentRange,
   type ShiftChoice,
 } from "@/modules/attendance/types";
@@ -74,6 +75,10 @@ import { connectDb } from "@/util/db";
 import type { AttendanceActor } from "@/modules/attendance/access";
 import { canCorrectAttendance } from "@/modules/attendance/access";
 import {
+  assertCanViewEmployeeAttendance,
+  resolveAttendanceReadScope,
+} from "@/modules/attendance/team-scope";
+import {
   ATTENDANCE_PAGE_SIZE,
   type AttendanceAuditView,
   type AttendanceCards,
@@ -81,6 +86,7 @@ import {
   type AttendanceEmployeeRow,
   type AttendanceMonthPayload,
   type DepartmentOption,
+  type AttendanceGuide,
   type EmployeeAttendancePayload,
   type DepartmentShiftView,
   type HolidayView,
@@ -113,7 +119,7 @@ export type RecordLean = {
   isLate?: boolean;
   lateByMinutes?: number;
   leavePay?: LeavePay | null;
-  leaveCategory?: LeaveCategory | null;
+  leaveCategory?: RecordLeaveCategory | null;
   leaveRequestId?: string | null;
   firstLoginAt?: Date | null;
   lastLogoutAt?: Date | null;
@@ -848,7 +854,8 @@ export async function reconcileRange(from: string, to: string): Promise<{ writte
         status: resolved.status,
         isLate: resolved.isLate,
         lateByMinutes: resolved.lateByMinutes,
-        leavePay: null,
+        leavePay: resolved.leavePay,
+        leaveCategory: resolved.leaveCategory,
         firstLoginAt: resolved.firstLoginAt,
         lastLogoutAt: checkTimes.lastLogoutAt,
         checkInDevice: checkTimes.checkInDevice,
@@ -864,7 +871,8 @@ export async function reconcileRange(from: string, to: string): Promise<{ writte
         current.status === next.status &&
         Boolean(current.isLate) === next.isLate &&
         (current.lateByMinutes ?? 0) === next.lateByMinutes &&
-        (current.leavePay ?? null) === null &&
+        (current.leavePay ?? null) === (next.leavePay ?? null) &&
+        (current.leaveCategory ?? null) === (next.leaveCategory ?? null) &&
         sameInstant(current.firstLoginAt, next.firstLoginAt) &&
         sameInstant(current.lastLogoutAt, next.lastLogoutAt) &&
         sameDevice(current.checkInDevice, next.checkInDevice) &&
@@ -982,7 +990,12 @@ type MonthFilters = {
   page: number;
 };
 
-async function loadMonthRows(filters: Omit<MonthFilters, "card" | "page">): Promise<{
+type MonthRowFilters = Omit<MonthFilters, "card" | "page"> & {
+  /** When set, the grid is limited to these employees (a reporting manager's team). */
+  employeeIds?: string[];
+};
+
+async function loadMonthRows(filters: MonthRowFilters): Promise<{
   month: PayrollMonth;
   dates: string[];
   rows: AttendanceEmployeeRow[];
@@ -1006,6 +1019,13 @@ async function loadMonthRows(filters: Omit<MonthFilters, "card" | "page">): Prom
       { $or: [{ inactiveDate: null }, { inactiveDate: { $gte: rangeStart } }] },
     ],
   };
+  if (filters.employeeIds) {
+    employeeFilter._id = {
+      $in: filters.employeeIds
+        .filter((id) => mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id)),
+    };
+  }
   if (filters.search) {
     const pattern = new RegExp(escapeRegex(filters.search), "i");
     employeeFilter.$and = [
@@ -1165,6 +1185,8 @@ function matchesCard(row: AttendanceEmployeeRow, card: MonthFilters["card"], asO
   if (card === "present") return day.status === "present" || day.status === "work_from_home";
   if (card === "late") return day.isLate && (day.status === "present" || day.status === "half_day");
   if (card === "pending") return day.status === "pending_verification";
+  if (card === "absent") return isUnapprovedLeaveDay(day);
+  if (card === "on_leave") return day.status === "on_leave" && !isUnapprovedLeaveDay(day);
   return day.status === card;
 }
 
@@ -1184,8 +1206,8 @@ function buildCards(rows: AttendanceEmployeeRow[], asOfDate: string): Attendance
     const day = row.days.find((item) => item.date === asOfDate);
     if (!day?.status) continue;
     if (day.status === "present" || day.status === "work_from_home") presentOnDate += 1;
-    if (day.status === "absent") absentOnDate += 1;
-    if (day.status === "on_leave") onLeaveOnDate += 1;
+    if (isUnapprovedLeaveDay(day)) absentOnDate += 1;
+    else if (day.status === "on_leave") onLeaveOnDate += 1;
     if (day.isLate && (day.status === "present" || day.status === "half_day")) lateOnDate += 1;
     if (day.status === "pending_verification") pendingOnDate += 1;
   }
@@ -1207,7 +1229,13 @@ export async function getAttendanceMonth(
   filters: MonthFilters,
   actor: AttendanceActor,
 ): Promise<AttendanceMonthPayload> {
-  const loaded = await loadMonthRows(filters);
+  const scope = await resolveAttendanceReadScope(actor);
+  const loaded = await loadMonthRows({
+    month: filters.month,
+    department: filters.department,
+    search: filters.search,
+    employeeIds: scope.kind === "team" ? scope.employeeIds : undefined,
+  });
   const visible = loaded.rows.filter((row) => matchesCard(row, filters.card, loaded.asOfDate));
   const pageSize = ATTENDANCE_PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
@@ -1224,6 +1252,7 @@ export async function getAttendanceMonth(
     policyConfirmed: loaded.policyConfirmed,
     periodStatus: loaded.periodStatus,
     departments: loaded.departments,
+    scope: scope.kind,
     canCorrect: canCorrectAttendance(actor.role),
     canManagePolicy: actor.role === "SuperAdmin",
     cards: buildCards(loaded.rows, loaded.asOfDate),
@@ -1231,12 +1260,21 @@ export async function getAttendanceMonth(
   };
 }
 
-export async function getAttendanceSummary(monthValue: string): Promise<AttendanceCards & {
+export async function getAttendanceSummary(
+  monthValue: string,
+  actor: AttendanceActor,
+): Promise<AttendanceCards & {
   month: string;
   policyConfirmed: boolean;
   periodStatus: "open" | "finalized";
 }> {
-  const loaded = await loadMonthRows({ month: monthValue, department: "", search: "" });
+  const scope = await resolveAttendanceReadScope(actor);
+  const loaded = await loadMonthRows({
+    month: monthValue,
+    department: "",
+    search: "",
+    employeeIds: scope.kind === "team" ? scope.employeeIds : undefined,
+  });
   return {
     month: loaded.month.key,
     policyConfirmed: loaded.policyConfirmed,
@@ -1259,14 +1297,27 @@ export async function employeeOrThrow(employeeId: string): Promise<EmployeeLean>
   return employee;
 }
 
+function attendanceGuide(
+  rules: AttendancePolicyRules,
+  contributions: DayContribution[],
+): AttendanceGuide {
+  return {
+    graceMinutes: rules.graceMinutes,
+    graceDaysUsed: contributions.filter((day) => day.status === "present" && day.isLate).length,
+    graceDaysAllowed: rules.lateGraceThresholdCount,
+    graceCutsPay: rules.lateCreatesLop,
+    severeLateMinutes: rules.severeLateMinutes,
+    halfDayLopFactor: rules.halfDayLopFactor,
+    unplannedLeaveLopDays: rules.unplannedLeaveLopDays,
+  };
+}
+
 export async function getEmployeeAttendance(
   employeeId: string,
   monthValue: string,
   actor: AttendanceActor,
 ): Promise<EmployeeAttendancePayload> {
-  if (actor.id !== employeeId && !canCorrectAttendance(actor.role)) {
-    throw new AttendanceError(403, "You can only view your own attendance");
-  }
+  await assertCanViewEmployeeAttendance(actor, employeeId);
   const month = requireMonth(monthValue);
   await reconcileMonth(month);
   await backfillMissingCheckouts();
@@ -1385,6 +1436,7 @@ export async function getEmployeeAttendance(
     dates,
     days: cells,
     summary: contributions.length ? summarizeAttendance(contributions, rules) : emptySummary(),
+    guide: attendanceGuide(rules, contributions),
     shiftLabel,
     shiftChanges: shiftLabels.size > 1,
     policyConfirmed: rules.confirmed,
@@ -1424,7 +1476,7 @@ export async function correctAttendanceRecord(
   input: {
     status: AttendanceStatus;
     leavePay?: LeavePay | null;
-    leaveCategory?: LeaveCategory | null;
+    leaveCategory?: RecordLeaveCategory | null;
     firstLoginTime?: string | null;
     remarks: string;
     reason: string;
@@ -1446,11 +1498,19 @@ export async function correctAttendanceRecord(
       "This day comes from a leave request. Cancel or change the request from the leave page instead",
     );
   }
-  // An unplanned leave is always unpaid, so the pay choice is implied.
-  const requestedCategory = input.status === "on_leave" ? (input.leaveCategory ?? null) : null;
+  // A no-show is unapproved leave. Unplanned and unapproved leave are always unpaid.
+  const markingUnapproved =
+    input.status === "absent" ||
+    (input.status === "on_leave" && input.leaveCategory === "unapproved");
+  const status: AttendanceStatus = markingUnapproved ? "on_leave" : input.status;
+  const requestedCategory = markingUnapproved
+    ? "unapproved"
+    : status === "on_leave"
+      ? (input.leaveCategory ?? null)
+      : null;
   const requestedPay: LeavePay | null | undefined =
-    requestedCategory === "unplanned" ? "unpaid" : input.leavePay;
-  if (input.status === "on_leave" && requestedPay !== "paid" && requestedPay !== "unpaid") {
+    requestedCategory === "unplanned" || requestedCategory === "unapproved" ? "unpaid" : input.leavePay;
+  if (status === "on_leave" && requestedPay !== "paid" && requestedPay !== "unpaid") {
     throw new AttendanceError(400, "Choose whether this leave is paid or unpaid");
   }
   const period = await AttendancePeriod.findOne({ monthKey: monthOf(record.attendanceDate) })
@@ -1459,7 +1519,7 @@ export async function correctAttendanceRecord(
   const permission = correctionPermission({
     periodFinalized: period?.status === "finalized",
     role: actor.role,
-    status: input.status,
+    status: markingUnapproved ? "absent" : input.status,
     attendanceDate: record.attendanceDate,
     today: istDateKey(new Date()),
   });
@@ -1472,8 +1532,8 @@ export async function correctAttendanceRecord(
   if (typeof input.firstLoginTime === "string") {
     firstLoginAt = clockOnDate(record.attendanceDate, input.firstLoginTime);
   }
-  const leavePay = leavePayForStatus(input.status, requestedPay ?? null);
-  const leaveCategory = leaveCategoryForStatus(input.status, requestedCategory);
+  const leavePay = leavePayForStatus(status, requestedPay ?? null);
+  const leaveCategory = leaveCategoryForStatus(status, requestedCategory);
   // Paid planned leave spends the balance. Anything else gives a previously spent day back.
   const employee = await employeeOrThrow(record.employeeId);
   const joiningDate = employeeView(employee).joiningDate;
@@ -1495,16 +1555,16 @@ export async function correctAttendanceRecord(
   });
   let isLate = false;
   let lateByMinutes = 0;
-  if (firstLoginAt && (input.status === "present" || input.status === "half_day")) {
+  if (firstLoginAt && (status === "present" || status === "half_day")) {
     const late = lateArrival(firstLoginAt, new Date(record.shiftStartAt), policy.graceMinutes);
     isLate = late.isLate;
     lateByMinutes = late.lateByMinutes;
   }
   const anomalyFlags = new Set(record.anomalyFlags ?? []);
-  if (input.status === "on_leave" && firstLoginAt) anomalyFlags.add("leave_with_login");
+  if (status === "on_leave" && firstLoginAt) anomalyFlags.add("leave_with_login");
   else anomalyFlags.delete("leave_with_login");
   const next = {
-    status: input.status,
+    status,
     isLate,
     lateByMinutes,
     leavePay,
@@ -1928,7 +1988,7 @@ export function attendanceCsv(rows: AttendanceEmployeeRow[], dates: string[]): s
     "Designation",
     "Working Days",
     "Present",
-    "Absent",
+    "Unapproved leave",
     "Half Days",
     "Paid Leave",
     "Unpaid Leave",
@@ -1988,8 +2048,15 @@ function csvCell(value: string | number): string {
   return text;
 }
 
-export async function exportAttendanceCsv(filters: Omit<MonthFilters, "page">): Promise<string> {
-  const loaded = await loadMonthRows(filters);
+export async function exportAttendanceCsv(
+  filters: Omit<MonthFilters, "page">,
+  actor: AttendanceActor,
+): Promise<string> {
+  const scope = await resolveAttendanceReadScope(actor);
+  const loaded = await loadMonthRows({
+    ...filters,
+    employeeIds: scope.kind === "team" ? scope.employeeIds : undefined,
+  });
   const visible = loaded.rows.filter((row) => matchesCard(row, filters.card, loaded.asOfDate));
   return attendanceCsv(visible, loaded.dates);
 }
@@ -2009,7 +2076,7 @@ export async function getEmployeeLop(employeeId: string, monthValue: string): Pr
         {
           status: AttendanceStatus;
           leavePay?: LeavePay | null;
-          leaveCategory?: LeaveCategory | null;
+          leaveCategory?: RecordLeaveCategory | null;
           isLate?: boolean;
         }[]
       >(),

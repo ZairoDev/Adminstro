@@ -19,6 +19,7 @@ import type { LeavePreview } from "@/modules/attendance/leave/types";
 import { UNPLANNED_MAX_FUTURE_DAYS } from "@/modules/attendance/leave/types";
 import type { LeaveCategory } from "@/modules/attendance/types";
 import { addDaysToDateKey, apiErrorMessage, formatDayCount, todayInIst } from "./leave-shared";
+import { useRefreshPendingLeaveCount } from "@/hooks/usePendingLeaveDecisions";
 
 type Props = {
   open: boolean;
@@ -61,6 +62,7 @@ export default function ApplyLeaveDialog({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const refreshPendingCount = useRefreshPendingLeaveCount();
 
   useEffect(() => {
     if (!open) return;
@@ -135,6 +137,7 @@ export default function ApplyLeaveDialog({
         approveNow: canApproveNow && approveNow,
       });
       onOpenChange(false);
+      refreshPendingCount();
       onSubmitted();
     } catch (submitError) {
       setFormError(apiErrorMessage(submitError, "Could not save the leave"));

@@ -1,8 +1,8 @@
-import type { AttendanceStatus, LeaveCategory, LopBreakdown } from "@/modules/attendance/types";
+import type { AttendanceStatus, LopBreakdown, RecordLeaveCategory } from "@/modules/attendance/types";
 
 export const STATUS_LABELS: Record<AttendanceStatus, string> = {
   present: "Present",
-  absent: "Absent",
+  absent: "Unapproved leave",
   half_day: "Half day",
   on_leave: "On leave",
   holiday: "Holiday",
@@ -14,7 +14,7 @@ export const STATUS_LABELS: Record<AttendanceStatus, string> = {
 
 export const STATUS_LETTERS: Record<AttendanceStatus, string> = {
   present: "P",
-  absent: "A",
+  absent: "UA",
   half_day: "HD",
   on_leave: "LV",
   holiday: "H",
@@ -27,9 +27,12 @@ export const STATUS_LETTERS: Record<AttendanceStatus, string> = {
 export function statusLabel(
   status: AttendanceStatus,
   isLate: boolean,
-  leaveCategory: LeaveCategory | null = null,
+  leaveCategory: RecordLeaveCategory | null = null,
 ): string {
   if (isLate && status === "present") return "Late";
+  if (status === "absent" || (status === "on_leave" && leaveCategory === "unapproved")) {
+    return "Unapproved leave";
+  }
   if (status === "on_leave" && leaveCategory === "unplanned") return "Unplanned leave";
   return STATUS_LABELS[status];
 }
@@ -37,17 +40,18 @@ export function statusLabel(
 export function statusLetter(
   status: AttendanceStatus,
   isLate: boolean,
-  leaveCategory: LeaveCategory | null = null,
+  leaveCategory: RecordLeaveCategory | null = null,
 ): string {
   if (isLate && status === "present") return "LT";
+  if (status === "absent" || (status === "on_leave" && leaveCategory === "unapproved")) return "UA";
   if (status === "on_leave" && leaveCategory === "unplanned") return "UL";
   return STATUS_LETTERS[status];
 }
 
-/** "1 absent, 4 unplanned leave" style summary of where LOP days come from. Empty when there is none. */
+/** "1 unapproved leave, 4 unplanned leave" style summary of where LOP days come from. Empty when there is none. */
 export function describeLopBreakdown(breakdown: LopBreakdown): string {
   const parts: [number, string][] = [
-    [breakdown.absent, "absent"],
+    [breakdown.absent, "unapproved leave"],
     [breakdown.halfDay, "half day"],
     [breakdown.plannedUnpaidLeave, "unpaid planned leave"],
     [breakdown.unplannedLeave, "unplanned leave"],

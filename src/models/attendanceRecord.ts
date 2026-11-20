@@ -1,5 +1,5 @@
 import mongoose, { Schema, type InferSchemaType } from "mongoose";
-import { ATTENDANCE_STATUSES, LEAVE_CATEGORIES } from "@/modules/attendance/types";
+import { ATTENDANCE_STATUSES, RECORD_LEAVE_CATEGORIES } from "@/modules/attendance/types";
 
 const attendanceRecordSchema = new Schema(
   {
@@ -9,7 +9,7 @@ const attendanceRecordSchema = new Schema(
     isLate: { type: Boolean, default: false },
     lateByMinutes: { type: Number, default: 0 },
     leavePay: { type: String, enum: ["paid", "unpaid", null], default: null },
-    leaveCategory: { type: String, enum: [...LEAVE_CATEGORIES, null], default: null },
+    leaveCategory: { type: String, enum: [...RECORD_LEAVE_CATEGORIES, null], default: null },
     leaveRequestId: { type: String, default: null },
     firstLoginAt: { type: Date, default: null },
     /** Last logout of the attendance day (check-out). */

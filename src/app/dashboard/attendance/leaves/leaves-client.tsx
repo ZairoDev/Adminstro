@@ -35,6 +35,7 @@ import {
   LeaveStatusBadge,
   LeaveTypeBadge,
 } from "../leave-shared";
+import { useRefreshPendingLeaveCount } from "@/hooks/usePendingLeaveDecisions";
 
 type StatusFilter = LeaveRequestStatus | "";
 type TypeFilter = LeaveCategory | "";
@@ -56,6 +57,7 @@ export default function LeavesClient() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [selected, setSelected] = useState<LeaveRequestView | null>(null);
+  const refreshPendingCount = useRefreshPendingLeaveCount();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -210,6 +212,7 @@ export default function LeavesClient() {
         onDone={(text) => {
           setSelected(null);
           setMessage(text);
+          refreshPendingCount();
           void load();
         }}
       />

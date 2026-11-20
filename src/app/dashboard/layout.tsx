@@ -27,6 +27,8 @@ import {
 } from "@/components/reminders/PersonalReminderBanner";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { CrmAgentChatDrawer } from "@/components/crm-agent/CrmAgentChatDrawer";
+import { LeaveDecisionNav } from "@/components/attendance/LeaveDecisionNotice";
+import { AttendanceNoticeBell } from "@/components/attendance/AttendanceNoticeBell";
 
 export default function DashboardLayout({
   children,
@@ -159,6 +161,8 @@ export default function DashboardLayout({
                 <WhatsAppNotifications />
               </>
             )}
+            {token && !isHousingCollaborator && <LeaveDecisionNav />}
+            {token && !isHousingCollaborator && <AttendanceNoticeBell />}
             {/* System Notification Center - Visible to all authenticated users */}
             {token && !isHousingCollaborator && <SystemNotificationCenter />}
             {token && !isHousingCollaborator && <PersonalReminderNavBell />}

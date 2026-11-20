@@ -63,6 +63,7 @@ import type {
   ShiftAssignmentRange,
   ShiftChoice,
 } from "@/modules/attendance/types";
+import { notifyLeaveEvent } from "@/modules/attendance/notices/service";
 import { currentPayrollMonth } from "@/modules/finance/salary-month";
 import { connectDb } from "@/util/db";
 import { TEST_SUPERADMIN_EMAIL } from "@/util/employeeConstants";
@@ -423,6 +424,15 @@ export async function applyLeave(
   if (input.approveNow) {
     return decideLeave(String(created._id), { decision: "approve", note: "Approved when filed" }, actor);
   }
+  await notifyLeaveEvent({
+    event: "requested",
+    leaveId: String(created._id),
+    employeeId,
+    actorId: actor.id,
+    fromDate: input.fromDate,
+    toDate: input.toDate,
+    leaveType: input.leaveType,
+  });
   return viewFor(created.toObject() as LeaveRequestLean, actor);
 }
 
@@ -631,6 +641,15 @@ export async function decideLeave(
       { new: true },
     ).lean<LeaveRequestLean | null>();
     if (!rejected) throw new AttendanceError(409, "This request was already decided");
+    await notifyLeaveEvent({
+      event: "rejected",
+      leaveId: String(rejected._id),
+      employeeId: rejected.employeeId,
+      actorId: actor.id,
+      fromDate: rejected.fromDate,
+      toDate: rejected.toDate,
+      leaveType: rejected.leaveType,
+    });
     return viewFor(rejected, actor);
   }
 
@@ -642,9 +661,10 @@ export async function decideLeave(
     { new: true },
   ).lean<LeaveRequestLean | null>();
   if (!claimed) throw new AttendanceError(409, "This request was already decided");
+  let view: LeaveRequestView;
   try {
     const approved = await approveRequest(claimed, actor);
-    return viewFor(approved, actor);
+    view = await viewFor(approved, actor);
   } catch (error) {
     await reverseLeaveConsumption({
       leaveRequestId: String(claimed._id),
@@ -666,6 +686,16 @@ export async function decideLeave(
     );
     throw error;
   }
+  await notifyLeaveEvent({
+    event: "approved",
+    leaveId: view.id,
+    employeeId: view.employee.id,
+    actorId: actor.id,
+    fromDate: view.fromDate,
+    toDate: view.toDate,
+    leaveType: view.leaveType,
+  });
+  return view;
 }
 
 export async function cancelLeave(id: string, actor: AttendanceActor): Promise<LeaveRequestView> {
@@ -691,6 +721,15 @@ export async function cancelLeave(id: string, actor: AttendanceActor): Promise<L
       { new: true },
     ).lean<LeaveRequestLean | null>();
     if (!cancelled) throw new AttendanceError(409, "This request was already decided");
+    await notifyLeaveEvent({
+      event: "cancelled",
+      leaveId: String(cancelled._id),
+      employeeId: cancelled.employeeId,
+      actorId: actor.id,
+      fromDate: cancelled.fromDate,
+      toDate: cancelled.toDate,
+      leaveType: cancelled.leaveType,
+    });
     return viewFor(cancelled, actor);
   }
 
@@ -733,6 +772,15 @@ export async function cancelLeave(id: string, actor: AttendanceActor): Promise<L
   const updated = await LeaveRequest.findByIdAndUpdate(request._id, update, { new: true }).lean<LeaveRequestLean | null>();
   if (!updated) throw new AttendanceError(404, "Leave request not found");
 
+  await notifyLeaveEvent({
+    event: "cancelled",
+    leaveId: String(updated._id),
+    employeeId: updated.employeeId,
+    actorId: actor.id,
+    fromDate: request.fromDate,
+    toDate: request.toDate,
+    leaveType: request.leaveType,
+  });
   await markPayrollStale(request.employeeId, monthsInRange(removed[0].date, removed[removed.length - 1].date));
   if (removedDates.length > 0) {
     try {
@@ -743,6 +791,13 @@ export async function cancelLeave(id: string, actor: AttendanceActor): Promise<L
     }
   }
   return viewFor(updated, actor);
+}
+
+/** How many leave requests still need an approve or reject. Zero for people who cannot decide. */
+export async function countPendingLeaveDecisions(actor: AttendanceActor): Promise<number> {
+  if (!isLeaveManager(actor)) return 0;
+  await connectDb();
+  return LeaveRequest.countDocuments({ status: "pending" });
 }
 
 export async function listLeaves(

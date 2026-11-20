@@ -114,6 +114,7 @@ type Route = {
   Icon?: JSX.Element;
    openInNewTab?: boolean;
   badge?: number;
+  badgeLabel?: string;
 };
 
 const filterOwnerSheetRoutes = (
@@ -1737,6 +1738,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
   const [rentalType, setRentalType] = useState<string | null>(null);
   const [hideGuestManagement, setHideGuestManagement] = useState(false);
   const [hideOwnerManagement, setHideOwnerManagement] = useState(false);
+  const [showTeamAttendance, setShowTeamAttendance] = useState(false);
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -1761,6 +1763,21 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
         if (mounted) setRole(null);
       }
     })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    axios
+      .get<{ success: boolean; data?: { scope?: string } }>("/api/attendance/team-access")
+      .then((response) => {
+        if (mounted) setShowTeamAttendance(response.data.data?.scope === "team");
+      })
+      .catch(() => {
+        if (mounted) setShowTeamAttendance(false);
+      });
     return () => {
       mounted = false;
     };
@@ -1818,6 +1835,15 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
               label: "My Attendance",
               Icon: <CalendarCheck size={18} />,
             },
+            ...(showTeamAttendance
+              ? [
+                  {
+                    path: "/dashboard/attendance",
+                    label: "Team Attendance",
+                    Icon: <CalendarCheck size={18} />,
+                  },
+                ]
+              : []),
             {
               path: "/dashboard/employee/org-hierarchy",
               label: "Team hierarchy",
@@ -1836,7 +1862,11 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed?: boolean ,setC
     const leadRoute = inGroup(leadManagementRoutes);
     const visitsManagementRoute = inGroup(visitsManagementRoutes).map((route) =>
       route.path === "/dashboard/visits" && overdueVisitCount > 0
-        ? { ...route, badge: overdueVisitCount }
+        ? {
+            ...route,
+            badge: overdueVisitCount,
+            badgeLabel: `${overdueVisitCount} overdue ${overdueVisitCount === 1 ? "visit" : "visits"}`,
+          }
         : route,
     );
     const bookingsManagementRoute = inGroup(bookingsManagementRoutes);

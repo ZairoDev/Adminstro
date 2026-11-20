@@ -21,6 +21,11 @@ export const LEAVE_CATEGORIES = ["planned", "unplanned"] as const;
 
 export type LeaveCategory = (typeof LEAVE_CATEGORIES)[number];
 
+/** Unapproved leave is not requested. A no-show is this by default. */
+export const RECORD_LEAVE_CATEGORIES = [...LEAVE_CATEGORIES, "unapproved"] as const;
+
+export type RecordLeaveCategory = (typeof RECORD_LEAVE_CATEGORIES)[number];
+
 export const ANOMALY_FLAGS = [
   "missing_login",
   "duplicate_source_events",
@@ -131,7 +136,8 @@ export type ResolvedAttendance = {
   status: AttendanceStatus;
   isLate: boolean;
   lateByMinutes: number;
-  leavePay: null;
+  leavePay: LeavePay | null;
+  leaveCategory: RecordLeaveCategory | null;
   firstLoginAt: Date | null;
   shiftStartAt: Date;
   shiftEndAt: Date;
@@ -147,7 +153,7 @@ export type DayContribution = {
   status: AttendanceStatus;
   leavePay: LeavePay | null;
   /** Leave rows saved before categories existed have no value and count as planned. */
-  leaveCategory?: LeaveCategory | null;
+  leaveCategory?: RecordLeaveCategory | null;
   isLate: boolean;
 };
 

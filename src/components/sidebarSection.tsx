@@ -13,6 +13,7 @@ type Route = {
   openInNewTab?: boolean;
   disabled?: boolean;
   badge?: number;
+  badgeLabel?: string;
 };
 
 export default function SidebarSection({
@@ -59,25 +60,29 @@ export default function SidebarSection({
           id={`section-${title}`}
           className={cn("overflow-y-auto", showText ? "pl-2" : "")}
         >
-          {routes.map(({ path, label, Icon, openInNewTab, disabled, badge }) => {
+          {routes.map(({ path, label, Icon, openInNewTab, disabled, badge, badgeLabel }) => {
             const active = currentPath === path;
+            const showBadge = typeof badge === "number" && badge > 0;
 
             const linkClassName = cn(
               "flex items-center gap-2 py-2 px-3 rounded-l-sm transition-colors",
+              !showText && showBadge && "relative",
               active
                 ? "bg-primary/10 text-primary border-r-4 border-primary"
                 : "hover:bg-accent",
             );
 
-            const badgeNode =
-              typeof badge === "number" && badge > 0 ? (
-                <span
-                  className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
-                  aria-label={`${badge} overdue visits`}
-                >
-                  {badge > 99 ? "99+" : badge}
-                </span>
-              ) : null;
+            const badgeNode = showBadge ? (
+              <span
+                className={cn(
+                  "inline-flex min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white",
+                  showText ? "ml-auto" : "absolute -right-0.5 top-1",
+                )}
+                aria-label={badgeLabel ?? `${badge} items need attention`}
+              >
+                {badge > 99 ? "99+" : badge}
+              </span>
+            ) : null;
 
             return (
               <li key={path}>

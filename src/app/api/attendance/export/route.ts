@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
-import { attendanceJsonError, requireAttendanceReader } from "@/modules/attendance/access";
+import { attendanceJsonError, requireSignedIn } from "@/modules/attendance/access";
 import { exportQuerySchema } from "@/modules/attendance/schema";
 import { exportAttendanceCsv } from "@/modules/attendance/service";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAttendanceReader(request);
+    const actor = await requireSignedIn(request);
     const parsed = exportQuerySchema.safeParse(
       Object.fromEntries(request.nextUrl.searchParams.entries()),
     );
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
         headers: { "Content-Type": "application/json" },
       });
     }
-    const csv = await exportAttendanceCsv(parsed.data);
+    const csv = await exportAttendanceCsv(parsed.data, actor);
     return new Response(csv, {
       status: 200,
       headers: {

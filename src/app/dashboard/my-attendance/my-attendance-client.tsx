@@ -3,45 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { format } from "date-fns";
-import type { DateRange } from "react-day-picker";
-import {
-  ArrowRight,
-  CalendarCheck,
-  CalendarDays,
-  ChartNoAxesCombined,
-  Check,
-  CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
-  Clock3,
-  Copy,
-  Download,
-  Globe,
-  Info,
-  Lightbulb,
-  List,
-  LogIn,
-  LogOut,
-  Plane,
-  Settings2,
-  Smartphone,
-  Sprout,
-  Star,
-  Timer,
-  Umbrella,
-  X,
-  XCircle,
-  type LucideIcon,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Label, Pie, PieChart } from "recharts";
-import Heading from "@/components/Heading";
 import axios from "@/util/axios";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Card } from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
@@ -55,18 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   addPayrollMonths,
@@ -75,320 +28,82 @@ import {
   parsePayrollMonth,
   payrollMonthLabel,
 } from "@/modules/finance/salary-month";
+import { describeLopBreakdown } from "@/modules/attendance/presentation";
+import type { AttendanceGuide } from "@/modules/attendance/view";
 import type {
   AttendanceDayCell,
   EmployeeAttendancePayload,
 } from "@/modules/attendance/view";
 import { AttendanceCheckTime } from "@/components/attendance/AttendanceCheckTime";
 import { AttendanceDayActionsList } from "@/components/attendance/AttendanceDayActionsList";
-import { type AttendanceDevice } from "@/util/attendanceDevice";
+import { formatDayCount } from "../attendance/leave-shared";
 import LeavePanel from "../attendance/leave-panel";
 import { MyAttendanceSkeleton } from "./my-attendance-skeleton";
 
-const STATUS_STYLE: Record<
-  string,
-  { soft: string; pill: string; dot: string; color: string }
-> = {
-  P: {
-    soft: "bg-[#E1F5EB] text-[#219B68] dark:bg-emerald-950 dark:text-emerald-200",
-    pill: "bg-[#E1F5EB] text-[#219B68] dark:bg-emerald-950 dark:text-emerald-200",
-    dot: "bg-[#219B68] dark:bg-emerald-400",
-    color: "#219B68",
-  },
-  LT: {
-    soft: "bg-[#FFF0E4] text-[#F07832] dark:bg-orange-950 dark:text-orange-200",
-    pill: "bg-[#FFF0E4] text-[#F07832] dark:bg-orange-950 dark:text-orange-200",
-    dot: "bg-[#F07832] dark:bg-orange-400",
-    color: "#F07832",
-  },
-  A: {
-    soft: "bg-[#FFE7E7] text-[#E94C50] dark:bg-red-950 dark:text-red-200",
-    pill: "bg-[#FFE7E7] text-[#E94C50] dark:bg-red-950 dark:text-red-200",
-    dot: "bg-[#E94C50] dark:bg-red-400",
-    color: "#E94C50",
-  },
-  HD: {
-    soft: "bg-[#FFF1D9] text-[#E99A14] dark:bg-amber-950 dark:text-amber-200",
-    pill: "bg-[#FFF1D9] text-[#E99A14] dark:bg-amber-950 dark:text-amber-200",
-    dot: "bg-[#E99A14] dark:bg-amber-400",
-    color: "#E99A14",
-  },
-  LV: {
-    soft: "bg-[#E5F3FF] text-[#268FD0] dark:bg-sky-950 dark:text-sky-200",
-    pill: "bg-[#E5F3FF] text-[#268FD0] dark:bg-sky-950 dark:text-sky-200",
-    dot: "bg-[#268FD0] dark:bg-sky-400",
-    color: "#268FD0",
-  },
-  H: {
-    soft: "bg-[#EEEEEE] text-[#777777] dark:bg-neutral-800 dark:text-neutral-300",
-    pill: "bg-[#EEEEEE] text-[#777777] dark:bg-neutral-800 dark:text-neutral-300",
-    dot: "bg-[#777777] dark:bg-neutral-400",
-    color: "#777777",
-  },
-  WO: {
-    soft: "bg-[#EEEEEE] text-[#888888] dark:bg-neutral-800 dark:text-neutral-400",
-    pill: "bg-[#EEEEEE] text-[#888888] dark:bg-neutral-800 dark:text-neutral-400",
-    dot: "bg-[#888888] dark:bg-neutral-500",
-    color: "#888888",
-  },
-  WF: {
-    soft: "bg-[#E5F8F6] text-[#178A79] dark:bg-teal-950 dark:text-teal-200",
-    pill: "bg-[#E5F8F6] text-[#178A79] dark:bg-teal-950 dark:text-teal-200",
-    dot: "bg-[#178A79] dark:bg-teal-400",
-    color: "#178A79",
-  },
-  NJ: {
-    soft: "bg-[#EEEEEE] text-[#888888] dark:bg-neutral-800 dark:text-neutral-400",
-    pill: "bg-[#EEEEEE] text-[#888888] dark:bg-neutral-800 dark:text-neutral-400",
-    dot: "bg-[#888888] dark:bg-neutral-500",
-    color: "#888888",
-  },
-  PV: {
-    soft: "bg-[#EEEEEE] text-[#555555] dark:bg-neutral-800 dark:text-neutral-200",
-    pill: "bg-[#EEEEEE] text-[#555555] dark:bg-neutral-800 dark:text-neutral-200",
-    dot: "bg-[#555555] dark:bg-neutral-400",
-    color: "#555555",
-  },
-};
-
-const STATUS_LEGEND = [
-  { letter: "P", label: "Present" },
-  { letter: "LT", label: "Late" },
-  { letter: "A", label: "Absent" },
-  { letter: "HD", label: "Half day" },
-  { letter: "LV", label: "Leave" },
-  { letter: "WF", label: "WFH" },
-  { letter: "WO", label: "Weekly off" },
-] as const;
-
-const OFF_STATUSES = new Set(["holiday", "weekly_off", "not_joined"]);
-const DAILY_SUMMARY_PREVIEW_LIMIT = 8;
-const SYSTEM_CHECKOUT_LABEL = "23:59";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+const OFF_STATUSES = new Set(["holiday", "weekly_off", "not_joined"]);
+const SYSTEM_CHECKOUT_LABEL = "23:59";
+const LOGIN_PREVIEW_LIMIT = 8;
 
-type SummarySourceKey = "web" | "mobile" | "system";
-type SummaryStatusKey = "success" | "applied" | "approved";
-type SummaryEventKey =
-  | "login"
-  | "logout"
-  | "half_day"
-  | "leave"
-  | "weekly_off"
-  | "holiday"
-  | "absent"
-  | "present"
-  | "wfh"
-  | "other";
+const CHART_HUE = "#1d5fbf";
+const AMBER = "#9a6700";
+const PAY_SIGNAL = "#9f1239";
+const PLANNED = "#3d6fbf";
+const HATCH_STYLE = {
+  backgroundColor: "#fff6e8",
+  backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(
+    "<svg xmlns='http://www.w3.org/2000/svg' width='7' height='7'><path d='M-1 7 L7 -1 M-1 1 L1 -1 M5 7 L7 5' stroke='%239a6700' stroke-opacity='0.55' stroke-width='1'/></svg>",
+  )}")`,
+} as const;
 
-type SummaryActivityRow = {
-  id: string;
-  date: string;
-  day: AttendanceDayCell;
-  eventKey: SummaryEventKey;
-  eventLabel: string;
-  statusKey: SummaryStatusKey;
-  statusLabel: string;
-  timeLabel: string;
-  sourceKey: SummarySourceKey;
-  device: AttendanceDevice | null;
-  details: string;
-  remarks: string;
-};
-
-const SUMMARY_STATUS_STYLE: Record<
-  SummaryStatusKey,
-  { pill: string; icon: LucideIcon }
-> = {
-  success: {
-    pill: "bg-[#E1F5EB] text-[#219B68] dark:bg-emerald-950 dark:text-emerald-200",
-    icon: CheckCircle2,
-  },
-  applied: {
-    pill: "bg-[#E5F3FF] text-[#268FD0] dark:bg-sky-950 dark:text-sky-200",
-    icon: Info,
-  },
-  approved: {
-    pill: "bg-[#FFF0E4] text-[#F07832] dark:bg-orange-950 dark:text-orange-200",
-    icon: CheckCircle2,
-  },
-};
-
-const SUMMARY_EVENT_OPTIONS: { value: string; label: string }[] = [
-  { value: "all", label: "All Events" },
-  { value: "login", label: "Login" },
-  { value: "logout", label: "Logout" },
-  { value: "half_day", label: "Half Day" },
-  { value: "leave", label: "Leave" },
-  { value: "weekly_off", label: "Weekly Off" },
-  { value: "holiday", label: "Holiday" },
-  { value: "absent", label: "Absent" },
-  { value: "present", label: "Present" },
-  { value: "wfh", label: "WFH" },
-];
-
-const SUMMARY_SOURCE_OPTIONS: { value: string; label: string }[] = [
-  { value: "all", label: "All Sources" },
-  { value: "web", label: "Web" },
-  { value: "mobile", label: "Mobile" },
-  { value: "system", label: "System" },
-];
-
-const filterControlClass =
-  "h-10 w-auto min-w-[140px] cursor-pointer rounded-xl border-[#E4E0DA] bg-white text-sm font-medium text-[#3A4F51] shadow-none dark:border-border dark:bg-card dark:text-foreground";
-const WEEKDAY_FULL = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-] as const;
-
-type CalendarView = "month" | "week" | "day";
-
-const VIEW_OPTIONS: {
-  id: CalendarView;
-  label: string;
-  icon: LucideIcon;
-}[] = [
-  { id: "month", label: "Month", icon: CalendarDays },
-  { id: "week", label: "Week", icon: List },
-  { id: "day", label: "Day", icon: Clock3 },
-];
-
-const QUICK_STATS: {
-  key: string;
-  label: string;
-  icon: LucideIcon;
-  iconClass: string;
-  badgeClass?: string;
-  fillIcon?: boolean;
-}[] = [
-  {
-    key: "joining",
-    label: "Joining",
-    icon: CalendarCheck,
-    iconClass: "text-[#176F68] dark:text-teal-400",
-  },
-  {
-    key: "shift",
-    label: "Shift",
-    icon: Copy,
-    iconClass: "text-[#176F68] dark:text-teal-400",
-    fillIcon: true,
-  },
-  {
-    key: "present",
-    label: "Present",
-    icon: Check,
-    iconClass: "text-white",
-    badgeClass: "bg-[#219B68]",
-  },
-  {
-    key: "absent",
-    label: "Absent",
-    icon: X,
-    iconClass: "text-white",
-    badgeClass: "bg-[#E94C50]",
-  },
-  {
-    key: "halfDays",
-    label: "Half days",
-    icon: Timer,
-    iconClass: "text-[#E99A14] dark:text-amber-400",
-  },
-  {
-    key: "paidLeave",
-    label: "Paid leave",
-    icon: Plane,
-    iconClass: "text-[#268FD0] dark:text-sky-400",
-    fillIcon: true,
-  },
-];
-
-const METRIC_CARDS: {
-  key:
-    | "unpaidLeaveDays"
-    | "holidays"
-    | "weeklyOffs"
-    | "lateArrivals"
-    | "lopDays"
-    | "attendancePercentage";
-  label: string;
-  icon: LucideIcon;
-  cardClass: string;
-  iconClass: string;
-  fillIcon?: boolean;
-  suffix?: string;
-}[] = [
-  {
-    key: "unpaidLeaveDays",
-    label: "Unpaid Leave",
-    icon: CalendarCheck,
-    cardClass: "bg-[#E8F5F1] dark:bg-teal-950/50",
-    iconClass: "text-[#178A79] dark:text-teal-300",
-  },
-  {
-    key: "holidays",
-    label: "Holidays",
-    icon: Umbrella,
-    cardClass: "bg-[#F0EDFA] dark:bg-violet-950/50",
-    iconClass: "text-[#7562C8] dark:text-violet-300",
-    fillIcon: true,
-  },
-  {
-    key: "weeklyOffs",
-    label: "Weekly Offs",
-    icon: Star,
-    cardClass: "bg-[#FFF0E2] dark:bg-orange-950/50",
-    iconClass: "text-[#D88B37] dark:text-orange-300",
-    fillIcon: true,
-  },
-  {
-    key: "lateArrivals",
-    label: "Late",
-    icon: Clock3,
-    cardClass: "bg-[#E8F5F1] dark:bg-teal-950/50",
-    iconClass: "text-[#178A79] dark:text-teal-300",
-  },
-  {
-    key: "lopDays",
-    label: "LOP Days",
-    icon: Timer,
-    cardClass: "bg-[#F0EDFA] dark:bg-violet-950/50",
-    iconClass: "text-[#7562C8] dark:text-violet-300",
-  },
-  {
-    key: "attendancePercentage",
-    label: "Attendance",
-    icon: ChartNoAxesCombined,
-    cardClass: "bg-[#FFF0DF] dark:bg-amber-950/50",
-    iconClass: "text-[#D88B37] dark:text-amber-300",
-    suffix: "%",
-  },
-];
-
-const surfaceCard =
-  "rounded-2xl border border-[#EAE5DF] bg-white shadow-sm dark:border-border dark:bg-card";
-const mutedText = "text-gray-500 dark:text-muted-foreground";
-const bodyText = "text-[#172B2D] dark:text-foreground";
-const headingText = "text-[#192C2D] dark:text-foreground";
-const accentTeal = "text-[#176F68] dark:text-teal-400";
-const softHover =
-  "hover:bg-gray-50 dark:hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40";
-
-const insightChartConfig = {
-  present: { label: "Present", color: "#219B68" },
-  absent: { label: "Absent", color: "#E94C50" },
-  halfDay: { label: "Half Day", color: "#FFBE45" },
-  others: { label: "Others", color: "#AAAAAA" },
+const distributionConfig = {
+  present: { label: "Present", color: CHART_HUE },
+  half: { label: "Half day", color: AMBER },
+  planned: { label: "Planned leave", color: PLANNED },
+  unplanned: { label: "Unplanned leave", color: PAY_SIGNAL },
+  unapproved: { label: "Unapproved", color: "#4a4a4a" },
+  off: { label: "Off", color: "#d0d0d0" },
 } satisfies ChartConfig;
+
+type DayKind =
+  | "grace"
+  | "half"
+  | "planned"
+  | "unplanned"
+  | "present"
+  | "unapproved"
+  | "off"
+  | "other"
+  | "empty";
+
+const KIND_WORD: Record<DayKind, string> = {
+  grace: "Grace day",
+  half: "Half day",
+  planned: "Planned leave",
+  unplanned: "Unplanned leave",
+  present: "Present",
+  unapproved: "Unapproved",
+  off: "Off",
+  other: "",
+  empty: "",
+};
+
+const KIND_CLASS: Record<DayKind, string> = {
+  grace: "font-medium text-[#9a6700] underline decoration-[#9a6700] decoration-2 underline-offset-2 dark:text-amber-300",
+  half: "font-medium text-[#9a6700] dark:text-amber-200",
+  planned: "bg-[#e7f0fb] font-medium text-[#1d5fbf] dark:bg-sky-950/50 dark:text-sky-200",
+  unplanned: "font-medium text-[#9f1239] dark:text-rose-300",
+  present: "text-muted-foreground",
+  unapproved: "text-muted-foreground",
+  off: "text-muted-foreground",
+  other: "text-muted-foreground",
+  empty: "",
+};
 
 export default function MyAttendanceClient({
   employeeId,
 }: {
-  /** When set (HR/Admin/SuperAdmin), show this employee’s attendance with the same UI. */
+  /** When set, show this employee’s attendance. HR/Admin/SuperAdmin, or their reporting manager. */
   employeeId?: string;
 } = {}) {
   const router = useRouter();
@@ -403,21 +118,13 @@ export default function MyAttendanceClient({
   const current = currentPayrollMonth();
   const requested = parsePayrollMonth(searchParams?.get("month") ?? "");
   const month =
-    requested && comparePayrollMonths(requested, current) <= 0
-      ? requested
-      : current;
+    requested && comparePayrollMonths(requested, current) <= 0 ? requested : current;
   const [data, setData] = useState<EmployeeAttendancePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDay, setSelectedDay] = useState<AttendanceDayCell | null>(
-    null,
-  );
-  const [calendarView, setCalendarView] = useState<CalendarView>("month");
-  const [focusDate, setFocusDate] = useState<string | null>(null);
-  const [summaryRange, setSummaryRange] = useState<DateRange | undefined>();
-  const [eventFilter, setEventFilter] = useState("all");
-  const [sourceFilter, setSourceFilter] = useState("all");
-  const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<AttendanceDayCell | null>(null);
+  const [logFilter, setLogFilter] = useState<"all" | "login" | "logout">("all");
+  const [logExpanded, setLogExpanded] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -427,9 +134,7 @@ export default function MyAttendanceClient({
         success: boolean;
         data: EmployeeAttendancePayload;
         message?: string;
-      }>(apiPath, {
-        params: { month: month.key },
-      });
+      }>(apiPath, { params: { month: month.key } });
       if (!response.data.success) {
         setError(response.data.message ?? "Could not load attendance");
         setData(null);
@@ -468,960 +173,346 @@ export default function MyAttendanceClient({
     void load();
   }, [load]);
 
+  useEffect(() => {
+    setLogFilter("all");
+    setLogExpanded(false);
+  }, [month.key]);
+
   const writeMonth = (key: string) => {
     router.replace(`${pageBase}?month=${key}`);
   };
 
   const todayKey = istTodayKey();
   const canGoNext = comparePayrollMonths(month, current) < 0;
-  const employee = data?.employee;
-
-  const activeDate = useMemo(() => {
-    if (focusDate && data?.dates.includes(focusDate)) return focusDate;
-    if (data?.dates.includes(todayKey)) return todayKey;
-    return data?.dates[0] ?? todayKey;
-  }, [data?.dates, focusDate, todayKey]);
-
-  const padCount = useMemo(
-    () => weekdayOffset(data?.dates[0] ?? ""),
-    [data?.dates],
-  );
-
-  const weekDays = useMemo(() => {
-    if (!data?.days.length) return [];
-    const index = data.days.findIndex((day) => day.date === activeDate);
-    if (index < 0) return data.days.slice(0, 7);
-    const start = Math.floor((index + padCount) / 7) * 7 - padCount;
-    const from = Math.max(0, start);
-    return data.days.slice(from, from + 7);
-  }, [activeDate, data?.days, padCount]);
-
-  const dayFocus = useMemo(
-    () => data?.days.find((day) => day.date === activeDate) ?? null,
-    [activeDate, data?.days],
-  );
-
-  const insightData = useMemo(() => {
+  const padCount = useMemo(() => weekdayOffset(data?.dates[0] ?? ""), [data?.dates]);
+  const plannedDays = (data?.summary.paidLeaveDays ?? 0) + (data?.summary.unpaidLeaveDays ?? 0);
+  const distribution = useMemo(() => {
     if (!data) return [];
-    const others =
-      data.summary.paidLeaveDays +
-      data.summary.unpaidLeaveDays +
-      data.summary.holidays +
-      data.summary.weeklyOffs +
-      data.summary.workFromHomeDays +
-      data.summary.pendingVerification;
     return [
+      { key: "present", label: "Present", count: data.summary.presentDays, fill: "var(--color-present)", color: CHART_HUE },
+      { key: "half", label: "Half day", count: data.summary.halfDays, fill: "var(--color-half)", color: AMBER },
+      { key: "planned", label: "Planned leave", count: plannedDays, fill: "var(--color-planned)", color: PLANNED },
+      { key: "unplanned", label: "Unplanned leave", count: data.summary.unplannedLeaveDays, fill: "var(--color-unplanned)", color: PAY_SIGNAL },
+      { key: "unapproved", label: "Unapproved", count: data.summary.absentDays, fill: "var(--color-unapproved)", color: "#4a4a4a" },
       {
-        key: "present",
-        label: "Present",
-        count: data.summary.presentDays,
-        fill: "var(--color-present)",
+        key: "off",
+        label: "Off",
+        count: data.summary.holidays + data.summary.weeklyOffs,
+        fill: "var(--color-off)",
+        color: "#d0d0d0",
       },
-      {
-        key: "absent",
-        label: "Absent",
-        count: data.summary.absentDays,
-        fill: "var(--color-absent)",
-      },
-      {
-        key: "halfDay",
-        label: "Half Day",
-        count: data.summary.halfDays,
-        fill: "var(--color-halfDay)",
-      },
-      {
-        key: "others",
-        label: "Others",
-        count: others,
-        fill: "var(--color-others)",
-      },
-    ].filter((item) => item.count > 0);
-  }, [data]);
-
-  const initials = useMemo(() => {
-    const parts = (employee?.name ?? "").trim().split(/\s+/).filter(Boolean);
-    if (!parts.length) return "ME";
-    return parts
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? "")
-      .join("");
-  }, [employee?.name]);
-
-  const summaryDays = useMemo(
-    () =>
-      (data?.days ?? []).filter(
-        (day) => Boolean(day.status) && day.date <= todayKey,
-      ),
+    ].filter((slice) => slice.count > 0);
+  }, [data, plannedDays]);
+  const loginRows = useMemo(
+    () => buildLoginRows(data?.days ?? [], todayKey),
     [data?.days, todayKey],
   );
-
-  useEffect(() => {
-    if (!data?.dates.length) return;
-    setSummaryRange({
-      from: dateFromKey(data.dates[0]!),
-      to: dateFromKey(data.dates[data.dates.length - 1]!),
-    });
-    setEventFilter("all");
-    setSourceFilter("all");
-    setSummaryExpanded(false);
-  }, [data?.month, data?.dates]);
-
-  const summaryActivityRows = useMemo(
-    () => buildSummaryActivityRows(summaryDays),
-    [summaryDays],
+  const filteredLogins = useMemo(
+    () => (logFilter === "all" ? loginRows : loginRows.filter((row) => row.kind === logFilter)),
+    [logFilter, loginRows],
   );
-
-  const filteredSummaryRows = useMemo(() => {
-    const fromKey = summaryRange?.from
-      ? keyFromDate(summaryRange.from)
-      : null;
-    const toKey = summaryRange?.to
-      ? keyFromDate(summaryRange.to)
-      : fromKey;
-    return summaryActivityRows.filter((row) => {
-      if (fromKey && row.date < fromKey) return false;
-      if (toKey && row.date > toKey) return false;
-      if (eventFilter !== "all" && row.eventKey !== eventFilter) return false;
-      if (sourceFilter !== "all" && row.sourceKey !== sourceFilter) {
-        return false;
-      }
-      return true;
-    });
-  }, [eventFilter, sourceFilter, summaryActivityRows, summaryRange]);
-
-  const previewSummaryRows = useMemo(
-    () =>
-      summaryExpanded
-        ? filteredSummaryRows
-        : filteredSummaryRows.slice(0, DAILY_SUMMARY_PREVIEW_LIMIT),
-    [filteredSummaryRows, summaryExpanded],
-  );
-
-  const downloadReport = () => {
-    if (!data) return;
-    const monthLabel = payrollMonthLabel(month);
-    const employeeName = employee?.name || "Employee";
-    const headers = [
-      "Date",
-      "Day",
-      "Event",
-      "Status",
-      "Time",
-      "Source",
-      "Remarks",
-    ];
-    const bodyRows = filteredSummaryRows
-      .map((row) => {
-        const weekday = WEEKDAYS[weekdayOffset(row.date)] ?? "";
-        const cells = [
-          row.date,
-          weekday,
-          row.eventLabel,
-          row.statusLabel,
-          row.timeLabel || "—",
-          sourceLabelForKey(row.sourceKey),
-          summaryRemarksText(row),
-        ];
-        return `<tr>${cells
-          .map(
-            (cell) =>
-              `<td style="border:1px solid #D7E5E2;padding:10px 12px;text-align:center;font-size:12px;color:#172B2D;">${escapeHtml(String(cell))}</td>`,
-          )
-          .join("")}</tr>`;
-      })
-      .join("");
-
-    const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8" /></head>
-<body>
-<table style="border-collapse:collapse;width:100%;font-family:Segoe UI,Arial,sans-serif;">
-  <tr>
-    <td colspan="7" style="background:#176F68;color:#ffffff;font-size:20px;font-weight:700;text-align:center;padding:16px 12px;letter-spacing:0.02em;">
-      Attendance Report
-    </td>
-  </tr>
-  <tr>
-    <td colspan="7" style="background:#E8F4F1;color:#175F5A;font-size:13px;font-weight:600;text-align:center;padding:10px 12px;">
-      ${escapeHtml(employeeName)} · ${escapeHtml(monthLabel)}
-    </td>
-  </tr>
-  <tr>
-    ${headers
-      .map(
-        (head) =>
-          `<th style="background:#0F4F4A;color:#ffffff;font-size:12px;font-weight:700;text-align:center;padding:11px 12px;border:1px solid #0B3F3B;">${head}</th>`,
-      )
-      .join("")}
-  </tr>
-  ${bodyRows}
-</table>
-</body>
-</html>`;
-
-    const blob = new Blob([html], {
-      type: "application/vnd.ms-excel;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `attendance-report-${data.month}.xls`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
+  const visibleLogins = logExpanded ? filteredLogins : filteredLogins.slice(0, LOGIN_PREVIEW_LIMIT);
+  const lopNote = data ? describeLopBreakdown(data.summary.lopBreakdown) : "";
+  const finding = !data
+    ? "How this month counts toward pay."
+    : data.summary.lopDays > 0
+      ? `${formatDayCount(data.summary.lopDays)} days of loss of pay this month${lopNote ? `. ${lopNote}` : ""}.`
+      : `No loss of pay this month. ${data.summary.presentDays} days present.`;
 
   return (
-    <div className={cn("space-y-4 p-4", bodyText)}>
-      <header className="flex flex-wrap items-start justify-between gap-3">
+    <div className="space-y-6 bg-[#f2f4f7] p-4 text-[#111] dark:bg-background dark:text-foreground md:p-6">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           {viewingOther ? (
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="-ml-2 mb-1 h-10 cursor-pointer px-2"
-            >
+            <Button asChild variant="ghost" size="sm" className="-ml-2 mb-1 h-9 cursor-pointer px-2">
               <Link href={`/dashboard/attendance?month=${month.key}`}>
                 <ChevronLeft className="mr-1 h-4 w-4" />
-                All employees
+                {data?.canCorrect ? "All employees" : "Team attendance"}
               </Link>
             </Button>
           ) : null}
-          <Heading
-            heading={viewingOther ? "Employee attendance" : "My Attendance"}
-            subheading={
-              viewingOther
-                ? "Attendance, leave, and working days for this employee."
-                : "Track your attendance, leaves and working days at a glance."
-            }
-          />
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {viewingOther ? data?.employee.name || "Employee attendance" : "My attendance"}
+          </h1>
+          <p className="mt-1 max-w-xl text-sm leading-relaxed text-[#5f6368] dark:text-muted-foreground">
+            {finding}
+            {data ? ` Shift ${data.shiftLabel}.` : ""}
+          </p>
         </div>
-
-        {!viewingOther ? (
-          <div className="flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2">
-            <span
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"
-              aria-hidden
-            >
-              <Sprout size={22} strokeWidth={1.75} />
-            </span>
-            <p className="text-sm font-medium leading-snug">
-              Be present
-              <span className="block font-normal text-muted-foreground">
-                Be productive
-              </span>
-            </p>
-          </div>
-        ) : null}
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 cursor-pointer"
+            aria-label="Previous month"
+            onClick={() => writeMonth(addPayrollMonths(month, -1).key)}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-9 cursor-pointer px-3"
+            onClick={() => writeMonth(current.key)}
+          >
+            This month
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-9 w-9 cursor-pointer"
+            aria-label="Next month"
+            disabled={!canGoNext}
+            onClick={() => writeMonth(addPayrollMonths(month, 1).key)}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </header>
 
       {loading ? <MyAttendanceSkeleton withHeader={false} /> : null}
 
       {!loading && error ? (
-        <Card className={cn(surfaceCard, "p-6")}>
+        <div className="rounded-md border border-border p-4">
           <p className="text-sm text-destructive">{error}</p>
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-3 cursor-pointer"
-            onClick={() => void load()}
-          >
+          <Button type="button" variant="outline" className="mt-3 cursor-pointer" onClick={() => void load()}>
             Retry
           </Button>
-        </Card>
+        </div>
       ) : null}
 
-      {data && employee ? (
+      {data ? (
         <>
-          <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-8">
-            <div
-              className={cn(
-                surfaceCard,
-                "col-span-2 flex min-w-0 items-center justify-center gap-3 px-3 py-3 sm:col-span-3 md:col-span-2",
-              )}
-            >
-              <Avatar className="h-14 w-14 shrink-0 border border-[#E5F1ED] sm:h-16 sm:w-16 dark:border-teal-900">
-                {employee.profilePic ? (
-                  <AvatarImage
-                    src={employee.profilePic}
-                    alt={employee.name}
-                    className="object-cover"
-                  />
-                ) : null}
-                <AvatarFallback className="bg-[#E5F1ED] text-lg font-semibold text-[#17615D] dark:bg-teal-950 dark:text-teal-200">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-
-              <div className="min-w-0 text-left">
-                <h2
-                  className={cn(
-                    "truncate text-sm font-bold leading-tight sm:text-base",
-                    headingText,
-                  )}
-                >
-                  {employee.name}
-                </h2>
-                <p className={cn("mt-0.5 truncate text-xs font-medium sm:text-[13px]", accentTeal)}>
-                  {employee.designation || "No role"}
-                </p>
-                {viewingOther ? (
-                  <p className={cn("mt-0.5 truncate text-[11px]", mutedText)}>
-                    {[employee.employeeCode, employee.department, employee.email]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-
-            {QUICK_STATS.map((stat) => {
-              const value =
-                stat.key === "joining"
-                  ? employee.joiningDate || "—"
-                  : stat.key === "shift"
-                    ? data.shiftLabel
-                    : stat.key === "present"
-                      ? String(data.summary.presentDays)
-                      : stat.key === "absent"
-                        ? String(data.summary.absentDays)
-                        : stat.key === "halfDays"
-                          ? String(data.summary.halfDays)
-                          : String(data.summary.paidLeaveDays);
-              const Icon = stat.icon;
-              return (
-                <div
-                  key={stat.key}
-                  className={cn(
-                    surfaceCard,
-                    "col-span-1 flex min-w-0 flex-col items-start justify-center gap-1.5 px-3 py-3 transition-all hover:-translate-y-0.5 hover:shadow-md",
-                  )}
-                >
-                  {stat.badgeClass ? (
-                    <span
-                      className={cn(
-                        "inline-flex h-6 w-6 items-center justify-center rounded-full",
-                        stat.badgeClass,
-                      )}
-                    >
-                      <Icon size={13} strokeWidth={2.5} className={stat.iconClass} />
-                    </span>
-                  ) : (
-                    <Icon
-                      size={18}
-                      className={cn(
-                        "shrink-0",
-                        stat.iconClass,
-                        stat.fillIcon && "fill-current",
-                      )}
-                    />
-                  )}
-                  <p className={cn("text-[11px] leading-none", mutedText)}>
-                    {stat.label}
-                  </p>
-                  <p
-                    className={cn(
-                      "w-full break-words text-sm font-bold leading-snug",
-                      bodyText,
-                    )}
-                  >
-                    {value}
-                  </p>
-                </div>
-              );
-            })}
-          </section>
-
-          <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-            {METRIC_CARDS.map((metric) => {
-              const Icon = metric.icon;
-              const raw =
-                metric.key === "attendancePercentage"
-                  ? data.summary.attendancePercentage
-                  : data.summary[metric.key];
-              return (
-                <div
-                  key={metric.key}
-                  className={cn(
-                    "rounded-2xl border border-white p-4 transition-all hover:-translate-y-1 hover:shadow-md dark:border-border/40",
-                    metric.cardClass,
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/70 dark:bg-black/25",
-                      metric.iconClass,
-                    )}
-                  >
-                    <Icon
-                      size={21}
-                      className={metric.fillIcon ? "fill-current" : undefined}
-                    />
-                  </div>
-                  <p className="text-xs font-medium text-gray-600 dark:text-muted-foreground">
-                    {metric.label}
-                  </p>
-                  <p className={cn("mt-1 text-2xl font-bold", bodyText)}>
-                    {raw}
-                    {metric.suffix ?? ""}
-                  </p>
-                </div>
-              );
-            })}
-          </section>
-
-          <section className={cn(surfaceCard, "p-4 md:p-5")}>
-            <LeavePanel
-              employeeId={viewingOther ? employeeId : undefined}
-              selfService={!viewingOther}
-              canManage={viewingOther && data.canCorrect}
-              onChanged={() => {
-                void refreshAttendance();
-              }}
+          <section
+            aria-label="What the numbers mean"
+            className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-[#e8e8e8] bg-[#e8e8e8] dark:border-border dark:bg-border sm:grid-cols-2 xl:grid-cols-3"
+          >
+            <Explain
+              label="Loss of pay"
+              value={formatDayCount(data.summary.lopDays)}
+              text={lopNote || "Nothing has been cut from pay this month."}
+              lead
+              tone={data.summary.lopDays === 0 ? "muted" : "rose"}
+            />
+            <Explain
+              label="Present"
+              value={String(data.summary.presentDays)}
+              text="Full days you were in for the shift, including grace days."
+              tone="blue"
+            />
+            <Explain
+              tone="amber"
+              label="Grace days"
+              value={
+                data.guide.graceCutsPay
+                  ? `${data.guide.graceDaysUsed} of ${data.guide.graceDaysAllowed}`
+                  : String(data.guide.graceDaysUsed)
+              }
+              text={graceText(data.guide)}
+            />
+            <Explain
+              tone="amber"
+              label="Half days"
+              value={String(data.summary.halfDays)}
+              text={halfDayText(data.guide)}
+            />
+            <Explain
+              tone="blue"
+              label="Planned leave"
+              value={String(plannedDays)}
+              text={plannedText(data.summary.paidLeaveDays, data.summary.unpaidLeaveDays)}
+            />
+            <Explain
+              tone="rose"
+              label="Unplanned leave"
+              value={String(data.summary.unplannedLeaveDays)}
+              text={unplannedText(data.guide)}
             />
           </section>
 
-          <section className={cn(surfaceCard, "overflow-hidden p-4 md:p-5")}>
-            <div
-              className="mb-5 grid grid-cols-1 items-center gap-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-x-3"
-              aria-label="Calendar controls"
-            >
-              <div className="flex flex-nowrap items-center gap-2 sm:gap-2.5">
-                <CalendarDays className={cn("shrink-0", accentTeal)} size={22} />
-                <h2
-                  className={cn(
-                    "shrink-0 whitespace-nowrap text-lg font-bold sm:text-xl",
-                    bodyText,
-                  )}
-                >
-                  {payrollMonthLabel(month)}
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => writeMonth(addPayrollMonths(month, -1).key)}
-                  className={cn(
-                    "shrink-0 cursor-pointer rounded-full border border-border p-2",
-                    softHover,
-                  )}
-                  aria-label="Previous month"
-                >
-                  <ChevronLeft size={17} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => writeMonth(current.key)}
-                  className={cn(
-                    "shrink-0 cursor-pointer rounded-full border border-border px-3 py-1.5 text-xs font-semibold sm:px-4 sm:py-2",
-                    softHover,
-                  )}
-                >
-                  Today
-                </button>
-                <button
-                  type="button"
-                  disabled={!canGoNext}
-                  onClick={() => writeMonth(addPayrollMonths(month, 1).key)}
-                  className={cn(
-                    "shrink-0 cursor-pointer rounded-full border border-border p-2",
-                    softHover,
-                  )}
-                  aria-label="Next month"
-                >
-                  <ChevronRight size={17} />
-                </button>
-              </div>
-
-              <div
-                className="flex min-w-0 flex-wrap items-center gap-1.5 sm:justify-center sm:gap-2"
-                aria-label="Status legend"
-              >
-                {STATUS_LEGEND.map((item) => {
-                  const style = STATUS_STYLE[item.letter];
-                  return (
-                    <div
-                      key={item.letter}
-                      className={cn(
-                        "flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none sm:px-3 sm:text-xs",
-                        style.soft,
-                      )}
-                    >
-                      <span
-                        className={cn("h-2 w-2 shrink-0 rounded-full", style.dot)}
-                      />
-                      <span className="whitespace-nowrap">
-                        {item.letter} {item.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div
-                className="inline-flex w-fit shrink-0 rounded-full bg-[#EEF2EF] p-1 shadow-inner sm:justify-self-end dark:bg-muted"
-                role="tablist"
-                aria-label="Calendar view"
-              >
-                {VIEW_OPTIONS.map((option) => {
-                  const Icon = option.icon;
-                  const active = calendarView === option.id;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      onClick={() => setCalendarView(option.id)}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all duration-300 ease-out sm:gap-2 sm:px-3.5 sm:py-2 sm:text-sm",
-                        active
-                          ? "bg-[#176F68] text-white shadow-md dark:bg-teal-700"
-                          : "text-gray-600 hover:bg-white/80 hover:text-[#176F68] dark:text-muted-foreground dark:hover:bg-background/60 dark:hover:text-teal-300",
-                      )}
-                    >
-                      <Icon size={15} className="shrink-0" />
-                      <span>{option.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+          <section className="overflow-hidden rounded-lg border border-[#e8e8e8] bg-white dark:border-border dark:bg-card">
+            <div className="flex flex-wrap items-end justify-between gap-3 px-4 py-4">
+              <h2 className="text-base font-medium">{payrollMonthLabel(month)}</h2>
+              <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#5f6368] dark:text-muted-foreground">
+                <li className="font-medium text-[#9a6700] underline decoration-[#9a6700] decoration-2 underline-offset-2 dark:text-amber-300">Grace day</li>
+                <li className="px-1 font-medium text-[#9a6700] dark:text-amber-200" style={HATCH_STYLE}>Half day</li>
+                <li className="bg-[#e7f0fb] px-1 font-medium text-[#1d5fbf] dark:bg-sky-950/50 dark:text-sky-200">Planned leave</li>
+                <li className="font-medium text-[#9f1239] dark:text-rose-300">Unplanned leave</li>
+              </ul>
             </div>
-
-            {calendarView === "month" ? (
-              <div className="overflow-x-auto">
-                <div className="min-w-[760px]">
-                  <div className="grid grid-cols-7 border-b border-gray-200 dark:border-border">
-                    {WEEKDAYS.map((day) => (
-                      <div
-                        key={day}
-                        className="py-3.5 text-center text-sm font-bold tracking-wide text-[#315354] dark:text-muted-foreground"
-                      >
-                        {day}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl bg-[#EAE7E3] dark:bg-border">
-                    {Array.from({ length: padCount }, (_, index) => (
-                      <div
-                        key={`pad-${index}`}
-                        className="min-h-[132px] bg-[#FAFAF8] dark:bg-muted/40"
-                        aria-hidden
-                      />
-                    ))}
-                    {data.days.map((day) => (
-                      <DayCell
-                        key={day.date}
-                        day={day}
-                        todayKey={todayKey}
-                        selected={activeDate === day.date}
-                        onSelect={(next) => {
-                          setFocusDate(next.date);
-                          setSelectedDay(next);
-                        }}
-                      />
-                    ))}
-                  </div>
+            <div className="overflow-x-auto">
+              <div className="min-w-[640px]">
+                <div className="grid grid-cols-7 border-b border-border">
+                  {WEEKDAYS.map((day) => (
+                    <div key={day} className="px-2 py-2 text-center text-xs text-muted-foreground">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7">
+                  {Array.from({ length: padCount }, (_, index) => (
+                    <div key={`pad-${index}`} className="min-h-[88px] border-b border-r border-border bg-muted/30" />
+                  ))}
+                  {data.days.map((day) => (
+                    <DayCell
+                      key={day.date}
+                      day={day}
+                      todayKey={todayKey}
+                      onSelect={setSelectedDay}
+                    />
+                  ))}
                 </div>
               </div>
-            ) : null}
-
-            {calendarView === "week" ? (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-                {weekDays.map((day) => (
-                  <WeekDayCard
-                    key={day.date}
-                    day={day}
-                    todayKey={todayKey}
-                    onSelect={(next) => {
-                      setFocusDate(next.date);
-                      setSelectedDay(next);
-                    }}
-                  />
-                ))}
-              </div>
-            ) : null}
-
-            {calendarView === "day" && dayFocus ? (
-              <DayFocusCard
-                day={dayFocus}
-                todayKey={todayKey}
-                onOpen={() => setSelectedDay(dayFocus)}
-              />
-            ) : null}
+            </div>
           </section>
 
-          <section className="grid grid-cols-1 gap-4 xl:grid-cols-[0.8fr_1.6fr]">
-            <div className={cn(surfaceCard, "p-5 md:p-6")}>
-              <div className="mb-6 flex items-center gap-2.5">
-                <ChartNoAxesCombined size={22} className={accentTeal} />
-                <h3
-                  className={cn(
-                    "text-lg font-bold tracking-tight",
-                    bodyText,
-                  )}
-                >
-                  Attendance Insights
-                </h3>
-              </div>
+          {!viewingOther || data.canCorrect ? (
+            <section className="rounded-lg border border-[#e8e8e8] bg-white p-4 dark:border-border dark:bg-card">
+              <LeavePanel
+                employeeId={viewingOther ? employeeId : undefined}
+                selfService={!viewingOther}
+                canManage={viewingOther && data.canCorrect}
+                onChanged={() => {
+                  void refreshAttendance();
+                }}
+              />
+            </section>
+          ) : null}
 
-              <div className="flex flex-wrap items-center justify-around gap-8">
-                <ChartContainer
-                  config={insightChartConfig}
-                  className="mx-auto aspect-square h-[190px] w-[190px]"
-                >
-                  <PieChart>
-                    <ChartTooltip
-                      cursor={false}
-                      content={<ChartTooltipContent hideLabel />}
-                    />
-                    <Pie
-                      data={insightData}
-                      dataKey="count"
-                      nameKey="label"
-                      innerRadius={54}
-                      outerRadius={76}
-                      strokeWidth={3}
-                    >
-                      <Label
-                        content={({ viewBox }) => {
-                          if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+          <section className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.4fr)]">
+            <div className="rounded-lg border border-[#e8e8e8] bg-white p-4 dark:border-border dark:bg-card">
+              <h2 className="text-base font-semibold">Attendance</h2>
+              <p className="mt-1 text-sm text-muted-foreground">How this month is split.</p>
+              {distribution.length === 0 ? (
+                <p className="mt-8 text-sm text-muted-foreground">No attendance recorded this month yet.</p>
+              ) : (
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-6">
+                  <ChartContainer config={distributionConfig} className="aspect-square h-[180px] w-[180px]">
+                    <PieChart>
+                      <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                      <Pie
+                        data={distribution}
+                        dataKey="count"
+                        nameKey="label"
+                        innerRadius={52}
+                        outerRadius={74}
+                        strokeWidth={2}
+                      >
+                        <Label
+                          content={({ viewBox }) => {
+                            if (!viewBox || !("cx" in viewBox) || !("cy" in viewBox)) return null;
                             return (
-                              <text
-                                x={viewBox.cx}
-                                y={viewBox.cy}
-                                textAnchor="middle"
-                                dominantBaseline="middle"
-                              >
-                                <tspan
-                                  x={viewBox.cx}
-                                  y={(viewBox.cy || 0) - 4}
-                                  className="fill-[#172B2D] text-3xl font-bold dark:fill-foreground"
-                                >
+                              <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                                <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) - 2} className="fill-foreground text-2xl font-medium">
                                   {data.summary.attendancePercentage}%
                                 </tspan>
-                                <tspan
-                                  x={viewBox.cx}
-                                  y={(viewBox.cy || 0) + 16}
-                                  className="fill-gray-500 text-xs dark:fill-muted-foreground"
-                                >
-                                  Overall
-                                </tspan>
-                                <tspan
-                                  x={viewBox.cx}
-                                  y={(viewBox.cy || 0) + 30}
-                                  className="fill-gray-500 text-xs dark:fill-muted-foreground"
-                                >
+                                <tspan x={viewBox.cx} y={(viewBox.cy ?? 0) + 16} className="fill-muted-foreground text-xs">
                                   Attendance
                                 </tspan>
                               </text>
                             );
-                          }
-                          return null;
-                        }}
-                      />
-                    </Pie>
-                  </PieChart>
-                </ChartContainer>
-
-                <div className="space-y-4">
-                  {(
-                    [
-                      {
-                        label: "Present",
-                        value: data.summary.presentDays,
-                        color: "#219B68",
-                      },
-                      {
-                        label: "Absent",
-                        value: data.summary.absentDays,
-                        color: "#E94C50",
-                      },
-                      {
-                        label: "Half Day",
-                        value: data.summary.halfDays,
-                        color: "#FFBE45",
-                      },
-                      {
-                        label: "Others",
-                        value:
-                          data.summary.paidLeaveDays +
-                          data.summary.unpaidLeaveDays +
-                          data.summary.holidays +
-                          data.summary.weeklyOffs +
-                          data.summary.workFromHomeDays,
-                        color: "#AAAAAA",
-                      },
-                    ] as const
-                  ).map((item) => (
-                    <div
-                      key={item.label}
-                      className="flex min-w-[140px] items-center justify-between gap-8 text-sm"
-                    >
-                      <span className="flex items-center gap-2.5 font-medium text-gray-700 dark:text-muted-foreground">
-                        <span
-                          className="h-3 w-3 rounded-full"
-                          style={{ background: item.color }}
+                          }}
                         />
-                        {item.label}
-                      </span>
-                      <strong className={cn("text-base", bodyText)}>
-                        {item.value}
-                      </strong>
-                    </div>
+                      </Pie>
+                    </PieChart>
+                  </ChartContainer>
+                  <ul className="min-w-[160px] space-y-2 text-sm">
+                    {distribution.map((slice) => (
+                      <li key={slice.key} className="flex items-center justify-between gap-6">
+                        <span className="flex items-center gap-2 text-muted-foreground">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: slice.color }} />
+                          {slice.label}
+                        </span>
+                        <span className="font-medium tabular-nums">{slice.count}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-[#e8e8e8] bg-white p-4 dark:border-border dark:bg-card">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-base font-semibold">Login and logout</h2>
+                <div className="flex gap-1" role="group" aria-label="Login or logout">
+                  {(["all", "login", "logout"] as const).map((value) => (
+                    <Button
+                      key={value}
+                      type="button"
+                      size="sm"
+                      variant={logFilter === value ? "default" : "outline"}
+                      className="h-8 cursor-pointer capitalize"
+                      aria-pressed={logFilter === value}
+                      onClick={() => setLogFilter(value)}
+                    >
+                      {value}
+                    </Button>
                   ))}
                 </div>
               </div>
-            </div>
-
-            <div className={cn(surfaceCard, "overflow-hidden p-4 md:p-5")}>
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <List size={22} className={accentTeal} />
-                  <h3
-                    className={cn(
-                      "text-lg font-bold tracking-tight",
-                      bodyText,
-                    )}
-                  >
-                    Daily Summary
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={downloadReport}
-                  className="flex cursor-pointer items-center gap-2 rounded-xl bg-[#176F68] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#145F59] dark:bg-teal-700 dark:hover:bg-teal-600"
-                >
-                  <Download size={15} /> Export Report
-                </button>
-              </div>
-
-              <div className="mb-4 flex flex-wrap items-center gap-2.5">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className={cn(
-                        filterControlClass,
-                        "justify-start px-3 font-medium",
-                      )}
-                    >
-                      <CalendarDays className="mr-2 h-4 w-4 shrink-0 text-[#5C7375]" />
-                      {summaryRange?.from ? (
-                        summaryRange.to ? (
-                          <>
-                            {format(summaryRange.from, "MMM d")} –{" "}
-                            {format(summaryRange.to, "MMM d, yyyy")}
-                          </>
-                        ) : (
-                          format(summaryRange.from, "MMM d, yyyy")
-                        )
-                      ) : (
-                        "Pick dates"
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      defaultMonth={summaryRange?.from}
-                      selected={summaryRange}
-                      onSelect={setSummaryRange}
-                      numberOfMonths={1}
-                    />
-                  </PopoverContent>
-                </Popover>
-
-                <Select value={eventFilter} onValueChange={setEventFilter}>
-                  <SelectTrigger className={filterControlClass}>
-                    <SelectValue placeholder="All Events" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUMMARY_EVENT_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                  <SelectTrigger className={filterControlClass}>
-                    <SelectValue placeholder="All Sources" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUMMARY_SOURCE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="overflow-x-auto rounded-xl border border-[#EFEAE4] dark:border-border">
-                <table className="w-full min-w-[720px] text-left text-sm">
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full min-w-[28rem] text-left text-sm">
                   <thead>
-                    <tr className="bg-[#F7F4EF] text-[13px] text-[#5C7375] dark:bg-muted/60 dark:text-muted-foreground">
-                      {[
-                        "Date",
-                        "Day",
-                        "Event",
-                        "Status",
-                        "Time",
-                        "Source",
-                        "Remarks",
-                      ].map((head) => (
-                        <th
-                          key={head}
-                          className="px-3 py-3 font-semibold tracking-wide"
-                        >
-                          {head}
-                        </th>
-                      ))}
+                    <tr className="border-b border-border text-xs text-muted-foreground">
+                      <th className="py-2 pr-3 font-medium">Date</th>
+                      <th className="py-2 pr-3 font-medium">Event</th>
+                      <th className="py-2 pr-3 font-medium">Time</th>
+                      <th className="py-2 font-medium">Source</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {previewSummaryRows.length === 0 ? (
+                    {visibleLogins.length === 0 ? (
                       <tr>
-                        <td
-                          colSpan={7}
-                          className="px-3 py-10 text-center text-sm text-gray-500 dark:text-muted-foreground"
-                        >
-                          No activity matches these filters.
+                        <td colSpan={4} className="py-8 text-center text-muted-foreground">
+                          No logins or logouts in this month yet.
                         </td>
                       </tr>
                     ) : (
-                      previewSummaryRows.map((row) => {
-                        const weekday =
-                          WEEKDAYS[weekdayOffset(row.date)] ?? "—";
-                        const statusStyle =
-                          SUMMARY_STATUS_STYLE[row.statusKey];
-                        const StatusIcon = statusStyle.icon;
-                        return (
-                          <tr
-                            key={row.id}
-                            className="cursor-pointer border-t border-[#F0EBE5] hover:bg-[#FAFAF8] dark:border-border dark:hover:bg-muted/40"
-                            onClick={() => {
-                              setFocusDate(row.day.date);
-                              setSelectedDay(row.day);
-                            }}
-                          >
-                            <td
-                              className={cn(
-                                "whitespace-nowrap px-3 py-3.5 font-semibold",
-                                bodyText,
-                              )}
-                            >
-                              {row.date}
-                            </td>
-                            <td className="px-3 py-3.5 text-gray-600 dark:text-muted-foreground">
-                              {weekday}
-                            </td>
-                            <td className="px-3 py-3.5">
-                              <SummaryEventCell
-                                eventKey={row.eventKey}
-                                label={row.eventLabel}
-                              />
-                            </td>
-                            <td className="px-3 py-3.5">
-                              <span
-                                className={cn(
-                                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
-                                  statusStyle.pill,
-                                )}
-                              >
-                                <StatusIcon className="h-3.5 w-3.5" />
-                                {row.statusLabel}
-                              </span>
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-3.5 tabular-nums text-gray-700 dark:text-muted-foreground">
-                              {row.timeLabel || "—"}
-                            </td>
-                            <td className="px-3 py-3.5">
-                              <SummarySourceCell sourceKey={row.sourceKey} />
-                            </td>
-                            <td className="max-w-[240px] truncate px-3 py-3.5 text-gray-600 dark:text-muted-foreground">
-                              {summaryRemarksText(row)}
-                            </td>
-                          </tr>
-                        );
-                      })
+                      visibleLogins.map((row) => (
+                        <tr
+                          key={row.id}
+                          className="cursor-pointer border-b border-border last:border-b-0 hover:bg-muted/40"
+                          onClick={() => setSelectedDay(row.day)}
+                        >
+                          <td className="py-2.5 pr-3 tabular-nums">{row.date}</td>
+                          <td className="py-2.5 pr-3">{row.kind === "login" ? "Login" : "Logout"}</td>
+                          <td className="py-2.5 pr-3 tabular-nums">{row.timeLabel || "—"}</td>
+                          <td className="py-2.5 text-muted-foreground">{row.source}</td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
               </div>
-
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                {!viewingOther ? (
-                  <div className="flex min-w-0 flex-1 items-start gap-2 rounded-xl bg-[#E8F5F1] px-3.5 py-2.5 text-sm text-[#176F68] dark:bg-teal-950/40 dark:text-teal-300">
-                    <Lightbulb className="mt-0.5 h-4 w-4 shrink-0" />
-                    <p>
-                      Tip: You can filter by event, source or date to find
-                      specific activity details.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="min-w-0 flex-1" />
-                )}
-                {filteredSummaryRows.length > DAILY_SUMMARY_PREVIEW_LIMIT ? (
-                  <button
-                    type="button"
-                    onClick={() => setSummaryExpanded((open) => !open)}
-                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#176F68] px-4 py-2 text-sm font-semibold text-[#176F68] hover:bg-[#176F68] hover:text-white dark:border-teal-500 dark:text-teal-400 dark:hover:bg-teal-700 dark:hover:text-white"
-                  >
-                    {summaryExpanded ? "Show less" : "View More"}
-                    <ArrowRight
-                      className={cn(
-                        "h-4 w-4 transition",
-                        summaryExpanded && "rotate-90",
-                      )}
-                    />
-                  </button>
-                ) : null}
-              </div>
+              {filteredLogins.length > LOGIN_PREVIEW_LIMIT ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 h-8 cursor-pointer px-0"
+                  onClick={() => setLogExpanded((open) => !open)}
+                >
+                  {logExpanded ? "Show less" : `Show all ${filteredLogins.length}`}
+                </Button>
+              ) : null}
             </div>
           </section>
 
-          {viewingOther ? (
-            <section className={cn(surfaceCard, "space-y-3 p-4 md:p-5")}>
-              <h3
-                className={cn(
-                  "text-lg font-bold tracking-tight",
-                  bodyText,
-                )}
-              >
-                Recent corrections
-              </h3>
-              {(data.audits?.length ?? 0) === 0 ? (
-                <p className={cn("text-sm", mutedText)}>
-                  No corrections this month.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {data.audits.map((audit) => (
-                    <li
-                      key={audit.id}
-                      className="rounded-xl border border-[#E5F1ED] px-4 py-3 text-sm dark:border-border"
-                    >
-                      <p className={cn("font-medium", bodyText)}>
-                        {audit.attendanceDate}: {audit.oldStatus} →{" "}
-                        {audit.newStatus}
-                      </p>
-                      <p className={mutedText}>{audit.reason}</p>
-                      <p className={cn("mt-1 text-xs", mutedText)}>
-                        {audit.changedByName}
-                        {audit.approvedByName
-                          ? ` · Approved by ${audit.approvedByName}`
-                          : ""}
-                        {audit.oldLoginLabel || audit.newLoginLabel
-                          ? ` · Login ${audit.oldLoginLabel || "—"} to ${audit.newLoginLabel || "—"}`
-                          : ""}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
+          {viewingOther && data.audits.length > 0 ? (
+            <section className="rounded-lg border border-[#e8e8e8] bg-white p-4 dark:border-border dark:bg-card">
+              <h2 className="text-sm font-semibold">Recent corrections</h2>
+              <ul className="mt-2 space-y-2">
+                {data.audits.map((audit) => (
+                  <li key={audit.id} className="border-t border-border pt-2 text-sm first:border-t-0 first:pt-0">
+                    <p>
+                      {audit.attendanceDate}: {audit.oldStatus} → {audit.newStatus}
+                    </p>
+                    <p className="text-muted-foreground">{audit.reason}</p>
+                  </li>
+                ))}
+              </ul>
             </section>
           ) : null}
         </>
@@ -1430,6 +521,7 @@ export default function MyAttendanceClient({
       <DayDetailDialog
         day={selectedDay}
         todayKey={todayKey}
+        guide={data?.guide ?? null}
         open={Boolean(selectedDay)}
         onOpenChange={(open) => {
           if (!open) setSelectedDay(null);
@@ -1439,162 +531,80 @@ export default function MyAttendanceClient({
   );
 }
 
+function Explain({
+  label,
+  value,
+  text,
+  lead = false,
+  tone = "ink",
+}: {
+  label: string;
+  value: string;
+  text: string;
+  lead?: boolean;
+  tone?: "ink" | "blue" | "amber" | "rose" | "muted";
+}) {
+  return (
+    <article className="bg-white px-4 py-4 dark:bg-card">
+      <h2 className="text-sm text-[#5f6368] dark:text-muted-foreground">{label}</h2>
+      <p
+        className={cn(
+          "mt-1 font-medium tabular-nums tracking-tight",
+          lead ? "text-[30px] leading-none" : "text-2xl",
+          tone === "blue" && "text-[#1d5fbf] dark:text-sky-300",
+          tone === "amber" && "text-[#9a6700] dark:text-amber-300",
+          tone === "rose" && "text-[#9f1239] dark:text-rose-300",
+          tone === "muted" && "font-normal text-[#6b6b6b]",
+        )}
+      >
+        {value}
+      </p>
+      <p className="mt-2 text-sm leading-relaxed text-[#5f6368] dark:text-muted-foreground">{text}</p>
+    </article>
+  );
+}
+
 function DayCell({
   day,
   todayKey,
-  selected,
   onSelect,
 }: {
   day: AttendanceDayCell;
   todayKey: string;
-  selected: boolean;
   onSelect: (day: AttendanceDayCell) => void;
 }) {
-  const isOff = day.status != null && OFF_STATUSES.has(day.status);
-  const dayNum = Number(day.date.slice(-2));
+  const kind = dayKind(day);
+  const word = kind === "off" ? day.label || "Off" : KIND_WORD[kind];
   const isToday = day.date === todayKey;
-  const style = STATUS_STYLE[day.letter] ?? STATUS_STYLE.PV;
-  const showTimes =
-    Boolean(day.status) &&
-    !OFF_STATUSES.has(day.status ?? "") &&
-    day.status !== "not_joined";
-  const checkOut = resolveCheckOutLabel(day, todayKey);
+  const weekend = weekdayOffset(day.date) === 0 || weekdayOffset(day.date) === 6;
 
   return (
     <button
       type="button"
       onClick={() => onSelect(day)}
       className={cn(
-        "min-h-[132px] bg-white p-2.5 text-left transition hover:bg-[#FAFCFA] dark:bg-card dark:hover:bg-muted/60",
-        selected && "ring-2 ring-inset ring-[#176F68] dark:ring-teal-500",
-        isOff && "bg-[#FAFAF8] dark:bg-muted/30",
+        "min-h-[88px] border-b border-r border-[#f0f0f0] bg-white p-2 text-left hover:bg-[#f7f7f7] dark:border-border dark:bg-card dark:hover:bg-muted/40",
+        weekend && "bg-[#f6f6f6] dark:bg-muted/30",
+        isToday && "border-t-2 border-t-[#1d5fbf]",
       )}
       aria-current={isToday ? "date" : undefined}
-      aria-label={`${day.date}${day.label ? `, ${day.label}` : ""}${isToday ? ", today" : ""}`}
+      aria-label={`${day.date}${word ? `, ${word}` : ""}${isToday ? ", today" : ""}`}
     >
-      <div className="mb-2.5 flex items-center justify-between">
-        <span
-          className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold",
-            isToday || selected
-              ? "bg-[#176F68] text-white dark:bg-teal-700"
-              : "text-[#273B3D] dark:text-foreground",
-          )}
-        >
-          {dayNum}
-        </span>
-      </div>
-
-      {day.status ? (
-        <div
-          className={cn(
-            "rounded-lg px-2.5 py-1.5 text-xs font-bold leading-snug",
-            style.soft,
-          )}
-          title={day.label}
-        >
-          {day.letter} {day.label}
-        </div>
-      ) : null}
-
-      {showTimes ? (
-        <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-muted-foreground">
-          <Clock3 size={13} className="shrink-0" />
-          <span className="truncate">
-            {day.firstLoginLabel || "—"}
-            {" → "}
-            {checkOut || "—"}
-          </span>
-        </div>
-      ) : null}
-    </button>
-  );
-}
-
-function WeekDayCard({
-  day,
-  todayKey,
-  onSelect,
-}: {
-  day: AttendanceDayCell;
-  todayKey: string;
-  onSelect: (day: AttendanceDayCell) => void;
-}) {
-  const isToday = day.date === todayKey;
-  const style = STATUS_STYLE[day.letter] ?? STATUS_STYLE.PV;
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(day)}
-      className={cn(
-        "cursor-pointer rounded-2xl border border-[#EAE5DF] bg-[#FAFAF8] p-3 text-left transition hover:bg-white dark:border-border dark:bg-muted/40 dark:hover:bg-card",
-        isToday && "ring-2 ring-[#176F68]/30 dark:ring-teal-500/40",
-      )}
-    >
-      <p className={cn("text-xs font-medium", mutedText)}>
-        {WEEKDAY_FULL[weekdayOffset(day.date)]?.slice(0, 3)}
-      </p>
-      <p className={cn("mt-1 text-lg font-semibold", bodyText)}>
+      <span
+        className={cn(
+          "inline-flex h-6 min-w-6 items-center justify-center text-sm tabular-nums",
+          isToday && "font-medium text-[#1d5fbf]",
+        )}
+      >
         {Number(day.date.slice(-2))}
-      </p>
-      {day.status ? (
+      </span>
+      {word ? (
         <span
-          className={cn(
-            "mt-2 inline-flex rounded-full px-3 py-1 text-sm font-semibold",
-            style.pill,
-          )}
+          className={cn("mt-2 block rounded px-1.5 py-0.5 text-xs leading-snug", KIND_CLASS[kind])}
+          style={kind === "half" ? HATCH_STYLE : undefined}
         >
-          {day.label}
+          {word}
         </span>
-      ) : (
-        <p className="mt-2 text-sm text-muted-foreground">No status</p>
-      )}
-    </button>
-  );
-}
-
-function DayFocusCard({
-  day,
-  onOpen,
-  todayKey,
-}: {
-  day: AttendanceDayCell;
-  onOpen: () => void;
-  todayKey: string;
-}) {
-  const showTimes =
-    Boolean(day.status) &&
-    !OFF_STATUSES.has(day.status ?? "") &&
-    day.status !== "not_joined";
-  const style = STATUS_STYLE[day.letter] ?? STATUS_STYLE.PV;
-  const checkOut = resolveCheckOutLabel(day, todayKey);
-
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="w-full cursor-pointer rounded-xl bg-[#F5F8F6] p-5 text-left transition hover:bg-[#EEF4F1] dark:bg-muted/50 dark:hover:bg-muted"
-    >
-      <p className={cn("text-sm", mutedText)}>Selected date</p>
-      <p className={cn("mt-1 text-base font-bold", bodyText)}>
-        {formatDayHeading(day.date)}
-      </p>
-      {day.status ? (
-        <span
-          className={cn(
-            "mt-3 inline-flex rounded-full px-3.5 py-1.5 text-sm font-semibold",
-            style.pill,
-          )}
-        >
-          {day.letter} · {day.label}
-        </span>
-      ) : (
-        <p className="mt-3 text-sm text-muted-foreground">No status yet</p>
-      )}
-      {showTimes ? (
-        <p className={cn("mt-3 text-base font-semibold", bodyText)}>
-          {day.firstLoginLabel || "—"} / {checkOut || "—"}
-        </p>
       ) : null}
     </button>
   );
@@ -1605,19 +615,19 @@ function DayDetailDialog({
   open,
   onOpenChange,
   todayKey,
+  guide,
 }: {
   day: AttendanceDayCell | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   todayKey: string;
+  guide: AttendanceGuide | null;
 }) {
   if (!day) return null;
-
+  const kind = dayKind(day);
+  const word = kind === "off" ? day.label || "Off" : KIND_WORD[kind];
   const showTimes =
-    Boolean(day.status) &&
-    !OFF_STATUSES.has(day.status ?? "") &&
-    day.status !== "not_joined";
-  const style = STATUS_STYLE[day.letter] ?? STATUS_STYLE.PV;
+    Boolean(day.status) && !OFF_STATUSES.has(day.status ?? "") && day.status !== "not_joined";
   const checkOut = resolveCheckOutLabel(day, todayKey);
 
   return (
@@ -1625,30 +635,14 @@ function DayDetailDialog({
       <DialogContent className="max-h-[90vh] max-w-md overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{formatDayHeading(day.date)}</DialogTitle>
-          <DialogDescription>
-            Attendance details for this day
-          </DialogDescription>
+          <DialogDescription>{word || "No status yet"}</DialogDescription>
         </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Status</p>
-            {day.status ? (
-              <Badge
-                variant="secondary"
-                className={cn("border-0 text-sm font-semibold", style.pill)}
-              >
-                {day.letter} · {day.label}
-              </Badge>
-            ) : (
-              <p className="text-sm text-muted-foreground">No status yet</p>
-            )}
-          </div>
-
+        <div className="space-y-4 text-sm">
+          {guide ? <p className="leading-relaxed text-muted-foreground">{dayMeaning(kind, guide)}</p> : null}
           {showTimes ? (
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Check-in</p>
+              <div>
+                <p className="font-medium">Check-in</p>
                 <AttendanceCheckTime
                   kind="in"
                   timeLabel={day.firstLoginLabel}
@@ -1658,8 +652,8 @@ function DayDetailDialog({
                   showDevice
                 />
               </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Check-out</p>
+              <div>
+                <p className="font-medium">Check-out</p>
                 <AttendanceCheckTime
                   kind="out"
                   timeLabel={checkOut}
@@ -1671,329 +665,154 @@ function DayDetailDialog({
               </div>
             </div>
           ) : null}
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Actions</p>
-            <AttendanceDayActionsList actions={day.actions} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Shift</p>
-              <p className="text-sm text-muted-foreground">
-                {day.shiftStartLabel && day.shiftEndLabel
-                  ? `${day.shiftStartLabel} – ${day.shiftEndLabel}`
-                  : "—"}
-              </p>
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Source</p>
-              <p className="text-sm text-muted-foreground">
-                {day.sourceLabel || "—"}
-              </p>
-            </div>
-          </div>
-
-          {day.anomalyLabels.length > 0 ? (
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Flags</p>
-              <div className="flex flex-wrap gap-1.5">
-                {day.anomalyLabels.map((label) => (
-                  <Badge key={label} variant="outline" className="text-xs">
-                    {label}
-                  </Badge>
-                ))}
-              </div>
+          {(day.actions?.length ?? 0) > 0 ? (
+            <div>
+              <p className="mb-1 font-medium">Logins</p>
+              <AttendanceDayActionsList actions={day.actions} />
             </div>
           ) : null}
-
-          <div className="space-y-1">
-            <p className="text-sm font-medium">Notes</p>
-            <p className="text-sm text-muted-foreground">
-              {day.remarks ||
-                (day.isManuallyAdjusted ? "Corrected" : "No notes")}
-            </p>
-          </div>
+          {day.remarks ? <p className="text-muted-foreground">{day.remarks}</p> : null}
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-function resolveCheckOutLabel(
-  day: AttendanceDayCell,
-  todayKey: string,
-): string {
-  if (day.lastLogoutLabel?.trim()) return day.lastLogoutLabel.trim();
-  // Today / future: leave open until real logout or 23:59 cron.
-  if (day.date >= todayKey) return "";
-  if (!day.firstLoginLabel && !day.firstLoginAt) return "";
-  return SYSTEM_CHECKOUT_LABEL;
+function dayKind(day: AttendanceDayCell): DayKind {
+  if (!day.status) return "empty";
+  if (day.status === "present" && day.isLate) return "grace";
+  if (day.status === "half_day") return "half";
+  if (day.status === "on_leave" && day.leaveCategory === "unplanned") return "unplanned";
+  if (day.status === "on_leave" && day.leaveCategory === "unapproved") return "unapproved";
+  if (day.status === "on_leave" || day.status === "absent") {
+    return day.leaveCategory === "unapproved" || day.status === "absent" ? "unapproved" : "planned";
+  }
+  if (day.status === "present" || day.status === "work_from_home") return "present";
+  if (OFF_STATUSES.has(day.status)) return "off";
+  return "other";
 }
 
-function dateFromKey(dateKey: string): Date {
-  const [year, month, day] = dateKey.split("-").map(Number);
-  return new Date(year, (month ?? 1) - 1, day ?? 1);
+function graceText(guide: AttendanceGuide): string {
+  const window = `Arriving within ${guide.graceMinutes} minutes of your shift start still counts as on time.`;
+  if (guide.graceCutsPay) {
+    return `${window} A grace day is a later arrival that still counts as present. The first ${guide.graceDaysAllowed} grace days this month do not cut pay.`;
+  }
+  return `${window} A grace day is a later arrival that still counts as present. It does not cut your pay.`;
 }
 
-function keyFromDate(value: Date): string {
-  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+function halfDayText(guide: AttendanceGuide): string {
+  const pay =
+    guide.halfDayLopFactor === 0.5
+      ? "Each one cuts half a day of pay."
+      : guide.halfDayLopFactor === 1
+        ? "Each one cuts a full day of pay."
+        : `Each one cuts ${guide.halfDayLopFactor} day of pay.`;
+  const severe = guide.graceCutsPay
+    ? ` Arriving ${guide.severeLateMinutes} minutes or more after the shift starts is a half day.`
+    : "";
+  return `A half day means only part of the shift was worked.${severe} ${pay}`;
 }
 
-function sourceFromDevice(device: AttendanceDevice | null): SummarySourceKey {
-  if (device === "mobile") return "mobile";
-  if (device === "system") return "system";
-  return "web";
+function plannedText(paid: number, unpaid: number): string {
+  if (unpaid > 0) {
+    return `Leave asked for ahead of time. ${paid} came from the paid balance. ${unpaid} went past the balance and ${unpaid === 1 ? "is" : "are"} unpaid.`;
+  }
+  return "Leave asked for ahead of time. It uses the paid leave balance first. Days past the balance are unpaid.";
 }
 
-function sourceLabelForKey(sourceKey: SummarySourceKey): string {
-  if (sourceKey === "mobile") return "Mobile";
-  if (sourceKey === "system") return "System";
-  return "Web";
+function unplannedText(guide: AttendanceGuide): string {
+  const cost =
+    guide.unplannedLeaveLopDays === 1
+      ? "1 day of loss of pay"
+      : `${guide.unplannedLeaveLopDays} days of loss of pay`;
+  return `Leave that was not planned. It does not use the paid balance, and each day costs ${cost}.`;
+}
+
+function dayMeaning(kind: DayKind, guide: AttendanceGuide): string {
+  if (kind === "grace") return graceText(guide);
+  if (kind === "half") return halfDayText(guide);
+  if (kind === "planned") return plannedText(0, 0);
+  if (kind === "unplanned") return unplannedText(guide);
+  if (kind === "present") return "You were in for the working day.";
+  if (kind === "unapproved") return "This working day has no approved leave, so it counts as unapproved.";
+  if (kind === "off") return "This day is not a working day.";
+  return "";
+}
+
+type LoginRow = {
+  id: string;
+  date: string;
+  day: AttendanceDayCell;
+  kind: "login" | "logout";
+  timeLabel: string;
+  source: string;
+};
+
+function buildLoginRows(days: AttendanceDayCell[], todayKey: string): LoginRow[] {
+  const rows: LoginRow[] = [];
+  const ordered = [...days].filter((day) => day.date <= todayKey).sort((left, right) => right.date.localeCompare(left.date));
+  for (const day of ordered) {
+    if ((day.actions?.length ?? 0) > 0) {
+      for (const action of day.actions) {
+        const systemCheckout = action.kind === "logout" && (action.device === "system" || action.timeLabel === SYSTEM_CHECKOUT_LABEL);
+        rows.push({
+          id: `${day.date}-${action.kind}-${action.at}`,
+          date: day.date,
+          day,
+          kind: action.kind,
+          timeLabel: toDisplayTime(action.timeLabel),
+          source: sourceLabel(systemCheckout ? "system" : action.device),
+        });
+      }
+      continue;
+    }
+    if (day.firstLoginLabel) {
+      rows.push({
+        id: `${day.date}-login`,
+        date: day.date,
+        day,
+        kind: "login",
+        timeLabel: toDisplayTime(day.firstLoginLabel),
+        source: sourceLabel(day.checkInDevice),
+      });
+    }
+    const checkOut = resolveCheckOutLabel(day, todayKey);
+    if (checkOut) {
+      rows.push({
+        id: `${day.date}-logout`,
+        date: day.date,
+        day,
+        kind: "logout",
+        timeLabel: toDisplayTime(checkOut),
+        source: sourceLabel(day.checkOutDevice ?? "system"),
+      });
+    }
+  }
+  return rows;
+}
+
+function sourceLabel(device: "desktop" | "mobile" | "system" | null): string {
+  if (device === "mobile") return "Mobile";
+  if (device === "system") return "System";
+  if (device === "desktop") return "Web";
+  return "—";
 }
 
 function toDisplayTime(timeLabel: string): string {
   const match = /^(\d{1,2}):(\d{2})$/.exec(timeLabel.trim());
   if (!match) return timeLabel;
   const hour24 = Number(match[1]);
-  const minute = match[2];
   if (!Number.isFinite(hour24)) return timeLabel;
   const period = hour24 >= 12 ? "PM" : "AM";
   const hour12 = hour24 % 12 || 12;
-  return `${hour12}:${minute} ${period}`;
+  return `${hour12}:${match[2]} ${period}`;
 }
 
-function formatSessionDuration(loginAt: string, logoutAt: string): string {
-  const ms = new Date(logoutAt).getTime() - new Date(loginAt).getTime();
-  if (!Number.isFinite(ms) || ms < 0) return "";
-  const totalMinutes = Math.floor(ms / 60_000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return `Session: ${hours}h ${minutes}m`;
-}
-
-function statusOnlyEvent(day: AttendanceDayCell): {
-  eventKey: SummaryEventKey;
-  eventLabel: string;
-  statusKey: SummaryStatusKey;
-  statusLabel: string;
-  sourceKey: SummarySourceKey;
-  device: AttendanceDevice | null;
-  details: string;
-} {
-  const adjusted = day.isManuallyAdjusted;
-  const remarks = day.remarks?.trim() || "";
-  switch (day.status) {
-    case "half_day":
-      return {
-        eventKey: "half_day",
-        eventLabel: "Half Day",
-        statusKey: adjusted ? "approved" : "applied",
-        statusLabel: adjusted ? "Approved" : "Applied",
-        sourceKey: "system",
-        device: "system",
-        details: remarks || "Half day recorded",
-      };
-    case "on_leave":
-      return {
-        eventKey: "leave",
-        eventLabel: "Leave",
-        statusKey: adjusted ? "approved" : "applied",
-        statusLabel: adjusted ? "Approved" : "Applied",
-        sourceKey: "system",
-        device: "system",
-        details: remarks || day.label || "Leave",
-      };
-    case "weekly_off":
-      return {
-        eventKey: "weekly_off",
-        eventLabel: "Weekly Off",
-        statusKey: "success",
-        statusLabel: "Success",
-        sourceKey: "system",
-        device: "system",
-        details: remarks || "Weekly off",
-      };
-    case "holiday":
-      return {
-        eventKey: "holiday",
-        eventLabel: "Holiday",
-        statusKey: "success",
-        statusLabel: "Success",
-        sourceKey: "system",
-        device: "system",
-        details: remarks || day.label || "Holiday",
-      };
-    case "absent":
-      return {
-        eventKey: "absent",
-        eventLabel: "Absent",
-        statusKey: "applied",
-        statusLabel: "Applied",
-        sourceKey: "system",
-        device: "system",
-        details: remarks || "Absent",
-      };
-    case "work_from_home":
-      return {
-        eventKey: "wfh",
-        eventLabel: "WFH",
-        statusKey: "success",
-        statusLabel: "Success",
-        sourceKey: day.source === "login" ? "web" : "system",
-        device: day.checkInDevice,
-        details: remarks || "Work from home",
-      };
-    case "present":
-      return {
-        eventKey: "present",
-        eventLabel: "Present",
-        statusKey: "success",
-        statusLabel: "Success",
-        sourceKey: day.source === "login" ? "web" : "system",
-        device: day.checkInDevice,
-        details: remarks || day.label || "Present",
-      };
-    default:
-      return {
-        eventKey: "other",
-        eventLabel: day.label || "Other",
-        statusKey: adjusted ? "approved" : "applied",
-        statusLabel: adjusted ? "Approved" : "Applied",
-        sourceKey: "system",
-        device: "system",
-        details: remarks || day.label || "—",
-      };
-  }
-}
-
-function buildSummaryActivityRows(
-  days: AttendanceDayCell[],
-): SummaryActivityRow[] {
-  const rows: SummaryActivityRow[] = [];
-  const ordered = [...days].sort((a, b) => b.date.localeCompare(a.date));
-
-  for (const day of ordered) {
-    const remarks =
-      day.remarks?.trim() || (day.isManuallyAdjusted ? "Corrected" : "—");
-
-    if ((day.actions?.length ?? 0) > 0) {
-      let lastLoginAt: string | null = null;
-      for (const action of day.actions) {
-        const isSystemCheckout =
-          action.kind === "logout" &&
-          (action.device === "system" ||
-            action.timeLabel === SYSTEM_CHECKOUT_LABEL);
-        const sourceKey = isSystemCheckout
-          ? "system"
-          : sourceFromDevice(action.device);
-        let details = "";
-        if (action.kind === "login") {
-          lastLoginAt = action.at;
-          details = day.anomalyLabels?.[0] ?? "";
-        } else if (lastLoginAt) {
-          details = formatSessionDuration(lastLoginAt, action.at);
-        } else if (day.status === "weekly_off") {
-          details = "Weekly off";
-        } else if (day.status === "holiday") {
-          details = day.label || "Holiday";
-        }
-
-        rows.push({
-          id: `${day.date}-${action.kind}-${action.at}`,
-          date: day.date,
-          day,
-          eventKey: action.kind,
-          eventLabel: action.kind === "login" ? "Login" : "Logout",
-          statusKey: "success",
-          statusLabel: "Success",
-          timeLabel: toDisplayTime(action.timeLabel),
-          sourceKey,
-          device: isSystemCheckout ? "system" : action.device,
-          details,
-          remarks,
-        });
-      }
-      continue;
-    }
-
-    const meta = statusOnlyEvent(day);
-    rows.push({
-      id: `${day.date}-status`,
-      date: day.date,
-      day,
-      eventKey: meta.eventKey,
-      eventLabel: meta.eventLabel,
-      statusKey: meta.statusKey,
-      statusLabel: meta.statusLabel,
-      timeLabel: "",
-      sourceKey: meta.sourceKey,
-      device: meta.device,
-      details: meta.details,
-      remarks,
-    });
-  }
-
-  return rows;
-}
-
-function SummaryEventCell({
-  eventKey,
-  label,
-}: {
-  eventKey: SummaryEventKey;
-  label: string;
-}) {
-  const icon =
-    eventKey === "login" ? (
-      <LogIn className="h-4 w-4 text-[#219B68]" />
-    ) : eventKey === "logout" ? (
-      <LogOut className="h-4 w-4 text-[#E94C50]" />
-    ) : eventKey === "half_day" ? (
-      <Clock3 className="h-4 w-4 text-[#E99A14]" />
-    ) : eventKey === "leave" ? (
-      <Plane className="h-4 w-4 text-[#268FD0]" />
-    ) : (
-      <Clock3 className="h-4 w-4 text-[#5C7375]" />
-    );
-
-  return (
-    <span className={cn("inline-flex items-center gap-2 font-medium", bodyText)}>
-      {icon}
-      {label}
-    </span>
-  );
-}
-
-function SummarySourceCell({ sourceKey }: { sourceKey: SummarySourceKey }) {
-  const Icon =
-    sourceKey === "mobile" ? Smartphone : sourceKey === "system" ? Settings2 : Globe;
-  return (
-    <span className="inline-flex items-center gap-1.5 text-gray-700 dark:text-muted-foreground">
-      <Icon className="h-4 w-4 shrink-0 text-[#5C7375]" />
-      {sourceLabelForKey(sourceKey)}
-    </span>
-  );
-}
-
-function summaryRemarksText(row: SummaryActivityRow): string {
-  const remarks = row.remarks?.trim();
-  const details = row.details?.trim();
-  if (details && remarks && remarks !== "—") {
-    return `${details} · ${remarks}`;
-  }
-  if (details) return details;
-  if (remarks) return remarks;
-  return "—";
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+function resolveCheckOutLabel(day: AttendanceDayCell, todayKey: string): string {
+  if (day.lastLogoutLabel?.trim()) return day.lastLogoutLabel.trim();
+  if (day.date >= todayKey) return "";
+  if (!day.firstLoginLabel && !day.firstLoginAt) return "";
+  return SYSTEM_CHECKOUT_LABEL;
 }
 
 function formatDayHeading(dateKey: string): string {
@@ -2011,8 +830,7 @@ function formatDayHeading(dateKey: string): string {
 function weekdayOffset(dateKey: string): number {
   if (!dateKey) return 0;
   const [year, month, day] = dateKey.split("-").map((part) => Number(part));
-  const utc = new Date(Date.UTC(year, month - 1, day));
-  return utc.getUTCDay();
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
 }
 
 function istTodayKey(now = new Date()): string {

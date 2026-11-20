@@ -138,7 +138,7 @@ export default function AttendanceSettingsClient() {
       });
       setPolicy(response.data.data);
       setMessage(response.data.data.confirmed
-        ? "Policy saved. Missing logins after cutoff can now be marked absent."
+        ? "Policy saved. Missing logins after cutoff are now unapproved leave."
         : "Policy saved. Missing logins stay pending until you confirm it.");
     } catch (saveError) {
       setMessage(errorMessage(saveError, "Could not save the policy"));
@@ -434,7 +434,7 @@ export default function AttendanceSettingsClient() {
                   checked={policy.confirmed}
                   onChange={(event) => setPolicy({ ...policy, confirmed: event.target.checked })}
                 />
-                Confirm this policy. After cutoff, a working day with no login is marked absent.
+                Confirm this policy. After cutoff, a working day with no login is unapproved leave.
               </label>
               <Button type="button" className="h-10 cursor-pointer" disabled={saving} onClick={() => void savePolicy()}>
                 {saving ? "Saving…" : "Save policy"}

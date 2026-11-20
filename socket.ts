@@ -10,6 +10,7 @@ import { startDailyPasswordScheduler } from '@/util/dailyPasswordRotation';
 import { startPersonalReminderScheduler } from '@/util/personalReminderScheduler';
 import { startStaleSessionCleanupScheduler, startWebSessionSweeper } from '@/util/staleSessionCleanup';
 import { startAttendanceReconcileScheduler, startLeaveAccrualScheduler } from '@/util/attendanceReconcile';
+import { startAttendanceNoticeScheduler } from '@/util/attendanceNoticeScheduler';
 import { startEndOfDayAutoLogoutScheduler } from '@/util/endOfDayAutoLogout';
 
 const dev = process.env.NODE_ENV !== "production";
@@ -28,6 +29,7 @@ app.prepare().then(() => {
   startAttendanceReconcileScheduler();
   startEndOfDayAutoLogoutScheduler();
   startLeaveAccrualScheduler();
+  startAttendanceNoticeScheduler();
   // Create one HTTP server for both Next.js and Socket.IO
   const httpServer = createServer(async (req, res) => {
     try {

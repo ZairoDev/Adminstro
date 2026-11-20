@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { attendanceJsonError, requireAttendanceReader } from "@/modules/attendance/access";
+import { attendanceJsonError, requireSignedIn } from "@/modules/attendance/access";
 import { monthQuerySchema } from "@/modules/attendance/schema";
 import { getAttendanceMonth } from "@/modules/attendance/service";
 
 export async function GET(request: NextRequest) {
   try {
-    const actor = await requireAttendanceReader(request);
+    const actor = await requireSignedIn(request);
     const parsed = monthQuerySchema.safeParse(
       Object.fromEntries(request.nextUrl.searchParams.entries()),
     );

@@ -35,6 +35,7 @@ import {
 } from "@/modules/finance/salary-month";
 import { ATTENDANCE_STATUSES, type AttendanceStatus } from "@/modules/attendance/types";
 import { STATUS_LABELS } from "@/modules/attendance/presentation";
+import { usePendingLeaveDecisions } from "@/hooks/usePendingLeaveDecisions";
 import type { AttendanceDayCell, AttendanceEmployeeRow, AttendanceMonthPayload } from "@/modules/attendance/view";
 import {
   FinanceSheetEmpty,
@@ -48,7 +49,7 @@ import {
 const CARD_FILTERS = [
   { id: "", label: "Total employees", hint: "In this view", field: "totalEmployees" },
   { id: "present", label: "Present", hint: "On the selected day", field: "presentOnDate" },
-  { id: "absent", label: "Absent", hint: "On the selected day", field: "absentOnDate" },
+  { id: "absent", label: "Unapproved leave", hint: "On the selected day", field: "absentOnDate" },
   { id: "on_leave", label: "On leave", hint: "On the selected day", field: "onLeaveOnDate" },
   { id: "late", label: "Late arrivals", hint: "On the selected day", field: "lateOnDate" },
   { id: "pending", label: "Pending", hint: "On the selected day", field: "pendingOnDate" },
@@ -60,6 +61,7 @@ const LETTER_CLASS: Record<string, string> = {
   P: "bg-emerald-100 text-emerald-950 dark:bg-emerald-950 dark:text-emerald-50",
   LT: "bg-orange-100 text-orange-950 dark:bg-orange-950 dark:text-orange-50",
   A: "bg-red-100 text-red-950 dark:bg-red-950 dark:text-red-50",
+  UA: "bg-red-100 text-red-950 dark:bg-red-950 dark:text-red-50",
   HD: "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-50",
   LV: "bg-sky-100 text-sky-950 dark:bg-sky-950 dark:text-sky-50",
   UL: "bg-rose-100 text-rose-950 dark:bg-rose-950 dark:text-rose-50",
@@ -97,6 +99,7 @@ function cardValue(data: AttendanceMonthPayload, field: (typeof CARD_FILTERS)[nu
 }
 
 export default function AttendanceClient() {
+  const { count: pendingLeaveCount } = usePendingLeaveDecisions();
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryKey = searchParams?.toString() ?? "";
@@ -187,13 +190,26 @@ export default function AttendanceClient() {
       <div className={sheetToolbarClass}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <Heading
-            heading="Attendance"
-            subheading="First dashboard login of each IST day. Missing logins stay pending until the policy is confirmed."
+            heading={data?.scope === "team" ? "Team attendance" : "Attendance"}
+            subheading={
+              data?.scope === "team"
+                ? "Attendance for the employees who report to you, including their teams."
+                : "First dashboard login of each IST day. Missing logins stay pending until the policy is confirmed."
+            }
           />
           <div className="flex gap-2">
-            <Button asChild variant="outline" size="sm" className="h-10 cursor-pointer">
-              <Link href="/dashboard/attendance/leaves">Leave requests</Link>
-            </Button>
+            {data?.canCorrect ? (
+              <Button asChild variant="outline" size="sm" className="h-10 cursor-pointer">
+                <Link href="/dashboard/attendance/leaves">
+                  Leave requests
+                  {pendingLeaveCount > 0 ? (
+                    <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-bold text-white">
+                      {pendingLeaveCount > 99 ? "99+" : pendingLeaveCount}
+                    </span>
+                  ) : null}
+                </Link>
+              </Button>
+            ) : null}
             {data?.canManagePolicy ? (
               <Button asChild variant="outline" size="sm" className="h-10 cursor-pointer">
                 <Link href="/dashboard/attendance/settings">Settings</Link>
@@ -330,7 +346,7 @@ export default function AttendanceClient() {
           ) : null}
         </div>
         <p className="text-xs text-muted-foreground">
-          P present, LT late, A absent, HD half day, LV planned leave, UL unplanned leave, H holiday, WO weekly off, WF work from home, NJ not joined, PV pending.
+          P present, LT late, UA unapproved leave, HD half day, LV planned leave, UL unplanned leave, H holiday, WO weekly off, WF work from home, NJ not joined, PV pending.
         </p>
       </div>
 
@@ -353,7 +369,7 @@ export default function AttendanceClient() {
                   <th className="sticky top-0 z-20 border-b border-border bg-muted px-2 py-2 text-left text-xs font-semibold text-muted-foreground">Dept</th>
                   <th className="sticky top-0 z-20 border-b border-border bg-muted px-2 py-2 text-right text-xs font-semibold text-muted-foreground">Work</th>
                   <th className="sticky top-0 z-20 border-b border-border bg-muted px-2 py-2 text-right text-xs font-semibold text-muted-foreground">P</th>
-                  <th className="sticky top-0 z-20 border-b border-border bg-muted px-2 py-2 text-right text-xs font-semibold text-muted-foreground">A</th>
+                  <th className="sticky top-0 z-20 border-b border-border bg-muted px-2 py-2 text-right text-xs font-semibold text-muted-foreground" title="Unapproved leave">UA</th>
                   <th className="sticky top-0 z-20 border-b border-border bg-muted px-2 py-2 text-right text-xs font-semibold text-muted-foreground">Leave</th>
                   <th className="sticky top-0 z-20 border-b border-border bg-muted px-2 py-2 text-right text-xs font-semibold text-muted-foreground">LOP</th>
                   <th className="sticky top-0 z-20 border-b border-border bg-muted px-2 py-2 text-right text-xs font-semibold text-muted-foreground">%</th>
@@ -487,7 +503,7 @@ function DaySheet({
 
   useEffect(() => {
     if (!day?.status) return;
-    setStatus(day.status);
+    setStatus(day.status === "absent" || day.leaveCategory === "unapproved" ? "absent" : day.status);
     setLeaveKind(
       day.leaveCategory === "unplanned" ? "unplanned" : day.leavePay === "unpaid" ? "unpaid" : "paid",
     );
@@ -503,10 +519,15 @@ function DaySheet({
     setSaving(true);
     setFormError(null);
     try {
+      const unapproved = status === "absent";
       await axios.patch(`/api/attendance/records/${day.recordId}`, {
-        status,
-        leavePay: status === "on_leave" ? (leaveKind === "paid" ? "paid" : "unpaid") : null,
-        leaveCategory: status === "on_leave" ? (leaveKind === "unplanned" ? "unplanned" : "planned") : null,
+        status: unapproved ? "on_leave" : status,
+        leavePay: unapproved ? "unpaid" : status === "on_leave" ? (leaveKind === "paid" ? "paid" : "unpaid") : null,
+        leaveCategory: unapproved
+          ? "unapproved"
+          : status === "on_leave"
+            ? (leaveKind === "unplanned" ? "unplanned" : "planned")
+            : null,
         firstLoginTime: clearLogin ? null : normalizeClock(loginTime),
         remarks,
         reason,

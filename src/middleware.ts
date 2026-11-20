@@ -537,6 +537,15 @@ export async function middleware(request: NextRequest) {
         return NextResponse.next();
       }
 
+      // Team attendance board and one employee's month. The API limits a
+      // reporting manager to people who report to them. Leave and settings stay role-gated.
+      if (
+        path === "/dashboard/attendance" ||
+        /^\/dashboard\/attendance\/[a-f\d]{24}$/i.test(path)
+      ) {
+        return NextResponse.next();
+      }
+
       // Scoped team chart — any logged-in employee (API enforces company vs team vs peers).
       if (path === "/dashboard/employee/org-hierarchy") {
         return NextResponse.next();

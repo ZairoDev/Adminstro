@@ -16,6 +16,7 @@ import {
   LeaveStatusBadge,
   LeaveTypeBadge,
 } from "./leave-shared";
+import { useRefreshPendingLeaveCount } from "@/hooks/usePendingLeaveDecisions";
 
 type Props = {
   /** Leave out for the signed-in employee's own page. */
@@ -36,6 +37,7 @@ const LEDGER_LABELS: Record<string, string> = {
 };
 
 export default function LeavePanel({ employeeId, selfService, canManage, onChanged }: Props) {
+  const refreshPendingCount = useRefreshPendingLeaveCount();
   const [balance, setBalance] = useState<LeaveBalanceView | null>(null);
   const [requests, setRequests] = useState<LeaveRequestView[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +76,7 @@ export default function LeavePanel({ employeeId, selfService, canManage, onChang
   }, [load]);
 
   const changed = () => {
+    refreshPendingCount();
     void load();
     onChanged?.();
   };

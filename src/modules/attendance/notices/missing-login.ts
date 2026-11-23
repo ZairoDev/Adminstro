@@ -42,7 +42,7 @@ const LOGGED_STATUSES = ["present", "half_day", "work_from_home"] as const;
 
 /**
  * After each person's shift cutoff, tell them once if that working day has no login.
- * Their manager and HR get one list for the day, extended when more people are added.
+ * Their manager and HR see one list in the dashboard. Only a SuperAdmin is emailed.
  * Today and yesterday are scanned so an overnight shift is not missed. Older days are not backfilled.
  */
 export async function scanMissingLogins(now: Date = new Date()): Promise<{ notified: number }> {

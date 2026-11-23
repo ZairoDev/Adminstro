@@ -5,6 +5,7 @@ import {
   leaveRequestedRecipients,
   missingLoginDedupeKey,
   missingLoginDigestMessage,
+  missingLoginEmailAllowed,
   newDigestIds,
   noticeHref,
   shouldNotifyMissingLogin,
@@ -126,5 +127,43 @@ describe("missing login notices", () => {
     expect(missingLoginDigestMessage("20 Nov 2026", ["Asha", "Ravi"])).toBe(
       "Asha, Ravi have no login for 20 Nov 2026.",
     );
+  });
+
+  it("emails a missed login only to a super admin", () => {
+    expect(
+      missingLoginEmailAllowed({
+        kind: "missing_login_digest",
+        title: "Employees have no login",
+        role: "SuperAdmin",
+      }),
+    ).toBe(true);
+    expect(
+      missingLoginEmailAllowed({
+        kind: "missing_login",
+        title: "No login on 20 Nov 2026",
+        role: "SuperAdmin",
+      }),
+    ).toBe(false);
+    expect(
+      missingLoginEmailAllowed({
+        kind: "missing_login_digest",
+        title: "Team has no login",
+        role: "SuperAdmin",
+      }),
+    ).toBe(false);
+    expect(
+      missingLoginEmailAllowed({
+        kind: "missing_login_digest",
+        title: "Employees have no login",
+        role: "HR",
+      }),
+    ).toBe(false);
+    expect(
+      missingLoginEmailAllowed({
+        kind: "missing_login_digest",
+        title: "Employees have no login",
+        role: "Admin",
+      }),
+    ).toBe(false);
   });
 });

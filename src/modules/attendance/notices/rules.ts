@@ -150,3 +150,16 @@ export function missingLoginFollowUpMessage(names: string[]): string {
   const verb = names.length === 1 ? "also has" : "also have";
   return `${list} ${verb} no login.`;
 }
+
+/** Missed-login email goes only to a SuperAdmin company digest. Leave mail is unchanged. */
+export function missingLoginEmailAllowed(input: {
+  kind: string;
+  title: string;
+  role: string;
+}): boolean {
+  return (
+    input.kind === "missing_login_digest" &&
+    input.title === "Employees have no login" &&
+    input.role === "SuperAdmin"
+  );
+}

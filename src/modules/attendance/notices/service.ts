@@ -12,6 +12,7 @@ import {
   leaveDedupeKey,
   leaveRequestedRecipients,
   missingLoginDigestMessage,
+  missingLoginEmailAllowed,
   missingLoginFollowUpMessage,
   newDigestIds,
   noticeHref,
@@ -135,7 +136,30 @@ async function deliverEmail(
   );
 }
 
+async function recipientRole(recipientId: string): Promise<string> {
+  const row = await Employees.findById(recipientId)
+    .select("role")
+    .lean<{ role?: string } | null>();
+  return row?.role ?? "";
+}
+
 async function emailPending(notice: AttendanceNoticeDoc): Promise<void> {
+  if (notice.kind === "missing_login" || notice.kind === "missing_login_digest") {
+    const allowed = missingLoginEmailAllowed({
+      kind: notice.kind,
+      title: notice.title,
+      role: await recipientRole(notice.recipientId),
+    });
+    if (!allowed) {
+      if (!notice.emailSentAt) {
+        await AttendanceNotice.updateOne(
+          { _id: notice._id },
+          { $set: { emailSentAt: new Date(), emailedSubjectIds: notice.subjectIds } },
+        );
+      }
+      return;
+    }
+  }
   const pendingIds = notice.subjectIds.filter((id) => !notice.emailedSubjectIds.includes(id));
   if (notice.kind === "missing_login_digest" && notice.emailSentAt && pendingIds.length === 0) return;
   if (notice.kind !== "missing_login_digest") {

@@ -2,6 +2,7 @@ const TIME_ZONE = "Asia/Kolkata";
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
 export const MAX_FUTURE_PAYROLL_MONTHS = 18;
+export const MAX_PAST_PAYROLL_MONTHS = 12;
 
 export type PayrollMonth = {
   year: number;
@@ -76,6 +77,81 @@ export function lossOfPayDeduction(
   return Math.min(grossPaise, deductionPaise) / 100;
 }
 
+export type AttendancePayInput = {
+  lopDays: number;
+  notJoinedDays: number;
+};
+
+export type AttendancePay = {
+  totalDays: number;
+  notJoinedDays: number;
+  lopDays: number;
+  payableDays: number;
+  perDaySalary: number;
+  lossOfPayAmount: number;
+  joiningDeduction: number;
+  payableSalary: number;
+};
+
+/** Monthly gross divided by the calendar days in the payroll month. */
+export function perDaySalary(gross: number, daysInMonth: number): number {
+  if (daysInMonth <= 0 || gross <= 0) return 0;
+  return Math.round(Math.round(gross * 100) / daysInMonth) / 100;
+}
+
+/**
+ * Payable salary for one month from attendance.
+ * Per day is the monthly gross divided by the calendar days.
+ * Loss of pay (absence, half day, unpaid leave, unplanned leave) and days before joining
+ * come off that rate. Weekends, holidays, and paid leave stay payable.
+ */
+export function monthPayFromAttendance(
+  gross: number,
+  daysInMonth: number,
+  input: AttendancePayInput,
+): AttendancePay {
+  const lopDays = Math.max(0, input.lopDays);
+  const notJoinedDays = Math.max(0, input.notJoinedDays);
+  const lossOfPayAmount = lossOfPayDeduction(gross, daysInMonth, lopDays);
+  const combined = lossOfPayDeduction(gross, daysInMonth, lopDays + notJoinedDays);
+  const joiningDeduction = Math.max(0, Math.round((combined - lossOfPayAmount) * 100) / 100);
+  const payableDays = Math.max(
+    0,
+    Math.round((daysInMonth - notJoinedDays - lopDays) * 100) / 100,
+  );
+  const payableSalary = Math.max(
+    0,
+    (Math.round(Math.max(0, gross) * 100) - Math.round(combined * 100)) / 100,
+  );
+
+  return {
+    totalDays: daysInMonth,
+    notJoinedDays,
+    lopDays,
+    payableDays,
+    perDaySalary: perDaySalary(gross, daysInMonth),
+    lossOfPayAmount,
+    joiningDeduction,
+    payableSalary,
+  };
+}
+
+/** Calendar days in this payroll month that fall before the joining date. */
+export function daysBeforeJoiningInMonth(
+  dateOfJoining: Date | string | null | undefined,
+  month: PayrollMonth,
+): number {
+  if (!dateOfJoining) return 0;
+  const joined = dateOfJoining instanceof Date ? dateOfJoining : new Date(dateOfJoining);
+  if (Number.isNaN(joined.getTime())) return 0;
+  if (payrollMonthKeyFromDate(joined) !== month.key) return 0;
+  const day = Number(
+    new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE, day: "2-digit" }).format(joined),
+  );
+  if (!Number.isFinite(day)) return 0;
+  return Math.max(0, day - 1);
+}
+
 export function payrollMonthStart(month: PayrollMonth): Date {
   return new Date(`${month.key}-01T00:00:00+05:30`);
 }
@@ -122,4 +198,8 @@ export function shortPayrollLabel(month: PayrollMonth): string {
 
 export function latestOpenPayrollMonth(now = new Date()): PayrollMonth {
   return addPayrollMonths(currentPayrollMonth(now), MAX_FUTURE_PAYROLL_MONTHS);
+}
+
+export function earliestPayrollMonth(now = new Date()): PayrollMonth {
+  return addPayrollMonths(currentPayrollMonth(now), -MAX_PAST_PAYROLL_MONTHS);
 }

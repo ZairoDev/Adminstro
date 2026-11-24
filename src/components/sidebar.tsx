@@ -37,6 +37,7 @@ import {
   PersonStanding,
   CircleCheckBig,
   FileSpreadsheet,
+  Table2,
   LayoutDashboard,
   SlidersHorizontal,
 
@@ -515,6 +516,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/finance/salaries",
       label: "Salaries",
       Icon: <IndianRupee size={18} />,
+    },
+    {
+      path: "/dashboard/finance/salary-sheet",
+      label: "Salary Sheet",
+      Icon: <Table2 size={18} />,
     },
     {
       path: "/dashboard/aliases",
@@ -1448,6 +1454,11 @@ const financeManagementRoutes = [
     path: "/dashboard/finance/salaries",
     label: "Salaries",
     Icon: <IndianRupee size={18} />,
+  },
+  {
+    path: "/dashboard/finance/salary-sheet",
+    label: "Salary Sheet",
+    Icon: <Table2 size={18} />,
   },
 ];
 const ownerManagementRoutes = [

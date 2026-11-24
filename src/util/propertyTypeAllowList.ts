@@ -1,3 +1,4 @@
+import { leadAreaMatchRegex } from "@/util/guestLeadLocationScope";
 import type { PropertyVisibilityRules } from "@/util/propertyVisibilityRule";
 
 /** Owner-sheet property type rule: enabled plus allowed bedroom/property labels. */
@@ -252,7 +253,7 @@ export function applyGuestPropertyTypeAllowListToLeadQuery(params: {
       location: loc,
     });
     const clause: Record<string, unknown> = {
-      location: locationRegex(loc),
+      location: leadAreaMatchRegex(loc),
     };
     if (allowed) {
       if (allowed.length === 0) continue;

@@ -1,4 +1,13 @@
-import { exactCaseInsensitiveRegex } from "@/util/regex";
+import { escapeRegExp } from "@/util/regex";
+
+/**
+ * Same city match the area dropdown uses: case-insensitive substring.
+ * An allotted city and an explicit "thessaloniki" filter must hit the same leads,
+ * including values with extra spaces or surrounding text.
+ */
+export function leadAreaMatchRegex(area: string): RegExp {
+  return new RegExp(escapeRegExp(area.trim()), "i");
+}
 
 const DEFAULT_LOCATION_EXEMPT_ROLES = [
   "SuperAdmin",
@@ -56,7 +65,7 @@ export function applyGuestLeadLocationToQuery(
   const uiArea = String(options.uiAllotedArea ?? "").trim();
 
   if (uiArea) {
-    query.location = new RegExp(uiArea, "i");
+    query.location = leadAreaMatchRegex(uiArea);
     return;
   }
 
@@ -70,11 +79,11 @@ export function applyGuestLeadLocationToQuery(
   }
 
   if (areas.length === 1) {
-    query.location = exactCaseInsensitiveRegex(areas[0]);
+    query.location = leadAreaMatchRegex(areas[0]);
     return;
   }
 
   query.$or = areas.map((area) => ({
-    location: exactCaseInsensitiveRegex(area),
+    location: leadAreaMatchRegex(area),
   }));
 }

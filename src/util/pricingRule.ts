@@ -1,4 +1,5 @@
 import Employees from "@/models/employee";
+import { leadAreaMatchRegex } from "@/util/guestLeadLocationScope";
 import {
   buildMaxBudgetCondition,
   computeEffectiveRange,
@@ -81,7 +82,11 @@ export function applyPricingRulesByLocationToQuery(params: {
   }
 
   // Multiple locations: apply per-location constraints via $or.
+  // A disabled rule must not add an exact city match. That used to hide leads
+  // the area dropdown still shows (extra spaces or surrounding text).
   const locationClauses: Record<string, any>[] = [];
+  let hasBudgetConstraint = false;
+  let impossibleCount = 0;
   for (const loc of locations) {
     const rule = getRuleForLocation(pricingRules, loc);
     const { min, max } = computeEffectiveRange({
@@ -90,21 +95,25 @@ export function applyPricingRulesByLocationToQuery(params: {
       uiBudgetTo,
     });
     if (isEmptyMaxBudgetRange(min, max)) {
-      // This location yields no results; skip it.
+      impossibleCount += 1;
       continue;
     }
-    const clause: Record<string, any> = {
-      location: new RegExp(`^${String(loc).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
-    };
     const condition = buildMaxBudgetCondition(min, max);
+    const clause: Record<string, any> = {
+      location: leadAreaMatchRegex(loc),
+    };
     if (condition) {
       clause.maxBudget = condition;
+      hasBudgetConstraint = true;
     }
     locationClauses.push(clause);
   }
 
   if (locationClauses.length === 0) {
     return { impossible: true };
+  }
+  if (!hasBudgetConstraint && impossibleCount === 0) {
+    return { impossible: false };
   }
 
   // Replace existing location constraint with an explicit $or (per-location).

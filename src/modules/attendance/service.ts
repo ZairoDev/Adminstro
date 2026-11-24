@@ -2061,6 +2061,97 @@ export async function exportAttendanceCsv(
   return attendanceCsv(visible, loaded.dates);
 }
 
+export type AttendancePayrollCounts = {
+  presentDays: number;
+  halfDays: number;
+  paidLeaveDays: number;
+  unpaidLeaveDays: number;
+  unplannedLeaveDays: number;
+  holidays: number;
+  weeklyOffs: number;
+  notJoinedDays: number;
+  lopDays: number;
+  pendingVerification: number;
+  hasRecords: boolean;
+};
+
+export async function attendancePayrollForEmployees(
+  employeeIds: string[],
+  month: PayrollMonth,
+): Promise<{ policyConfirmed: boolean; byEmployee: Map<string, AttendancePayrollCounts> }> {
+  const ids = [...new Set(employeeIds)].filter((id) => id.length > 0);
+  if (ids.length === 0) {
+    return { policyConfirmed: true, byEmployee: new Map() };
+  }
+
+  await connectDb();
+  const period = await AttendancePeriod.findOne({ monthKey: month.key })
+    .select("status")
+    .lean<{ status?: string } | null>();
+  if (period?.status !== "finalized") {
+    try {
+      await reconcileMonth(month);
+    } catch (error) {
+      console.error("salary attendance reconcile", error);
+    }
+  }
+
+  const dates = datesInPayrollMonth(month);
+  const from = dates[0] ?? `${month.key}-01`;
+  const to = dates[dates.length - 1] ?? from;
+  const [records, policy] = await Promise.all([
+    AttendanceRecord.find({
+      employeeId: { $in: ids },
+      attendanceDate: { $gte: from, $lte: to },
+    })
+      .select("employeeId status leavePay leaveCategory isLate")
+      .lean<
+        {
+          employeeId: string;
+          status: AttendanceStatus;
+          leavePay?: LeavePay | null;
+          leaveCategory?: RecordLeaveCategory | null;
+          isLate?: boolean;
+        }[]
+      >(),
+    getOrCreatePolicy(),
+  ]);
+
+  const rules = toRules(policy);
+  const grouped = new Map<string, DayContribution[]>();
+  for (const record of records) {
+    const days = grouped.get(record.employeeId) ?? [];
+    days.push({
+      status: record.status,
+      leavePay: record.leavePay ?? null,
+      leaveCategory: leaveCategoryForStatus(record.status, record.leaveCategory ?? null),
+      isLate: Boolean(record.isLate),
+    });
+    grouped.set(record.employeeId, days);
+  }
+
+  const byEmployee = new Map<string, AttendancePayrollCounts>();
+  for (const id of ids) {
+    const days = grouped.get(id) ?? [];
+    const summary = summarizeAttendance(days, rules);
+    byEmployee.set(id, {
+      presentDays: summary.presentDays + summary.workFromHomeDays,
+      halfDays: summary.halfDays,
+      paidLeaveDays: summary.paidLeaveDays,
+      unpaidLeaveDays: summary.unpaidLeaveDays,
+      unplannedLeaveDays: summary.unplannedLeaveDays,
+      holidays: summary.holidays,
+      weeklyOffs: summary.weeklyOffs,
+      notJoinedDays: summary.notJoinedDays,
+      lopDays: summary.lopDays,
+      pendingVerification: summary.pendingVerification,
+      hasRecords: days.length > 0,
+    });
+  }
+
+  return { policyConfirmed: Boolean(policy.confirmedAt), byEmployee };
+}
+
 export async function getEmployeeLop(employeeId: string, monthValue: string): Promise<LopLookup> {
   const month = requireMonth(monthValue);
   await employeeOrThrow(employeeId);

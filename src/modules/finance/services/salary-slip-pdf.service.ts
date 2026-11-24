@@ -35,8 +35,14 @@ export type SalarySlipDocument = {
   address: string;
   components: SalaryComponentAmount[];
   gross: number;
+  totalDays: number;
   lossOfPayDays: number;
+  notJoinedDays: number;
+  payableDays: number;
+  perDaySalary: number;
   lossOfPayAmount: number;
+  joiningDeduction: number;
+  payableSalary: number;
   generatedOn: string;
 };
 
@@ -249,7 +255,11 @@ export async function buildSalarySlipPdf(slip: SalarySlipDocument): Promise<Uint
     ["Pay Period", slip.periodLabel],
     ["Payslip No.", slip.slipNumber],
     ["Pay Frequency", "Monthly"],
+    ["Days in month", formatDays(slip.totalDays)],
+    ["Payable days", formatDays(slip.payableDays)],
+    ["Per day", money(slip.perDaySalary)],
     ["Loss of Pay Days", formatDays(slip.lossOfPayDays)],
+    ["Days before joining", formatDays(slip.notJoinedDays)],
     ["Bank Account", maskAccount(slip.accountNo, "")],
     ["IFSC", slip.ifsc || "-"],
     ["Email", slip.email || "-"],
@@ -273,16 +283,29 @@ export async function buildSalarySlipPdf(slip: SalarySlipDocument): Promise<Uint
     label: component.label,
     amount: money(component.amount),
   }));
-  const netPay = Math.round((slip.gross - slip.lossOfPayAmount) * 100) / 100;
+  const totalDeductions =
+    Math.round((slip.lossOfPayAmount + slip.joiningDeduction) * 100) / 100;
+  const netPay = slip.payableSalary;
   const deductionRows = [
     {
       label: `Loss of Pay (${formatDays(slip.lossOfPayDays)} days)`,
       amount: money(slip.lossOfPayAmount),
     },
-    ...Array.from({ length: Math.max(0, earningRows.length - 1) }, () => ({
-      label: "",
-      amount: "",
-    })),
+    ...(slip.notJoinedDays > 0
+      ? [
+          {
+            label: `Before joining (${formatDays(slip.notJoinedDays)} days)`,
+            amount: money(slip.joiningDeduction),
+          },
+        ]
+      : []),
+    ...Array.from(
+      { length: Math.max(0, earningRows.length - (slip.notJoinedDays > 0 ? 2 : 1)) },
+      () => ({
+        label: "",
+        amount: "",
+      }),
+    ),
   ];
 
   top = detailsBottom - 10;
@@ -305,18 +328,18 @@ export async function buildSalarySlipPdf(slip: SalarySlipDocument): Promise<Uint
       columnWidth,
       "Deductions",
       deductionRows,
-      { label: "Total Deductions", amount: money(slip.lossOfPayAmount) },
+      { label: "Total Deductions", amount: money(totalDeductions) },
     ),
   );
 
   top = tablesBottom - 10;
   const summaryRows: Array<[string, string]> = [
     ["Gross Salary (A)", money(slip.gross)],
-    ["Total Deductions (B)", money(slip.lossOfPayAmount)],
+    ["Total Deductions (B)", money(totalDeductions)],
     ["Net Pay (A - B)", money(netPay)],
   ];
   const noteRows: Array<[string, string]> = [
-    ["Loss of pay days", formatDays(slip.lossOfPayDays)],
+    ["Payable days", formatDays(slip.payableDays)],
     ["Loss of pay amount", money(slip.lossOfPayAmount)],
     ["Net payable", money(netPay)],
   ];

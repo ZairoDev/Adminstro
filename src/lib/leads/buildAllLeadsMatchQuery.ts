@@ -15,10 +15,10 @@ import {
 } from "@/lib/leads/employeeLeadContext";
 import {
   ALL_LEADS_LOCATION_EXEMPT_ROLES,
+  leadAreaMatchRegex,
   parseAssignedAreasFromToken,
   resolveEffectiveLeadLocations,
 } from "@/util/guestLeadLocationScope";
-import { exactCaseInsensitiveRegex } from "@/util/regex";
 import { applyPricingRulesByLocationToQuery } from "@/util/pricingRule";
 import { applyPropertyVisibilityRulesByLocationToLeadQuery } from "@/util/propertyVisibilityRule";
 import { ownerRulesForRole } from "@/util/propertyTypeAllowList";
@@ -235,22 +235,22 @@ export async function buildAllLeadsMatchQuery(params: {
       const normalizedRequested = allotedArea.toLowerCase();
       const userAreas = assignedArea.map((a) => a.toLowerCase());
       if (userAreas.includes(normalizedRequested)) {
-        query.location = new RegExp(allotedArea, "i");
+        query.location = leadAreaMatchRegex(allotedArea);
       } else {
         query.location = { $in: [] };
       }
     } else {
       const userAreas = parseAssignedAreasFromToken(assignedArea);
       if (userAreas.length === 1) {
-        query.location = exactCaseInsensitiveRegex(userAreas[0]);
+        query.location = leadAreaMatchRegex(userAreas[0]);
       } else if (userAreas.length > 1) {
         query.$or = userAreas.map((area) => ({
-          location: exactCaseInsensitiveRegex(area),
+          location: leadAreaMatchRegex(area),
         }));
       }
     }
   } else if (allotedArea && allotedArea !== "All") {
-    query.location = new RegExp(allotedArea, "i");
+    query.location = leadAreaMatchRegex(allotedArea);
   }
 
   if (blocked.size) {

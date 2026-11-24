@@ -1,4 +1,5 @@
 import Employees from "@/models/employee";
+import { leadAreaMatchRegex } from "@/util/guestLeadLocationScope";
 import {
   listIncludesType,
   resolveAllowedPropertyTypes,
@@ -165,11 +166,13 @@ export function applyPropertyVisibilityRulesByLocationToLeadQuery(params: {
   }
 
   const locationClauses: Record<string, any>[] = [];
+  let hasVisibilityConstraint = false;
+  let impossibleCount = 0;
   for (const loc of locations) {
     const rule = getRuleForLocation(rules, loc);
     // Build a clause that restricts location and (optionally) furnishing/type based on rule+UI.
     const clause: Record<string, any> = {
-      location: new RegExp(`^${String(loc).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i"),
+      location: leadAreaMatchRegex(loc),
     };
 
     // We'll re-use the single-rule applier on a temp object and then merge.
@@ -181,12 +184,19 @@ export function applyPropertyVisibilityRulesByLocationToLeadQuery(params: {
       uiTypeOfProperty,
       ownerAllowedTypes: resolveAllowedPropertyTypes(ownerRules, loc),
     });
-    if (impossible) continue;
+    if (impossible) {
+      impossibleCount += 1;
+      continue;
+    }
+    if ("propertyType" in temp || "typeOfProperty" in temp) {
+      hasVisibilityConstraint = true;
+    }
     Object.assign(clause, temp);
     locationClauses.push(clause);
   }
 
   if (locationClauses.length === 0) return { impossible: true };
+  if (!hasVisibilityConstraint && impossibleCount === 0) return { impossible: false };
 
   if ("location" in query) {
     delete query.location;

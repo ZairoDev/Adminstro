@@ -45,8 +45,10 @@ import {
   comparePayrollMonths,
   currentPayrollMonth,
   daysInPayrollMonth,
+  earliestPayrollMonth,
   latestOpenPayrollMonth,
   maxLossOfPayDays,
+  monthPayFromAttendance,
   parsePayrollMonth,
   payrollMonthLabel,
 } from "@/modules/finance/salary-month";
@@ -57,17 +59,13 @@ type SalaryPayload = {
   employees: SalaryRow[];
   totalEmployees: number;
   totalSalary: number;
+  totalPayable: number;
+  policyConfirmed: boolean;
 };
 
-function formatJoined(value: string | null): string {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+function formatDays(value: number): string {
+  const rounded = Math.round(value * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
 }
 
 export default function SalariesClient() {
@@ -92,16 +90,17 @@ export default function SalariesClient() {
   const [lossOfPayHint, setLossOfPayHint] = useState<string | null>(null);
 
   const currentMonth = currentPayrollMonth();
+  const earliestMonth = earliestPayrollMonth();
   const latestMonth = latestOpenPayrollMonth();
   const requestedMonth = parsePayrollMonth(searchParams?.get("month") ?? "");
   const payrollMonth =
     requestedMonth &&
-    comparePayrollMonths(requestedMonth, currentMonth) >= 0 &&
+    comparePayrollMonths(requestedMonth, earliestMonth) >= 0 &&
     comparePayrollMonths(requestedMonth, latestMonth) <= 0
       ? requestedMonth
       : currentMonth;
   const monthLabel = payrollMonthLabel(payrollMonth);
-  const atCurrentMonth = comparePayrollMonths(payrollMonth, currentMonth) === 0;
+  const atEarliestMonth = comparePayrollMonths(payrollMonth, earliestMonth) === 0;
   const atLatestMonth = comparePayrollMonths(payrollMonth, latestMonth) === 0;
 
   useEffect(() => {
@@ -159,16 +158,30 @@ export default function SalariesClient() {
     void load();
   }, [load]);
 
-  const applyUpdatedRow = (next: SalaryRow) => {
+  const applyUpdatedRow = (next: Omit<SalaryRow, "pay">) => {
     setRows((current) => {
-      const previous = current.find((row) => row.id === next.id);
-      const delta = next.salary - (previous?.salary ?? next.salary);
+      let grossDelta = 0;
+      let payableDelta = 0;
+      const updated = current.map((row) => {
+        if (row.id !== next.id) return row;
+        grossDelta = next.salary - row.salary;
+        const money = monthPayFromAttendance(next.salary, row.pay.totalDays, {
+          lopDays: row.pay.lopDays,
+          notJoinedDays: row.pay.notJoinedDays,
+        });
+        payableDelta = money.payableSalary - row.pay.payableSalary;
+        return { ...next, pay: { ...row.pay, ...money } };
+      });
       setSummary((currentSummary) =>
         currentSummary
-          ? { ...currentSummary, totalSalary: currentSummary.totalSalary + delta }
+          ? {
+              ...currentSummary,
+              totalSalary: currentSummary.totalSalary + grossDelta,
+              totalPayable: currentSummary.totalPayable + payableDelta,
+            }
           : currentSummary,
       );
-      return current.map((row) => (row.id === next.id ? next : row));
+      return updated;
     });
   };
 
@@ -247,7 +260,7 @@ export default function SalariesClient() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <Heading
             heading="Salaries"
-            subheading={`Monthly payroll from ${payrollMonthLabel(currentMonth)}. Generate a salary slip for each employee.`}
+            subheading={`Payable salary for ${monthLabel}, calculated from each employee's attendance.`}
           />
           <Button asChild variant="outline" size="sm" className="h-10 cursor-pointer">
             <Link href="/dashboard/finance">Overview</Link>
@@ -264,7 +277,7 @@ export default function SalariesClient() {
               type="button"
               variant="outline"
               className="h-10 cursor-pointer"
-              disabled={atCurrentMonth}
+              disabled={atEarliestMonth}
               onClick={() => writeQuery(addPayrollMonths(payrollMonth, -1).key)}
             >
               Previous month
@@ -280,13 +293,22 @@ export default function SalariesClient() {
             </Button>
           </div>
         </div>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Per day is the monthly salary divided by the days in {monthLabel}. Weekends, holidays, and paid leave stay payable. Absence, half days, unpaid leave, and unplanned leave are loss of pay.
+        </p>
         {slipError ? (
           <p className="text-sm text-destructive" role="alert">
             {slipError}
           </p>
         ) : null}
 
-        <div className="grid gap-2 sm:grid-cols-2">
+        {summary && !summary.policyConfirmed ? (
+          <p className="text-sm leading-6 text-muted-foreground">
+            The attendance policy is not confirmed, so days that are still pending are not loss of pay yet.
+          </p>
+        ) : null}
+
+        <div className="grid gap-2 sm:grid-cols-3">
           <SheetStat
             label="Active employees"
             value={
@@ -295,9 +317,14 @@ export default function SalariesClient() {
             hint="On payroll this month"
           />
           <SheetStat
-            label="Gross payroll"
+            label="Monthly gross"
             value={summary ? formatMoney(summary.totalSalary) : "—"}
-            hint={`Total gross for ${monthLabel}`}
+            hint="Before attendance"
+          />
+          <SheetStat
+            label="Payable"
+            value={summary ? formatMoney(summary.totalPayable) : "—"}
+            hint={`After attendance for ${monthLabel}`}
           />
         </div>
 
@@ -373,12 +400,18 @@ export default function SalariesClient() {
             <thead>
               <tr>
                 <th className={sheetThClass}>Employee</th>
-                <th className={sheetThClass}>Code</th>
-                <th className={sheetThClass}>Role</th>
-                <th className={sheetThClass}>Organization</th>
-                <th className={sheetThClass}>Type</th>
-                <th className={sheetThClass}>Joined</th>
-                <th className={cn(sheetThClass, "text-right")}>Gross</th>
+                <th className={cn(sheetThClass, "text-right")}>Present</th>
+                <th className={cn(sheetThClass, "text-right")}>Half</th>
+                <th className={cn(sheetThClass, "text-right")}>Uninformed</th>
+                <th className={cn(sheetThClass, "text-right")}>Paid leave</th>
+                <th className={cn(sheetThClass, "text-right")}>Holiday</th>
+                <th className={cn(sheetThClass, "text-right")}>Off</th>
+                <th className={cn(sheetThClass, "text-right")}>LOP</th>
+                <th className={cn(sheetThClass, "text-right")}>Days</th>
+                <th className={cn(sheetThClass, "text-right")}>Payable days</th>
+                <th className={cn(sheetThClass, "text-right")}>Per day</th>
+                <th className={cn(sheetThClass, "text-right")}>Monthly</th>
+                <th className={cn(sheetThClass, "text-right")}>Payable</th>
                 <th className={sheetThClass}>Salary slip</th>
               </tr>
             </thead>
@@ -391,17 +424,31 @@ export default function SalariesClient() {
                       <td className={sheetTdClass}>
                         <div className="font-medium">{row.name}</div>
                         <div className="text-xs text-muted-foreground">
-                          {row.email || "No email"}
-                          {row.phone ? ` · ${row.phone}` : ""}
+                          {[row.employeeCode, row.role, row.organization].filter(Boolean).join(" · ") || "No code"}
                         </div>
                       </td>
-                      <td className={sheetTdClass}>{row.employeeCode || "—"}</td>
-                      <td className={sheetTdClass}>{row.role || "—"}</td>
-                      <td className={sheetTdClass}>{row.organization || "—"}</td>
-                      <td className={sheetTdClass}>{row.empType || "—"}</td>
-                      <td className={sheetTdClass}>{formatJoined(row.dateOfJoining)}</td>
+                      <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatDays(row.pay.presentDays)}</td>
+                      <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatDays(row.pay.halfDays)}</td>
+                      <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatDays(row.pay.unplannedLeaveDays)}</td>
+                      <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatDays(row.pay.paidLeaveDays)}</td>
+                      <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatDays(row.pay.holidays)}</td>
+                      <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatDays(row.pay.weeklyOffs)}</td>
+                      <td
+                        className={cn(sheetTdClass, "text-right tabular-nums", row.pay.lopDays > 0 && "font-medium text-destructive")}
+                        title={
+                          row.pay.pendingVerification > 0
+                            ? `${formatDays(row.pay.pendingVerification)} days are still pending and are not loss of pay yet`
+                            : undefined
+                        }
+                      >
+                        {formatDays(row.pay.lopDays)}
+                      </td>
+                      <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatDays(row.pay.totalDays)}</td>
+                      <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatDays(row.pay.payableDays)}</td>
+                      <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatMoney(row.pay.perDaySalary)}</td>
+                      <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatMoney(row.salary)}</td>
                       <td className={cn(sheetTdClass, "text-right font-medium tabular-nums")}>
-                        {formatMoney(row.salary)}
+                        {formatMoney(row.pay.payableSalary)}
                       </td>
                       <td className={sheetTdClass}>
                         <div className="flex flex-wrap gap-2">
@@ -411,7 +458,7 @@ export default function SalariesClient() {
                             className="h-10 cursor-pointer"
                             disabled={slipFor === row.id}
                             onClick={() => {
-                              setLossOfPayInput("0");
+                              setLossOfPayInput(String(row.pay.lopDays));
                               setLossOfPayError(null);
                               setLossOfPayHint(null);
                               setSlipDraft(row);
@@ -472,7 +519,7 @@ export default function SalariesClient() {
                     </tr>
                     {open ? (
                       <tr className={sheetRowClass(index)}>
-                        <td id={`salary-panel-${row.id}`} className="border-b border-border p-0" colSpan={8}>
+                        <td id={`salary-panel-${row.id}`} className="border-b border-border p-0" colSpan={14}>
                           <SalaryDetail
                             row={row}
                             monthLabel={monthLabel}
@@ -498,7 +545,7 @@ export default function SalariesClient() {
               : "Salaries unavailable"}
         </p>
         <p className="text-sm font-medium tabular-nums">
-          Total {summary && !loading ? formatMoney(summary.totalSalary) : "—"}
+          Payable {summary && !loading ? formatMoney(summary.totalPayable) : "—"}
         </p>
       </div>
 
@@ -513,7 +560,7 @@ export default function SalariesClient() {
             <DialogTitle>Generate salary slip</DialogTitle>
             <DialogDescription>
               {slipDraft
-                ? `${slipDraft.name} · ${monthLabel}. Loss of pay is deducted from the gross for this month.`
+                ? `${slipDraft.name} · ${monthLabel}. Payable is ${formatMoney(slipDraft.pay.payableSalary)} before you change the loss of pay days.`
                 : "Enter loss of pay days."}
             </DialogDescription>
           </DialogHeader>
@@ -540,7 +587,9 @@ export default function SalariesClient() {
               <p id="loss-of-pay-hint" className="text-xs leading-5 text-muted-foreground">
                 {lossOfPayHint
                   ? `${lossOfPayHint} You can change the number before generating the slip. This month has ${daysInPayrollMonth(payrollMonth)} days.`
-                  : `Enter 0 if this employee has no loss of pay. This month has ${daysInPayrollMonth(payrollMonth)} days.`}
+                  : slipDraft && slipDraft.pay.notJoinedDays > 0
+                    ? `${formatDays(slipDraft.pay.notJoinedDays)} day(s) before joining are also deducted. This month has ${daysInPayrollMonth(payrollMonth)} days.`
+                    : `Enter 0 if this employee has no loss of pay. This month has ${daysInPayrollMonth(payrollMonth)} days.`}
               </p>
               {lossOfPayError ? (
                 <p className="text-sm text-destructive" role="alert">

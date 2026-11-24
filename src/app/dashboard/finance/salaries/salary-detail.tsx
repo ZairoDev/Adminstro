@@ -19,6 +19,25 @@ export type SalaryRevision = {
   updatedByName: string | null;
 };
 
+export type SalarySheetPay = {
+  presentDays: number;
+  halfDays: number;
+  paidLeaveDays: number;
+  unplannedLeaveDays: number;
+  holidays: number;
+  weeklyOffs: number;
+  pendingVerification: number;
+  policyConfirmed: boolean;
+  totalDays: number;
+  notJoinedDays: number;
+  lopDays: number;
+  payableDays: number;
+  perDaySalary: number;
+  lossOfPayAmount: number;
+  joiningDeduction: number;
+  payableSalary: number;
+};
+
 export type SalaryRow = {
   id: string;
   name: string;
@@ -34,7 +53,13 @@ export type SalaryRow = {
   effectiveFrom: string | null;
   updatedByName: string | null;
   history: SalaryRevision[];
+  pay: SalarySheetPay;
 };
+
+function formatDayCount(value: number): string {
+  const rounded = Math.round(value * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+}
 
 function formatDate(value: string | null): string {
   if (!value) return "—";
@@ -62,7 +87,7 @@ export function SalaryDetail({
 }: {
   row: SalaryRow;
   monthLabel: string;
-  onUpdated: (row: SalaryRow) => void;
+  onUpdated: (row: Omit<SalaryRow, "pay">) => void;
 }) {
   const [grossInput, setGrossInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -94,7 +119,7 @@ export function SalaryDetail({
       const response = await axios.patch<{
         success: boolean;
         changed?: boolean;
-        data?: SalaryRow;
+        data?: Omit<SalaryRow, "pay">;
         message?: string;
       }>(`/api/finance/salaries/${row.id}`, { gross });
 
@@ -135,6 +160,10 @@ export function SalaryDetail({
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             Effective {formatDate(row.effectiveFrom)}
             {row.updatedByName ? ` · Updated by ${row.updatedByName}` : ""}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Payable this month {formatMoney(row.pay.payableSalary)} for {formatDayCount(row.pay.payableDays)} of{" "}
+            {formatDayCount(row.pay.totalDays)} days.
           </p>
           <ComponentTable components={row.components} gross={row.salary} />
         </section>

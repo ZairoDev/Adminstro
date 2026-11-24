@@ -216,4 +216,23 @@ describe("per-location pricing rules", () => {
     expect(clauses[0].maxBudget).toEqual({ $gte: 0, $lte: 580 });
     expect(clauses[1].maxBudget).toEqual({ $gt: 580, $lte: 2500 });
   });
+
+  it("does not add a city clause when every pricing rule is off", () => {
+    const query: Record<string, unknown> = {};
+    const result = applyPricingRulesByLocationToQuery({
+      query,
+      pricingRules: {
+        all: { enabled: false, min: null, max: null },
+        byLocation: {
+          thessaloniki: { enabled: false, min: null, max: null },
+          athens: { enabled: false, min: null, max: null },
+        },
+      },
+      locations: ["thessaloniki", "athens"],
+    });
+
+    expect(result.impossible).toBe(false);
+    expect(query.$and).toBeUndefined();
+    expect(query.location).toBeUndefined();
+  });
 });

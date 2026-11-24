@@ -9,18 +9,22 @@ import {
   type SalaryBreakdown,
   type SalaryComponentAmount,
 } from "@/modules/finance/salary-structure";
+import { attendancePayrollForEmployees } from "@/modules/attendance/service";
 import {
   comparePayrollMonths,
   currentPayrollMonth,
+  daysBeforeJoiningInMonth,
   daysInPayrollMonth,
+  earliestPayrollMonth,
   latestOpenPayrollMonth,
-  lossOfPayDeduction,
   maxLossOfPayDays,
+  monthPayFromAttendance,
   parsePayrollMonth,
   payrollMonthEnd,
   payrollMonthKeyFromDate,
   payrollMonthLabel,
   payrollMonthStart,
+  type AttendancePay,
   type PayrollMonth,
 } from "@/modules/finance/salary-month";
 import { excludeTestAccountFromQuery } from "@/util/employeeConstants";
@@ -43,6 +47,18 @@ export type SalaryRevisionView = {
   updatedByName: string | null;
 };
 
+export type SalarySheetPay = AttendancePay & {
+  presentDays: number;
+  halfDays: number;
+  paidLeaveDays: number;
+  unpaidLeaveDays: number;
+  unplannedLeaveDays: number;
+  holidays: number;
+  weeklyOffs: number;
+  pendingVerification: number;
+  policyConfirmed: boolean;
+};
+
 export type EmployeeSalaryRow = {
   id: string;
   name: string;
@@ -60,12 +76,18 @@ export type EmployeeSalaryRow = {
   history: SalaryRevisionView[];
 };
 
+export type EmployeeSalarySheetRow = EmployeeSalaryRow & {
+  pay: SalarySheetPay;
+};
+
 export type EmployeeSalaryList = {
   month: string;
   monthLabel: string;
-  employees: EmployeeSalaryRow[];
+  employees: EmployeeSalarySheetRow[];
   totalEmployees: number;
   totalSalary: number;
+  totalPayable: number;
+  policyConfirmed: boolean;
 };
 
 export type SalaryUpdateResult = {
@@ -209,8 +231,8 @@ export function resolvePayrollMonth(value: string | undefined, now = new Date())
   if (!parsed) {
     throw new EmployeeSalaryError(400, "Enter a valid month");
   }
-  if (comparePayrollMonths(parsed, current) < 0) {
-    throw new EmployeeSalaryError(400, "Salary months start from the current month");
+  if (comparePayrollMonths(parsed, earliestPayrollMonth(now)) < 0) {
+    throw new EmployeeSalaryError(400, "Salary months go back 12 months");
   }
   if (comparePayrollMonths(parsed, latestOpenPayrollMonth(now)) > 0) {
     throw new EmployeeSalaryError(400, "Choose a month within the next 18 months");
@@ -250,6 +272,24 @@ function sumSalary(rows: EmployeeSalaryRow[]): number {
   return rows.reduce((total, row) => total + row.salary, 0);
 }
 
+function sumPayable(rows: EmployeeSalarySheetRow[]): number {
+  return rows.reduce((total, row) => total + row.pay.payableSalary, 0);
+}
+
+const EMPTY_ATTENDANCE = {
+  presentDays: 0,
+  halfDays: 0,
+  paidLeaveDays: 0,
+  unpaidLeaveDays: 0,
+  unplannedLeaveDays: 0,
+  holidays: 0,
+  weeklyOffs: 0,
+  notJoinedDays: 0,
+  lopDays: 0,
+  pendingVerification: 0,
+  hasRecords: false,
+};
+
 function buildFilter(params: ListSalariesQuery): FilterQuery<SalaryDocument> {
   const filter: FilterQuery<SalaryDocument> = {
     isActive: { $ne: false },
@@ -282,7 +322,38 @@ export async function listEmployeeSalaries(
 
   await storeMissingStructures(documents);
   const asOf = payrollMonthEnd(month);
-  const employees = documents.filter((document) => !joinedAfterMonth(document, month)).map((document) => toRow(document, asOf));
+  const eligible = documents.filter((document) => !joinedAfterMonth(document, month));
+  const monthLength = daysInPayrollMonth(month);
+  const attendance = await attendancePayrollForEmployees(
+    eligible.map((document) => document._id.toString()),
+    month,
+  );
+  const employees = eligible.map((document) => {
+    const row = toRow(document, asOf);
+    const counts = attendance.byEmployee.get(row.id) ?? EMPTY_ATTENDANCE;
+    const notJoinedDays = counts.hasRecords
+      ? counts.notJoinedDays
+      : daysBeforeJoiningInMonth(document.dateOfJoining, month);
+    const pay = monthPayFromAttendance(row.salary, monthLength, {
+      lopDays: counts.lopDays,
+      notJoinedDays,
+    });
+    return {
+      ...row,
+      pay: {
+        ...pay,
+        presentDays: counts.presentDays,
+        halfDays: counts.halfDays,
+        paidLeaveDays: counts.paidLeaveDays,
+        unpaidLeaveDays: counts.unpaidLeaveDays,
+        unplannedLeaveDays: counts.unplannedLeaveDays,
+        holidays: counts.holidays,
+        weeklyOffs: counts.weeklyOffs,
+        pendingVerification: counts.pendingVerification,
+        policyConfirmed: attendance.policyConfirmed,
+      },
+    };
+  });
 
   return {
     month: month.key,
@@ -290,6 +361,8 @@ export async function listEmployeeSalaries(
     employees,
     totalEmployees: employees.length,
     totalSalary: sumSalary(employees),
+    totalPayable: sumPayable(employees),
+    policyConfirmed: attendance.policyConfirmed,
   };
 }
 
@@ -468,6 +541,15 @@ export async function getEmployeeSalarySlip(
   }
 
   const applicable = salaryAt(employee, payrollMonthEnd(month));
+  const attendance = await attendancePayrollForEmployees([employeeId], month);
+  const counts = attendance.byEmployee.get(employeeId);
+  const notJoinedDays = counts?.hasRecords
+    ? counts.notJoinedDays
+    : daysBeforeJoiningInMonth(employee.dateOfJoining, month);
+  const pay = monthPayFromAttendance(applicable.breakdown.gross, monthLength, {
+    lopDays: lossOfPayDays,
+    notJoinedDays,
+  });
   const code = employee.employeeCode?.trim() || employee._id.toString().slice(-6).toUpperCase();
   const generatedOn = new Intl.DateTimeFormat("en-IN", {
     timeZone: "Asia/Kolkata",
@@ -503,12 +585,60 @@ export async function getEmployeeSalarySlip(
     address: slipText(employee.address),
     components: toComponentAmounts(applicable.breakdown),
     gross: applicable.breakdown.gross,
-    lossOfPayDays,
-    lossOfPayAmount: lossOfPayDeduction(
-      applicable.breakdown.gross,
-      monthLength,
-      lossOfPayDays,
-    ),
+    totalDays: pay.totalDays,
+    lossOfPayDays: pay.lopDays,
+    notJoinedDays: pay.notJoinedDays,
+    payableDays: pay.payableDays,
+    perDaySalary: pay.perDaySalary,
+    lossOfPayAmount: pay.lossOfPayAmount,
+    joiningDeduction: pay.joiningDeduction,
+    payableSalary: pay.payableSalary,
     generatedOn,
+  };
+}
+
+export async function getEmployeeMonthSalary(
+  employeeId: string,
+  monthValue: string,
+): Promise<EmployeeSalarySheetRow> {
+  const month = resolvePayrollMonth(monthValue);
+  if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+    throw new EmployeeSalaryError(400, "Invalid employee");
+  }
+  const employee = (await Employees.findById(employeeId)
+    .select(SALARY_FIELDS)
+    .lean()) as SalaryDocument | null;
+  if (!employee || employee.isActive === false) {
+    throw new EmployeeSalaryError(404, "Active employee not found");
+  }
+  if (joinedAfterMonth(employee, month)) {
+    throw new EmployeeSalaryError(400, "This employee has not joined by that month");
+  }
+
+  const attendance = await attendancePayrollForEmployees([employeeId], month);
+  const counts = attendance.byEmployee.get(employeeId) ?? EMPTY_ATTENDANCE;
+  const row = toRow(employee, payrollMonthEnd(month));
+  const notJoinedDays = counts.hasRecords
+    ? counts.notJoinedDays
+    : daysBeforeJoiningInMonth(employee.dateOfJoining, month);
+  const pay = monthPayFromAttendance(row.salary, daysInPayrollMonth(month), {
+    lopDays: counts.lopDays,
+    notJoinedDays,
+  });
+
+  return {
+    ...row,
+    pay: {
+      ...pay,
+      presentDays: counts.presentDays,
+      halfDays: counts.halfDays,
+      paidLeaveDays: counts.paidLeaveDays,
+      unpaidLeaveDays: counts.unpaidLeaveDays,
+      unplannedLeaveDays: counts.unplannedLeaveDays,
+      holidays: counts.holidays,
+      weeklyOffs: counts.weeklyOffs,
+      pendingVerification: counts.pendingVerification,
+      policyConfirmed: attendance.policyConfirmed,
+    },
   };
 }

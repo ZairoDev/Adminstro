@@ -1,19 +1,16 @@
 {
  "version": 1,
  "kind": "app",
- "at": "2026-11-20T10:58:40.248Z",
- "seed": 1492487197,
+ "at": "2026-11-24T08:11:52.155Z",
+ "seed": 1501895283,
  "input": {
-  "kind": "workspace",
-  "brief": "Adminstro staff org chart: who reports to whom, and who trains whom",
+  "kind": "finance",
+  "brief": "Monthly salary sheet: each employee's attendance days, then payable salary, breakup and deductions",
   "theme": "light",
   "screens": [
-   "detail"
+   "list"
   ],
-  "keep": [
-   "palette",
-   "type"
-  ],
+  "keep": [],
   "style": "achromatic-ledger"
  },
  "style": {
@@ -145,7 +142,7 @@
  },
  "screens": [
   {
-   "name": "detail",
+   "name": "list",
    "pattern": null
   }
  ]

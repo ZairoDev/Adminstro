@@ -2,10 +2,13 @@ import {
   addPayrollMonths,
   comparePayrollMonths,
   currentPayrollMonth,
+  daysBeforeJoiningInMonth,
   daysInPayrollMonth,
+  earliestPayrollMonth,
   latestOpenPayrollMonth,
   lossOfPayDeduction,
   maxLossOfPayDays,
+  monthPayFromAttendance,
   parsePayrollMonth,
   payrollMonthEnd,
   payrollMonthLabel,
@@ -41,6 +44,37 @@ describe("payroll months", () => {
     expect(daysInPayrollMonth(october)).toBe(31);
     expect(lossOfPayDeduction(50000, 31, 0)).toBe(0);
     expect(lossOfPayDeduction(50000, 31, 2)).toBe(3225.81);
+  });
+
+  it("pays the month from attendance loss of pay", () => {
+    const pay = monthPayFromAttendance(31000, 31, { lopDays: 2, notJoinedDays: 0 });
+    expect(pay.perDaySalary).toBe(1000);
+    expect(pay.payableDays).toBe(29);
+    expect(pay.lossOfPayAmount).toBe(2000);
+    expect(pay.payableSalary).toBe(29000);
+  });
+
+  it("does not pay days before joining", () => {
+    const november = { year: 2026, month: 11, key: "2026-11" };
+    expect(daysBeforeJoiningInMonth("2026-11-10T00:00:00+05:30", november)).toBe(9);
+    expect(daysBeforeJoiningInMonth("2026-10-10T00:00:00+05:30", november)).toBe(0);
+    const pay = monthPayFromAttendance(31000, 31, { lopDays: 1, notJoinedDays: 10 });
+    expect(pay.payableDays).toBe(20);
+    expect(pay.joiningDeduction).toBe(10000);
+    expect(pay.payableSalary).toBe(20000);
+  });
+
+  it("caps payable salary at zero when loss of pay exceeds the month", () => {
+    const pay = monthPayFromAttendance(31000, 31, { lopDays: 40, notJoinedDays: 0 });
+    expect(pay.payableDays).toBe(0);
+    expect(pay.payableSalary).toBe(0);
+    expect(pay.lossOfPayAmount).toBe(31000);
+  });
+
+  it("keeps the last 12 months open for payroll", () => {
+    const now = new Date("2026-11-24T10:00:00+05:30");
+    expect(earliestPayrollMonth(now).key).toBe("2025-11");
+    expect(latestOpenPayrollMonth(now).key).toBe("2028-05");
   });
 
   it("allows more loss of pay days than the month has, and caps the deduction at gross", () => {

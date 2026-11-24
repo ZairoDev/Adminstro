@@ -1,5 +1,3 @@
-import { escapeRegExp } from "@/util/regex";
-
 export const EMPLOYEE_RENTAL_TYPES = ["Short Term", "Long Term"] as const;
 
 export type EmployeeRentalType = (typeof EMPLOYEE_RENTAL_TYPES)[number];
@@ -14,24 +12,6 @@ export function normalizeLeadBookingTerm(value: unknown): string {
   if (/^mid\s*term$/i.test(trimmed)) return "Mid Term";
   if (/^long\s*term$/i.test(trimmed)) return "Long Term";
   return trimmed;
-}
-
-export function buildBookingTermMongoFilter(
-  rentalType: unknown,
-  role: string,
-): Record<string, unknown> | null {
-  const allowed = getAllowedBookingTerms(rentalType, role);
-  if (!allowed || allowed.length === 0) {
-    return null;
-  }
-
-  return {
-    bookingTerm: {
-      $in: allowed.map(
-        (term) => new RegExp(`^${escapeRegExp(term)}$`, "i"),
-      ),
-    },
-  };
 }
 
 export function formatEmployeeRentalTypeLabel(rentalType: unknown): string {
@@ -113,47 +93,25 @@ export function getAllowedBookingTerms(
 }
 
 export function isLeadBookingTermAllowed(
-  rentalType: unknown,
-  role: string,
-  bookingTerm: unknown,
+  _rentalType: unknown,
+  _role: string,
+  _bookingTerm: unknown,
 ): boolean {
-  const allowed = getAllowedBookingTerms(rentalType, role);
-  if (!allowed) return true;
-  const normalized = normalizeLeadBookingTerm(bookingTerm);
-  return allowed.some(
-    (term) => term.toLowerCase() === normalized.toLowerCase(),
-  );
-}
-
-function appendBookingTermClause(
-  query: Record<string, unknown>,
-  clause: Record<string, unknown>,
-): Record<string, unknown> {
-  if (query.bookingTerm !== undefined) {
-    const { bookingTerm: _existing, ...rest } = query;
-    const andList = Array.isArray(rest.$and) ? [...rest.$and] : [];
-    andList.push(clause);
-    return { ...rest, $and: andList };
-  }
-
-  if (Array.isArray(query.$and)) {
-    return { ...query, $and: [...query.$and, clause] };
-  }
-
-  return { ...query, ...clause };
+  // Guest leads are not split by rental type. A Short Term salesperson still
+  // sees Long Term and Mid Term guests in their allotted city. Rental type
+  // only chooses which owner sheet they can open.
+  return true;
 }
 
 export function applyRentalTypeToLeadQuery(
   query: Record<string, unknown>,
-  rentalType: unknown,
-  role: string,
+  _rentalType: unknown,
+  _role: string,
 ): Record<string, unknown> {
-  const bookingTermClause = buildBookingTermMongoFilter(rentalType, role);
-  if (!bookingTermClause) {
-    return query;
-  }
-
-  return appendBookingTermClause(query, bookingTermClause);
+  // Do not add a bookingTerm clause. SuperAdmin filtering a city and a sales
+  // user allotted to that city must see the same guest leads when no pricing
+  // or property-visibility rule is on. Rental type remains an owner-sheet limit.
+  return query;
 }
 
 export function assertOwnerSheetApiAccess(

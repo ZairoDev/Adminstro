@@ -1,4 +1,10 @@
-import { splitGrossSalary, toComponentAmounts } from "../salary-structure";
+import {
+  monthlyFromAnnual,
+  monthlySalaryHint,
+  splitGrossSalary,
+  toComponentAmounts,
+  toMonthlyBreakdown,
+} from "../salary-structure";
 
 describe("splitGrossSalary", () => {
   it("splits a round gross by the payroll percentages", () => {
@@ -41,14 +47,40 @@ describe("splitGrossSalary", () => {
     expect(() => splitGrossSalary(-1)).toThrow(/non-negative/);
   });
 
-  it("labels each component with its share of gross", () => {
-    const amounts = toComponentAmounts(splitGrossSalary(10000));
-    expect(amounts.map((component) => [component.label, component.percent, component.amount])).toEqual([
-      ["Basic Salary", 50, 5000],
-      ["HRA", 20, 2000],
-      ["Conveyance Allowance", 4, 400],
-      ["Medical Allowance", 2, 200],
-      ["Special Allowance", 24, 2400],
+  it("labels each component with its share and annual and monthly amounts", () => {
+    const amounts = toComponentAmounts(splitGrossSalary(120000));
+    expect(
+      amounts.map((component) => [component.label, component.percent, component.annual, component.monthly]),
+    ).toEqual([
+      ["Basic Salary", 50, 60000, 5000],
+      ["HRA", 20, 24000, 2000],
+      ["Conveyance Allowance", 4, 4800, 400],
+      ["Medical Allowance", 2, 2400, 200],
+      ["Special Allowance", 24, 28800, 2400],
     ]);
+  });
+});
+
+describe("annual to monthly", () => {
+  it("divides the annual salary by 12", () => {
+    expect(monthlyFromAnnual(120000)).toBe(10000);
+    expect(monthlyFromAnnual(100000)).toBe(8333.33);
+    expect(monthlyFromAnnual(0)).toBe(0);
+  });
+
+  it("keeps monthly components equal to the monthly gross", () => {
+    for (const annual of [100000, 333333, 450001, 1234567.89]) {
+      const monthly = toMonthlyBreakdown(splitGrossSalary(annual));
+      const parts =
+        monthly.basic + monthly.hra + monthly.conveyance + monthly.medical + monthly.specialAllowance;
+      expect(Math.round(parts * 100)).toBe(Math.round(monthly.gross * 100));
+      expect(monthly.gross).toBe(monthlyFromAnnual(annual));
+      expect(monthly.specialAllowance).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("describes the monthly amount for an annual input", () => {
+    expect(monthlySalaryHint("120000")).toContain("10,000.00");
+    expect(monthlySalaryHint("")).toMatch(/divided by 12/);
   });
 });

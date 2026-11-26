@@ -34,6 +34,9 @@ export type SalarySlipDocument = {
   ifsc: string;
   address: string;
   components: SalaryComponentAmount[];
+  /** Annual salary, shown for reference. Earnings and gross below are monthly. */
+  annualSalary: number;
+  /** Monthly gross: annual salary divided by 12. */
   gross: number;
   totalDays: number;
   lossOfPayDays: number;
@@ -281,7 +284,7 @@ export async function buildSalarySlipPdf(slip: SalarySlipDocument): Promise<Uint
 
   const earningRows = slip.components.map((component) => ({
     label: component.label,
-    amount: money(component.amount),
+    amount: money(component.monthly),
   }));
   const totalDeductions =
     Math.round((slip.lossOfPayAmount + slip.joiningDeduction) * 100) / 100;
@@ -339,6 +342,8 @@ export async function buildSalarySlipPdf(slip: SalarySlipDocument): Promise<Uint
     ["Net Pay (A - B)", money(netPay)],
   ];
   const noteRows: Array<[string, string]> = [
+    ["Annual salary", money(slip.annualSalary)],
+    ["Monthly (annual / 12)", money(slip.gross)],
     ["Payable days", formatDays(slip.payableDays)],
     ["Loss of pay amount", money(slip.lossOfPayAmount)],
     ["Net payable", money(netPay)],

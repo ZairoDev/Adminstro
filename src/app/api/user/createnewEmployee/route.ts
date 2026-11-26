@@ -162,6 +162,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           : requestedOrganization || "VacationSaga";
 
     const normalizedAllotedArea = normalizeAllotedArea(allotedArea);
+    // The submitted salary is annual; it is stored annual and divided by 12 for payroll.
     const grossSalary = splitGrossSalary(
       typeof salary === "number" && Number.isFinite(salary) ? salary : 0,
     );

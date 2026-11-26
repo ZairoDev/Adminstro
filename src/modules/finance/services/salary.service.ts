@@ -4,8 +4,10 @@ import { escapeRegex } from "@/modules/finance/escape-regex";
 import type { ListSalariesQuery } from "@/modules/finance/schemas/salary.schema";
 import {
   salaryAmountsMatch,
+  monthlyFromAnnual,
   splitGrossSalary,
   toComponentAmounts,
+  toMonthlyBreakdown,
   type SalaryBreakdown,
   type SalaryComponentAmount,
 } from "@/modules/finance/salary-structure";
@@ -40,7 +42,8 @@ export class EmployeeSalaryError extends Error {
 }
 
 export type SalaryRevisionView = {
-  gross: number;
+  annualGross: number;
+  monthlyGross: number;
   components: SalaryComponentAmount[];
   effectiveFrom: string | null;
   effectiveTo: string | null;
@@ -69,7 +72,10 @@ export type EmployeeSalaryRow = {
   organization: string;
   empType: string;
   dateOfJoining: string | null;
-  salary: number;
+  /** Annual salary as entered and stored. */
+  annualSalary: number;
+  /** Annual salary divided by 12. Payroll, the salary sheet and slips use this. */
+  monthlySalary: number;
   components: SalaryComponentAmount[];
   effectiveFrom: string | null;
   updatedByName: string | null;
@@ -85,7 +91,8 @@ export type EmployeeSalaryList = {
   monthLabel: string;
   employees: EmployeeSalarySheetRow[];
   totalEmployees: number;
-  totalSalary: number;
+  totalAnnualSalary: number;
+  totalMonthlySalary: number;
   totalPayable: number;
   policyConfirmed: boolean;
 };
@@ -177,7 +184,8 @@ function breakdownFromStored(
 function toRevisionView(stored: StoredRevision, fallbackGross: number): SalaryRevisionView {
   const breakdown = breakdownFromStored(stored, fallbackGross);
   return {
-    gross: breakdown.gross,
+    annualGross: breakdown.gross,
+    monthlyGross: monthlyFromAnnual(breakdown.gross),
     components: toComponentAmounts(breakdown),
     effectiveFrom: toIsoDate(stored.effectiveFrom),
     effectiveTo: toIsoDate(stored.effectiveTo),
@@ -260,7 +268,8 @@ function toRow(doc: SalaryDocument, asOf: Date = new Date()): EmployeeSalaryRow 
     organization: doc.organization?.trim() || "",
     empType: doc.empType?.trim() || "",
     dateOfJoining: toIsoDate(doc.dateOfJoining),
-    salary: applicable.breakdown.gross,
+    annualSalary: applicable.breakdown.gross,
+    monthlySalary: monthlyFromAnnual(applicable.breakdown.gross),
     components: toComponentAmounts(applicable.breakdown),
     effectiveFrom: applicable.effectiveFrom,
     updatedByName: applicable.updatedByName,
@@ -268,8 +277,12 @@ function toRow(doc: SalaryDocument, asOf: Date = new Date()): EmployeeSalaryRow 
   };
 }
 
-function sumSalary(rows: EmployeeSalaryRow[]): number {
-  return rows.reduce((total, row) => total + row.salary, 0);
+function sumAnnualSalary(rows: EmployeeSalaryRow[]): number {
+  return rows.reduce((total, row) => total + row.annualSalary, 0);
+}
+
+function sumMonthlySalary(rows: EmployeeSalaryRow[]): number {
+  return rows.reduce((total, row) => total + row.monthlySalary, 0);
 }
 
 function sumPayable(rows: EmployeeSalarySheetRow[]): number {
@@ -334,7 +347,7 @@ export async function listEmployeeSalaries(
     const notJoinedDays = counts.hasRecords
       ? counts.notJoinedDays
       : daysBeforeJoiningInMonth(document.dateOfJoining, month);
-    const pay = monthPayFromAttendance(row.salary, monthLength, {
+    const pay = monthPayFromAttendance(row.monthlySalary, monthLength, {
       lopDays: counts.lopDays,
       notJoinedDays,
     });
@@ -360,7 +373,8 @@ export async function listEmployeeSalaries(
     monthLabel: payrollMonthLabel(month),
     employees,
     totalEmployees: employees.length,
-    totalSalary: sumSalary(employees),
+    totalAnnualSalary: sumAnnualSalary(employees),
+    totalMonthlySalary: sumMonthlySalary(employees),
     totalPayable: sumPayable(employees),
     policyConfirmed: attendance.policyConfirmed,
   };
@@ -395,6 +409,7 @@ async function storeMissingStructures(documents: SalaryDocument[]): Promise<void
   await Employees.bulkWrite(operations as Parameters<typeof Employees.bulkWrite>[0]);
 }
 
+/** Parses an annual salary value from a form or request. */
 export function parseGrossSalary(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
     return value;
@@ -407,9 +422,10 @@ export function parseGrossSalary(value: unknown): number | null {
   return null;
 }
 
+/** Stores a new ANNUAL salary. Monthly figures are derived by dividing by 12. */
 export async function updateEmployeeGrossSalary(input: {
   employeeId: string;
-  gross: number;
+  annualSalary: number;
   updatedById?: string;
   updatedByName?: string;
 }): Promise<SalaryUpdateResult> {
@@ -417,7 +433,7 @@ export async function updateEmployeeGrossSalary(input: {
     throw new EmployeeSalaryError(400, "Invalid employee");
   }
 
-  const next = splitGrossSalary(input.gross);
+  const next = splitGrossSalary(input.annualSalary);
   const employee = (await Employees.findById(input.employeeId)
     .select(SALARY_FIELDS)
     .lean()) as SalaryDocument | null;
@@ -546,7 +562,8 @@ export async function getEmployeeSalarySlip(
   const notJoinedDays = counts?.hasRecords
     ? counts.notJoinedDays
     : daysBeforeJoiningInMonth(employee.dateOfJoining, month);
-  const pay = monthPayFromAttendance(applicable.breakdown.gross, monthLength, {
+  const monthlyBreakdown = toMonthlyBreakdown(applicable.breakdown);
+  const pay = monthPayFromAttendance(monthlyBreakdown.gross, monthLength, {
     lopDays: lossOfPayDays,
     notJoinedDays,
   });
@@ -584,7 +601,8 @@ export async function getEmployeeSalarySlip(
     ifsc: slipText(employee.ifsc),
     address: slipText(employee.address),
     components: toComponentAmounts(applicable.breakdown),
-    gross: applicable.breakdown.gross,
+    annualSalary: applicable.breakdown.gross,
+    gross: monthlyBreakdown.gross,
     totalDays: pay.totalDays,
     lossOfPayDays: pay.lopDays,
     notJoinedDays: pay.notJoinedDays,
@@ -621,7 +639,7 @@ export async function getEmployeeMonthSalary(
   const notJoinedDays = counts.hasRecords
     ? counts.notJoinedDays
     : daysBeforeJoiningInMonth(employee.dateOfJoining, month);
-  const pay = monthPayFromAttendance(row.salary, daysInPayrollMonth(month), {
+  const pay = monthPayFromAttendance(row.monthlySalary, daysInPayrollMonth(month), {
     lopDays: counts.lopDays,
     notJoinedDays,
   });

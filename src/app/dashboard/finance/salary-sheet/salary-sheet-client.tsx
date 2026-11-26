@@ -565,7 +565,7 @@ export default function SalarySheetClient() {
 
       <div className="flex flex-none items-center justify-between gap-6 px-6 py-3">
         <p className="max-w-3xl text-xs leading-5 text-[#6b6b6b]">
-          Final is the monthly salary after loss of pay. Its breakup is basic 50%, HRA 20%, conveyance 4%, medical 2%, special allowance 24%. Amount is final, minus PF, plus incentive and casual, then minus cash, advance and hold.
+          Salary is the annual salary divided by 12. Final is that monthly salary after loss of pay. Its breakup is basic 50%, HRA 20%, conveyance 4%, medical 2%, special allowance 24%. Amount is final, minus PF, plus incentive and casual, then minus cash, advance and hold.
         </p>
         <p className="text-sm tabular-nums text-[#6b6b6b]">
           {loading ? "Loading" : sheet ? `${sheet.totals.employees.toLocaleString("en-IN")} people` : "Unavailable"}

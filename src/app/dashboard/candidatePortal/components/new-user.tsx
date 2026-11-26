@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { monthlySalaryHint } from "@/modules/finance/salary-structure";
 import { toast } from "@/hooks/use-toast";
 import { JobIdentitySelects } from "@/components/departments/job-identity-selects";
 import {
@@ -1188,13 +1189,16 @@ const NewUser: React.FC<NewUserProps> = ({
                   )}
 
                   <div className="space-y-2">
-                    <Label>Salary *</Label>
+                    <Label>Annual salary (CTC) *</Label>
                     <Input
                       {...register("salary", { valueAsNumber: true })}
                       type="number"
                       className="h-11"
-                      placeholder="Enter salary"
+                      placeholder="Enter annual salary"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      {monthlySalaryHint(watch("salary"))}
+                    </p>
                     {errors.salary && (
                       <p className="text-red-500 text-xs">
                         {errors.salary.message}

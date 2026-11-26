@@ -18,6 +18,7 @@ import PhoneInput from "react-phone-number-input";
 
 import "react-phone-number-input/style.css";
 import { Loader } from "lucide-react";
+import { monthlySalaryHint } from "@/modules/finance/salary-structure";
 import Heading from "@/components/Heading";
 import { JobIdentitySelects } from "@/components/departments/job-identity-selects";
 import {
@@ -598,15 +599,19 @@ const AccountPage = ({ params }: PageProps) => {
               htmlFor="salary"
               className="text-sm font-medium text-slate-700 dark:text-slate-300"
             >
-              Salary *{" "}
+              Annual salary (CTC) *{" "}
             </label>
             <Input
+              id="salary"
               value={salary}
               onChange={(e) => setSalary(e.target.value)}
               className="h-11 mt-2"
               type="number"
-              placeholder="Enter salary"
+              placeholder="Enter annual salary"
             />
+            <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+              {monthlySalaryHint(salary)}
+            </p>
           </div>
         </div>
 

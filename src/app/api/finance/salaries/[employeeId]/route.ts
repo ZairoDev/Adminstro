@@ -24,7 +24,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json(
         {
           success: false,
-          message: "Enter a valid gross salary",
+          message: "Enter a valid annual salary",
           errors: parsed.error.flatten(),
         },
         { status: 400 },
@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const result = await updateEmployeeGrossSalary({
       employeeId,
-      gross: parsed.data.gross,
+      annualSalary: parsed.data.annualSalary,
       updatedById: actor.id,
       updatedByName: actor.name,
     });

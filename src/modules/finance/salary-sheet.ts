@@ -226,8 +226,8 @@ export const SHEET_PAY_COLUMNS: Array<{ key: SheetMoneyKey; label: string; hint:
   { key: "totalDays", label: "Total days", hint: "Calendar days in the month" },
   { key: "actualDays", label: "Actual days", hint: "Total days minus loss of pay and days before joining" },
   { key: "lopDays", label: "LOP days", hint: "Absence, half day, unpaid leave, and unplanned leave" },
-  { key: "monthlySalary", label: "Salary", hint: "Monthly salary before attendance" },
-  { key: "perDaySalary", label: "Per day", hint: "Monthly salary divided by the days in the month" },
+  { key: "monthlySalary", label: "Salary", hint: "Annual salary divided by 12, before attendance" },
+  { key: "perDaySalary", label: "Per day", hint: "Monthly salary (annual / 12) divided by the days in the month" },
   { key: "gross", label: "Gross", hint: "Salary after loss of pay and days before joining" },
   { key: "finalSalary", label: "Final", hint: "Same as gross, before PF, incentive, and casual" },
 ];

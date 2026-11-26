@@ -75,6 +75,7 @@ export const employeeSchema = z.object({
   empType: z.string().optional().default(""),
   lastLogin: z.date().optional(),
   lastLogout: z.date().optional(),
+  // Annual salary in rupees.
   salary: z.number().optional().default(0),
   duration: z.string().optional().default(""),
   isActive: z.boolean().optional().default(true),

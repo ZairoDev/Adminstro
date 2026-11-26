@@ -58,7 +58,8 @@ import type { LopBreakdown } from "@/modules/attendance/types";
 type SalaryPayload = {
   employees: SalaryRow[];
   totalEmployees: number;
-  totalSalary: number;
+  totalAnnualSalary: number;
+  totalMonthlySalary: number;
   totalPayable: number;
   policyConfirmed: boolean;
 };
@@ -160,12 +161,14 @@ export default function SalariesClient() {
 
   const applyUpdatedRow = (next: Omit<SalaryRow, "pay">) => {
     setRows((current) => {
-      let grossDelta = 0;
+      let annualDelta = 0;
+      let monthlyDelta = 0;
       let payableDelta = 0;
       const updated = current.map((row) => {
         if (row.id !== next.id) return row;
-        grossDelta = next.salary - row.salary;
-        const money = monthPayFromAttendance(next.salary, row.pay.totalDays, {
+        annualDelta = next.annualSalary - row.annualSalary;
+        monthlyDelta = next.monthlySalary - row.monthlySalary;
+        const money = monthPayFromAttendance(next.monthlySalary, row.pay.totalDays, {
           lopDays: row.pay.lopDays,
           notJoinedDays: row.pay.notJoinedDays,
         });
@@ -176,7 +179,8 @@ export default function SalariesClient() {
         currentSummary
           ? {
               ...currentSummary,
-              totalSalary: currentSummary.totalSalary + grossDelta,
+              totalAnnualSalary: currentSummary.totalAnnualSalary + annualDelta,
+              totalMonthlySalary: currentSummary.totalMonthlySalary + monthlyDelta,
               totalPayable: currentSummary.totalPayable + payableDelta,
             }
           : currentSummary,
@@ -294,7 +298,7 @@ export default function SalariesClient() {
           </div>
         </div>
         <p className="text-sm leading-6 text-muted-foreground">
-          Per day is the monthly salary divided by the days in {monthLabel}. Weekends, holidays, and paid leave stay payable. Absence, half days, unpaid leave, and unplanned leave are loss of pay.
+          Salary is entered as an annual amount; the monthly salary is the annual salary divided by 12. Per day is the monthly salary divided by the days in {monthLabel}. Weekends, holidays, and paid leave stay payable. Absence, half days, unpaid leave, and unplanned leave are loss of pay.
         </p>
         {slipError ? (
           <p className="text-sm text-destructive" role="alert">
@@ -308,7 +312,7 @@ export default function SalariesClient() {
           </p>
         ) : null}
 
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-4">
           <SheetStat
             label="Active employees"
             value={
@@ -317,9 +321,14 @@ export default function SalariesClient() {
             hint="On payroll this month"
           />
           <SheetStat
+            label="Annual salary"
+            value={summary ? formatMoney(summary.totalAnnualSalary) : "—"}
+            hint="Total entered per year"
+          />
+          <SheetStat
             label="Monthly gross"
-            value={summary ? formatMoney(summary.totalSalary) : "—"}
-            hint="Before attendance"
+            value={summary ? formatMoney(summary.totalMonthlySalary) : "—"}
+            hint="Annual divided by 12, before attendance"
           />
           <SheetStat
             label="Payable"
@@ -446,7 +455,7 @@ export default function SalariesClient() {
                       <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatDays(row.pay.totalDays)}</td>
                       <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatDays(row.pay.payableDays)}</td>
                       <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatMoney(row.pay.perDaySalary)}</td>
-                      <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatMoney(row.salary)}</td>
+                      <td className={cn(sheetTdClass, "text-right tabular-nums")}>{formatMoney(row.monthlySalary)}</td>
                       <td className={cn(sheetTdClass, "text-right font-medium tabular-nums")}>
                         {formatMoney(row.pay.payableSalary)}
                       </td>

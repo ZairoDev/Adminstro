@@ -131,6 +131,7 @@ const mobileSessionSchema = new Schema(
   { _id: false },
 );
 
+// Every amount here is ANNUAL. Payroll divides by 12 to get monthly figures.
 const salaryRevisionSchema = new Schema(
   {
     gross: { type: Number, required: true, min: 0 },
@@ -241,6 +242,7 @@ const employeeSchema = new Schema<IEmployee>(
       type: String,
       default: "",
     },
+    // Annual salary in rupees. Monthly pay is this divided by 12.
     salary: {
       type: Number,
       default: 0,

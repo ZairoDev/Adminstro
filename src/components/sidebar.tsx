@@ -38,6 +38,7 @@ import {
   CircleCheckBig,
   FileSpreadsheet,
   Table2,
+  HandCoins,
   LayoutDashboard,
   SlidersHorizontal,
 
@@ -521,6 +522,11 @@ const roleRoutes: Record<string, Route[]> = {
       path: "/dashboard/finance/salary-sheet",
       label: "Salary Sheet",
       Icon: <Table2 size={18} />,
+    },
+    {
+      path: "/dashboard/finance/expense-sheet",
+      label: "Expense Sheet",
+      Icon: <HandCoins size={18} />,
     },
     {
       path: "/dashboard/aliases",
@@ -1459,6 +1465,11 @@ const financeManagementRoutes = [
     path: "/dashboard/finance/salary-sheet",
     label: "Salary Sheet",
     Icon: <Table2 size={18} />,
+  },
+  {
+    path: "/dashboard/finance/expense-sheet",
+    label: "Expense Sheet",
+    Icon: <HandCoins size={18} />,
   },
 ];
 const ownerManagementRoutes = [

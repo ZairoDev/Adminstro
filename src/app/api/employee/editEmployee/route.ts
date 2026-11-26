@@ -202,12 +202,13 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       (updateData as RequestBody).reportingManagerId = nextManagerId;
     }
 
-    const nextGross = parseGrossSalary(updateFields.salary);
-    if (nextGross !== null) {
+    // The salary field on this form is the annual salary.
+    const nextAnnualSalary = parseGrossSalary(updateFields.salary);
+    if (nextAnnualSalary !== null) {
       try {
         await updateEmployeeGrossSalary({
           employeeId: _id,
-          gross: nextGross,
+          annualSalary: nextAnnualSalary,
           updatedById: typeof data.id === "string" ? data.id : undefined,
           updatedByName: typeof data.name === "string" ? data.name : undefined,
         });

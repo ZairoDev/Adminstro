@@ -102,7 +102,7 @@ function lineFor(
     role: row.role,
     organization: row.organization,
     counts: countsFor(row),
-    money: salarySheetMoney(row.salary, row.pay, adjustments),
+    money: salarySheetMoney(row.monthlySalary, row.pay, adjustments),
     days: dates.map((date) => {
       const cell = cells?.get(date);
       return sheetDay({
@@ -241,6 +241,6 @@ export async function updateSalarySheetAdjustment(input: UpdateSalarySheetBody) 
 
   return {
     employeeId: employee.id,
-    money: salarySheetMoney(employee.salary, employee.pay, adjustmentsFrom(stored)),
+    money: salarySheetMoney(employee.monthlySalary, employee.pay, adjustmentsFrom(stored)),
   };
 }

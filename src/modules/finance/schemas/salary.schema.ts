@@ -18,7 +18,8 @@ export const listSalariesQuerySchema = z.object({
 export type ListSalariesQuery = z.infer<typeof listSalariesQuerySchema>;
 
 export const updateSalaryBodySchema = z.object({
-  gross: z.number().finite().min(0).max(100_000_000),
+  /** Annual salary in rupees. Monthly pay is this divided by 12. */
+  annualSalary: z.number().finite().min(0).max(1_200_000_000),
 });
 
 export type UpdateSalaryBody = z.infer<typeof updateSalaryBodySchema>;

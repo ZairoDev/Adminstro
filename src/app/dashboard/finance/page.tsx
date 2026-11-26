@@ -75,6 +75,9 @@ export default function FinanceOverviewPage() {
           <Button asChild variant="secondary">
             <Link href="/dashboard/finance/salary-sheet">Salary Sheet</Link>
           </Button>
+          <Button asChild variant="secondary">
+            <Link href="/dashboard/finance/expense-sheet">Expense Sheet</Link>
+          </Button>
         </div>
       </div>
 

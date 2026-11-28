@@ -495,6 +495,7 @@ export interface IQuery {
   maxBudget: number;
   leadQualityByCreator?: string;
   leadQualityByTeamLead?: string;
+  approvalRequired?: boolean;
   name: string;
   email: string;
   propertyShown?: number;

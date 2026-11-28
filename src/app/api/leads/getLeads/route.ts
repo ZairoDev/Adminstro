@@ -30,6 +30,11 @@ import {
 import {
   applyQuickPropertyFiltersToQuery,
 } from "@/util/leadFilterUtils";
+import {
+  getReleasedLeadFilter,
+  mergeReleasedLeadFilter,
+  salesBoardHidesUnapprovedLeads,
+} from "@/lib/leads/leadApprovalGate";
 
 connectDb();
 
@@ -292,6 +297,11 @@ export async function POST(req: NextRequest) {
       token,
       employeeContext.rentalType,
     );
+
+    if (salesBoardHidesUnapprovedLeads(String(role ?? ""))) {
+      const releasedFilter = await getReleasedLeadFilter();
+      query = mergeReleasedLeadFilter(query, releasedFilter);
+    }
 
     const result = await LeadQueryService.list({
       matchQuery: query,

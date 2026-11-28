@@ -9,6 +9,7 @@ import {
   applyGuestPropertyTypeAllowListToLeadQuery,
   isPropertyTypeRuleBypassRole,
 } from "@/util/propertyTypeAllowList";
+import { getReleasedLeadFilter } from "@/lib/leads/leadApprovalGate";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -52,7 +53,9 @@ export async function GET(req: NextRequest) {
     if (propertyTypeResult.impossible) {
       return NextResponse.json({ success: true, statusSummary: emptySummary });
     }
+    const releasedFilter = await getReleasedLeadFilter();
     const statusPipeline = [
+  ...(releasedFilter ? [{ $match: releasedFilter }] : []),
   ...(Object.keys(propertyTypeQuery).length > 0
     ? [{ $match: propertyTypeQuery }]
     : []),

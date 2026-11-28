@@ -1,11 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import Query from "@/models/query";
 import { connectDb } from "@/util/db";
+import { getDataFromToken } from "@/util/getDataFromToken";
 
 connectDb();
 
-export async function POST(req: Request) {
+const REVIEW_ROLES = new Set(["LeadGen-TeamLead", "SuperAdmin"]);
+
+export async function POST(req: NextRequest) {
   try {
+    const token = await getDataFromToken(req);
+    const role = String(token.role || "");
+    if (!REVIEW_ROLES.has(role)) {
+      return NextResponse.json(
+        { success: false, message: "Forbidden" },
+        { status: 403 },
+      );
+    }
+
     const { id, leadQualityByTeamLead } = await req.json();
     if (!id || !leadQualityByTeamLead) {
       return NextResponse.json(
@@ -33,7 +45,14 @@ export async function POST(req: Request) {
       );
     }
     return NextResponse.json({ success: true, data: updatedQuery }, { status: 200 });
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as { status?: number; code?: string };
+    if (err?.status === 401 || err?.code) {
+      return NextResponse.json(
+        { success: false, code: err.code || "AUTH_FAILED" },
+        { status: err.status || 401 },
+      );
+    }
     console.error(error);
     return NextResponse.json({ success: false, error: "Server error" }, { status: 500 });
   }

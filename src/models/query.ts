@@ -119,6 +119,11 @@ const querySchema = new Schema(
       type: String,
       enum: ["Approved", "Not Approved"],
     },
+    /** Stamped at create time when the lead's city had requireLeadApproval on. */
+    approvalRequired: {
+      type: Boolean,
+      default: false,
+    },
     rejectionReason: {
       type: String,
       enum: [

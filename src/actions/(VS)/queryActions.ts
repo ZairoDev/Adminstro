@@ -23,6 +23,10 @@ import Users from "@/models/user";
 import HolidayUsers from "@/models/holidayUsers";
 import { getDayBounds } from "@/lib/date/dayKey";
 import { buildMaxBudgetCondition } from "@/util/pricingRule";
+import {
+  getReleasedLeadFilter,
+  mergeReleasedLeadFilter,
+} from "@/lib/leads/leadApprovalGate";
 
 connectDb();
 
@@ -379,9 +383,14 @@ export const getLeadsCandleAnalytics = async (filters: LeadsCandleFilters) => {
     match.maxBudget = maxBudgetCondition;
   }
 
+  const candleMatch = mergeReleasedLeadFilter(
+    match,
+    await getReleasedLeadFilter(),
+  );
+
   // Location options for the filter must not shrink when locations are
   // selected, so derive them from the same match minus the location filter.
-  const locationOptionMatch = { ...match };
+  const locationOptionMatch = { ...candleMatch };
   delete locationOptionMatch.location;
   const locationOptions = (
     await Query.distinct("location", locationOptionMatch)
@@ -394,7 +403,7 @@ export const getLeadsCandleAnalytics = async (filters: LeadsCandleFilters) => {
     _id: { day: string; location: string; typeOfProperty: string | null };
     count: number;
   }> = await Query.aggregate([
-    { $match: match },
+    { $match: candleMatch },
     {
       $project: {
         day: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
@@ -568,9 +577,14 @@ export const getLeadsGroupCount = async ({
     filters.createdBy = createdBy;
   }
 
+  const groupMatch = mergeReleasedLeadFilter(
+    filters,
+    await getReleasedLeadFilter(),
+  );
+
   const pipeline = [
     {
-      $match: filters,
+      $match: groupMatch,
     },
     {
       $group: {
@@ -1010,12 +1024,15 @@ export const getTodayLeads = async (dateKey?: string) => {
 
   const pipeline: PipelineStage[] = [
     {
-      $match: {
-        createdAt: {
-          $gte: start,
-          $lte: end,
+      $match: mergeReleasedLeadFilter(
+        {
+          createdAt: {
+            $gte: start,
+            $lte: end,
+          },
         },
-      },
+        await getReleasedLeadFilter(),
+      ),
     },
     {
       $group: {
@@ -1213,7 +1230,11 @@ export const getLocationLeadStats = async (selectedMonth?: Date) => {
     ];
   }
 
-  const queryAgg = await Query.aggregate([{ $facet: facet }]);
+  const locationLeadMatch = await getReleasedLeadFilter();
+  const queryAgg = await Query.aggregate([
+    ...(locationLeadMatch ? [{ $match: locationLeadMatch }] : []),
+    { $facet: facet },
+  ]);
 
   const monthMap = Object.fromEntries(
     queryAgg[0].month.map((d: any) => [d._id, d.monthCount])
@@ -3565,6 +3586,11 @@ export const getReviews = async ({
     filters.createdBy = { $regex: new RegExp(`^${createdBy}$`, "i") };
   }
 
+  const reviewMatch = mergeReleasedLeadFilter(
+    filters,
+    await getReleasedLeadFilter(),
+  );
+
   type ReviewBucket = { _id: string | null; count: number };
   type NotReviewedBreakdownItem = {
     messageStatus: string;
@@ -3575,7 +3601,7 @@ export const getReviews = async ({
 
   const pipeline: any[] = [
     {
-      $match: filters,
+      $match: reviewMatch,
     },
     {
       $group: {
@@ -3595,7 +3621,7 @@ export const getReviews = async ({
   const notReviewedPipeline: any[] = [
     {
       $match: {
-        ...filters,
+        ...reviewMatch,
         leadQualityByReviewer: null,
       },
     },

@@ -13,6 +13,10 @@ import {
 } from "@/util/propertyTypeAllowList";
 import { COMPARE_DAILY_PROJECTION } from "@/lib/leads/compareLeadFields";
 import { buildCreatedAtRangeQuery } from "@/lib/leads/istDateRange";
+import {
+  getReleasedLeadFilter,
+  mergeReleasedLeadFilter,
+} from "@/lib/leads/leadApprovalGate";
 
 connectDb();
 export const dynamic = "force-dynamic";
@@ -82,8 +86,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ data: [], totalQueries: 0, groupedStats: [] });
     }
 
+    const gatedQuery = mergeReleasedLeadFilter(
+      scopedQuery as Record<string, unknown>,
+      await getReleasedLeadFilter(),
+    );
+
     const [facetResult] = await Query.aggregate([
-      { $match: scopedQuery },
+      { $match: gatedQuery },
       {
         $facet: {
           leads: [

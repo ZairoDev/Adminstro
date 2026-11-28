@@ -67,6 +67,7 @@ interface CityData {
   state?: string;
   city: string;
   isActive?: boolean;
+  requireLeadApproval?: boolean;
   leads?: number;
   visits?: number;
   sales?: number;
@@ -257,6 +258,15 @@ export default function TargetPage() {
     }
   };
 
+  const handleToggleLeadApproval = async (targetId: string) => {
+    try {
+      await axios.put(`/api/addons/target/toggle-lead-approval/${targetId}`);
+      getTargets();
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   const handleDeleteArea = async (areaName: string) => {
     try {
       await axios.delete(`/api/addons/target/deleteArea`,{
@@ -407,6 +417,27 @@ export default function TargetPage() {
                               {c.state}
                             </span>
                           )}
+                          <button
+                            type="button"
+                            className="ml-auto inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (c._id) handleToggleLeadApproval(c._id);
+                            }}
+                            title={
+                              c.requireLeadApproval
+                                ? "Allow approval is on. New leads stay with the lead-gen team lead until approved."
+                                : "Allow approval is off. New leads go straight to sales."
+                            }
+                          >
+                            Allow approval
+                            {c.requireLeadApproval ? (
+                              <ToggleRight className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <ToggleLeft className="h-4 w-4" />
+                            )}
+                          </button>
                           <button
                             className="ml-auto"
                             onClick={(e) => {

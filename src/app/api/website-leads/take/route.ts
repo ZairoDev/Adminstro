@@ -11,6 +11,7 @@ import { connectDb } from "@/util/db";
 import { getDataFromToken } from "@/util/getDataFromToken";
 import { parseAssignedAreasFromToken } from "@/util/guestLeadLocationScope";
 import type { NotesInterface } from "@/util/type";
+import { locationRequiresLeadApproval } from "@/lib/leads/leadApprovalGate";
 
 connectDb();
 export const dynamic = "force-dynamic";
@@ -395,6 +396,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     }
 
+    const approvalRequired = await locationRequiresLeadApproval(location);
+
     const newQuery = await Query.create({
       name: body.name.trim(),
       email: (body.email || "-").trim() || "-",
@@ -417,7 +420,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       priority: body.priority,
       BoostID: body.BoostID || "",
       leadQualityByCreator: body.leadQualityByCreator,
-      leadQualityByTeamLead: "Approved",
+      ...(approvalRequired
+        ? { approvalRequired: true }
+        : { leadQualityByTeamLead: "Approved" as const }),
       createdBy: email,
       leadStatus: "fresh",
       messageStatus: "None",

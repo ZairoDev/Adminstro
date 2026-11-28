@@ -17,6 +17,7 @@ import { findOrCreateConversationWithSnapshot } from "@/lib/whatsapp/conversatio
 import { normalizePhone } from "@/lib/whatsapp/normalizePhone";
 import { getActiveChannelByPhoneNumberId } from "@/lib/whatsapp/channelService";
 import { sanitizeLeadDocumentsForSave } from "@/util/leadDocuments";
+import { locationRequiresLeadApproval } from "@/lib/leads/leadApprovalGate";
 
 connectDb();
 
@@ -245,6 +246,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const approvalRequired = await locationRequiresLeadApproval(
+      String(location || ""),
+    );
+
     // ✅ Create new lead
     const newQuery = await Query.create({
       name,
@@ -274,6 +279,7 @@ export async function POST(req: NextRequest) {
       leadDocuments: sanitizeLeadDocumentsForSave(leadDocuments),
       createdBy: String(token.email || "").toLowerCase(),
       leadStatus: "fresh",
+      ...(approvalRequired ? { approvalRequired: true } : {}),
     });
 
     if (token.email === "abhaytripathi6969@gmail.com") {

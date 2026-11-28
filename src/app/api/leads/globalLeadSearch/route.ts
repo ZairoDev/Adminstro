@@ -7,6 +7,11 @@ import {
   isPropertyTypeRuleBypassRole,
   resolveGuestTypeAllowList,
 } from "@/util/propertyTypeAllowList";
+import {
+  getApprovalRequiredCityKeys,
+  isHeldLead,
+  salesBoardHidesUnapprovedLeads,
+} from "@/lib/leads/leadApprovalGate";
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,6 +28,8 @@ export async function POST(req: NextRequest) {
     const lead = await Query.findOne({ phoneNo: { $regex: phoneNo, $options: "i" } }).lean<{
       typeOfProperty?: string;
       location?: string;
+      approvalRequired?: boolean;
+      leadQualityByTeamLead?: string | null;
     } | null>();
 
     if (!lead) {
@@ -30,6 +37,12 @@ export async function POST(req: NextRequest) {
     }
 
     const role = String((token as { role?: string }).role || "");
+    if (salesBoardHidesUnapprovedLeads(role)) {
+      const cityKeys = await getApprovalRequiredCityKeys();
+      if (isHeldLead(lead, cityKeys)) {
+        return NextResponse.json(null);
+      }
+    }
     if (!isPropertyTypeRuleBypassRole(role)) {
       const employeeId = String((token as { id?: string }).id || "");
       const employeeContext = await loadEmployeeLeadContext(

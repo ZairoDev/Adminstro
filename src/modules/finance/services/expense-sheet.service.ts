@@ -1,8 +1,10 @@
 import mongoose from "mongoose";
 import { istDateKey } from "@/modules/attendance/dates";
+import PayrollAdjustment from "@/models/payrollAdjustment";
 import {
   amountForMonth,
   baseAmountForMonth,
+  buildExpenseRegister,
   changeFromPrevious,
   compareMonthKeys,
   previousMonthKey,
@@ -11,10 +13,18 @@ import {
   roundRupees,
   summarizeExpenses,
   type ExpenseLine,
+  type ExpenseRegister,
+  type ExpenseRegisterSalary,
   type ExpenseTotals,
   type MonthChange,
   type SalaryExpense,
 } from "@/modules/finance/expense-sheet";
+import {
+  EMPTY_PAYROLL_ADJUSTMENTS,
+  salarySheetMoney,
+  type PayrollAdjustments,
+} from "@/modules/finance/salary-sheet";
+import { listEmployeeSalaries } from "@/modules/finance/services/salary.service";
 import {
   Expense,
   RecurringExpense,
@@ -27,6 +37,7 @@ import type {
   CopyPreviousBody,
   CreateExpenseBody,
   CreateRecurringExpenseBody,
+  ExpenseGridQuery,
   ExpenseSheetQuery,
   RecurringMonthBody,
   UpdateExpenseBody,
@@ -41,7 +52,6 @@ import {
   payrollMonthLabel,
   type PayrollMonth,
 } from "@/modules/finance/salary-month";
-import { listEmployeeSalaries } from "@/modules/finance/services/salary.service";
 
 export class ExpenseError extends Error {
   readonly status: number;
@@ -271,6 +281,68 @@ export async function getExpenseSheet(query: ExpenseSheetQuery): Promise<Expense
     change: previousTotal === null ? null : changeFromPrevious(totals.total, previousTotal),
     previousOneOffCount,
   };
+}
+
+function adjustmentsFrom(stored: Partial<PayrollAdjustments> | null | undefined): PayrollAdjustments {
+  return {
+    pf: stored?.pf ?? 0,
+    incentive: stored?.incentive ?? 0,
+    casual: stored?.casual ?? 0,
+    cash: stored?.cash ?? 0,
+    advance: stored?.advance ?? 0,
+    hold: stored?.hold ?? 0,
+  };
+}
+
+/** Every salary made for the month, with the tax breakup, plus the other expenses. */
+export async function getExpenseGrid(query: ExpenseGridQuery): Promise<ExpenseRegister> {
+  const month = resolveMonth(query.month);
+  const [listed, recurring, oneOff] = await Promise.all([
+    listEmployeeSalaries({ search: "", role: "all", month: month.key }),
+    recurringLinesForMonth(month.key),
+    oneOffLinesForMonth(month.key),
+  ]);
+  const ids = listed.employees.map((employee) => employee.id);
+  const storedAdjustments =
+    ids.length === 0
+      ? []
+      : await PayrollAdjustment.find({ employeeId: { $in: ids }, monthKey: month.key })
+          .select("employeeId pf incentive casual cash advance hold")
+          .lean<Array<{ employeeId: string } & Partial<PayrollAdjustments>>>();
+  const adjustmentByEmployee = new Map(
+    storedAdjustments.map((stored) => [stored.employeeId, adjustmentsFrom(stored)]),
+  );
+
+  const salaries: ExpenseRegisterSalary[] = listed.employees.map((employee) => {
+    const money = salarySheetMoney(
+      employee.monthlySalary,
+      employee.pay,
+      adjustmentByEmployee.get(employee.id) ?? EMPTY_PAYROLL_ADJUSTMENTS,
+    );
+    return {
+      id: employee.id,
+      name: employee.name,
+      employeeCode: employee.employeeCode,
+      role: employee.role,
+      basic: money.basic,
+      hra: money.hra,
+      conveyance: money.conveyance,
+      medical: money.medical,
+      specialAllowance: money.specialAllowance,
+      gross: money.gross,
+      pf: money.pf,
+      additions: roundRupees(money.incentive + money.casual),
+      deductions: roundRupees(money.cash + money.advance + money.hold),
+      amount: money.amount,
+    };
+  });
+
+  return buildExpenseRegister({
+    month: month.key,
+    monthLabel: payrollMonthLabel(month),
+    salaries,
+    lines: [...recurring, ...oneOff],
+  });
 }
 
 /* One-off expenses */

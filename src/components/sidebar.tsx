@@ -38,6 +38,7 @@ import {
   CircleCheckBig,
   FileSpreadsheet,
   Table2,
+  Grid3x3,
   HandCoins,
   LayoutDashboard,
   SlidersHorizontal,
@@ -524,9 +525,14 @@ const roleRoutes: Record<string, Route[]> = {
       Icon: <Table2 size={18} />,
     },
     {
+      path: "/dashboard/finance/expense-tracker",
+      label: "Expense Tracker",
+      Icon: <HandCoins size={18} />,
+    },
+    {
       path: "/dashboard/finance/expense-sheet",
       label: "Expense Sheet",
-      Icon: <HandCoins size={18} />,
+      Icon: <Grid3x3 size={18} />,
     },
     {
       path: "/dashboard/aliases",
@@ -1467,9 +1473,14 @@ const financeManagementRoutes = [
     Icon: <Table2 size={18} />,
   },
   {
+    path: "/dashboard/finance/expense-tracker",
+    label: "Expense Tracker",
+    Icon: <HandCoins size={18} />,
+  },
+  {
     path: "/dashboard/finance/expense-sheet",
     label: "Expense Sheet",
-    Icon: <HandCoins size={18} />,
+    Icon: <Grid3x3 size={18} />,
   },
 ];
 const ownerManagementRoutes = [

@@ -227,6 +227,229 @@ function csvCell(value: string | number): string {
   return text;
 }
 
+/** One person's salary for the month, split the way the salary sheet pays it. */
+export type ExpenseRegisterSalary = {
+  id: string;
+  name: string;
+  employeeCode: string | null;
+  role: string;
+  basic: number;
+  hra: number;
+  conveyance: number;
+  medical: number;
+  specialAllowance: number;
+  gross: number;
+  pf: number;
+  /** Incentive and casual added on top of gross. */
+  additions: number;
+  /** Cash, advance, and hold taken off before release. */
+  deductions: number;
+  /** What is left to pay: gross − PF + additions − deductions. */
+  amount: number;
+};
+
+export type ExpenseRegisterLine = {
+  id: string;
+  title: string;
+  category: string;
+  kind: string;
+  vendor: string;
+  amount: number;
+  status: "paid" | "pending" | "skipped";
+  paidOn: string | null;
+  invoiceUrl: string | null;
+  invoiceName: string | null;
+};
+
+export type ExpenseRegisterTotals = {
+  basic: number;
+  hra: number;
+  conveyance: number;
+  medical: number;
+  specialAllowance: number;
+  gross: number;
+  pf: number;
+  additions: number;
+  deductions: number;
+  salaries: number;
+  expenses: number;
+  paid: number;
+  pending: number;
+  grandTotal: number;
+};
+
+export type ExpenseRegister = {
+  month: string;
+  monthLabel: string;
+  salaries: ExpenseRegisterSalary[];
+  expenses: ExpenseRegisterLine[];
+  totals: ExpenseRegisterTotals;
+};
+
+const SALARY_SUM_KEYS = [
+  "basic",
+  "hra",
+  "conveyance",
+  "medical",
+  "specialAllowance",
+  "gross",
+  "pf",
+  "additions",
+  "deductions",
+  "amount",
+] as const;
+
+/** Monthly tax sheet: every salary that was made, then the other expenses for that month. */
+export function buildExpenseRegister(input: {
+  month: string;
+  monthLabel: string;
+  salaries: ExpenseRegisterSalary[];
+  lines: ExpenseLine[];
+}): ExpenseRegister {
+  const salaries = [...input.salaries].sort((left, right) => left.name.localeCompare(right.name));
+  const expenses: ExpenseRegisterLine[] = input.lines.map((line) => ({
+    id: `${line.source}:${line.id}`,
+    title: line.title,
+    category: line.category,
+    kind: line.source === "recurring" && line.frequency ? FREQUENCY_LABELS[line.frequency] : "One-off",
+    vendor: line.vendor,
+    amount: line.amount,
+    status: line.skipped ? "skipped" : line.status,
+    paidOn: line.paidOn,
+    invoiceUrl: line.invoiceUrl,
+    invoiceName: line.invoiceName,
+  }));
+
+  const sums = Object.fromEntries(SALARY_SUM_KEYS.map((key) => [key, 0])) as Record<
+    (typeof SALARY_SUM_KEYS)[number],
+    number
+  >;
+  for (const salary of salaries) {
+    for (const key of SALARY_SUM_KEYS) sums[key] += salary[key];
+  }
+
+  let expensesTotal = 0;
+  let paid = 0;
+  let pending = 0;
+  for (const expense of expenses) {
+    if (expense.status === "skipped") continue;
+    expensesTotal += expense.amount;
+    if (expense.status === "paid") paid += expense.amount;
+    else pending += expense.amount;
+  }
+
+  const salariesTotal = roundRupees(sums.amount);
+  const countedExpenses = roundRupees(expensesTotal);
+
+  return {
+    month: input.month,
+    monthLabel: input.monthLabel,
+    salaries,
+    expenses,
+    totals: {
+      basic: roundRupees(sums.basic),
+      hra: roundRupees(sums.hra),
+      conveyance: roundRupees(sums.conveyance),
+      medical: roundRupees(sums.medical),
+      specialAllowance: roundRupees(sums.specialAllowance),
+      gross: roundRupees(sums.gross),
+      pf: roundRupees(sums.pf),
+      additions: roundRupees(sums.additions),
+      deductions: roundRupees(sums.deductions),
+      salaries: salariesTotal,
+      expenses: countedExpenses,
+      paid: roundRupees(paid),
+      pending: roundRupees(pending),
+      grandTotal: roundRupees(salariesTotal + countedExpenses),
+    },
+  };
+}
+
+export function expenseRegisterCsv(register: ExpenseRegister): string {
+  const headers = [
+    "Section",
+    "Particulars",
+    "Code or vendor",
+    "Head",
+    "Category",
+    "Basic",
+    "HRA",
+    "Conveyance",
+    "Medical",
+    "Special allowance",
+    "Gross",
+    "PF",
+    "Additions",
+    "Deductions",
+    "Amount",
+    "Status",
+    "Paid on",
+    "Invoice",
+  ];
+  const salaryRows = register.salaries.map((salary) => [
+    "Salary",
+    salary.name,
+    salary.employeeCode ?? "",
+    salary.role,
+    SALARIES_CATEGORY,
+    salary.basic,
+    salary.hra,
+    salary.conveyance,
+    salary.medical,
+    salary.specialAllowance,
+    salary.gross,
+    salary.pf,
+    salary.additions,
+    salary.deductions,
+    salary.amount,
+    "Made",
+    "",
+    "",
+  ]);
+  const expenseRows = register.expenses.map((expense) => [
+    "Expense",
+    expense.title,
+    expense.vendor,
+    expense.kind,
+    expense.category,
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    expense.status === "skipped" ? 0 : expense.amount,
+    expense.status,
+    expense.paidOn ? expense.paidOn.slice(0, 10) : "",
+    expense.invoiceUrl ?? "",
+  ]);
+  const totals = register.totals;
+  const footer = [
+    "Total",
+    register.monthLabel,
+    "",
+    "",
+    "",
+    totals.basic,
+    totals.hra,
+    totals.conveyance,
+    totals.medical,
+    totals.specialAllowance,
+    totals.gross,
+    totals.pf,
+    totals.additions,
+    totals.deductions,
+    totals.grandTotal,
+    "",
+    "",
+    "",
+  ];
+  return [headers, ...salaryRows, ...expenseRows, footer].map((record) => record.map(csvCell).join(",")).join("\n");
+}
+
 export function expenseSheetCsv(input: {
   monthLabel: string;
   salary: SalaryExpense;

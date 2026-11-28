@@ -1,7 +1,9 @@
 import {
   amountForMonth,
   baseAmountForMonth,
+  buildExpenseRegister,
   changeFromPrevious,
+  expenseRegisterCsv,
   expenseSheetCsv,
   filterExpenseLines,
   previousMonthKey,
@@ -143,6 +145,67 @@ describe("filterExpenseLines", () => {
     expect(filterExpenseLines(lines, { search: "landlord", category: "all", status: "all" })).toHaveLength(1);
     expect(filterExpenseLines(lines, { search: "", category: "Software", status: "all" })).toHaveLength(1);
     expect(filterExpenseLines(lines, { search: "", category: "all", status: "paid" })[0]?.id).toBe("2");
+  });
+});
+
+describe("buildExpenseRegister", () => {
+  it("lists every salary and leaves skipped expenses out of the month total", () => {
+    const register = buildExpenseRegister({
+      month: "2026-11",
+      monthLabel: "November 2026",
+      salaries: [
+        {
+          id: "b",
+          name: "Bina",
+          employeeCode: "E2",
+          role: "Sales",
+          basic: 500,
+          hra: 200,
+          conveyance: 40,
+          medical: 20,
+          specialAllowance: 240,
+          gross: 1000,
+          pf: 100,
+          additions: 50,
+          deductions: 0,
+          amount: 950,
+        },
+        {
+          id: "a",
+          name: "Asha",
+          employeeCode: null,
+          role: "HR",
+          basic: 250,
+          hra: 100,
+          conveyance: 20,
+          medical: 10,
+          specialAllowance: 120,
+          gross: 500,
+          pf: 0,
+          additions: 0,
+          deductions: 0,
+          amount: 500,
+        },
+      ],
+      lines: [
+        line({ id: "rent", source: "recurring", title: "Rent", frequency: "monthly", amount: 800, status: "paid" }),
+        line({ id: "ads", title: "Ads", amount: 80, skipped: true }),
+      ],
+    });
+
+    expect(register.salaries.map((salary) => salary.name)).toEqual(["Asha", "Bina"]);
+    expect(register.expenses[1]?.status).toBe("skipped");
+    expect(register.totals.salaries).toBe(1450);
+    expect(register.totals.expenses).toBe(800);
+    expect(register.totals.paid).toBe(800);
+    expect(register.totals.pending).toBe(0);
+    expect(register.totals.grandTotal).toBe(2250);
+
+    const csv = expenseRegisterCsv(register);
+    expect(csv.split("\n")[0]).toContain("Basic,HRA");
+    expect(csv).toContain("Asha");
+    expect(csv).toContain("Made");
+    expect(csv).toContain("skipped");
   });
 });
 

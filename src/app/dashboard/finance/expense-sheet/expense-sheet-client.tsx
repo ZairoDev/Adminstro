@@ -137,7 +137,7 @@ export default function ExpenseSheetClient() {
     void load();
   }, [load, queryKey]);
 
-  const goToMonth = (key: string) => router.push(`/dashboard/finance/expense-sheet?month=${key}`);
+  const goToMonth = (key: string) => router.push(`/dashboard/finance/expense-tracker?month=${key}`);
 
   /** Runs a change, then reloads the sheet so totals stay correct. */
   const mutate = async (id: string | null, run: () => Promise<void>) => {
@@ -237,7 +237,7 @@ export default function ExpenseSheetClient() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `expense-sheet-${sheet.month}.csv`;
+    link.download = `expense-tracker-${sheet.month}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -261,12 +261,17 @@ export default function ExpenseSheetClient() {
       <div className={sheetToolbarClass}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <Heading
-            heading="Expense sheet"
-            subheading={`Everything the company spends in ${monthLabel}: salaries, fixed recurring costs, and one-off expenses.`}
+            heading="Expense tracker"
+            subheading={`Add expenses for ${monthLabel}, mark them paid, and skip a month. The expense sheet shows the whole year.`}
           />
-          <Button asChild variant="outline" size="sm" className="h-10 cursor-pointer">
-            <Link href="/dashboard/finance">Overview</Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm" className="h-10 cursor-pointer">
+              <Link href={`/dashboard/finance/expense-sheet?month=${month.key}`}>Expense sheet</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="h-10 cursor-pointer">
+              <Link href="/dashboard/finance">Overview</Link>
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/40 px-3 py-3">

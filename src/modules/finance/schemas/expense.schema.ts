@@ -38,6 +38,12 @@ export const expenseSheetQuerySchema = z.object({
 
 export type ExpenseSheetQuery = z.infer<typeof expenseSheetQuerySchema>;
 
+export const expenseGridQuerySchema = z.object({
+  month: monthKey.optional(),
+});
+
+export type ExpenseGridQuery = z.infer<typeof expenseGridQuerySchema>;
+
 export const createExpenseBodySchema = z.object({
   month: monthKey,
   title,
